@@ -1,0 +1,68 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
+[application]
+
+config/name="MMUCS"
+config/version="0.1.0"
+run/main_scene="uid://ce55h4hcoqn0q"
+config/features=PackedStringArray("4.6", "C#", "GL Compatibility")
+run/low_processor_mode=true
+boot_splash/bg_color=Color(0, 0, 0, 1)
+boot_splash/show_image=false
+boot_splash/stretch_mode=0
+boot_splash/use_filter=false
+config/icon="uid://ddf5al7cvwuj2"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/mode=2
+window/size/window_width_override=1920
+window/size/window_height_override=1080
+window/frame_pacing/android/enable_frame_pacing=false
+window/stretch/mode="viewport"
+window/stretch/aspect="expand"
+window/vsync/vsync_mode=0
+
+[dotnet]
+
+project/assembly_name="MMUCS"
+
+[gui]
+
+theme/default_theme_scale=1.5
+theme/custom="uid://cw71dfiy4lc66"
+
+[physics]
+
+2d/physics_engine="Dummy"
+3d/physics_engine="Dummy"
+
+[rendering]
+
+occlusion_culling/bvh_build_quality=0
+occlusion_culling/jitter_projection=false
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+driver/depth_prepass/enable=false
+viewport/hdr_2d=true
+anti_aliasing/screen_space_roughness_limiter/enabled=false
+environment/defaults/default_clear_color=Color(0.07082722, 0.07082721, 0.07082722, 1)
+2d/snap/snap_2d_transforms_to_pixel=true
+
+[threading]
+
+worker_pool/max_threads=1
