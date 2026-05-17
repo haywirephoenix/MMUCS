@@ -1,0 +1,8 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://dg42w3bb5qow4"]
+
+[ext_resource type="Shader" uid="uid://bdma8h4a8ctsw" path="res://shaders/akos_SDF.gdshader" id="1_cpdsh"]
+
+[resource]
+shader = ExtResource("1_cpdsh")
+shader_parameter/use_sdf_scaling = true
+shader_parameter/smoothness = 0.01

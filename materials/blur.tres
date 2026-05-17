@@ -1,0 +1,10 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://d0qm6uvo47dxm"]
+
+[ext_resource type="Shader" uid="uid://cufo7an5t7aop" path="res://shaders/blur_reveal.gdshader" id="1_nrgi3"]
+[ext_resource type="Texture2D" uid="uid://57we6xnbhmr6" path="res://wallpapers/blurred/fractal1_blurred.png" id="2_6b8xf"]
+
+[resource]
+shader = ExtResource("1_nrgi3")
+shader_parameter/blurred_wallpaper = ExtResource("2_6b8xf")
+shader_parameter/tint = Color(1, 1, 1, 0.02745098)
+shader_parameter/glass_enabled = true

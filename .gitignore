@@ -1,0 +1,71 @@
+# ==========================================
+# Godot 4 Specific
+# ==========================================
+.godot/
+.import/
+export.cfg
+export_credentials.cfg
+*.tmp
+*.translation
+
+# Android/Mobile
+/android/
+.nomedia
+
+# ==========================================
+# C# / .NET / Mono Specific
+# ==========================================
+bin/
+obj/
+
+# MSBuild and local user settings
+.msbuild/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Backup and crash logs
+mono_crash.*.json
+
+# ==========================================
+# IDEs and Editors
+# ==========================================
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Visual Studio Code
+.vscode/
+
+# Visual Studio
+.vs/
+
+# Automated local overrides
+.godot.local
+
+# ==========================================
+# OS Garbage
+# ==========================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.nfs*
+
+# Backup and old project files
+*.old
