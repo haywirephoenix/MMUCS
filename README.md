@@ -75,7 +75,7 @@ Download the latest release here :
 4.  The `ScummResourceParser` will begin indexing the file, and the `BlockHierarchyPanel` will populate with detected data segments.
 
 ### Visualizing
-1.  Within the `BlockHierarchyPanel`, locate an AKOS animation block. You can navigate with the keyboard or mouse.
+1.  Within the `BlockHierarchyPanel`, browse through the tree. You can navigate with the keyboard or mouse.
 2.  When an `LFLF` or `ROOM` block is selected, the `RoomPreviewPanel` will automatically populate.
 3. Inside an `LFLF` block, you will often find `AKOS` blocks. Selecting one of those will automatically populate the `AkosViewerPanel` where you can cycle through the cels.
 
