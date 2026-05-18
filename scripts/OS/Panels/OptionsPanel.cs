@@ -101,7 +101,18 @@ public partial class OptionsPanel : FloatingPanel
     private static readonly NodePath PathAnimToggle = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/AnimToggle";
     private static readonly NodePath PathWallpaperGrid = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid";
     private static readonly NodePath PathWallpapersGridOuter = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter";
-
+    
+    private static readonly NodePath PathAppearanceNavButton = "Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton";
+    private static readonly NodePath PathDisplayNavButton = "Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton";
+    private static readonly NodePath PathFontsNavButton = "Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton";
+    private static readonly NodePath PathGeneralNavButton = "Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton";
+    
+    private static readonly NodePath PathAppearancePage = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage";
+    private static readonly NodePath PathDisplayPage = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage";
+    private static readonly NodePath PathFontsPage = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage";
+    private static readonly NodePath PathGeneralPage = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage";
+    
+    
     private void UpdateUIState()
     {
         glassToggle.SetPressedNoSignal(Settings.GlassEnabled);
@@ -117,9 +128,27 @@ public partial class OptionsPanel : FloatingPanel
 
     protected override void OnReady()
     {
-        UpdateUIState();
+        _navButtons =
+        [
+            GetNode<Button>(PathAppearanceNavButton),
+            GetNode<Button>(PathDisplayNavButton),
+            GetNode<Button>(PathFontsNavButton),
+            GetNode<Button>(PathGeneralNavButton)
+        ];
 
-        // Wire controls → EventBus (requests)
+        _pages =
+        [
+            GetNode<BoxContainer>(PathAppearancePage),
+            GetNode<BoxContainer>(PathDisplayPage),
+            GetNode<BoxContainer>(PathFontsPage),
+            GetNode<BoxContainer>(PathGeneralPage),
+        ];
+        
+        
+        
+        UpdateUIState();
+        
+        
         colorPicker.ColorChanged   += c   => EventBus.Instance.EmitSignal(EventBus.SignalName.WallpaperColorChangeRequested, c);
         modeOpt.ItemSelected       += i   => EventBus.Instance.EmitSignal(EventBus.SignalName.WallpaperModeChangeRequested, (int)i);
         glassToggle.Toggled        += v   => EventBus.Instance.EmitSignal(EventBus.SignalName.GlassChangeRequested, v);
@@ -128,9 +157,7 @@ public partial class OptionsPanel : FloatingPanel
         scaleSlider.DragEnded      += changed => { if (changed) EventBus.Instance.EmitSignal(EventBus.SignalName.UIScaleChangeRequested, (float)scaleSlider.Value); };
         scaleSlider.ValueChanged   += v   => scaleLabel.Text = $"{v:0.00}×";
         resOpt.ItemSelected        += OnResolutionChanged;
-
-        // Wire EventBus confirmations → UI sync
-        // These only fire when ThemeManager overrides what the user selected (e.g. auto-disabling glass)
+        
         EventBus.Instance.Connect(EventBus.SignalName.GlassStateChanged,
             Callable.From<bool>(v => glassToggle.SetPressedNoSignal(v)));
         EventBus.Instance.Connect(EventBus.SignalName.WallpaperModeApplied,

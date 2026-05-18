@@ -730,7 +730,6 @@ _roomPanel = NodePath("Canvas/Room Preview")
 _metadataPanel = NodePath("Canvas/Metadata")
 _akosPanel = NodePath("Canvas/AKOS Viewer")
 _optionsPanel = NodePath("Canvas/Options")
-metadata/_edit_pinned_properties_ = [&"_canvas", &"_menuBar", &"_statusBar", &"_blockHierarchyPanel", &"_hexPanel", &"_roomPanel", &"_metadataPanel", &"_akosPanel"]
 
 [node name="Canvas" type="Control" parent="CanvasLayer/MainCanvas" unique_id=1935967397]
 clip_contents = true
@@ -2130,8 +2129,8 @@ offset_top = 294.0
 offset_right = 1315.0
 offset_bottom = 734.0
 script = ExtResource("9_r3r3k")
-_navButtons = [NodePath("Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton"), NodePath("Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton2"), NodePath("Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton3"), NodePath("Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton4")]
-_pages = [NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage"), NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage"), NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage"), NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage")]
+_navButtons = []
+_pages = []
 colorPicker = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/ColorPickerOuter/ColorPickerRow/_ColorPickerButton_197")
 modeOpt = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpaperModeOuter/WallpaperModeRow/_OptionButton_194")
 appearanceColor = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/ColorPickerOuter")
@@ -2237,7 +2236,7 @@ theme_override_constants/separation = 2
 custom_minimum_size = Vector2(0, 12.83)
 layout_mode = 2
 
-[node name="NavButton" type="Button" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=1801428222]
+[node name="AppearanceNavButton" type="Button" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=1801428222]
 custom_minimum_size = Vector2(175, 49.1)
 layout_mode = 2
 focus_mode = 0
@@ -2251,7 +2250,7 @@ theme_override_styles/focus = SubResource("StyleBoxFlat_a7o2r")
 flat = true
 alignment = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton" unique_id=1811553525]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton" unique_id=1811553525]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.5
@@ -2262,19 +2261,19 @@ offset_right = 169.0
 offset_bottom = 20.000004
 grow_vertical = 2
 
-[node name="Icon" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton/HBoxContainer" unique_id=1764597459]
+[node name="Icon" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton/HBoxContainer" unique_id=1764597459]
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 text = "🎨"
 horizontal_alignment = 1
 
-[node name="Label" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton/HBoxContainer" unique_id=355484370]
+[node name="Label" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton/HBoxContainer" unique_id=355484370]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Appearance"
 horizontal_alignment = 1
 
-[node name="NavButton2" type="Button" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=425150216]
+[node name="DisplayNavButton" type="Button" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=425150216]
 custom_minimum_size = Vector2(175, 49.1)
 layout_mode = 2
 focus_mode = 0
@@ -2288,7 +2287,7 @@ theme_override_styles/focus = SubResource("StyleBoxFlat_yq7ej")
 flat = true
 alignment = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton2" unique_id=2005083531]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton" unique_id=2005083531]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.5
@@ -2299,19 +2298,19 @@ offset_right = 169.0
 offset_bottom = 20.000004
 grow_vertical = 2
 
-[node name="Icon" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton2/HBoxContainer" unique_id=1053112197]
+[node name="Icon" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton/HBoxContainer" unique_id=1053112197]
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 text = "🖥"
 horizontal_alignment = 1
 
-[node name="Label" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton2/HBoxContainer" unique_id=445682917]
+[node name="Label" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton/HBoxContainer" unique_id=445682917]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Display"
 horizontal_alignment = 1
 
-[node name="NavButton3" type="Button" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=2080822321]
+[node name="FontsNavButton" type="Button" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=2080822321]
 custom_minimum_size = Vector2(175, 49.1)
 layout_mode = 2
 focus_mode = 0
@@ -2325,7 +2324,7 @@ theme_override_styles/focus = SubResource("StyleBoxFlat_jv2vy")
 flat = true
 alignment = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton3" unique_id=889500416]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton" unique_id=889500416]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.5
@@ -2336,19 +2335,19 @@ offset_right = 169.0
 offset_bottom = 20.000004
 grow_vertical = 2
 
-[node name="Icon" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton3/HBoxContainer" unique_id=791087025]
+[node name="Icon" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton/HBoxContainer" unique_id=791087025]
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 text = "𝐀"
 horizontal_alignment = 1
 
-[node name="Label" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton3/HBoxContainer" unique_id=411720373]
+[node name="Label" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton/HBoxContainer" unique_id=411720373]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Fonts"
 horizontal_alignment = 1
 
-[node name="NavButton4" type="Button" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=335281146]
+[node name="GeneralNavButton" type="Button" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=335281146]
 custom_minimum_size = Vector2(175, 49.1)
 layout_mode = 2
 focus_mode = 0
@@ -2362,7 +2361,7 @@ theme_override_styles/focus = SubResource("StyleBoxFlat_366wr")
 flat = true
 alignment = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton4" unique_id=745592212]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton" unique_id=745592212]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.5
@@ -2373,13 +2372,13 @@ offset_right = 169.0
 offset_bottom = 20.000004
 grow_vertical = 2
 
-[node name="Icon" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton4/HBoxContainer" unique_id=314578689]
+[node name="Icon" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton/HBoxContainer" unique_id=314578689]
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 text = "⚙"
 horizontal_alignment = 1
 
-[node name="Label" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/NavButton4/HBoxContainer" unique_id=2023740512]
+[node name="Label" type="Label" parent="CanvasLayer/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton/HBoxContainer" unique_id=2023740512]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "General"
@@ -3143,7 +3142,7 @@ item_2/id = 2
 oversampling_override = 1.0
 position = Vector2i(0, 45)
 size = Vector2i(188, 200)
-max_size = Vector2i(810, 32768)
+max_size = Vector2i(810, 16384)
 content_scale_mode = 1
 theme_override_constants/item_start_padding = 8
 theme_override_constants/item_end_padding = 8
@@ -3177,27 +3176,15 @@ item_4/id = 4
 oversampling_override = 1.0
 position = Vector2i(0, 45)
 size = Vector2i(225, 212)
-max_size = Vector2i(810, 32768)
+max_size = Vector2i(810, 16384)
 content_scale_mode = 1
 theme_override_constants/item_start_padding = 8
 theme_override_constants/item_end_padding = 8
 theme_override_font_sizes/font_size = 15
 theme_override_styles/panel = ExtResource("7_qwhpj")
-item_count = 7
-item_0/text = "Export All Backgrounds..."
-item_0/id = 20
-item_1/text = "Export AKOS Frames..."
-item_1/id = 21
-item_2/text = "Export Font Atlas..."
-item_2/id = 22
-item_3/id = -1
-item_3/separator = true
-item_4/text = "Repack Assets..."
-item_4/id = 23
-item_5/id = -1
-item_5/separator = true
-item_6/text = "Options..."
-item_6/id = 24
+item_count = 1
+item_0/text = "Options..."
+item_0/id = 24
 
 [node name="Title" type="RichTextLabel" parent="CanvasLayer/MenuBarContainer/MenuBar" unique_id=526783803]
 layout_mode = 1
@@ -3271,7 +3258,7 @@ WallpaperFractal = ExtResource("3_r3r3k")
 WallpaperFractalBlur = ExtResource("26_8pgb7")
 WallpaperFireSkull = ExtResource("27_tilu5")
 WallpaperFireSkullBlur = ExtResource("28_24xe2")
-metadata/_edit_pinned_properties_ = [&"WallpaperTextureRect", &"WallpaperColorRect", &"WindowMaterial", &"WindowStyleBox", &"WindowShader"]
+metadata/_edit_pinned_properties_ = [&"WindowMaterial", &"WindowStyleBox", &"WindowShader"]
 
 [node name="FocusManager" type="Node" parent="." unique_id=909000900]
 script = ExtResource("21_vte5o")
