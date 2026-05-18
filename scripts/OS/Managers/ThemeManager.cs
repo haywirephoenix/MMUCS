@@ -13,6 +13,7 @@ public partial class ThemeManager : Node
     private string WallpaperBlurPath => ConfigManager.GUISettings.WallpaperBlurName;
     private Color WallpaperColor => ConfigManager.GUISettings.WallpaperColor;
     private bool GlassEnabled =>  ConfigManager.GUISettings.GlassEnabled;
+    private bool HiDPIEnabled =>  ConfigManager.GUISettings.HiDPIEnabled;
     private bool WindowAnimations =>  ConfigManager.GUISettings.WindowAnimations;
     private Color GlassTintColor => ConfigManager.GUISettings.GlassTintColor;
     private float GUIScale => ConfigManager.GUISettings.GuiScale;
@@ -93,6 +94,7 @@ public partial class ThemeManager : Node
         OnGlassEnabledChanged(GlassEnabled);
         OnWallpaperModeChanged(WallpaperMode);
         OnUIScaleChanged(GUIScale);
+        OnHiDPIEnabledChanged(HiDPIEnabled);
     }
 
 
