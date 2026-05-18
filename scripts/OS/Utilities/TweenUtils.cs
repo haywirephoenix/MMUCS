@@ -16,6 +16,13 @@ public static class TweenUtils
 
     public static void AnimateVisible(this Control ctx, bool isOpening, float delay = 0)
     {
+        if (!ConfigManager.GUISettings.WindowAnimations)
+        {
+            ctx.Visible = isOpening;
+            if(isOpening)
+                ctx.MoveToFront();
+            return;
+        }
         Vector2 originalPosition;
         
         if (ctx.HasMeta(HomePosMetaKey))
