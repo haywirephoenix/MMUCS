@@ -130,8 +130,9 @@ public partial class BlockHierarchyPanel : FloatingPanel
         TreeItem selected = _tree.GetSelected();
         if (selected == null) return;
 
-        string activeQuery = _currentQuery;
-        uint? activeTag = _currentTargetTag;
+        string activeQuery = _currentQuery; 
+        uint? activeTag = _currentTargetTag; 
+        bool isSearching = !string.IsNullOrEmpty(activeQuery) || activeTag.HasValue;
 
         switch (keyEvent.Keycode)
         {
@@ -146,27 +147,89 @@ public partial class BlockHierarchyPanel : FloatingPanel
                 break;
 
             case Key.Down:
-                var nextMatch = GetNextFilteredMatch(selected, activeQuery, activeTag);
-                _NavigateToTarget(selected, nextMatch, selected.GetNextVisible());
+                TreeItem nextMatch = GetNextFilteredMatch(selected, activeQuery, activeTag);
+            
+                TreeItem nextFallback = isSearching 
+                    ? selected.GetNextVisible() 
+                    : _GetNextFoldAwareItem(selected);
+
+                _NavigateToTarget(selected, nextMatch, nextFallback);
                 AcceptEvent();
                 break;
 
             case Key.Up:
-                var prevMatch = GetPrevFilteredMatch(selected, activeQuery, activeTag);
-                _NavigateToTarget(selected, prevMatch, selected.GetPrevVisible());
+                TreeItem prevMatch = GetPrevFilteredMatch(selected, activeQuery, activeTag);
+            
+                TreeItem prevFallback = isSearching 
+                    ? selected.GetPrevVisible() 
+                    : _GetPrevFoldAwareItem(selected);
+
+                _NavigateToTarget(selected, prevMatch, prevFallback);
                 AcceptEvent();
                 break;
         }
     }
+    
+    private TreeItem _GetNextFoldAwareItem(TreeItem item)
+    {
+        if (item == null) return null;
+
+        if (!item.Collapsed && item.GetFirstChild() != null)
+            return item.GetFirstChild();
+
+        if (item.GetNext() != null)
+            return item.GetNext();
+
+        TreeItem parent = item.GetParent();
+        while (parent != null)
+        {
+            if (parent.GetNext() != null)
+                return parent.GetNext();
+            parent = parent.GetParent();
+        }
+
+        return null;
+    }
+    
+    private TreeItem _GetPrevFoldAwareItem(TreeItem item)
+    {
+        if (item == null) return null;
+
+        TreeItem prevSibling = item.GetPrev();
+        if (prevSibling != null)
+        {
+            TreeItem lastChild = prevSibling;
+            while (!lastChild.Collapsed && lastChild.GetFirstChild() != null)
+            {
+                TreeItem child = lastChild.GetFirstChild();
+                while (child.GetNext() != null)
+                {
+                    child = child.GetNext();
+                }
+                lastChild = child;
+            }
+            return lastChild;
+        }
+
+        TreeItem parent = item.GetParent();
+        if (parent != _tree.GetRoot())
+        {
+            return parent;
+        }
+
+        return null;
+    }
 
     private TreeItem GetNextFilteredMatch(TreeItem current, string query, uint? targetTag)
     {
+        if (string.IsNullOrEmpty(query) && !targetTag.HasValue) return null;
+
         TreeItem next = _GetNextLogicalItem(current);
         while (next != null)
         {
             if (IsActualMatch(next, query, targetTag))
                 return next;
-
+        
             next = _GetNextLogicalItem(next);
         }
         return null;
@@ -174,12 +237,14 @@ public partial class BlockHierarchyPanel : FloatingPanel
 
     private TreeItem GetPrevFilteredMatch(TreeItem current, string query, uint? targetTag)
     {
+        if (string.IsNullOrEmpty(query) && !targetTag.HasValue) return null;
+
         TreeItem prev = _GetPrevLogicalItem(current);
         while (prev != null)
         {
             if (IsActualMatch(prev, query, targetTag))
                 return prev;
-
+        
             prev = _GetPrevLogicalItem(prev);
         }
         return null;
@@ -261,11 +326,26 @@ public partial class BlockHierarchyPanel : FloatingPanel
         {
             if (filteredTarget != null)
             {
-                finalTarget.UncollapseTree();
+                _RevealPathToItem(finalTarget);
             }
 
             finalTarget.Select(0);
             _tree.EnsureCursorIsVisible();
+        }
+    }
+
+    private void _RevealPathToItem(TreeItem item)
+    {
+        if (item == null) return;
+
+        TreeItem parent = item.GetParent();
+        while (parent != null)
+        {
+            if (parent.Collapsed)
+            {
+                parent.Collapsed = false;
+            }
+            parent = parent.GetParent();
         }
     }
 
