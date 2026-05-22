@@ -102,7 +102,7 @@ public partial class FloatingPanel : Control
     public override void _Ready()
     {
         //_canvas = GetParent<Control>();
-        CustomMinimumSize = MinimumPanelSize;
+        CustomMinimumSize = Size;
         PanelId = PanelTitle;
         Name = PanelTitle;
         // Size = DefaultSize;
@@ -127,7 +127,7 @@ public partial class FloatingPanel : Control
         EventBus.Instance.FileParsed += OnFileParsed;
         EventBus.Instance.PanelFocusRequested += _OnPanelFocusRequested;
 
-        CallDeferred(nameof(InitializeInBounds));
+        // CallDeferred(nameof(InitializeInBounds));
 
         CallDeferred(nameof(LoadLayout));
         
@@ -143,15 +143,11 @@ public partial class FloatingPanel : Control
     private void InitializeInBounds()
     {
         if (_canvas == null) return;
-        _canvas.ForceUpdateTransform();
+        // _canvas.ForceUpdateTransform();
 
-        if (DefaultDock != DockZone.None)
-        {
-            DockTo(DefaultDock);
-            return;
-        }
+        
 
-        Position = Position.ClampToCanvas(Size, _canvas);
+        // Position = Position.ClampToCanvas(Size, _canvas);
     }
 
 
@@ -205,6 +201,12 @@ public partial class FloatingPanel : Control
         // Config.LoadLayout(this);
         WindowManager.RegisterPanel(this);
         WindowManager.RefreshZoneLayout(_currentDock);
+        
+        if (DefaultDock != DockZone.None)
+        {
+            DockTo(DefaultDock);
+            return;
+        }
     }
     private void OnFileParsed(ScummBlock root)
     {
@@ -385,6 +387,7 @@ public partial class FloatingPanel : Control
         if (_collapsed)
         {
             _expandedHeight = Size.Y;
+            
             CustomMinimumSize = new Vector2(Size.X, 28);
             _contentRoot.Visible = false;
             _collapseButton.Text = s_expandIcon;
