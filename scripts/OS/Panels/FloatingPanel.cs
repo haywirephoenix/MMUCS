@@ -389,12 +389,15 @@ public partial class FloatingPanel : Control
             _contentRoot.Visible = false;
             _collapseButton.Text = s_expandIcon;
             _handlesContainer.Visible = false;
+            _marginContainer.Visible = false;
+            Size = new Vector2(Size.X, 28);
         }
         else
         {
             CustomMinimumSize = MinimumPanelSize;
             Size = new Vector2(Size.X, _expandedHeight);
             _contentRoot.Visible = true;
+            _marginContainer.Visible = true;
             _collapseButton.Text = s_collapseIcon;
             _handlesContainer.Visible = true;
         }
