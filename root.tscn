@@ -26,8 +26,10 @@
 [ext_resource type="Material" uid="uid://d0qm6uvo47dxm" path="res://materials/blur.tres" id="13_sq7yr"]
 [ext_resource type="Script" uid="uid://c0a8q22makisf" path="res://scripts/OS/Controls/Focusables/FocusableItemList.cs" id="13_ub8w1"]
 [ext_resource type="Material" uid="uid://dg42w3bb5qow4" path="res://materials/akos_mat.tres" id="15_po8fv"]
+[ext_resource type="StyleBox" uid="uid://b3qpjc2tfdmk5" path="res://themes/deafult/styleboxlineH.tres" id="15_udg8a"]
 [ext_resource type="Script" uid="uid://b468sw2ix4guh" path="res://scripts/OS/Controls/ScrollSafeRichTextLabel.cs" id="16_24xe2"]
 [ext_resource type="Script" uid="uid://lioesdywkjoh" path="res://scripts/OS/Controls/ZoomableViewport.cs" id="17_24xe2"]
+[ext_resource type="StyleBox" uid="uid://ciu2hp6ve5f3u" path="res://themes/deafult/styleboxlineV.tres" id="20_cr30j"]
 [ext_resource type="Script" uid="uid://dmqdghi8o7k1v" path="res://scripts/OS/Managers/FocusManager.cs" id="21_vte5o"]
 [ext_resource type="Script" uid="uid://cs8fcoa0klm7h" path="res://scripts/OS/Panels/OBIMViewerPanel.cs" id="22_tilu5"]
 [ext_resource type="Texture2D" uid="uid://57we6xnbhmr6" path="res://wallpapers/blurred/fractal1_blurred.png" id="26_8pgb7"]
@@ -56,27 +58,6 @@ fill_to = Vector2(0.5363248, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ub8w1"]
 bg_color = Color(0.09411765, 0.11764706, 0.12941177, 0.31764707)
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_sq7yr"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_uwexw"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_r3r3k"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_blcw0"]
-content_margin_right = 13.0
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_50g4q"]
-content_margin_right = 13.0
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_3dlgs"]
-content_margin_right = 13.0
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_vte5o"]
-content_margin_right = 13.0
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_po8fv"]
-content_margin_right = 13.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dfe3t"]
 bg_color = Color(0.12941177, 0.12941177, 0.14901961, 0.53333336)
@@ -883,6 +864,7 @@ offset_top = -3.0
 offset_right = 315.0
 offset_bottom = 597.0
 focus_behavior_recursive = 1
+theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("6_qw60f")
 DefaultDock = 1
 DefaultSize = Vector2(200, 600)
@@ -899,7 +881,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 mouse_behavior_recursive = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ub8w1")
+theme_override_styles/panel = ExtResource("12_3dlgs")
 
 [node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/TitleBar" unique_id=874370908]
 layout_mode = 1
@@ -943,6 +925,7 @@ text_overrun_behavior = 3
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout" unique_id=1157590658]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout" unique_id=682933772]
 layout_mode = 2
@@ -981,7 +964,9 @@ layout_mode = 2
 focus_mode = 1
 focus_behavior_recursive = 2
 theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxEmpty_sq7yr")
+theme_override_styles/normal = ExtResource("12_3dlgs")
+theme_override_styles/read_only = ExtResource("12_3dlgs")
+theme_override_styles/focus = ExtResource("12_3dlgs")
 placeholder_text = "Filter blocks..."
 select_all_on_focus = true
 
@@ -993,7 +978,13 @@ focus_mode = 1
 focus_behavior_recursive = 2
 theme_override_font_sizes/font_size = 16
 theme_override_font_sizes/title_button_font_size = 18
-theme_override_styles/panel = SubResource("StyleBoxEmpty_uwexw")
+theme_override_styles/panel = ExtResource("12_3dlgs")
+theme_override_styles/custom_button = ExtResource("12_3dlgs")
+theme_override_styles/custom_button_hover = ExtResource("12_3dlgs")
+theme_override_styles/custom_button_pressed = ExtResource("12_3dlgs")
+theme_override_styles/title_button_normal = ExtResource("12_3dlgs")
+theme_override_styles/title_button_pressed = ExtResource("12_3dlgs")
+theme_override_styles/title_button_hover = ExtResource("12_3dlgs")
 columns = 2
 column_titles_visible = true
 allow_reselect = true
@@ -1088,6 +1079,7 @@ offset_left = 323.0
 offset_top = -3.0
 offset_right = 634.69
 offset_bottom = 565.0
+theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("7_qt76e")
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Metadata" unique_id=1792388918]
@@ -1102,7 +1094,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 mouse_behavior_recursive = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ub8w1")
+theme_override_styles/panel = ExtResource("12_3dlgs")
 
 [node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/TitleBar" unique_id=1755657845]
 layout_mode = 1
@@ -1146,6 +1138,7 @@ text_overrun_behavior = 3
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Metadata/Layout" unique_id=1988112684]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout" unique_id=123097212]
 layout_mode = 2
@@ -1187,6 +1180,7 @@ autowrap_mode = 3
 
 [node name="_HSeparator_214" type="HSeparator" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=978370053]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="PropertyGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=1927527022]
 layout_mode = 2
@@ -1194,6 +1188,7 @@ columns = 2
 
 [node name="_HSeparator_216" type="HSeparator" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=310170063]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="MetaGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=2142224093]
 layout_mode = 2
@@ -1303,6 +1298,7 @@ offset_left = 324.0
 offset_top = 575.0
 offset_right = 1102.0
 offset_bottom = 1010.0
+theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("5_eji0w")
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Hex View" unique_id=1586210325]
@@ -1317,7 +1313,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 mouse_behavior_recursive = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ub8w1")
+theme_override_styles/panel = ExtResource("12_3dlgs")
 
 [node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/TitleBar" unique_id=1486072402]
 layout_mode = 1
@@ -1358,6 +1354,7 @@ text_overrun_behavior = 3
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Hex View/Layout" unique_id=2141132152]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout" unique_id=1614458420]
 layout_mode = 2
@@ -1376,6 +1373,7 @@ size_flags_vertical = 3
 [node name="MenuBar" type="MenuBar" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot" unique_id=1195182934]
 custom_minimum_size = Vector2(0, 27.915)
 layout_mode = 2
+theme_override_styles/normal = ExtResource("12_3dlgs")
 prefer_global_menu = false
 
 [node name="Edit" type="PopupMenu" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/MenuBar" unique_id=651823440]
@@ -1407,6 +1405,7 @@ text_overrun_behavior = 3
 
 [node name="_HSeparator_172" type="HSeparator" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container" unique_id=597278043]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="hbox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container" unique_id=2025741558]
 layout_mode = 2
@@ -1419,7 +1418,7 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 0
 theme_override_constants/autohide = 0
 split_offsets = PackedInt32Array(80, -100)
-drag_area_highlight_in_editor = true
+dragger_visibility = 2
 split_offset = 80
 
 [node name="offsetView" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=1349973421]
@@ -1427,7 +1426,7 @@ custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 0.0
+size_flags_stretch_ratio = 0.63
 focus_mode = 2
 focus_behavior_recursive = 1
 theme_override_fonts/mono_font = ExtResource("10_50g4q")
@@ -1451,7 +1450,9 @@ anchor_bottom = 1.0
 offset_left = -1.0
 grow_horizontal = 0
 grow_vertical = 2
+theme = ExtResource("8_blcw0")
 theme_override_constants/separation = 1
+theme_override_styles/separator = ExtResource("20_cr30j")
 
 [node name="hexView" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=2070395090]
 custom_minimum_size = Vector2(480, 0)
@@ -1483,6 +1484,7 @@ offset_left = -1.0
 grow_horizontal = 0
 grow_vertical = 2
 theme_override_constants/separation = 1
+theme_override_styles/separator = ExtResource("20_cr30j")
 
 [node name="asciiView" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=415103921]
 custom_minimum_size = Vector2(160, 0)
@@ -1596,6 +1598,7 @@ offset_left = 652.0
 offset_top = -3.0
 offset_right = 1571.0
 offset_bottom = 567.0
+theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("6_qwhpj")
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Room Preview" unique_id=585239474]
@@ -1610,7 +1613,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 mouse_behavior_recursive = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ub8w1")
+theme_override_styles/panel = ExtResource("12_3dlgs")
 
 [node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Room Preview/Layout/TitleBar" unique_id=699373542]
 layout_mode = 1
@@ -1651,6 +1654,7 @@ text_overrun_behavior = 3
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Room Preview/Layout" unique_id=507391402]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Room Preview/Layout" unique_id=1938566418]
 layout_mode = 2
@@ -1733,7 +1737,7 @@ FitOncePerGroup = false
 disable_3d = true
 transparent_bg = true
 handle_input_locally = false
-size = Vector2i(635, 466)
+size = Vector2i(625, 456)
 render_target_update_mode = 4
 
 [node name="RoomRoot" type="Node2D" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport" unique_id=1140387204]
@@ -1854,6 +1858,7 @@ offset_left = 1111.0
 offset_top = 575.0
 offset_right = 1918.0
 offset_bottom = 1010.0
+theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("8_sq7yr")
 akosShaderMaterial = ExtResource("15_po8fv")
 
@@ -1870,7 +1875,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 mouse_behavior_recursive = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ub8w1")
+theme_override_styles/panel = ExtResource("12_3dlgs")
 
 [node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/TitleBar" unique_id=988975736]
 layout_mode = 1
@@ -1910,6 +1915,7 @@ text_overrun_behavior = 3
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout" unique_id=1199205963]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout" unique_id=1019928917]
 layout_mode = 2
@@ -1932,12 +1938,13 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/side_margin = 0
 theme_override_font_sizes/font_size = 13
-theme_override_styles/panel = SubResource("StyleBoxEmpty_r3r3k")
-theme_override_styles/tab_unselected = SubResource("StyleBoxEmpty_blcw0")
-theme_override_styles/tab_hovered = SubResource("StyleBoxEmpty_50g4q")
-theme_override_styles/tab_selected = SubResource("StyleBoxEmpty_3dlgs")
-theme_override_styles/tab_disabled = SubResource("StyleBoxEmpty_vte5o")
-theme_override_styles/tab_focus = SubResource("StyleBoxEmpty_po8fv")
+theme_override_styles/panel = ExtResource("12_3dlgs")
+theme_override_styles/tabbar_background = ExtResource("12_3dlgs")
+theme_override_styles/tab_unselected = ExtResource("12_3dlgs")
+theme_override_styles/tab_hovered = ExtResource("12_3dlgs")
+theme_override_styles/tab_selected = ExtResource("12_3dlgs")
+theme_override_styles/tab_disabled = ExtResource("12_3dlgs")
+theme_override_styles/tab_focus = ExtResource("12_3dlgs")
 current_tab = 0
 
 [node name="Cels" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=995910168]
@@ -2125,7 +2132,7 @@ transparent_bg = true
 handle_input_locally = false
 snap_2d_transforms_to_pixel = true
 positional_shadow_atlas_size = 0
-size = Vector2i(429, 260)
+size = Vector2i(409, 229)
 render_target_update_mode = 4
 
 [node name="Cel Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/VBoxContainer/PreviewContainer/SubViewport" unique_id=358585209]
@@ -2183,6 +2190,15 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme = ExtResource("8_blcw0")
+theme_override_styles/panel = ExtResource("12_3dlgs")
+theme_override_styles/focus = ExtResource("12_3dlgs")
+theme_override_styles/hovered = ExtResource("12_3dlgs")
+theme_override_styles/hovered_dimmed = ExtResource("12_3dlgs")
+theme_override_styles/hovered_selected = ExtResource("12_3dlgs")
+theme_override_styles/hovered_selected_focus = ExtResource("12_3dlgs")
+theme_override_styles/selected = ExtResource("12_3dlgs")
+theme_override_styles/selected_focus = ExtResource("12_3dlgs")
 columns = 3
 column_titles_visible = true
 
@@ -2234,6 +2250,7 @@ columns = 2
 
 [node name="_HSeparator_233" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1668558074]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="Codec Title" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1589182127]
 layout_mode = 2
@@ -2248,6 +2265,7 @@ autowrap_mode = 3
 
 [node name="_HSeparator_236" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=971345321]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="BlockSummaryLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=896695228]
 layout_mode = 2
@@ -2344,6 +2362,7 @@ offset_left = 1578.0
 offset_top = -4.0
 offset_right = 1920.0
 offset_bottom = 567.0
+theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("22_tilu5")
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/OBIM Viewer" unique_id=463094902]
@@ -2359,7 +2378,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 mouse_behavior_recursive = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ub8w1")
+theme_override_styles/panel = ExtResource("12_3dlgs")
 
 [node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/TitleBar" unique_id=1401430358]
 layout_mode = 1
@@ -2402,6 +2421,7 @@ text_overrun_behavior = 3
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout" unique_id=934486190]
 layout_mode = 2
+theme_override_styles/separator = ExtResource("15_udg8a")
 
 [node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout" unique_id=1646695010]
 layout_mode = 2
@@ -2445,7 +2465,7 @@ transparent_bg = true
 handle_input_locally = false
 snap_2d_transforms_to_pixel = true
 positional_shadow_atlas_size = 0
-size = Vector2i(316, 461)
+size = Vector2i(306, 451)
 render_target_update_mode = 4
 
 [node name="Object Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview/SubViewport" unique_id=609620734]
@@ -2565,6 +2585,7 @@ offset_left = 655.0
 offset_top = 294.0
 offset_right = 1315.0
 offset_bottom = 734.0
+theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("9_r3r3k")
 _navButtons = []
 _pages = []
