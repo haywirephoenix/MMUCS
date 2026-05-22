@@ -66,8 +66,8 @@ public readonly struct AppSettings
         mainFontPath:     "res://fonts/Roboto-Regular.ttf"
     );
 
-    public Font LoadFont() =>
-        ResourceLoader.Exists(MainFontPath)
-            ? ResourceLoader.Load<Font>(MainFontPath)
-            : Consts.GetRobotoFont();
+    // public Font LoadFont() =>
+    //     ResourceLoader.Exists(MainFontPath)
+    //         ? ResourceLoader.Load<Font>(MainFontPath)
+    //         : Consts.GetRobotoFont();
 }
