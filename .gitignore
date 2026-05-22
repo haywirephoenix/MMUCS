@@ -25,6 +25,7 @@ obj/
 *.userosscache
 *.sln.docstates
 *.csproj.old
+*.csproj.old.*
 # Backup and crash logs
 mono_crash.*.json
 
