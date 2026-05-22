@@ -94,11 +94,11 @@ public partial class MMenuBar : MenuBar
     
     private void UpdateViewMenuChecks()
     {
-        for (int i = 0; i < Consts.MAIN_PANEL_COUNT; i++)
+        for (int i = 0; i <= Consts.MAIN_PANEL_MAX_INDEX; i++)
         {
             var panel = _mainCanvas.GetPanelByID(i);
             if(panel != null)
-                _viewMenu.SetItemChecked(i, panel.Visible);
+                _viewMenu?.SetItemChecked(i, panel.Visible);
         }
     }
     
