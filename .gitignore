@@ -8,6 +8,10 @@ export_credentials.cfg
 *.tmp
 *.translation
 
+# Godot temporary files
+*.depren
+*.uidpren
+
 # Android/Mobile
 /android/
 .nomedia
@@ -17,6 +21,10 @@ export_credentials.cfg
 # ==========================================
 bin/
 obj/
+
+# Debug symbol files from native code/libraries
+*.pdb
+*.pidb
 
 # MSBuild and local user settings
 .msbuild/
@@ -35,6 +43,9 @@ mono_crash.*.json
 # JetBrains Rider
 .idea/
 *.sln.iml
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usageView.xml
 
 # Visual Studio Code
 .vscode/
