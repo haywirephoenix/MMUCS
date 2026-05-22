@@ -180,9 +180,7 @@ public partial class ConfigManager : Node
     }
 
     // --- Layout ---
-
-
-
+    
     public static void UpdatePanelRecord(FloatingPanel panel)
     {
         Layout.PanelRects[panel.PanelId] = new Rect2(panel.Position, panel.Size);
@@ -193,30 +191,32 @@ public partial class ConfigManager : Node
 
     private static void ApplyShellSettings()
     {
-        var window = Instance.GetWindow();
         var settings = GUISettings;
+        if (settings == null) return;
 
-        if (window == null || settings == null) return;
+        ShellManager.SetWindowMode(settings.ShellMode);
 
+        if (settings.ShellMode == Window.ModeEnum.Windowed)
+        {
+            if (settings.ShellPosition == new Vector2I(-1, -1))
+                ShellManager.MoveToCenter();
+            else
+                ShellManager.MoveTo(settings.ShellPosition);
 
-        if (settings.ShellPosition == new Vector2I(-1, -1))
-            window.MoveToCenter();
-        else
-            window.Position = settings.ShellPosition;
-
-        if (settings.ShellSize != new Vector2I(-1, -1) && settings.ShellPosition > new Vector2I(200, 100))
-            window.Size = settings.ShellSize;
-
-        window.Mode = settings.ShellMode;
+            if (settings.ShellSize != new Vector2I(-1, -1))
+                ShellManager.Resize(settings.ShellSize);
+        }
     }
 
     private static void UpdateShellSettings()
     {
         var window = Instance.GetWindow();
-        // Update the settings resource with the final state
+        if (window == null) return;
+    
         UpdateGUISettings(s =>
         {
             s.ShellMode = window.Mode;
+            
             if (window.Mode == Window.ModeEnum.Windowed)
             {
                 s.ShellPosition = window.Position;
@@ -227,10 +227,7 @@ public partial class ConfigManager : Node
 
     private static void OnShellCloseRequested()
     {
-
         SaveAll();
-
-        // Safe to quit now that settings are updated and saved
         Instance.GetTree().Quit();
     }
 }
