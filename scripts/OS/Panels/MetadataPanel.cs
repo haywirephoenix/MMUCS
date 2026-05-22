@@ -12,19 +12,18 @@ public partial class MetadataPanel : FloatingPanel
     [Export] public Label _noPreviewLabel;
     [Export] public VBoxContainer _vbox;
     
-    private static readonly NodePath VBoxPath = "Layout/MarginContainer/ContentRoot/VBox";
-    private static readonly NodePath PathBlockPath = "Layout/MarginContainer/ContentRoot/VBox/MarginContainer/BlockPath";
-    private static readonly NodePath PathPropertyGrid = "Layout/MarginContainer/ContentRoot/VBox/PropertyGrid";
-    private static readonly NodePath PathMetaGrid = "Layout/MarginContainer/ContentRoot/VBox/MetaGrid";
-    private static readonly NodePath PathimagePreview = "Layout/MarginContainer/ContentRoot/VBox/imagePreview";
-    private static readonly NodePath PathnoPreviewLabel = "Layout/MarginContainer/ContentRoot/VBox/noPreviewLabel";
+    private static readonly NodePath VBoxPath = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox";
+    private static readonly NodePath PathBlockPath = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/MarginContainer/BlockPath";
+    private static readonly NodePath PathPropertyGrid = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/PropertyGrid";
+    private static readonly NodePath PathMetaGrid = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/MetaGrid";
+    private static readonly NodePath PathimagePreview = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/imagePreview";
+    private static readonly NodePath PathnoPreviewLabel = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/noPreviewLabel";
 
 
     protected override void OnReady()
     {
         GuiInput += TreeOnGuiInput;
         
-        EventBus.Instance.BlockSelected += _OnBlockSelected;
         EventBus.Instance.AssetSelected += _OnAssetSelected;
     }
     
@@ -82,37 +81,36 @@ public partial class MetadataPanel : FloatingPanel
         _noPreviewLabel = GetNode<Label>(PathnoPreviewLabel);
         _metagrid = GetNode<GridContainer>(PathMetaGrid);
     }
-
-   
-    private void _OnBlockSelected(ScummBlock block)
+    
+    protected override void _OnBlockSelected(ScummBlock obimBlock)
     {
         // GD.Print($"[META] {block.TagName}");
         
-        SetTitle($"Properties — {block.TagName}");
-        _blockPath.Text = block.FullPath;
+        SetTitle($"Properties — {obimBlock.TagName}");
+        _blockPath.Text = obimBlock.FullPath;
 
         _ClearGrid();
 
-        if (!string.IsNullOrEmpty(block.FullName))
+        if (!string.IsNullOrEmpty(obimBlock.FullName))
         {
-            _AddRow("Name", block.FullName);
-            _AddRow("Description", block.Description);
+            _AddRow("Name", obimBlock.FullName);
+            _AddRow("Description", obimBlock.Description);
         }
         
-        _AddRow("Tag", block.TagName);
-        _AddRow("Offset", $"0x{block.Offset:X8}  ({block.Offset})");
-        _AddRow("Size", $"{block.Size} bytes");
-        _AddRow("Data offset", $"0x{block.DataOffset:X8}");
-        _AddRow("Children", block.Children.Count.ToString());
+        _AddRow("Tag", obimBlock.TagName);
+        _AddRow("Offset", $"0x{obimBlock.Offset:X8}  ({obimBlock.Offset})");
+        _AddRow("Size", $"{obimBlock.Size} bytes");
+        _AddRow("Data offset", $"0x{obimBlock.DataOffset:X8}");
+        _AddRow("Children", obimBlock.Children.Count.ToString());
 
         // Decoded metadata
-        foreach (var (vKey, vValue) in block.GetMetaDataDict())
+        foreach (var (vKey, vValue) in obimBlock.GetMetaDataDict())
         {
             string label = "";
             
-            if (block.MetaSchema != null && vKey.VariantType == Variant.Type.Int)
+            if (obimBlock.MetaSchema != null && vKey.VariantType == Variant.Type.Int)
             {
-                label = Enum.GetName(block.MetaSchema, vKey.AsInt32()) ?? $"Unknown({vKey})";
+                label = Enum.GetName(obimBlock.MetaSchema, vKey.AsInt32()) ?? $"Unknown({vKey})";
             }
             else
             {
