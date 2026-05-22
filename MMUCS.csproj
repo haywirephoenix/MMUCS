@@ -11,7 +11,7 @@
     <Content Include="scripts\OS\Panels\BuildPanels_Old\.gitignore" />
     <Content Include="scripts\ScummUtils\old\.gitignore" />
     <Content Include="scripts\UtilsEditor\.gitignore" />
-    <Content Include="shaders\akos_SDF.gdshader" />
+    <Content Include="shaders\akos.gdshader" />
     <Content Include="shaders\blur.gdshader" />
     <Content Include="shaders\blur_reveal.gdshader" />
   </ItemGroup>
