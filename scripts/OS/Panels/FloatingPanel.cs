@@ -251,7 +251,7 @@ public partial class FloatingPanel : Control
         {
             if (!isSync) FocusManager.CurrentResized = null;
 
-            Vector2 finalSize = Size.SnapVector();
+            Vector2 finalSize = Size;//.SnapVector()
             finalSize.X = Mathf.Max(finalSize.X, MinimumPanelSize.X);
             finalSize.Y = Mathf.Max(finalSize.Y, MinimumPanelSize.Y);
 
@@ -349,8 +349,8 @@ public partial class FloatingPanel : Control
                     if (_dragCandidateZone != DockZone.None)
                         DockTo(_dragCandidateZone);
                     else
-                        Position = Position.SnapVector().ClampToCanvas(Size, _canvas);
-
+                        Position = Position.ClampToCanvas(Size, _canvas);
+                                            //.SnapVector()
                     _dragCandidateZone = DockZone.None;
                 }
             }
