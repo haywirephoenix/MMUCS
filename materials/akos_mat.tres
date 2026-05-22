@@ -4,5 +4,8 @@
 
 [resource]
 shader = ExtResource("1_cpdsh")
-shader_parameter/use_sdf_scaling = true
-shader_parameter/smoothness = 0.01
+shader_parameter/is_active = true
+shader_parameter/alpha_enabled = true
+shader_parameter/shadow_color_enabled = true
+shader_parameter/shadow_amount = 0.4
+shader_parameter/use_linear_filter = false
