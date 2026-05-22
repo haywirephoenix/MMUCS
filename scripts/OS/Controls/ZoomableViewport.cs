@@ -142,16 +142,19 @@ public partial class ZoomableViewport : SubViewportContainer
     public bool ZoomToFit()
     {
         Vector2 textureSize = GetTargetSize();
-        if (textureSize == Vector2.One) return false;
+        if (textureSize == Vector2.One || textureSize.X == 0 || textureSize.Y == 0) return false;
 
         InitializeZoomConstraints();
 
         Vector2 viewportSize = Size;
+        if (viewportSize.X == 0 || viewportSize.Y == 0) return false;
+
         float scaleX = viewportSize.X / textureSize.X;
         float scaleY = viewportSize.Y / textureSize.Y;
         float fitZoom = Mathf.Min(scaleX, scaleY) * FitPadding;
 
-        _currentZoom = Mathf.Clamp(fitZoom, _zoomMin, _zoomMax);
+        float safeMinZoom = _zoomMin == 0 ? _zoomMin = 0.01f : _zoomMin;
+        _currentZoom = Mathf.Clamp(fitZoom, safeMinZoom, _zoomMax);
         _camera.Zoom = new Vector2(_currentZoom, _currentZoom);
 
         CenterCameraOnTexture();
