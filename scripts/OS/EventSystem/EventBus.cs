@@ -3,6 +3,10 @@ using Godot;
 public partial class EventBus : Node
 {
     public static EventBus Instance { get; private set; }
+    
+    // --- Boot ---
+    [Signal] public delegate void StartupCompleteEventHandler();
+    [Signal] public delegate void ConfigResetTriggeredEventHandler();
 
     // --- Block selection (Tree -> Hex + Metadata) ---
     [Signal] public delegate void BlockSelectedEventHandler(ScummBlock block);
