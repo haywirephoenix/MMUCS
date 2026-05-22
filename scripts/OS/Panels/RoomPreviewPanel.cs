@@ -56,8 +56,6 @@ public partial class RoomPreviewPanel : FloatingPanel
     private bool _showWalkboxes;
     private bool _cacheDisabled;
 
-    private int _codecModIndex = 0;
-
     
     private static readonly NodePath PathViewportContainer = "Layout/MarginContainer/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer";
     private static readonly NodePath PathObjectNamesList = "Layout/MarginContainer/ContentRoot/_VBoxContainer_186/HSplitContainer/ObjectNamesList";
@@ -77,6 +75,7 @@ public partial class RoomPreviewPanel : FloatingPanel
     private static readonly NodePath PathWalkboxesToggle = "Layout/MarginContainer/ContentRoot/_VBoxContainer_186/_HBoxContainer_187/WalkboxesToggle";
 
     private long selectedIdx = -1;
+
     protected override void OnReady()
     {
         

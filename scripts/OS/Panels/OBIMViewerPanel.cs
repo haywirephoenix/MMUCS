@@ -22,19 +22,6 @@ public partial class OBIMViewerPanel : FloatingPanel
     private static readonly NodePath PathObjectPreview = "Layout/MarginContainer/ContentRoot/Tabs/Preview/SubViewport/Object Preview";
     private static readonly NodePath PathPaletteGrid= "Layout/MarginContainer/ContentRoot/Tabs/Palette/_VBoxContainer_264/PaletteGrid";
     
-    public override void _Input(InputEvent @event)
-    {
-
-        if (@event is InputEventKey { Pressed: true } key)
-        {
-
-            if (key.Keycode == Key.Period)
-                OnOBIMSelected();
-            else if (key.Keycode == Key.Comma)
-                OnOBIMSelected();
-        }
-    }
-
     public override void AssignNodes()
     {
         base.AssignNodes();
