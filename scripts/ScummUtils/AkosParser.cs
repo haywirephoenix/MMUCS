@@ -19,7 +19,7 @@ public class AkosParser
 
         if (apal != null)
         {
-            globalPalette = ExtractPalette(apal);
+            globalPalette = ScummDecoders.ExtractPalette(apal);
         }
 
         var ahkd = akosBlock.FindChild(ScummTag.AKHD);
@@ -65,29 +65,6 @@ public class AkosParser
         _ResolvePalette(data, globalPalette);
 
         return data;
-    }
-
-    private static Color[] ExtractPalette(ScummBlock apalBlock)
-    {
-        // Find the first PALS or WRAP block inside APAL if it exists
-        // Otherwise, skip the 8-byte SCUMM header (4 bytes tag, 4 bytes size)
-        ReadOnlySpan<byte> span = apalBlock.DataSpan;
-
-        // SCUMM v8 APAL often starts with 'PALS'
-        // If your background code works with apal.DataSpan, 
-        // it's likely already handling the offset.
-
-        int numColors = span.Length / 3;
-        Color[] palette = new Color[numColors];
-
-        for (int i = 0; i < numColors; i++)
-        {
-            int r = span[i * 3];
-            int g = span[i * 3 + 1];
-            int b = span[i * 3 + 2];
-            palette[i] = new Color(r / 255f, g / 255f, b / 255f, 1.0f);
-        }
-        return palette;
     }
 
     private void _ParseAKHD(AkosData data, ScummBlock block)

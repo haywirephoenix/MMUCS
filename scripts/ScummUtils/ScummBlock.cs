@@ -124,7 +124,7 @@ public partial class ScummBlock : RefCounted
         return null;
     }
 
-// Recursive — searches the full subtree
+    // Recursive — searches the full subtree
     public ScummBlock FindChildRecursive(uint tag)
     {
         foreach (var child in Children)
@@ -134,6 +134,20 @@ public partial class ScummBlock : RefCounted
             if (found != null) return found;
         }
         return null;
+    }
+    public List<ScummBlock> FindChildrenRecursive(uint tag)
+    {
+        List<ScummBlock> results = new();
+
+        foreach (var child in Children)
+        {
+            if (child.Tag == tag)
+                results.Add(child);
+
+            results.AddRange(child.FindChildrenRecursive(tag));
+        }
+
+        return results;
     }
     
 }

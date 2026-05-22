@@ -7,23 +7,23 @@ public static class ScummBlockExtensions
 {
     
     
-    private static bool IsSliceValid(ReadOnlySpan<byte> span, int offset)
+    private static bool IsSliceValid(ReadOnlySpan<byte> span, int offset, int size)
     {
-        return span.Length > 0 && offset < span.Length;
+        return offset >= 0 && offset + size <= span.Length;
     }
     public static uint Get(this ReadOnlySpan<byte> span, int offset){
-        if(!IsSliceValid(span, offset)) return 0;
+        if(!IsSliceValid(span, offset, 1)) return 0;
         return span[offset];
     }
     
     public static ushort U16LE(this ReadOnlySpan<byte> span, int offset)
     {
-        if(!IsSliceValid(span, offset)) return 0;
+        if(!IsSliceValid(span, offset, 2)) return 0;
         return BinaryPrimitives.ReadUInt16LittleEndian(span.Slice(offset, 2));
     }
     public static uint U32LE(this ReadOnlySpan<byte> span, int offset)
     {
-        if(!IsSliceValid(span, offset)) return 0;
+        if(!IsSliceValid(span, offset, 4)) return 0;
         return BinaryPrimitives.ReadUInt32LittleEndian(span.Slice(offset, 4));
     }
     public static uint U32BE(this ReadOnlySpan<byte> span, int offset)
@@ -36,13 +36,13 @@ public static class ScummBlockExtensions
 
     public static short S16LE(this ReadOnlySpan<byte> span, int offset)
     {
-        if(!IsSliceValid(span, offset)) return 0;
+        if(!IsSliceValid(span, offset, 2)) return 0;
         return BinaryPrimitives.ReadInt16LittleEndian(span.Slice(offset, 2));
     }
     
     public static int S32LE(this ReadOnlySpan<byte> span, int offset)
     {
-        if (!IsSliceValid(span, offset)) return 0;
+        if (!IsSliceValid(span, offset, 4)) return 0;
         return BinaryPrimitives.ReadInt32LittleEndian(span.Slice(offset, 4));
     }
     
