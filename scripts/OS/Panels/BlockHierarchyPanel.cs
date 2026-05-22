@@ -6,35 +6,40 @@ using System.Collections.Generic;
 public partial class BlockHierarchyPanel : FloatingPanel
 {
     public override string PanelTitle => "Block Hierarchy";
-    
+
     [Export] public MainCanvas _mainCanvas;
-    
+
     [Export] public Tree _tree;
     [Export] public LineEdit _searchBox;
     [Export] public VBoxContainer _Container;
     [Export] public CheckButton _roomNamesToggle;
-    
+    [Export] public CheckButton _objectNamesToggle;
+
+    private readonly List<TreeItem> _lflfItems = new();
+    private readonly List<TreeItem> _obimItems = new();
+    private readonly List<TreeItem> _filteredMatches = new();
+
+    private bool showRoomNames = false;
+    private bool showObjectNames = false;
+
+    private string _currentQuery = string.Empty;
+    private uint? _currentTargetTag = null;
+
     private static readonly NodePath PathMainCanvas = "../..";
     private static readonly NodePath PathContainer = "Layout/MarginContainer/ContentRoot/Container";
     private static readonly NodePath PathRoomNamesToggle = "Layout/MarginContainer/ContentRoot/Container/HBoxContainer/RoomNamesToggle";
+    private static readonly NodePath PathObjectNamesToggle = "Layout/MarginContainer/ContentRoot/Container/HBoxContainer/ObjectNamesToggle";
     private static readonly NodePath PathTreeView = "Layout/MarginContainer/ContentRoot/Container/TreeView";
     private static readonly NodePath PathSearchBox = "Layout/MarginContainer/ContentRoot/Container/SearchBox";
-    
-    private bool hasFocus = false;
-    
+
+
     public override void AssignNodes()
     {
         base.AssignNodes();
-        // _mainCanvas = GetParent<Control>().GetParent<MainCanvas>();
         _mainCanvas = GetNode<MainCanvas>(PathMainCanvas);
         _roomNamesToggle = GetNode<CheckButton>(PathRoomNamesToggle);
-        
-        // var parentNode = GetParent().GetParent();
-        // _mainCanvas = vbox as MainCanvas;
-        // if (parentNode is VBoxContainer vbox)
-        // {
-        //     _mainCanvas = vbox as MainCanvas;
-        // }
+        _objectNamesToggle = GetNode<CheckButton>(PathObjectNamesToggle);
+
         _Container = GetNode<VBoxContainer>(PathContainer);
         _tree = GetNode<Tree>(PathTreeView);
         _searchBox = GetNode<LineEdit>(PathSearchBox);
@@ -42,21 +47,23 @@ public partial class BlockHierarchyPanel : FloatingPanel
 
     protected override void OnReady()
     {
-        // Listen for hex clicks coming back
         _searchBox.TextChanged += _OnSearchChanged;
         _tree.ItemSelected += _OnItemSelected;
         _tree.GuiInput += TreeOnGuiInput;
 
         _roomNamesToggle.Toggled += OnRoomNamesToggled;
-        // EventBus.Instance.HexOffsetSelected += _OnHexOffsetSelected;
+        _objectNamesToggle.Toggled += ObjectNamesToggleOnToggled;
     }
-    
-    private bool showRoomNames = false;
-
-    private void OnRoomNamesToggled(bool state)
+    private void ObjectNamesToggleOnToggled(bool toggledOn)
     {
-        showRoomNames = state;
-        ToggleTreeRoomNames(state);
+        showObjectNames = toggledOn;
+        ToggleTreeObjectNames(toggledOn);
+    }
+
+    private void OnRoomNamesToggled(bool toggledOn)
+    {
+        showRoomNames = toggledOn;
+        ToggleTreeRoomNames(toggledOn);
     }
     private void ToggleTreeRoomNames(bool enabled)
     {
@@ -66,9 +73,9 @@ public partial class BlockHierarchyPanel : FloatingPanel
             var block = item.GetMetadata(0).As<ScummBlock>();
             if (enabled)
             {
-                if(!block.GetMetadataItem(ScummMeta.LFLF.roomNo, out Variant roomNo)) return;
-                if(!block.GetMetadataItem(ScummMeta.LFLF.roomName, out Variant roomName)) return;
-               
+                if (!block.GetMetadataItem(ScummMeta.LFLF.roomNo, out Variant roomNo)) return;
+                if (!block.GetMetadataItem(ScummMeta.LFLF.roomName, out Variant roomName)) return;
+
                 item.SetText(0, $"{roomNo}.{roomName}");
             }
             else
@@ -77,64 +84,222 @@ public partial class BlockHierarchyPanel : FloatingPanel
             }
         }
     }
-    
-    private void TreeOnGuiInput(InputEvent @event)
+
+    private void ToggleTreeObjectNames(bool enabled)
     {
-        if (@event is InputEventKey { Echo: false, Keycode: Key.Shift } keyevent)
-            _tree.SelectMode = keyevent.Pressed ? Tree.SelectModeEnum.Multi : Tree.SelectModeEnum.Single;
-        
-        if (!FocusManager.IsFocused(_tree)) return;
-        if (@event is InputEventMouse mouseEvent)
+        for (int i = 0; i < _obimItems.Count; i++)
         {
-            if (mouseEvent.ButtonMask == MouseButtonMask.Right)
-                _CopySelectedToClipboard();
-        }
-        
-        if (@event is InputEventKey keyEvent && keyEvent.Pressed)
-        {
-            TreeItem selected = _tree.GetSelected();
-            
-            // Specifically looking for the Right Arrow
-            if (selected != null && keyEvent.Keycode == Key.Right)
+            var item = _obimItems[i];
+            var block = item.GetMetadata(0).As<ScummBlock>();
+            if (enabled)
             {
-                if (selected.Collapsed)
-                    selected.Collapsed = false;
-                AcceptEvent();
+                if (!block.GetMetadataItem(ScummMeta.OBIM.name, out Variant obimName)) return;
+
+                item.SetText(0, $"{obimName}");
             }
-            else if (selected != null && keyEvent.Keycode == Key.Left)
+            else
             {
-                selected.Collapsed = true;
-                AcceptEvent();
+                item.SetText(0, block.TagName);
             }
-            if (selected != null && keyEvent.Keycode == Key.Down)
-            {
-                TreeItem next = selected.GetNextVisible();
-                if (next != null)
-                {
-                    next.Select(0); // Select the first column
-                    _tree.EnsureCursorIsVisible(); // Scroll to it if off-screen
-                }
-                AcceptEvent();
-            }
-            else if (selected != null && keyEvent.Keycode == Key.Up)
-            {
-                TreeItem prev = selected.GetPrevVisible();
-                if (prev != null)
-                {
-                    prev.Select(0);
-                    _tree.EnsureCursorIsVisible();
-                }
-                AcceptEvent();
-            }
-            
         }
     }
-    
+
+    private void TreeOnGuiInput(InputEvent @event)
+    {
+        if (@event is InputEventKey { Echo: false, Keycode: Key.Shift } keyEvent)
+        {
+            _tree.SelectMode = keyEvent.Pressed ? Tree.SelectModeEnum.Multi : Tree.SelectModeEnum.Single;
+            return;
+        }
+
+        if (!FocusManager.IsFocused(_tree)) return;
+
+        if (@event is InputEventMouse mouseEvent && mouseEvent.ButtonMask == MouseButtonMask.Right)
+        {
+            _CopySelectedToClipboard();
+            return;
+        }
+
+        if (@event is InputEventKey kEvent && kEvent.Pressed)
+            _HandleKeyboardNavigation(kEvent);
+
+    }
+
+    private void _HandleKeyboardNavigation(InputEventKey keyEvent)
+    {
+        TreeItem selected = _tree.GetSelected();
+        if (selected == null) return;
+
+        string activeQuery = _currentQuery;
+        uint? activeTag = _currentTargetTag;
+
+        switch (keyEvent.Keycode)
+        {
+            case Key.Right:
+                if (selected.Collapsed) selected.Collapsed = false;
+                AcceptEvent();
+                break;
+
+            case Key.Left:
+                selected.Collapsed = true;
+                AcceptEvent();
+                break;
+
+            case Key.Down:
+                var nextMatch = GetNextFilteredMatch(selected, activeQuery, activeTag);
+                _NavigateToTarget(selected, nextMatch, selected.GetNextVisible());
+                AcceptEvent();
+                break;
+
+            case Key.Up:
+                var prevMatch = GetPrevFilteredMatch(selected, activeQuery, activeTag);
+                _NavigateToTarget(selected, prevMatch, selected.GetPrevVisible());
+                AcceptEvent();
+                break;
+        }
+    }
+
+    private TreeItem GetNextFilteredMatch(TreeItem current, string query, uint? targetTag)
+    {
+        TreeItem next = _GetNextLogicalItem(current);
+        while (next != null)
+        {
+            if (IsActualMatch(next, query, targetTag))
+                return next;
+
+            next = _GetNextLogicalItem(next);
+        }
+        return null;
+    }
+
+    private TreeItem GetPrevFilteredMatch(TreeItem current, string query, uint? targetTag)
+    {
+        TreeItem prev = _GetPrevLogicalItem(current);
+        while (prev != null)
+        {
+            if (IsActualMatch(prev, query, targetTag))
+                return prev;
+
+            prev = _GetPrevLogicalItem(prev);
+        }
+        return null;
+    }
+
+    private TreeItem _GetNextLogicalItem(TreeItem item)
+    {
+        if (item == null) return null;
+
+        if (item.GetFirstChild() != null)
+            return item.GetFirstChild();
+
+        if (item.GetNext() != null)
+            return item.GetNext();
+
+        TreeItem parent = item.GetParent();
+        while (parent != null)
+        {
+            if (parent.GetNext() != null)
+                return parent.GetNext();
+            parent = parent.GetParent();
+        }
+
+        return null;
+    }
+
+    private TreeItem _GetPrevLogicalItem(TreeItem item)
+    {
+        if (item == null) return null;
+
+        TreeItem prevSibling = item.GetPrev();
+        if (prevSibling != null)
+        {
+            TreeItem lastChild = prevSibling;
+            while (lastChild.GetFirstChild() != null)
+            {
+                TreeItem child = lastChild.GetFirstChild();
+                while (child.GetNext() != null)
+                {
+                    child = child.GetNext();
+                }
+                lastChild = child;
+            }
+            return lastChild;
+        }
+
+        TreeItem parent = item.GetParent();
+        if (parent != _tree.GetRoot())
+        {
+            return parent;
+        }
+
+        return null;
+    }
+
+    private bool IsActualMatch(TreeItem item, string query, uint? targetTag)
+    {
+        if (string.IsNullOrEmpty(query) && !targetTag.HasValue)
+            return true;
+
+        var block = item.GetMetadata(0).As<ScummBlock>();
+        if (block != null)
+        {
+            if (targetTag.HasValue && block.Tag == targetTag.Value)
+                return true;
+
+            if (!targetTag.HasValue && block.TagName != null && block.TagName.ToLower().Contains(query))
+                return true;
+        }
+
+        return item.GetText(0).ToLower().Contains(query);
+    }
+
+    private void _NavigateToTarget(TreeItem current, TreeItem filteredTarget, TreeItem fallbackTarget)
+    {
+        TreeItem finalTarget = filteredTarget ?? fallbackTarget;
+
+        if (finalTarget != null)
+        {
+            if (filteredTarget != null)
+            {
+                finalTarget.UncollapseTree();
+            }
+
+            finalTarget.Select(0);
+            _tree.EnsureCursorIsVisible();
+        }
+    }
+
+    private TreeItem _FindNextMatch(TreeItem startItem)
+    {
+        if (_filteredMatches.Count == 0) return null;
+
+        TreeItem walker = startItem.GetNextVisible();
+        while (walker != null)
+        {
+            if (_filteredMatches.Contains(walker)) return walker;
+            walker = walker.GetNextVisible();
+        }
+        return null;
+    }
+
+    private TreeItem _FindPrevMatch(TreeItem startItem)
+    {
+        if (_filteredMatches.Count == 0) return null;
+
+        TreeItem walker = startItem.GetPrevVisible();
+        while (walker != null)
+        {
+            if (_filteredMatches.Contains(walker)) return walker;
+            walker = walker.GetPrevVisible();
+        }
+        return null;
+    }
+
     private void _CopySelectedToClipboard()
     {
         var selectedItems = new System.Collections.Generic.List<TreeItem>();
         TreeItem current = _tree.GetNextSelected(null);
-    
+
         while (current != null)
         {
             selectedItems.Add(current);
@@ -143,12 +308,7 @@ public partial class BlockHierarchyPanel : FloatingPanel
 
         if (selectedItems.Count == 0) return;
 
-        // 1. Find the "Selection Root"
-        // We assume the first item in the selection list is the topmost 
-        // because GetNextSelected walks the tree in order.
         TreeItem selectionRoot = selectedItems[0];
-        // We want the path to be relative to the root's PARENT 
-        // so that the root's name is included in the path.
         TreeItem relativeTo = selectionRoot.GetParent();
 
         var paths = new System.Collections.Generic.List<string>();
@@ -158,7 +318,6 @@ public partial class BlockHierarchyPanel : FloatingPanel
             var pathParts = new System.Collections.Generic.List<string>();
             TreeItem temp = item;
 
-            // 2. Walk up only until we hit the relativeTo node
             while (temp != null && temp != relativeTo)
             {
                 pathParts.Insert(0, temp.GetText(0));
@@ -168,54 +327,35 @@ public partial class BlockHierarchyPanel : FloatingPanel
             paths.Add(string.Join("/", pathParts));
         }
 
-        // 3. Finalize
         string finalOutput = string.Join("\n", paths);
         DisplayServer.ClipboardSet(finalOutput);
         GD.Print($"Copied {paths.Count} selection-relative paths.");
     }
 
-   
 
-    
-    /// <summary>
-    /// Call this after parsing SCUMM file to populate the tree.
-    /// </summary>
+
+
     public void LoadBlocks(ScummBlock root)
     {
         _tree.Clear();
         _lflfItems.Clear();
+        _obimItems.Clear();
         var rootItem = _tree.CreateItem();
         _PopulateItem(root, rootItem);
-        
+
         var first = FindFirstRealBlock(root);
         if (first == null)
         {
             GD.Print($"[AUTOSELECT] first block not found");
             return;
         }
-        
-        // TreeItem child = rootItem.GetFirstChild();
-        // int count = 0;
-        // while (child != null)
-        // {
-        //     if(count > 3)
-        //         child.Collapsed = true;
-        //     else if (count == 3)
-        //     {
-        //         child.Select(0);
-        //     }
-        //     
-        //     child = child.GetNext();
-        //     count++;
-        // }
-        
-        
-          
-        // GD.Print($"[AUTOSELECT] {first.Tag}");
+
+
+
         EventBus.Instance.EmitSignal(EventBus.SignalName.BlockSelected, first);
     }
 
-    private List<TreeItem> _lflfItems = new();
+
 
     private void _PopulateItem(ScummBlock block, TreeItem parent)
     {
@@ -229,17 +369,13 @@ public partial class BlockHierarchyPanel : FloatingPanel
         {
             item.SetCustomColor(0, color);
         }
-        // if (parent != _tree.GetRoot()) 
-        // {
-        if(parent != _tree.GetRoot() && block.TagName != "LECF")
+        if (parent != _tree.GetRoot() && block.Tag != ScummTag.LECF)
             item.Collapsed = true;
-        // }
-        if(block.TagName == "LFLF")
+        if (block.Tag == ScummTag.LFLF)
             _lflfItems.Add(item);
 
-        // Bold containers
-        // if (block.IsContainer)
-        //     item.SetCustomFontSize(0, 14);
+        if (block.Tag == ScummTag.OBIM)
+            _obimItems.Add(item);
 
         foreach (var child in block.Children)
             _PopulateItem(child, item);
@@ -252,14 +388,12 @@ public partial class BlockHierarchyPanel : FloatingPanel
 
         var block = selected.GetMetadata(0).As<ScummBlock>();
         if (block == null) return;
-        // GD.Print($"[SELECT] {block.Tag} @0x{block.Offset:X}");
 
         EventBus.Instance.EmitSignal(EventBus.SignalName.BlockSelected, block);
     }
 
     private void _OnHexOffsetSelected(int offset, int length)
     {
-        // Walk the tree to find and select the block owning this offset
         _SelectBlockAtOffset(_tree.GetRoot(), offset);
     }
 
@@ -274,7 +408,6 @@ public partial class BlockHierarchyPanel : FloatingPanel
             item.UncollapseTree();
             _tree.ScrollToItem(item);
 
-            // Try to find a more specific child match first
             var child = item.GetFirstChild();
             while (child != null)
             {
@@ -295,27 +428,77 @@ public partial class BlockHierarchyPanel : FloatingPanel
 
     private void _OnSearchChanged(string query)
     {
-        _FilterTree(_tree.GetRoot(), query.ToLower());
+        string cleanQuery = query.Trim();
+        uint? targetTag = null;
+
+        if (cleanQuery.Length == 4)
+        {
+            try
+            {
+                targetTag = ScummTag.FromString(cleanQuery.ToUpperInvariant());
+            }
+            catch (ArgumentException)
+            {
+                targetTag = null;
+            }
+        }
+
+        _currentQuery = cleanQuery.ToLower();
+        _currentTargetTag = targetTag;
+
+        _FilterTree(_tree.GetRoot(), _currentQuery, _currentTargetTag);
     }
 
-    private bool _FilterTree(TreeItem item, string query)
+    private bool _FilterTree(TreeItem item, string query, uint? targetTag, bool ancestorMatched = false)
     {
         if (item == null) return false;
+
+        if (item == _tree.GetRoot())
+            _filteredMatches.Clear();
+
+        bool selfMatch = false;
+
+        if (string.IsNullOrEmpty(query) && !targetTag.HasValue)
+        {
+            selfMatch = true;
+        }
+        else
+        {
+            var block = item.GetMetadata(0).As<ScummBlock>();
+            if (block != null)
+            {
+                if (targetTag.HasValue)
+                {
+                    if (block.Tag == targetTag.Value) selfMatch = true;
+                }
+                else
+                {
+                    if (block.TagName != null && block.TagName.ToLower().Contains(query)) selfMatch = true;
+                }
+            }
+
+            if (!selfMatch && item.GetText(0).ToLower().Contains(query))
+                selfMatch = true;
+        }
+
+        if (selfMatch)
+            _filteredMatches.Add(item);
+
+        bool isThisItemVisible = selfMatch || ancestorMatched;
 
         bool anyChildVisible = false;
         var child = item.GetFirstChild();
         while (child != null)
         {
-            anyChildVisible |= _FilterTree(child, query);
+            anyChildVisible |= _FilterTree(child, query, targetTag, isThisItemVisible);
             child = child.GetNext();
         }
 
-        bool selfMatch = string.IsNullOrEmpty(query) || item.GetText(0).ToLower().Contains(query);
-        item.Visible = selfMatch || anyChildVisible;
+        item.Visible = isThisItemVisible || anyChildVisible;
+
         return item.Visible;
     }
 
-   
 
     private static string _FormatSize(int bytes)
     {
@@ -323,7 +506,7 @@ public partial class BlockHierarchyPanel : FloatingPanel
         if (bytes < 1024 * 1024) return $"{bytes / 1024.0f:F1} KB";
         return $"{bytes / (1024.0f * 1024):F1} MB";
     }
-    
+
     private ScummBlock FindFirstRealBlock(ScummBlock root)
     {
         foreach (var child in root.Children)
@@ -333,23 +516,48 @@ public partial class BlockHierarchyPanel : FloatingPanel
         }
         return root.Children.Count > 0 ? root.Children[0] : null;
     }
-    
-    
-    // Tag -> display color
+
+
     private static readonly Dictionary<uint, Color> TagColors = new()
     {
-        { ScummTag.LECF, new("e8c07d") },
-        { ScummTag.LFLF, new("e8c07d") },
-        { ScummTag.ROOM, new("7dcfe8") },
-        { ScummTag.RMHD, new("7dcfe8") },
-        { ScummTag.RMIM, new("7dcfe8") },
-        { ScummTag.BMAP, new("7de8a0") },
-        { ScummTag.AKOS, new("e8817d") },
-        { ScummTag.AKCD, new("e8817d") },
-        { ScummTag.AKPL, new("e8817d") },
-        { ScummTag.CHAR, new("c87de8") },
-        { ScummTag.SCRP, new("e8d77d") },
-        { ScummTag.OBCD, new("d0d0d0") },
-        { ScummTag.OBIM, new("d0d0d0") },
+        {
+            ScummTag.LECF, new("e8c07d")
+        },
+        {
+            ScummTag.LFLF, new("e8c07d")
+        },
+        {
+            ScummTag.ROOM, new("7dcfe8")
+        },
+        {
+            ScummTag.RMHD, new("7dcfe8")
+        },
+        {
+            ScummTag.RMIM, new("7dcfe8")
+        },
+        {
+            ScummTag.BMAP, new("7de8a0")
+        },
+        {
+            ScummTag.AKOS, new("e8817d")
+        },
+        {
+            ScummTag.AKCD, new("e8817d")
+        },
+        {
+            ScummTag.AKPL, new("e8817d")
+        },
+        {
+            ScummTag.CHAR, new("c87de8")
+        },
+        {
+            ScummTag.SCRP, new("e8d77d")
+        },
+        {
+            ScummTag.OBCD, new("d0d0d0")
+        },
+        {
+            ScummTag.OBIM, new("d0d0d0")
+        },
     };
 }
