@@ -113,19 +113,6 @@ public partial class AkosViewerPanel : FloatingPanel
     
     protected override void OnReady()
     {
-        /*
-        Name = PanelTitle;
-        DefaultSize = new Vector2(560, 600);
-
-        _tabs = new TabContainer();
-        _tabs.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        ContentRoot.AddChild(_tabs);
-
-        _BuildOverviewTab();
-        _BuildCelBrowserTab();
-        _BuildChoreTab();
-        _BuildPaletteTab();*/
-        // _shaderToggle.Toggled += ShaderToggleOnToggled;
         _modeOptionButton.ItemSelected += ModeOptionButtonOnItemSelected;
         _alphaToggle.Toggled += AlphaToggleOnToggled;
         _shadowColorToggle.Toggled += ShadowColorToggleOnToggled;
@@ -310,7 +297,7 @@ public partial class AkosViewerPanel : FloatingPanel
     
     private async void _OnTabChanged(long tab)
     {
-        if (tab == 2 && _akos.Chores == null)
+        if (tab == 1 && _akos.Chores == null)
             _LazyLoadChores();
     }
 

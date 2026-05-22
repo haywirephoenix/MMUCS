@@ -1938,54 +1938,11 @@ theme_override_styles/tab_hovered = SubResource("StyleBoxEmpty_50g4q")
 theme_override_styles/tab_selected = SubResource("StyleBoxEmpty_3dlgs")
 theme_override_styles/tab_disabled = SubResource("StyleBoxEmpty_vte5o")
 theme_override_styles/tab_focus = SubResource("StyleBoxEmpty_po8fv")
-current_tab = 1
-
-[node name="Overview" type="ScrollContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=676642636]
-visible = false
-layout_mode = 2
-metadata/_tab_index = 0
-
-[node name="_VBoxContainer_230" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview" unique_id=1086844425]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Header Title" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1767277851]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9098039, 0.7529412, 0.49019608, 1)
-theme_override_font_sizes/font_size = 13
-text = "Header (AKHD)"
-
-[node name="headerGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1337632421]
-layout_mode = 2
-columns = 2
-
-[node name="_HSeparator_233" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1668558074]
-layout_mode = 2
-
-[node name="Codec Title" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1589182127]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9098039, 0.7529412, 0.49019608, 1)
-theme_override_font_sizes/font_size = 13
-text = "Compression Codec"
-
-[node name="CodecLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1383773845]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-autowrap_mode = 3
-
-[node name="_HSeparator_236" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=971345321]
-layout_mode = 2
-
-[node name="BlockSummaryLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=896695228]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9098039, 0.7529412, 0.49019608, 1)
-theme_override_font_sizes/font_size = 13
-text = "Block Summary"
+current_tab = 0
 
 [node name="Cels" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=995910168]
 layout_mode = 2
-metadata/_tab_index = 1
+metadata/_tab_index = 0
 
 [node name="_HBoxContainer_240" type="HBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Cels" unique_id=796875792]
 clip_contents = true
@@ -2210,7 +2167,7 @@ script = ExtResource("13_ub8w1")
 [node name="Chores" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=1459511968]
 visible = false
 layout_mode = 2
-metadata/_tab_index = 2
+metadata/_tab_index = 1
 
 [node name="Cores Title" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Chores" unique_id=252543977]
 layout_mode = 2
@@ -2237,7 +2194,7 @@ autowrap_mode = 3
 [node name="Palette" type="ScrollContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=369523761]
 visible = false
 layout_mode = 2
-metadata/_tab_index = 3
+metadata/_tab_index = 2
 
 [node name="_VBoxContainer_264" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Palette" unique_id=2140564288]
 layout_mode = 2
@@ -2254,6 +2211,49 @@ text = "AKPL → resolved colors"
 layout_mode = 2
 size_flags_vertical = 3
 columns = 16
+
+[node name="Overview" type="ScrollContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=676642636]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 3
+
+[node name="_VBoxContainer_230" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview" unique_id=1086844425]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Header Title" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1767277851]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9098039, 0.7529412, 0.49019608, 1)
+theme_override_font_sizes/font_size = 13
+text = "Header (AKHD)"
+
+[node name="headerGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1337632421]
+layout_mode = 2
+columns = 2
+
+[node name="_HSeparator_233" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1668558074]
+layout_mode = 2
+
+[node name="Codec Title" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1589182127]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9098039, 0.7529412, 0.49019608, 1)
+theme_override_font_sizes/font_size = 13
+text = "Compression Codec"
+
+[node name="CodecLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=1383773845]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="_HSeparator_236" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=971345321]
+layout_mode = 2
+
+[node name="BlockSummaryLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230" unique_id=896695228]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9098039, 0.7529412, 0.49019608, 1)
+theme_override_font_sizes/font_size = 13
+text = "Block Summary"
 
 [node name="ResizeHandles" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer" unique_id=74315955]
 layout_mode = 2
