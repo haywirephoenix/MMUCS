@@ -879,10 +879,9 @@ mouse_behavior_recursive = 2
 clip_contents = true
 custom_minimum_size = Vector2(200, 600)
 layout_mode = 0
-offset_left = 1.0
-offset_top = -34.0
-offset_right = 316.0
-offset_bottom = 566.0
+offset_top = -3.0
+offset_right = 315.0
+offset_bottom = 597.0
 focus_behavior_recursive = 1
 script = ExtResource("6_qw60f")
 DefaultDock = 1
@@ -907,6 +906,9 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = -2.0
+offset_right = 47.0
+offset_bottom = 2.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
@@ -1082,10 +1084,10 @@ mouse_default_cursor_shape = 12
 clip_contents = true
 custom_minimum_size = Vector2(311.69, 100)
 layout_mode = 0
-offset_left = 327.0
-offset_top = -34.0
-offset_right = 638.69
-offset_bottom = 534.0
+offset_left = 323.0
+offset_top = -3.0
+offset_right = 634.69
+offset_bottom = 565.0
 script = ExtResource("7_qt76e")
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Metadata" unique_id=1792388918]
@@ -1107,6 +1109,9 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = -2.0
+offset_right = 51.0
+offset_bottom = 2.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
@@ -1294,10 +1299,10 @@ mouse_default_cursor_shape = 12
 clip_contents = true
 custom_minimum_size = Vector2(200, 100)
 layout_mode = 0
-offset_left = 327.0
-offset_top = 610.0
-offset_right = 1105.0
-offset_bottom = 1025.0
+offset_left = 324.0
+offset_top = 575.0
+offset_right = 1102.0
+offset_bottom = 1010.0
 script = ExtResource("5_eji0w")
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Hex View" unique_id=1586210325]
@@ -1587,12 +1592,11 @@ mouse_default_cursor_shape = 12
 process_mode = 3
 custom_minimum_size = Vector2(200, 100)
 layout_mode = 0
-offset_left = 649.0
-offset_top = -33.0
-offset_right = 1568.0
-offset_bottom = 534.0
+offset_left = 652.0
+offset_top = -3.0
+offset_right = 1571.0
+offset_bottom = 567.0
 script = ExtResource("6_qwhpj")
-CacheDisabled = true
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Room Preview" unique_id=585239474]
 material = ExtResource("13_sq7yr")
@@ -1729,7 +1733,7 @@ FitOncePerGroup = false
 disable_3d = true
 transparent_bg = true
 handle_input_locally = false
-size = Vector2i(635, 463)
+size = Vector2i(635, 466)
 render_target_update_mode = 4
 
 [node name="RoomRoot" type="Node2D" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport" unique_id=1140387204]
@@ -1846,12 +1850,11 @@ mouse_default_cursor_shape = 12
 clip_contents = true
 custom_minimum_size = Vector2(200, 100)
 layout_mode = 0
-offset_left = 1112.0
-offset_top = 614.0
-offset_right = 1909.0
-offset_bottom = 1039.0
+offset_left = 1111.0
+offset_top = 575.0
+offset_right = 1918.0
+offset_bottom = 1010.0
 script = ExtResource("8_sq7yr")
-CacheDisabled = true
 akosShaderMaterial = ExtResource("15_po8fv")
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/AKOS Viewer" unique_id=830405868]
@@ -2165,7 +2168,7 @@ transparent_bg = true
 handle_input_locally = false
 snap_2d_transforms_to_pixel = true
 positional_shadow_atlas_size = 0
-size = Vector2i(419, 252)
+size = Vector2i(429, 260)
 render_target_update_mode = 4
 
 [node name="Cel Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/VBoxContainer/PreviewContainer/SubViewport" unique_id=358585209]
@@ -2337,12 +2340,11 @@ mouse_default_cursor_shape = 12
 clip_contents = true
 custom_minimum_size = Vector2(200, 100)
 layout_mode = 0
-offset_left = 1576.0
-offset_top = -31.0
-offset_right = 1918.0
-offset_bottom = 533.0
+offset_left = 1578.0
+offset_top = -4.0
+offset_right = 1920.0
+offset_bottom = 567.0
 script = ExtResource("22_tilu5")
-CacheDisabled = true
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/OBIM Viewer" unique_id=463094902]
 material = ExtResource("13_sq7yr")
@@ -2364,6 +2366,9 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = -2.0
+offset_right = 20.0
+offset_bottom = 2.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
@@ -2440,7 +2445,7 @@ transparent_bg = true
 handle_input_locally = false
 snap_2d_transforms_to_pixel = true
 positional_shadow_atlas_size = 0
-size = Vector2i(316, 454)
+size = Vector2i(316, 461)
 render_target_update_mode = 4
 
 [node name="Object Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview/SubViewport" unique_id=609620734]
