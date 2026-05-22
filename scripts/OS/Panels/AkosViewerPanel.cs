@@ -9,8 +9,9 @@ using System.Threading.Tasks;
 public partial class AkosViewerPanel : FloatingPanel
 {
     public override string PanelTitle => "AKOS Viewer";
+    [Export] public bool CacheDisabled {get{return _cacheDisabled;} set{ _cacheDisabled = value;}}
+    private bool _cacheDisabled;
     [Export] public Material akosShaderMaterial;
-    [Export] public bool CacheDisabled;
  
     [Export] public TabContainer _tabs;
     
@@ -71,9 +72,11 @@ public partial class AkosViewerPanel : FloatingPanel
     private static readonly NodePath PathheaderGrid = "Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230/headerGrid";
     private static readonly NodePath PathCodecLabel = "Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230/CodecLabel";
     private static readonly NodePath PathCelList = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/Cel List";
+   
     private static readonly NodePath PathPreviewContainer = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/VBoxContainer/PreviewContainer";
     private static readonly NodePath PathCelCamera = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/VBoxContainer/PreviewContainer/SubViewport/CelCamera";
     private static readonly NodePath PathCelPreview = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/VBoxContainer/PreviewContainer/SubViewport/Cel Preview";
+    
     private static readonly NodePath PathCelInfo = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/VBoxContainer/Cel Info";
 
     private static readonly NodePath PathChoreTree = "Layout/MarginContainer/ContentRoot/Tabs/Chores/_HSplitContainer_249/ChoreTree";
@@ -136,7 +139,6 @@ public partial class AkosViewerPanel : FloatingPanel
         _choreTree.ItemSelected += _OnChoreItemSelected;
         _celList.ItemSelected += _OnCelSelected;
         _tabs.TabChanged += _OnTabChanged;
-        EventBus.Instance.BlockSelected += _OnBlockSelected;
         VectorToggle.ResetClickCount();
         
     }
@@ -213,7 +215,6 @@ public partial class AkosViewerPanel : FloatingPanel
     {
         if (!item.Collapsed)
         {
-            // 1. Accordion logic: Fold others
             var root = _choreTree.GetRoot();
             // var sibling = root.GetChildren();
             // while (sibling != null)
@@ -222,10 +223,8 @@ public partial class AkosViewerPanel : FloatingPanel
             //     sibling = sibling.GetNext();
             // }
 
-            // 2. Expand current logic (Deferred to avoid "blocked" error)
             if (item.GetParent() == root)
             {
-                // Use CallDeferred to escape the "blocked" state
                 Callable.From(() => _ExpandAnimation(item)).CallDeferred();
             }
         }
@@ -233,22 +232,19 @@ public partial class AkosViewerPanel : FloatingPanel
     
     private void _ExpandAnimation(TreeItem animItem)
     {
-        // Safety check: is the item still valid?
         if (!IsInstanceValid(animItem)) return;
 
-        // Clear placeholder correctly
         var child = animItem.GetFirstChild();
         while (child != null)
         {
             var next = child.GetNext();
-            child.Free(); // Free the placeholder
+            child.Free();
             child = next;
         }
 
         int animIdx = animItem.GetMetadata(0).AsInt32();
         int dirs = _akos.DirectionCount;
-    
-        // Use the logic from your parser but JUST for this animIdx
+        
         for (int d = 0; d < dirs; d++)
         {
             int choreIdx = animIdx * dirs + d;
@@ -261,7 +257,6 @@ public partial class AkosViewerPanel : FloatingPanel
             dirItem.SetText(0, _GetDirName(d));
             dirItem.Collapsed = true;
         
-            // Populate the steps immediately under the direction
             var steps = _parser.DecodeSingleSequence(_akos, seqOffset);
             foreach (var step in steps)
             {
@@ -281,7 +276,6 @@ public partial class AkosViewerPanel : FloatingPanel
     
     private void _FormatStepItem(TreeItem item, AkosChoreStep step)
     {
-        // 1. Determine the Label
         string label = step.Kind switch
         {
             AkosStepKind.DrawSingle => $"Draw cel {step.CelIndex}",
@@ -325,16 +319,16 @@ public partial class AkosViewerPanel : FloatingPanel
    
     // ── Data loading ──────────────────────────────────────────────────────────
 
-    private async void _OnBlockSelected(ScummBlock block)
+    protected override async void _OnBlockSelected(ScummBlock obimBlock)
     {
-        if (block.Tag != ScummTag.AKOS) return;
+        if (obimBlock.Tag != ScummTag.AKOS) return;
         
         if (_celList.ItemCount > 0 && _celList.IsVisibleInTree())
             FocusManager.SetNextFocusOverride(_celList);
 
         _parser = new();
 
-        _akos = await Task.Run(() => _parser.Parse(block, _externalPalette));
+        _akos = await Task.Run(() => _parser.Parse(obimBlock, _externalPalette));
 
         _PopulateOverview();
         _PopulateCelList();
@@ -464,7 +458,6 @@ public partial class AkosViewerPanel : FloatingPanel
             return;
         }
 
-        // 1. Reset Cancellation
         _decodeCts?.Cancel();
         _decodeCts?.Dispose();
         _decodeCts = new CancellationTokenSource();
@@ -475,7 +468,7 @@ public partial class AkosViewerPanel : FloatingPanel
 
         try 
         {
-            var surface = await ScummDecoders.GetCachedCelAsync(_akos, capturedIndex, token);
+            var surface = await AkosCelCache.GetCachedCelAsync(_akos, capturedIndex, token);
             if (surface == null || token.IsCancellationRequested) return;
 
             var dataImage = (CurrentViewMode != ViewMode.Raw) 
