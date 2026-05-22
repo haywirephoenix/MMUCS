@@ -9,7 +9,7 @@
     <Content Include="scripts\OS\Configuration\old\.gitignore" />
     <Content Include="scripts\OS\Fragments\BuildFragments_Old\.gitignore" />
     <Content Include="scripts\OS\Panels\BuildPanels_Old\.gitignore" />
-    <Content Include="scripts\OS\ScummUtils\old\.gitignore" />
+    <Content Include="scripts\ScummUtils\old\.gitignore" />
     <Content Include="scripts\UtilsEditor\.gitignore" />
     <Content Include="shaders\akos_SDF.gdshader" />
     <Content Include="shaders\blur.gdshader" />

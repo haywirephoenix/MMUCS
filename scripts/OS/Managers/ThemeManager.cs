@@ -193,13 +193,13 @@ public partial class ThemeManager : Node
         {
             root.ContentScaleMode = Window.ContentScaleModeEnum.CanvasItems;
             root.ContentScaleFactor = DisplayServer.ScreenGetMaxScale();
-            GD.Print("dpi on");
+            // GD.Print("dpi on");
         }
         else
         {
             root.ContentScaleMode = Window.ContentScaleModeEnum.Viewport;
             root.ContentScaleFactor = 1.0f;
-            GD.Print("dpi off");
+            // GD.Print("dpi off");
         }
         ConfigManager.GUISettings.HiDPIEnabled = value;
     }

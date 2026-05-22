@@ -36,7 +36,7 @@ public partial class FocusManager : Node
     private void OnFocusChanged(Control node)
     {
         _currentFocusOwner = node;
-        GD.Print(node.Name + " focused");
+        // GD.Print(node.Name + " focused");
     }
     
     private void FocusNextElement()

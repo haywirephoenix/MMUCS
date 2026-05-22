@@ -21,7 +21,7 @@ public partial class UserSettings : Resource
     [Export] public Color WallpaperColor { get; set; } = Colors.SlateGray;
     [Export] public Color GlassTintColor { get; set; } = new(1.0f, 1.0f, 1.0f, 0.027f);
     [Export] public bool GlassEnabled { get; set; } = true;
-    [Export] public Font MainFont { get; set; } = Consts.GetRobotoFont();
+    [Export] public Font MainFont { get; set; }
     [Export] public bool WindowAnimations { get; set; } = true;
     [Export] public bool HiDPIEnabled { get; set; } = true;
     [Export] public bool AutoLoadLastFile { get; set; } = true;
