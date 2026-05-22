@@ -1,9 +1,9 @@
 [gd_resource type="ShaderMaterial" format=3 uid="uid://dg42w3bb5qow4"]
 
-[ext_resource type="Shader" uid="uid://bdma8h4a8ctsw" path="res://shaders/akos_SDF.gdshader" id="1_cpdsh"]
+[ext_resource type="Shader" uid="uid://bdma8h4a8ctsw" path="res://shaders/akos.gdshader" id="1_2gebr"]
 
 [resource]
-shader = ExtResource("1_cpdsh")
+shader = ExtResource("1_2gebr")
 shader_parameter/is_active = true
 shader_parameter/alpha_enabled = true
 shader_parameter/shadow_color_enabled = true
