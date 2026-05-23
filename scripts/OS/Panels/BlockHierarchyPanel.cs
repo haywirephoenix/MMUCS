@@ -108,12 +108,6 @@ public partial class BlockHierarchyPanel : FloatingPanel
 
     private void TreeOnGuiInput(InputEvent @event)
     {
-        if (@event is InputEventKey { Echo: false, Keycode: Key.Shift } keyEvent)
-        {
-            _tree.SelectMode = keyEvent.Pressed ? Tree.SelectModeEnum.Multi : Tree.SelectModeEnum.Single;
-            return;
-        }
-
         if (!FocusManager.IsFocused(_tree)) return;
 
         if (@event is InputEventMouse mouseEvent && mouseEvent.ButtonMask == MouseButtonMask.Right)
@@ -124,6 +118,12 @@ public partial class BlockHierarchyPanel : FloatingPanel
 
         if (@event is InputEventKey kEvent && kEvent.Pressed)
             _HandleKeyboardNavigation(kEvent);
+        
+        // if (@event is InputEventKey { Echo: false, Keycode: Key.Shift } keyEvent)
+        // {
+        //     _tree.SelectMode = keyEvent.Pressed ? Tree.SelectModeEnum.Multi : Tree.SelectModeEnum.Single;
+        //     return;
+        // }
     }
 
     private void _HandleKeyboardNavigation(InputEventKey keyEvent)
@@ -160,7 +160,7 @@ public partial class BlockHierarchyPanel : FloatingPanel
             {
                 bool hasFilter = !string.IsNullOrEmpty(_currentQuery) || _currentTargetTag.HasValue;
                 if (!hasFilter) break;
-                SearchJump(selected,false);
+                SearchJump(selected,false, keyEvent.ShiftPressed);
                 AcceptEvent();
                 break;
             }
@@ -168,24 +168,64 @@ public partial class BlockHierarchyPanel : FloatingPanel
             {
                 bool hasFilter = !string.IsNullOrEmpty(_currentQuery) || _currentTargetTag.HasValue;
                 if (!hasFilter) break;
-                SearchJump(selected,true);
+                SearchJump(selected,true, keyEvent.ShiftPressed);
                 AcceptEvent();
                 break;
             }
         }
     }
 
-    private void SearchJump(TreeItem selected, bool next)
+    private void SearchJump(TreeItem selected, bool next, bool groupJump = false)
     {
-        TreeItem target = next
-            ? GetNextFilteredMatch(selected, _currentQuery, _currentTargetTag)
-            : GetPrevFilteredMatch(selected, _currentQuery, _currentTargetTag);
-        
+        TreeItem target;
+
+        if (groupJump)
+        {
+            TreeItem currentParent = selected.GetParent();
+            target = next
+                ? GetNextFilteredMatchOutsideParent(selected, currentParent, _currentQuery, _currentTargetTag)
+                : GetPrevFilteredMatchOutsideParent(selected, currentParent, _currentQuery, _currentTargetTag);
+        }
+        else
+        {
+            target = next
+                ? GetNextFilteredMatch(selected, _currentQuery, _currentTargetTag)
+                : GetPrevFilteredMatch(selected, _currentQuery, _currentTargetTag);
+        }
+
         if (target == null) return;
-        
+
         _RevealPathToItem(target);
         target.Select(0);
         _tree.EnsureCursorIsVisible();
+    }
+
+    private TreeItem GetNextFilteredMatchOutsideParent(TreeItem current, TreeItem excludedParent, string query, uint? targetTag)
+    {
+        if (string.IsNullOrEmpty(query) && !targetTag.HasValue) return null;
+
+        TreeItem next = _GetNextLogicalItem(current);
+        while (next != null)
+        {
+            if (next.GetParent() != excludedParent && IsActualMatch(next, query, targetTag))
+                return next;
+            next = _GetNextLogicalItem(next);
+        }
+        return null;
+    }
+
+    private TreeItem GetPrevFilteredMatchOutsideParent(TreeItem current, TreeItem excludedParent, string query, uint? targetTag)
+    {
+        if (string.IsNullOrEmpty(query) && !targetTag.HasValue) return null;
+
+        TreeItem prev = _GetPrevLogicalItem(current);
+        while (prev != null)
+        {
+            if (prev.GetParent() != excludedParent && IsActualMatch(prev, query, targetTag))
+                return prev;
+            prev = _GetPrevLogicalItem(prev);
+        }
+        return null;
     }
 
     private TreeItem _GetNextFoldAwareItem(TreeItem item)
