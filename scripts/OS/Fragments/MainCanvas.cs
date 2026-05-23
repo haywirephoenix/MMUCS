@@ -43,7 +43,6 @@ public partial class MainCanvas : VBoxContainer
     {
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         EventBus.Instance.FileParsed += OnScummblockLoaded;
-
         EventBus.Instance.StartupComplete += OnBootScreenFinished;
     
         HideAllWindows();
@@ -130,6 +129,8 @@ public partial class MainCanvas : VBoxContainer
                     ScummBlock fileRoot = _scummResourceParser.Parse(filePath);
                     roots.Add(fileRoot);
                 }
+                
+                StatusBar.SetProgress(100);
 
                 virtualRoot = new ScummBlock
                 {

@@ -31,6 +31,7 @@ public partial class BootScreen : CanvasLayer
         Instance = this;
         OSLayer.Visible = false;
         Visible = true;
+        LoadingBar.Visible = false;
     }
 
     public static void SetProgress(float percentage)
@@ -43,17 +44,17 @@ public partial class BootScreen : CanvasLayer
     {
         _pendingProgressVisible = visible;
         if (Instance == null || Instance.LoadingBar == null) return;
-        Instance.LoadingBar.CallDeferred(CanvasItem.MethodName.SetVisible, visible);
+        //Instance.LoadingBar.CallDeferred(CanvasItem.MethodName.SetVisible, visible);
     }
 
     public override void _Ready()
     {
         OSLayer.Visible = true;
+       
         Background.Color = DarkBoot ? Colors.Black : BackgroundColor;
         Background.MouseFilter = Control.MouseFilterEnum.Stop;
         
-        // Match our current state or default to hidden
-        LoadingBar.Visible = _pendingProgressVisible; 
+        // LoadingBar.Visible = _pendingProgressVisible; 
 
         if (DarkBoot) MaxLogoAlpha = 1.0f;
         
