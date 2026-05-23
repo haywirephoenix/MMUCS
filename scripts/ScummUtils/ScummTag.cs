@@ -91,7 +91,10 @@ public static class ScummTag
         {IMHD, new("IMHD","Image Header", "Width, height, and format metadata for an image.")},
         {IMAG, new("IMAG","Image Data", "Wrapper for the actual bitstream of an image/sprite.")},
         {SMAP, new("SMAP","Shared Map", "The bitmap data container for background images.")},
-        {BSTR, new("BSTR","Bitstream", "Compressed graphical data (often RLE or Huffman).")},
+        
+        {BSTR, new("BSTR","Background Strip", "Compressed background data container.")},
+        {ZSTR, new("ZSTR","Zplane Strip", "Compressed zplane data container")},
+        
         {BOMP, new("BOMP","Bitmask Map", "Transparency or hit-detection mask for an object.")},
         {ZPLN, new("ZPLN","Z-Plane", "Depth-mask layers used to handle occlusion.")},
         {CYCL, new("CYCL","Color Cycle", "Definitions for palette-shifting animation effects.")},
@@ -100,7 +103,7 @@ public static class ScummTag
         {AKOS, new("AKOS","AKOS Costume", "V7/V8 container for character sprites and animations.")},
         {AKHD, new("AKHD","AKOS Header", "Akos Header")},
         {AKPL, new("AKPL","AKOS Palette", "Palette data specific to an AKOS costume.")},
-        {RGBS, new("RGBS","RGB Sample", "Raw RGB values for true-color modes in V8.")},
+        {RGBS, new("RGBS","RGB Sample", "A list of 8 bits triplet coding colors")},
         {AKSQ, new("AKSQ","AKOS Command Sequence", "The picture indices are mixed with the commands, the stream is a mix of 8 and 16 bits values. 8 bits values are always picture index. All 16 bits value with 0xC0 in the MSB are commands, the rest are picture index to which a mask of 0xFFF is applied.")},
         {AKCH, new("AKCH","AKOS Changes", "Offset table giving access to all entries, followed by all definitions. The definitions start with a mask indicating which limb are active, followed by the actual limb definitions.")},
         {AKOF, new("AKOF","AKOS Offsets", "Pointer table for components within an AKOS block.")},
@@ -116,7 +119,6 @@ public static class ScummTag
         {SCRP, new("SCRP","Script Pointer", "Entry-point table for scripts in the block.")},
         {LSCR, new("LSCR","Local Script", "Compiled bytecode for room-specific scripts.")},
         {GSCR, new("GSCR","Global Script", "Compiled bytecode for game-wide scripts.")},
-        {ZSTR, new("ZSTR","Z-String", "Compressed/Encrypted string table.")},
         {WRAP, new("WRAP","Wrapper", "Structural wrapper block.")},
         {OFFS, new("OFFS","Offset Table", "Offset table for data blocks.")},
         {TRNS, new("TRNS","Transparent Color", "Defines the transparent palette index.")},
@@ -129,7 +131,6 @@ public static class ScummTag
         {COST, new("COST","Costume", "Actor costume resource (limbs, sprites).")},
         {CHAR, new("CHAR","Charset", "Bitmap font resource.")},
         
-        {DROO, new("DROO","Directory of Rooms", "Directory of room resources.")},
         {ROOM, new("ROOM","Room", "Primary container for room-specific data, background, and logic.")},
         {RMHD, new("RMHD","Room Header", "Defines room dimensions and internal resource counts.")},
         {RMSC, new("RMSC","Room Script", "Container for room code blocks.")},
@@ -137,10 +138,12 @@ public static class ScummTag
         {ENCD, new("ENCD","Room Entry Script", "Cntains special code when a room is entered.")},
         {EXCD, new("EXCD","Room Exit Script", "Cntains special code when a room is exited.")},
         
+        {DROO, new("DROO","Directory of Rooms", "Directory of room resources.")},
         {DSCR, new("DSCR","Directory of Scripts", "Directory for room scripts.")},
         {DCOS, new("DCOS","Directory of Costumes", "Directory for costumes.")},
         {DSOU, new("DSOU","Directory of Sounds", "Directory for sounds.")},
         {DCHR, new("DCHR","Directory of Charsets", "Directory for charsets.")},
+        
         {AARY, new("AARY","Array", "Array definition parameters.")},
         {MAXS, new("MAXS","Maximums", "Game engine limit definitions.")},
         {BMAP, new("BMAP","Bitmap", "Bitmap image data.")},

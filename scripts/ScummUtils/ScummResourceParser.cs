@@ -126,6 +126,7 @@ public class ScummResourceParser
         // ScummTag.OFFS,
         ScummTag.SMAP,
         ScummTag.ZPLN,
+        ScummTag.ZSTR,
         ScummTag.SOUN,
         ScummTag.MAP,
         ScummTag.iMUS,
