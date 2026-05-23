@@ -36,6 +36,7 @@
 [ext_resource type="Texture2D" uid="uid://e6m3xtkg1o34" path="res://wallpapers/fire-skull.png" id="27_tilu5"]
 [ext_resource type="Texture2D" uid="uid://d1q75m0hn3mg0" path="res://wallpapers/blurred/fire-skull_blurred.png" id="28_24xe2"]
 [ext_resource type="Texture2D" uid="uid://ddf5al7cvwuj2" path="res://icon.svg" id="28_qoqhg"]
+[ext_resource type="StyleBox" uid="uid://ci4e6yoiosvld" path="res://themes/deafult/styleboxflat_white_bootprogress.tres" id="31_xu2l0"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ub8w1"]
 
@@ -2450,25 +2451,29 @@ theme_override_styles/tab_disabled = ExtResource("12_3dlgs")
 theme_override_styles/tab_focus = ExtResource("12_3dlgs")
 current_tab = 0
 
-[node name="Preview" type="SubViewportContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=1327008762 node_paths=PackedStringArray("_camera", "_celPreview")]
+[node name="Preview" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=1897223329]
+layout_mode = 2
+metadata/_tab_index = 0
+
+[node name="PreviewContainer" type="SubViewportContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview" unique_id=1327008762 node_paths=PackedStringArray("_camera", "_celPreview")]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+size_flags_stretch_ratio = 25.6
 stretch = true
 script = ExtResource("17_24xe2")
 _camera = NodePath("SubViewport/Object Camera")
 _celPreview = NodePath("SubViewport/Object Preview")
-metadata/_tab_index = 0
 
-[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview" unique_id=638758665]
+[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview/PreviewContainer" unique_id=638758665]
 transparent_bg = true
 handle_input_locally = false
 snap_2d_transforms_to_pixel = true
 positional_shadow_atlas_size = 0
-size = Vector2i(306, 451)
+size = Vector2i(306, 421)
 render_target_update_mode = 4
 
-[node name="Object Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview/SubViewport" unique_id=609620734]
+[node name="Object Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview/PreviewContainer/SubViewport" unique_id=609620734]
 texture_filter = 1
 custom_minimum_size = Vector2(200, 0)
 offset_right = 257.0
@@ -2477,8 +2482,19 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 stretch_mode = 2
 
-[node name="Object Camera" type="Camera2D" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview/SubViewport" unique_id=1028180553]
+[node name="Object Camera" type="Camera2D" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview/PreviewContainer/SubViewport" unique_id=1028180553]
 zoom = Vector2(2.46, 2.46)
+
+[node name="FrameSlider" type="HSlider" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview" unique_id=1797667655]
+layout_mode = 2
+theme_override_styles/slider = ExtResource("12_3dlgs")
+theme_override_styles/grabber_area = ExtResource("12_3dlgs")
+theme_override_styles/grabber_area_highlight = ExtResource("12_3dlgs")
+max_value = 3.0
+rounded = true
+scrollable = false
+ticks_on_borders = true
+ticks_position = 3
 
 [node name="Palette" type="ScrollContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=899832692]
 visible = false
@@ -3618,20 +3634,22 @@ expand_mode = 3
 stretch_mode = 5
 
 [node name="LoadingBar" type="ProgressBar" parent="Boot" unique_id=1512349491]
+visible = false
 anchors_preset = -1
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -116.5
-offset_top = -353.0
+offset_top = -355.0
 offset_right = 116.5
 offset_bottom = -345.0
 grow_horizontal = 2
 grow_vertical = 0
 size_flags_horizontal = 4
 size_flags_vertical = 4
-rounded = true
+theme_override_styles/background = ExtResource("12_3dlgs")
+theme_override_styles/fill = ExtResource("31_xu2l0")
 show_percentage = false
 
 [node name="ThemeManager" type="Node" parent="." unique_id=475734914 node_paths=PackedStringArray("WallpaperTextureRect", "WallpaperColorRect")]

@@ -13,6 +13,7 @@ public static class ScummDecoders
     public static bool DecodeObjectImage(
         ScummBlock objectBlock,
         CancellationToken token,
+        int frameIndex,
         out Image objectImage,
         out byte[] indexedPixels,
         out int outPitch,
@@ -58,8 +59,21 @@ public static class ScummDecoders
             return false;
         }
 
-        var smap = imag.FindChildRecursive(ScummTag.SMAP);
-        var bomp = imag.FindChildRecursive(ScummTag.BOMP);
+        ScummBlock smap = imag.FindChildRecursive(ScummTag.SMAP);
+        //var bomp = imag.FindChildRecursive(ScummTag.BOMP);
+        ScummBlock bomp = null;
+        if (smap == null)
+        {
+            var bomps = imag.FindChildrenRecursive(ScummTag.BOMP);
+            foreach (var child in bomps)
+            {
+                if (child.Tag == ScummTag.BOMP && child.TagSiblingIndex == frameIndex)
+                {
+                    bomp = child;
+                    break;
+                }
+            }
+        }
 
         int pitch = Align8(width);
         byte[] buffer = new byte[pitch * height];
@@ -212,7 +226,7 @@ public static class ScummDecoders
 
     #region Common
 
-    public static byte LastStripOverride = 5;
+   public static byte LastStripOverride = 5;
    public static bool TryDecodeSmapBlock(
     ScummBlock smapBlock,
     int width,
