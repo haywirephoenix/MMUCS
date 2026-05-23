@@ -16,7 +16,7 @@ public partial class FloatingPanel : Control
     private const float UndockThreshold = 40f;
     public virtual string PanelTitle => "Panel";
     [Export] public Vector2 DefaultSize { get; set; } = new(400, 300);
-    [Export] public Vector2 MinimumPanelSize { get; set; } = new(200, 100);
+    // [Export] public Vector2 CustomMinimumSize { get; set; } = new(200, 100);
 
     public string PanelId { get; private set; } = "panel";
 
@@ -40,6 +40,9 @@ public partial class FloatingPanel : Control
     private float _expandedHeight;
 
     private bool _resizing;
+    private Vector2 _sizeOnStart;
+    private Vector2 _minSizeOnStart;
+    
     private Vector2 _resizeStartMouse;
     private Vector2 _resizeStartSize;
     private Vector2 _resizeStartPosition;
@@ -102,7 +105,8 @@ public partial class FloatingPanel : Control
     public override void _Ready()
     {
         //_canvas = GetParent<Control>();
-        CustomMinimumSize = Size;
+        _sizeOnStart = Size;
+        _minSizeOnStart = CustomMinimumSize;
         PanelId = PanelTitle;
         Name = PanelTitle;
         // Size = DefaultSize;
@@ -254,8 +258,8 @@ public partial class FloatingPanel : Control
             if (!isSync) FocusManager.CurrentResized = null;
 
             Vector2 finalSize = Size;//.SnapVector()
-            finalSize.X = Mathf.Max(finalSize.X, MinimumPanelSize.X);
-            finalSize.Y = Mathf.Max(finalSize.Y, MinimumPanelSize.Y);
+            finalSize.X = Mathf.Max(finalSize.X, CustomMinimumSize.X);
+            finalSize.Y = Mathf.Max(finalSize.Y, CustomMinimumSize.Y);
 
             if (_currentDirection.X < 0 || _currentDirection.Y < 0)
             {
@@ -283,7 +287,7 @@ public partial class FloatingPanel : Control
         {
             Vector2 mouseDiff = GetGlobalMousePosition() - _resizeStartMouse;
             float delta = WindowManager.MouseDeltaToDock(mouseDiff, _currentDock);
-            DockedThickness = Mathf.Max(_resizeStartDockedThickness + delta, MinimumPanelSize.X);
+            DockedThickness = Mathf.Max(_resizeStartDockedThickness + delta, CustomMinimumSize.X);
             
             WindowManager.OnDockResize(this, _currentDock, @event, direction, DockedThickness);
         }
@@ -299,7 +303,7 @@ public partial class FloatingPanel : Control
         if (_currentDirection.X != 0)
         {
             float deltaX = mouseDiff.X * _currentDirection.X;
-            float targetWidth = Mathf.Max(_resizeStartSize.X + deltaX, MinimumPanelSize.X);
+            float targetWidth = Mathf.Max(_resizeStartSize.X + deltaX, CustomMinimumSize.X);
             if (_currentDirection.X < 0) newPos.X -= targetWidth - _resizeStartSize.X;
             newSize.X = targetWidth;
         }
@@ -307,7 +311,7 @@ public partial class FloatingPanel : Control
         if (_currentDirection.Y != 0)
         {
             float deltaY = mouseDiff.Y * _currentDirection.Y;
-            float targetHeight = Mathf.Max(_resizeStartSize.Y + deltaY, MinimumPanelSize.Y);
+            float targetHeight = Mathf.Max(_resizeStartSize.Y + deltaY, CustomMinimumSize.Y);
             if (_currentDirection.Y < 0) newPos.Y -= targetHeight - _resizeStartSize.Y;
             newSize.Y = targetHeight;
         }
@@ -397,7 +401,7 @@ public partial class FloatingPanel : Control
         }
         else
         {
-            CustomMinimumSize = MinimumPanelSize;
+            CustomMinimumSize = _minSizeOnStart;
             Size = new Vector2(Size.X, _expandedHeight);
             _contentRoot.Visible = true;
             _marginContainer.Visible = true;
@@ -425,8 +429,8 @@ public partial class FloatingPanel : Control
 
         var minSize = _layout.GetCombinedMinimumSize();
 
-        minSize.X = Mathf.Max(minSize.X, MinimumPanelSize.X);
-        minSize.Y = Mathf.Max(minSize.Y, MinimumPanelSize.Y);
+        minSize.X = Mathf.Max(minSize.X, CustomMinimumSize.X);
+        minSize.Y = Mathf.Max(minSize.Y, CustomMinimumSize.Y);
 
         Size = minSize;
 
