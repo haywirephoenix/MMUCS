@@ -57,6 +57,8 @@ public class ScummResourceParser
         ReadOnlySpan<byte> span = data;
         int pos = start;
 
+        Dictionary<uint, int> tagCounters = new();
+
         while (pos + 8 <= end)
         {
             uint tag = ScummTag.Read(data, pos);
@@ -82,7 +84,7 @@ public class ScummResourceParser
                 FileData = data,
                 Parent = parent,
             };
-            
+        
             if (ScummTag.TryGetMeta(tag, out var meta))
             {
                 block.TagName = meta.TagName;
@@ -94,12 +96,13 @@ public class ScummResourceParser
                 block.TagName = ScummTag.ToString(tag); // Fallback to raw chars
             }
 
+            tagCounters.TryAdd(tag, 0);
+            block.TagSiblingIndex = tagCounters[tag]++;
+
             parent.Children.Add(block);
 
-            // Use uint comparison for container logic
             if (_IsContainer(tag))
             {
-                // If it's a WRAP, the actual data starts 8 bytes in
                 _ParseChildren(data, pos + 8, pos + size, block, silent: true);
             }
 

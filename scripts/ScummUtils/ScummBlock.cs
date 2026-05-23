@@ -18,6 +18,8 @@ public partial class ScummBlock : RefCounted
     public List<ScummBlock> Children { get; set; } = new();
     public ScummBlock Parent { get; set; }
     
+    public int TagSiblingIndex { get; set; } = 0;
+    
    
     
     public byte[] FileData;
@@ -148,6 +150,23 @@ public partial class ScummBlock : RefCounted
         }
 
         return results;
+    }
+    
+    public int GetSiblingIndexByTag()
+    {
+        if (Parent == null) return 0;
+
+        int tagIndex = 0;
+        foreach (var sibling in Parent.Children)
+        {
+            if (sibling.Tag != Tag) continue;
+            
+            if (sibling.Offset == Offset) 
+                return tagIndex;
+                
+            tagIndex++;
+        }
+        return -1;
     }
     
 }
