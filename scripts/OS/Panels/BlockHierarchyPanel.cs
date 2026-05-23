@@ -134,6 +134,9 @@ public partial class BlockHierarchyPanel : FloatingPanel
         switch (keyEvent.Keycode)
         {
             case Key.Enter:
+                selected.Collapsed =! selected.Collapsed;
+                AcceptEvent();
+                break;
             case Key.Right:
                 if (selected.Collapsed) selected.Collapsed = false;
                 AcceptEvent();
