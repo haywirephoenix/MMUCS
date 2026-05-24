@@ -26,6 +26,13 @@ public partial class BootScreen : CanvasLayer
     private bool _isThemeManagerInitialized = false;
     
     private static bool _pendingProgressVisible = false;
+    
+    private static readonly NodePath BackgroundPath = "Background";
+    private static readonly NodePath LogoPath = "Logo";
+    private static readonly NodePath VerboseTextPath = "VerboseText";
+    private static readonly NodePath LoadingBarPath = "LoadingBar";
+    private static readonly NodePath OSLayerPath = "../OS";
+    private static readonly NodePath MainCanvasPath = "../OS/MainCanvas";
 
     public static bool IsEnabled => Instance != null && Instance.Enabled;
     public static bool IsBooting => Instance != null && Instance._isBooting;
@@ -33,32 +40,49 @@ public partial class BootScreen : CanvasLayer
     public override void _EnterTree()
     {
         Instance = this;
+        
+    }
+
+    private void AssignNodes()
+    {
+        Background = GetNode<ColorRect>(BackgroundPath);
+        Logo = GetNode<TextureRect>(LogoPath);
+        VerboseText = GetNode<RichTextLabel>(VerboseTextPath);
+        LoadingBar = GetNode<ProgressBar>(LoadingBarPath);
+        OSLayer = GetNode<CanvasLayer>(OSLayerPath);
+        MainCanvas = GetNode<MainCanvas>(MainCanvasPath);
+    }
+    
+
+    public override void _Ready()
+    {
+        AssignNodes();
+        
         OSLayer.Visible = false;
         Visible = true;
         LoadingBar.Visible = false;
-        
-    }
-    public async override void _Ready()
-    {
         EventBus.Instance.ThemeManagerInitialized += InstanceOnThemeManagerInitialized;
         OSLayer.Visible = true;
         ThemeManager.Instance.Init();
-       
+   
         Background.Color = DarkBoot ? Colors.Black : BackgroundColor;
         Background.MouseFilter = Control.MouseFilterEnum.Stop;
-        
-        // LoadingBar.Visible = _pendingProgressVisible; 
-
+    
         if (DarkBoot) MaxLogoAlpha = 1.0f;
-        
+    
         Logo.Modulate = new Color(LogoColor.R, LogoColor.G, LogoColor.B, 0.0f);
 
         if (Enabled)  
-            await StartBootIntro();
+        {
+            Callable.From(async () => await StartBootIntro()).CallDeferred();
+        }
         else
         {
-            await MainCanvas.Init();
-            FinishBoot();
+            Callable.From(async () => 
+            {
+                await MainCanvas.Init();
+                FinishBoot();
+            }).CallDeferred();
         }
     }
     
@@ -93,22 +117,35 @@ public partial class BootScreen : CanvasLayer
 
     private async Task StartBootIntro()
     {
+        if (Logo == null) StatusBar.SetStatus("CRITICAL: 'Logo' node is null!", StatusBar.EStatusType.Error);
+        if (MainCanvas == null) StatusBar.SetStatus("CRITICAL: 'MainCanvas' is null!");
+
         Tween introTween = CreateTween(); 
-        introTween.SetTrans(Tween.TransitionType.Cubic);
-        introTween.SetEase(Tween.EaseType.Out);
-    
-        introTween.TweenInterval(1.0f);
-        introTween.TweenProperty(Logo, "modulate:a", MaxLogoAlpha, 0.5f);
+        if (introTween == null) StatusBar.SetStatus("CRITICAL: Failed to create Tween!", StatusBar.EStatusType.Error);
 
-        await MainCanvas.Init();
-    
-        await ToSignal(introTween, Tween.SignalName.Finished);
+        introTween?.SetTrans(Tween.TransitionType.Cubic);
+        introTween?.SetEase(Tween.EaseType.Out);
 
+        introTween?.TweenInterval(1.0f);
+        introTween?.TweenProperty(Logo, "modulate:a", MaxLogoAlpha, 0.5f);
+
+        StatusBar.SetStatus("Initializing OS...");
+        if(MainCanvas != null)
+            await MainCanvas.Init();
+
+        if (introTween != null)
+        {
+            StatusBar.SetStatus("Waiting for boot complete...");
+            await ToSignal(introTween, Tween.SignalName.Finished);
+            StatusBar.SetStatus("Welcome to MMUCS");
+
+        }
+        
         if (_ctrlHeldDetected || _altHeldDetected)
         {
             await Task.Delay(TimeSpan.FromSeconds(5.0));
         }
-    
+
         _introComplete = true;
         if (_exitQueued)
         {
