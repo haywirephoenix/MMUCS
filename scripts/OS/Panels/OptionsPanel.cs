@@ -10,8 +10,6 @@ public partial class OptionsPanel : FloatingPanel
 
     #region Dependencies
 
-    // [Export] public ThemeManager ThemeManager { get; set; }
-    // [Export] public UserSettings Settings { get; set; }
 
     private AppSettings AppSettings => ConfigManager.AppSettings;
 
@@ -76,9 +74,29 @@ public partial class OptionsPanel : FloatingPanel
     #endregion
 
     public override void _Notification(int what) { }
-    protected override void LoadLayout() { }
+    public override void LoadLayout()
+    {
+        IsOpen = false;
+        
+        CompleteInitialization();
+    }
+    public override void LoadLayoutDeferred()
+    {
+        IsOpen = false;
+        CompleteInitialization();
+    }
     
-    [Export] public ColorPickerButton colorPicker;
+    private bool _optionsInitialized = false;
+    
+    public override void Open(bool open, bool animate = false, float delay = 0)
+    {
+        if(!_optionsInitialized) InitOptions();
+        base.Open(open, animate, delay);
+        SetCentered();
+    }
+    
+    [Export] public ColorPickerButton bgColorPicker;
+    [Export] public ColorPickerButton tintColorPicker;
     [Export] public OptionButton modeOpt;
     [Export] public MarginContainer appearanceColor;
     [Export] public CheckButton glassToggle;
@@ -89,43 +107,51 @@ public partial class OptionsPanel : FloatingPanel
     [Export] private GridContainer wallpaperGrid;
     [Export] private Control wallpaperGridOuter;
     [Export] public CheckButton hiDpiToggle;
+
+    private const string s_optionsPath = "Layout/MarginContainer/ContentRoot/Options";
+    private const string s_stackPath = s_optionsPath+"/ContentBackground/ContentScroll/ContentPageStack/Stack";
+    private const string s_sidebarPath = s_optionsPath+"/SidebarBackground/SideBar";
     
-    private static readonly NodePath PathColorPickerButton197 = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/ColorPickerOuter/ColorPickerRow/_ColorPickerButton_197";
-    private static readonly NodePath PathOptionButton194 = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpaperModeOuter/WallpaperModeRow/_OptionButton_194";
-    private static readonly NodePath PathColorPickerOuter = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/ColorPickerOuter";
-    private static readonly NodePath PathGlassCheckButton = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/_CheckButton_198";
-    private static readonly NodePath PathSideBar = "Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar";
-    private static readonly NodePath PathScaleLabel = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer/ScaleLabel";
-    private static readonly NodePath PathScaleSlider = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer/ScaleSlider";
-    private static readonly NodePath PathAnimToggle = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/AnimToggle";
-    private static readonly NodePath PathWallpaperGrid = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid";
-    private static readonly NodePath PathWallpapersGridOuter = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter";
+    private static readonly NodePath PathColorPickerButton197 = s_stackPath+"/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/BGColorPickerOuter/ColorPickerRow/_ColorPickerButton_197";
+    private static readonly NodePath PathOptionButton194 = s_stackPath+"/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpaperModeOuter/WallpaperModeRow/_OptionButton_194";
+    private static readonly NodePath PathBGColorPickerOuter = s_stackPath+"/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/BGColorPickerOuter";
+    private static readonly NodePath PathGlassCheckButton = s_stackPath+"/AppearancePage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/_CheckButton_198";
+    private static readonly NodePath PathSideBar = s_sidebarPath;
+    private static readonly NodePath PathScaleLabel = s_stackPath+"/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer/ScaleLabel";
+    private static readonly NodePath PathScaleSlider = s_stackPath+"/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer/ScaleSlider";
+    private static readonly NodePath PathAnimToggle = s_stackPath+"/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/AnimToggle";
+    private static readonly NodePath PathWallpaperGrid = s_stackPath+"/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid";
+    private static readonly NodePath PathWallpapersGridOuter = s_stackPath+"/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter";
     
-    private static readonly NodePath PathAppearanceNavButton = "Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton";
-    private static readonly NodePath PathDisplayNavButton = "Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton";
-    private static readonly NodePath PathFontsNavButton = "Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton";
-    private static readonly NodePath PathGeneralNavButton = "Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton";
+    private static readonly NodePath PathAppearanceNavButton = s_sidebarPath+"/AppearanceNavButton";
+    private static readonly NodePath PathDisplayNavButton = s_sidebarPath+"/DisplayNavButton";
+    private static readonly NodePath PathFontsNavButton = s_sidebarPath+"/FontsNavButton";
+    private static readonly NodePath PathGeneralNavButton = s_sidebarPath+"/GeneralNavButton";
     
-    private static readonly NodePath PathAppearancePage = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage";
-    private static readonly NodePath PathDisplayPage = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage";
-    private static readonly NodePath PathFontsPage = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage";
-    private static readonly NodePath PathGeneralPage = "Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage";
-    
-    
+    private static readonly NodePath PathAppearancePage = s_stackPath+"/AppearancePage";
+    private static readonly NodePath PathDisplayPage = s_stackPath+"/DisplayPage";
+    private static readonly NodePath PathFontsPage = s_stackPath+"/FontsPage";
+    private static readonly NodePath PathGeneralPage = s_stackPath+"/GeneralPage";
+
+  
+
     private void UpdateUIState()
     {
-        glassToggle.SetPressedNoSignal(Settings.GlassEnabled);
-        hiDpiToggle.SetPressedNoSignal(Settings.HiDPIEnabled);
+        glassToggle.SetPressedNoSignal(AppSettings.GlassEnabled);
+        hiDpiToggle.SetPressedNoSignal(AppSettings.HiDPIEnabled);
         // resOpt.Selected
-        colorPicker.Color = Settings.WallpaperColor;
-        modeOpt.Selected = (int)Settings.WallpaperMode;
-        scaleSlider.Value = Settings.GuiScale;
+        bgColorPicker.Color = AppSettings.WallpaperColor;
+        tintColorPicker.Color = AppSettings.GlassTintColor;
+        modeOpt.Selected = (int)AppSettings.WallpaperMode;
+        scaleSlider.Value = AppSettings.GuiScale;
         
-        bool isColor = Settings.WallpaperMode == Consts.WallPaperModeEnum.Color;
-        glassToggle.Disabled = isColor;
+        // bool isColor = AppSettings.WallpaperMode == Consts.WallPaperModeEnum.Color;
+        // glassToggle.Disabled = isColor;
+        
+        OnWallpaperModeChanged((int)ConfigManager.AppSettings.WallpaperMode);
     }
 
-    protected override void OnReady()
+    private void InitOptions()
     {
         _navButtons =
         [
@@ -143,12 +169,10 @@ public partial class OptionsPanel : FloatingPanel
             GetNode<BoxContainer>(PathGeneralPage),
         ];
         
-        
-        
         UpdateUIState();
         
-        
-        colorPicker.ColorChanged   += c   => EventBus.Instance.EmitSignal(EventBus.SignalName.WallpaperColorChangeRequested, c);
+        bgColorPicker.ColorChanged   += c   => EventBus.Instance.EmitSignal(EventBus.SignalName.WallpaperColorChangeRequested, c);
+        tintColorPicker.ColorChanged   += c   => EventBus.Instance.EmitSignal(EventBus.SignalName.WindowColorChangeRequested, c);
         modeOpt.ItemSelected       += i   => EventBus.Instance.EmitSignal(EventBus.SignalName.WallpaperModeChangeRequested, (int)i);
         glassToggle.Toggled        += v   => EventBus.Instance.EmitSignal(EventBus.SignalName.GlassChangeRequested, v);
         hiDpiToggle.Toggled        += v   => EventBus.Instance.EmitSignal(EventBus.SignalName.HiDPIChangeRequested, v);
@@ -159,21 +183,20 @@ public partial class OptionsPanel : FloatingPanel
         
         EventBus.Instance.Connect(EventBus.SignalName.GlassStateChanged,
             Callable.From<bool>(v => glassToggle.SetPressedNoSignal(v)));
+        
         EventBus.Instance.Connect(EventBus.SignalName.WallpaperModeApplied,
-            Callable.From<int>(i =>
-            {
-                bool isColor = (Consts.WallPaperModeEnum)i == Consts.WallPaperModeEnum.Color;
-                appearanceColor.Visible = isColor;
-                wallpaperGridOuter.Visible = !isColor;
-                glassToggle.Disabled = isColor;
-            }));
+            Callable.From<int>(OnWallpaperModeChanged));
 
         foreach (var (btn, index) in _navButtons.Select((b, i) => (b, i)))
             btn.Connect(BaseButton.SignalName.Pressed, Callable.From(() => SelectPage(index)));
 
         PopulateWallpapers();
         SelectPage(0);
+        Visible = false;
+        _optionsInitialized = true;
     }
+
+   
     
     private void OnResolutionChanged(long idx)
     {
@@ -188,29 +211,18 @@ public partial class OptionsPanel : FloatingPanel
     private void OnScaleSliderDragEnd(bool valueHasChanged)
     {
         if (valueHasChanged)
-            ApplyUiScale((float)scaleSlider.Value);
+            EventBus.Instance.EmitSignal(EventBus.SignalName.UIScaleChangeRequested, (float)scaleSlider.Value);
     }
 
-    private void OnWallpaperModeChanged(long newModeLong)
+    private void OnWallpaperModeChanged(int newModeIndex)
     {
-        var newMode = (Consts.WallPaperModeEnum)newModeLong;
+        var newMode = (Consts.WallPaperModeEnum)newModeIndex;
         bool isColor = newMode == Consts.WallPaperModeEnum.Color;
 
         appearanceColor.Visible = isColor;
         wallpaperGridOuter.Visible = !isColor;
         glassToggle.Disabled = isColor;
-
-        // ThemeManager.UpdateWallpaperMode(newMode);
-
-        // Sync the toggle to whatever ThemeManager decided — covers both
-        // the auto-restore case and the "user had it off" case
-        glassToggle.SetPressedNoSignal(Settings.GlassEnabled);
-    }
-
-    private void ApplyUiScale(float newScale)
-    {
-        if (Settings != null) Settings.GuiScale = newScale;
-        GetTree().Root.ContentScaleFactor = newScale;
+        glassToggle.SetPressedNoSignal(AppSettings.GlassEnabled);
     }
     
     private StyleBoxFlat _styleNormal;

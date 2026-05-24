@@ -35,25 +35,11 @@ public partial class ThemeManager : Node
     private float GUIScale => ConfigManager.AppSettings.GuiScale;
     // private Color WindowColor = Colors.SlateGray;
     
-    public bool WallpaperEnabled => WallpaperMode == Consts.WallPaperModeEnum.Image;
+    private bool WallpaperEnabled => WallpaperMode == Consts.WallPaperModeEnum.Image;
 
     public static bool GlassAvailable => Instance.WallpaperEnabled;
+    public static bool IsReady = false;
     
-    #endregion
-
-    #region References
-    
-    [ExportGroup("References")]
-    [Export] public TextureRect WallpaperTextureRect { get; set; }
-    [Export] public ColorRect WallpaperColorRect { get; set; }
-    [Export] public Material WindowMaterial { get; set; }
-    [Export] public StyleBox WindowStyleBox { get; set; }
-    [Export] public Shader WindowShader { get; set; }
-    
-    [Export] public Texture2D WallpaperFractal { get; set; }
-    [Export] public Texture2D WallpaperFractalBlur { get; set; }
-    [Export] public Texture2D WallpaperFireSkull { get; set; }
-    [Export] public Texture2D WallpaperFireSkullBlur { get; set; }
     
     #endregion
 
@@ -86,6 +72,7 @@ public partial class ThemeManager : Node
     // public override void _Ready()
     public void Init()
     {
+        
         // EventBus.Instance.Connect(EventBus.SignalName.WallpaperChangeRequested,
         //     Callable.From<string>(OnWallpaperChanged));
         EventBus.Instance.Connect(EventBus.SignalName.WallpaperChangeRequested,
@@ -93,16 +80,25 @@ public partial class ThemeManager : Node
         
         EventBus.Instance.Connect(EventBus.SignalName.WallpaperModeChangeRequested,
             Callable.From<int>(i => OnWallpaperModeChanged((Consts.WallPaperModeEnum)i)));
+        
         EventBus.Instance.Connect(EventBus.SignalName.WallpaperColorChangeRequested,
             Callable.From<Color>(OnWallpaperColorChanged));
+        
+        EventBus.Instance.Connect(EventBus.SignalName.WindowColorChangeRequested,
+            Callable.From<Color>(OnTintColorChanged));
+        
         EventBus.Instance.Connect(EventBus.SignalName.GlassChangeRequested,
             Callable.From<bool>(OnGlassEnabledChanged));
+        
         EventBus.Instance.Connect(EventBus.SignalName.GlassChangeSystemRequested,
             Callable.From<bool>(OnGlassEnabledChangedSystem));
+        
         EventBus.Instance.Connect(EventBus.SignalName.UIScaleChangeRequested,
             Callable.From<float>(OnUIScaleChanged));
+        
         EventBus.Instance.Connect(EventBus.SignalName.HiDPIChangeRequested,
             Callable.From<bool>(OnHiDPIEnabledChanged));
+        
         EventBus.Instance.Connect(EventBus.SignalName.WindowAnimationsChangeRequested,
             Callable.From<bool>(OnWindowAnimationsChanged));
 
@@ -174,8 +170,8 @@ public partial class ThemeManager : Node
         // var blurName = blurTex.GetName();
         ConfigManager.UpdateAppSettings(s => s with {WallpaperIndex = wallpaperIndex} );
 
-        // ConfigManager.GUISettings.WallpaperName = wpName;
-        // ConfigManager.GUISettings.WallpaperBlurName = blurName;
+        // ConfigManager.AppSettings.WallpaperName = wpName;
+        // ConfigManager.AppSettings.WallpaperBlurName = blurName;
     
         WallpaperTextureRect.Texture = wptex;
         shaderMat.SetShaderParameter(SHADER_BLURRED_WALL_ID, blurTex);
@@ -185,7 +181,7 @@ public partial class ThemeManager : Node
     {
         if (string.IsNullOrEmpty(wallpaperName)) return;
     
-        if (wallpaperName == ConfigManager.GUISettings.WallpaperName) return;
+        if (wallpaperName == ConfigManager.AppSettings.WallpaperName) return;
 
         if (WindowMaterial is not ShaderMaterial shaderMat) return;
 
@@ -197,8 +193,8 @@ public partial class ThemeManager : Node
         var blurtex = GD.Load<Texture2D>(blurredPath); 
         if (blurtex == null) return;
     
-        ConfigManager.GUISettings.WallpaperName = wallpaperName;
-        ConfigManager.GUISettings.WallpaperBlurName = blurredPath;
+        ConfigManager.AppSettings.WallpaperName = wallpaperName;
+        ConfigManager.AppSettings.WallpaperBlurName = blurredPath;
     
         WallpaperTextureRect.Texture = wptex;
         shaderMat.SetShaderParameter(SHADER_BLURRED_WALL_ID, blurtex);
@@ -295,6 +291,7 @@ public partial class ThemeManager : Node
     {
         // if(value == GlassTintColor) return;
         if (WindowMaterial is not ShaderMaterial shaderMat) return;
+        value.A = 1.0f;
         shaderMat.SetShaderParameter(SHADER_GLASS_TINT_ID, value);
         ConfigManager.UpdateAppSettings(s => s with {GlassTintColor = value} );
     }
