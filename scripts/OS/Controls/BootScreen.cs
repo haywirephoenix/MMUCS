@@ -57,32 +57,34 @@ public partial class BootScreen : CanvasLayer
     public override void _Ready()
     {
         AssignNodes();
-        
+    
         OSLayer.Visible = false;
         Visible = true;
         LoadingBar.Visible = false;
-        EventBus.Instance.ThemeManagerInitialized += InstanceOnThemeManagerInitialized;
-        OSLayer.Visible = true;
-        ThemeManager.Instance.Init();
-   
+
+        try 
+        {
+            EventBus.Instance.ThemeManagerInitialized += InstanceOnThemeManagerInitialized;
+            OSLayer.Visible = true;
+            ThemeManager.Instance.Init();
+        }
+        catch (Exception ex)
+        {
+            StatusBar.SetStatus($"Theme Manager failed to initialize: {ex.Message}. Falling back to default theme.", StatusBar.EStatusType.Error);
+        }
+
         Background.Color = DarkBoot ? Colors.Black : BackgroundColor;
         Background.MouseFilter = Control.MouseFilterEnum.Stop;
-    
         if (DarkBoot) MaxLogoAlpha = 1.0f;
-    
         Logo.Modulate = new Color(LogoColor.R, LogoColor.G, LogoColor.B, 0.0f);
 
         if (Enabled)  
         {
-            Callable.From(async () => await StartBootIntro()).CallDeferred();
+            Callable.From(async void () => { await StartBootIntro(); }).CallDeferred();
         }
-        else
-        {
-            Callable.From(async () => 
-            {
-                await MainCanvas.Init();
-                FinishBoot();
-            }).CallDeferred();
+        else{
+            MainCanvas.Init();
+            FinishBoot();
         }
     }
     
@@ -121,7 +123,7 @@ public partial class BootScreen : CanvasLayer
         if (MainCanvas == null) StatusBar.SetStatus("CRITICAL: 'MainCanvas' is null!");
 
         Tween introTween = CreateTween(); 
-        if (introTween == null) StatusBar.SetStatus("CRITICAL: Failed to create Tween!", StatusBar.EStatusType.Error);
+        if (introTween == null) StatusBar.SetStatus("CRITICAL: Failed to create boot animation", StatusBar.EStatusType.Error);
 
         introTween?.SetTrans(Tween.TransitionType.Cubic);
         introTween?.SetEase(Tween.EaseType.Out);
@@ -130,16 +132,23 @@ public partial class BootScreen : CanvasLayer
         introTween?.TweenProperty(Logo, "modulate:a", MaxLogoAlpha, 0.5f);
 
         StatusBar.SetStatus("Initializing OS...");
-        if(MainCanvas != null)
-            await MainCanvas.Init();
-
         if (introTween != null)
         {
             StatusBar.SetStatus("Waiting for boot complete...");
             await ToSignal(introTween, Tween.SignalName.Finished);
-            StatusBar.SetStatus("Welcome to MMUCS");
-
         }
+        
+        try
+        {
+            if(MainCanvas != null)
+                await MainCanvas.Init();
+        }
+        catch (Exception e)
+        {
+            StatusBar.SetStatus($"OS exception: {e.Message}", StatusBar.EStatusType.Error);
+        }
+        
+        StatusBar.SetStatus("Welcome to MMUCS");
         
         if (_ctrlHeldDetected || _altHeldDetected)
         {
@@ -150,6 +159,10 @@ public partial class BootScreen : CanvasLayer
         if (_exitQueued)
         {
             AnimateExitSequence();
+        }
+        else
+        {
+            FinishBoot();
         }
     }
 

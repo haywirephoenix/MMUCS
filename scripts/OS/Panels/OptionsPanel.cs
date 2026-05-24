@@ -195,8 +195,6 @@ public partial class OptionsPanel : FloatingPanel
         Visible = false;
         _optionsInitialized = true;
     }
-
-   
     
     private void OnResolutionChanged(long idx)
     {

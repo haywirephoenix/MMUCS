@@ -56,31 +56,53 @@ public partial class MainCanvas : VBoxContainer
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         EventBus.Instance.FileParsed += OnScummblockLoaded;
         EventBus.Instance.StartupComplete += OnBootScreenFinished;
-    
-        HideAllWindows();
-        await InitAllWindows();
 
-        if (AutoLoadLastFile && ConfigManager.AppSettings.AutoLoadLastFile)
+        HideAllWindows();
+
+        try 
         {
-            string lastPath = ConfigManager.AppSettings.LastFilePath;
-            if (FileUtils.PathExists(lastPath))
+            await InitAllWindows();
+        }
+        catch (Exception ex)
+        {
+            StatusBar.SetStatus($"One or more windows failed to initialize: {ex.Message}", StatusBar.EStatusType.Error);
+        }
+
+        try 
+        {
+            if (AutoLoadLastFile && ConfigManager.AppSettings.AutoLoadLastFile)
             {
-                _bootLoadTask = LoadScummFileAsync(lastPath);
+                string lastPath = ConfigManager.AppSettings.LastFilePath;
+                if (FileUtils.PathExists(lastPath))
+                {
+                    _bootLoadTask = LoadScummFileAsync(lastPath);
+                }
+            }
+
+            if (_bootLoadTask != null)
+            {
+                _loadedVirtualRoot = await _bootLoadTask;
             }
         }
-
-        if (_bootLoadTask != null)
+        catch (Exception ex)
         {
-            _loadedVirtualRoot = await _bootLoadTask;
+            StatusBar.SetStatus($"Failed to auto-load last file: {ex.Message}", StatusBar.EStatusType.Error);
         }
 
-        if (BootScreen.IsBooting && BootScreen.IsEnabled)
+        try 
         {
-            BootScreen.RequestExit();
+            if (BootScreen.IsBooting && BootScreen.IsEnabled)
+            {
+                BootScreen.RequestExit();
+            }
+            else
+            {
+                OnBootScreenFinished();
+            }
         }
-        else
+        catch (Exception ex)
         {
-            OnBootScreenFinished();
+            StatusBar.SetStatus($"Critical error dismissing BootScreen: {ex.Message}", StatusBar.EStatusType.Error);
         }
     }
     
@@ -230,16 +252,27 @@ public partial class MainCanvas : VBoxContainer
     private async Task InitAllWindows()
     {
         var initTasks = new List<Task>();
-        
+    
         for (int i = 0; i <= Consts.MAX_PANEL_INDEX; i++)
         {
             var panel = GetPanelByID(i);
             if (panel != null)
-            {
-                initTasks.Add(panel.Init());
-            }
+                initTasks.Add(TryInitPanel(panel, i));
         }
+    
         await Task.WhenAll(initTasks);
+    }
+
+    private async Task TryInitPanel(FloatingPanel panel, int panelId)
+    {
+        try
+        {
+            await panel.Init();
+        }
+        catch (Exception ex)
+        {
+            StatusBar.SetStatus($"Failed to initialize panel {panelId}: {ex.Message}");
+        }
     }
 
     private void HideAllWindows()
