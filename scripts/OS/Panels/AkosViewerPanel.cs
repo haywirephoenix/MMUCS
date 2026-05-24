@@ -17,6 +17,8 @@ public partial class AkosViewerPanel : FloatingPanel
     
     //options
     [Export] public OptionButton _modeOptionButton;
+    [Export] public CheckButton _optionsToggle;
+    [Export] public CheckButton _infoToggle;
     [Export] public CheckButton _alphaToggle;
     [Export] public CheckButton _shadowColorToggle;
     [Export] public CheckButton _vectorToggle;
@@ -27,6 +29,7 @@ public partial class AkosViewerPanel : FloatingPanel
 
     // Tab 0 – Overview
     [Export] public  GridContainer _headerGrid;
+    [Export] public  GridContainer _configGrid;
     [Export] public  Label _codecLabel;
 
     // Tab 1 – Cel Browser
@@ -58,30 +61,49 @@ public partial class AkosViewerPanel : FloatingPanel
     private Vector2 _maxZoom = new Vector2(10.0f, 10.0f);
     private float _zoomStep = 0.5f;
     
-    private static readonly NodePath PathTabs = "Layout/MarginContainer/ContentRoot/Tabs";
-    
-    private static readonly NodePath PathModeOptionButton = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/ConfigGrid/Controls/ModeOptionButton";
-    private static readonly NodePath PathAlphaToggle = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/ConfigGrid/Controls/AlphaToggle";
-    private static readonly NodePath PathShadowColorToggle = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/ConfigGrid/Controls/ShadowColorToggle";
-    private static readonly NodePath PathVectorToggle = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/ConfigGrid/Controls/VectorToggle";
-    private static readonly NodePath PathShadowSlider = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/ConfigGrid/Controls/ShadowSlider";
-    private static readonly NodePath PathFilterOptionButton = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/ConfigGrid/Controls/FilterOptionButton";
-    private static readonly NodePath PathStretchOptionButton = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/ConfigGrid/Controls/StretchOptionButton";
-    private static readonly NodePath PathAAutoZoomToggle = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/ConfigGrid/Controls/AutoZoomToggle";
-    
-    private static readonly NodePath PathheaderGrid = "Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230/headerGrid";
-    private static readonly NodePath PathCodecLabel = "Layout/MarginContainer/ContentRoot/Tabs/Overview/_VBoxContainer_230/CodecLabel";
-    private static readonly NodePath PathCelList = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/Cel List";
-   
-    private static readonly NodePath PathPreviewContainer = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/VBoxContainer/PreviewContainer";
-    private static readonly NodePath PathCelCamera = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/VBoxContainer/PreviewContainer/SubViewport/CelCamera";
-    private static readonly NodePath PathCelPreview = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/VBoxContainer/PreviewContainer/SubViewport/Cel Preview";
-    
-    private static readonly NodePath PathCelInfo = "Layout/MarginContainer/ContentRoot/Tabs/Cels/_HBoxContainer_240/VBoxContainer/Cel Info";
+    private const string s_tabsPath = "Layout/MarginContainer/ContentRoot/Tabs";
+    private const string s_celsVBox = s_tabsPath + "/Cels/VBoxContainer";
+    private const string s_previewRow = s_celsVBox + "/PreviewRow";
+    private const string s_configGridPath = s_previewRow + "/ConfigGrid";
+    private const string s_previewWrapperPath = s_previewRow + "/PreviewWrapper";
 
-    private static readonly NodePath PathChoreTree = "Layout/MarginContainer/ContentRoot/Tabs/Chores/_HSplitContainer_249/ChoreTree";
-    private static readonly NodePath PathSequenceDetail = "Layout/MarginContainer/ContentRoot/Tabs/Chores/_HSplitContainer_249/SequenceDetail";
-    private static readonly NodePath PathPaletteGrid = "Layout/MarginContainer/ContentRoot/Tabs/Palette/_VBoxContainer_264/PaletteGrid";
+    // Main Containers
+    private static readonly NodePath PathTabs = s_tabsPath;
+    private static readonly NodePath PathConfigGrid = s_configGridPath;
+
+    // Options Row (Top of Cels tab)
+    private static readonly NodePath PathOptionsToggle = s_celsVBox + "/OptionsRow/OptionsToggle";
+    private static readonly NodePath PathInfoToggle = s_celsVBox + "/OptionsRow/InfoToggle";
+
+    // Config Grid Controls
+    private static readonly NodePath PathModeOptionButton = s_configGridPath + "/Controls/ModeOptionButton";
+    private static readonly NodePath PathAlphaToggle = s_configGridPath + "/Controls/AlphaToggle";
+    private static readonly NodePath PathShadowColorToggle = s_configGridPath + "/Controls/ShadowColorToggle";
+    private static readonly NodePath PathVectorToggle = s_configGridPath + "/Controls/VectorToggle";
+    private static readonly NodePath PathShadowSlider = s_configGridPath + "/Controls/ShadowSlider";
+    private static readonly NodePath PathFilterOptionButton = s_configGridPath + "/Controls/FilterOptionButton";
+    private static readonly NodePath PathStretchOptionButton = s_configGridPath + "/Controls/StretchOptionButton";
+    private static readonly NodePath PathAAutoZoomToggle = s_configGridPath + "/Controls/AutoZoomToggle";
+
+    // Overview Tab
+    private static readonly NodePath PathheaderGrid = s_tabsPath + "/Overview/OverviewContainer/headerGrid";
+    private static readonly NodePath PathCodecLabel = s_tabsPath + "/Overview/OverviewContainer/CodecLabel";
+
+    // Preview Row Items
+    private static readonly NodePath PathCelList = s_previewRow + "/Cel List";
+    private static readonly NodePath PathCelInfo = s_previewWrapperPath + "/Cel Info";
+
+    // Viewport & Camera Sub-Tree
+    private static readonly NodePath PathPreviewContainer = s_previewWrapperPath + "/PreviewContainer";
+    private static readonly NodePath PathCelCamera = s_previewWrapperPath + "/PreviewContainer/SubViewport/CelCamera";
+    private static readonly NodePath PathCelPreview = s_previewWrapperPath + "/PreviewContainer/SubViewport/Cel Preview";
+
+    // Chores Tab
+    private static readonly NodePath PathChoreTree = s_tabsPath + "/Chores/ChoresContainer/ChoreTree";
+    private static readonly NodePath PathSequenceDetail = s_tabsPath + "/Chores/ChoresContainer/SequenceDetail";
+
+    // Palette Tab
+    private static readonly NodePath PathPaletteGrid = s_tabsPath + "/Palette/PaletteContainer/PaletteGrid";
     
     public override void AssignNodes()
     {
@@ -89,6 +111,7 @@ public partial class AkosViewerPanel : FloatingPanel
         
         _tabs = GetNode<TabContainer>(PathTabs);
         _headerGrid = GetNode<GridContainer>(PathheaderGrid);
+        _configGrid = GetNode<GridContainer>(PathConfigGrid);
         _codecLabel = GetNode<Label>(PathCodecLabel);
         _celList = GetNode<ItemList>(PathCelList);
         _celPreview = GetNode<TextureRect>(PathCelPreview);
@@ -98,6 +121,8 @@ public partial class AkosViewerPanel : FloatingPanel
         _camera = GetNode<Camera2D>(PathCelCamera);
             
         _modeOptionButton = GetNode<OptionButton>(PathModeOptionButton);
+        _optionsToggle = GetNode<CheckButton>(PathOptionsToggle);
+        _infoToggle = GetNode<CheckButton>(PathInfoToggle);
         _alphaToggle = GetNode<CheckButton>(PathAlphaToggle);
         _shadowColorToggle = GetNode<CheckButton>(PathShadowColorToggle);
         _vectorToggle = GetNode<CheckButton>(PathVectorToggle);
@@ -113,6 +138,8 @@ public partial class AkosViewerPanel : FloatingPanel
     
     protected override void OnReady()
     {
+        _optionsToggle.Toggled += OptionsToggleOnToggled;
+        _infoToggle.Toggled += InfoToggleOnToggled;
         _modeOptionButton.ItemSelected += ModeOptionButtonOnItemSelected;
         _alphaToggle.Toggled += AlphaToggleOnToggled;
         _shadowColorToggle.Toggled += ShadowColorToggleOnToggled;
@@ -128,6 +155,14 @@ public partial class AkosViewerPanel : FloatingPanel
         _tabs.TabChanged += _OnTabChanged;
         VectorToggle.ResetClickCount();
         
+    }
+    private void InfoToggleOnToggled(bool toggledOn)
+    {
+        _celInfoLabel.Visible = toggledOn;
+    }
+    private void OptionsToggleOnToggled(bool toggledOn)
+    {
+        _configGrid.Visible  = toggledOn;
     }
     private void AutoZoomToggleOnToggled(bool toggledOn)
     {
