@@ -9,6 +9,7 @@ public partial class BootScreen : CanvasLayer
     [Export] public bool DarkBoot;
     [Export] public ProgressBar LoadingBar;
     [Export] public ColorRect Background;
+    [Export] public RichTextLabel VerboseText;
     [Export] public TextureRect Logo;
     [Export] public CanvasLayer OSLayer;
     [Export] public float MaxLogoAlpha = 0.3f;
@@ -68,7 +69,30 @@ public partial class BootScreen : CanvasLayer
 
     private void StartBootIntro()
     {
-        Tween introTween = CreateTween();
+        Callable.From(() => 
+        {
+            Instance.VerboseText.AppendText("\n" + text);
+        }).CallDeferred();
+    }
+
+    public static void SetProgress(float percentage)
+    {
+        if (Instance == null || Instance.LoadingBar == null) return;
+        Instance.LoadingBar.CallDeferred(Range.MethodName.SetValue, percentage);
+    }
+
+    public static void SetProgressVisible(bool visible)
+    {
+        _pendingProgressVisible = visible;
+        if (Instance == null || Instance.LoadingBar == null) return;
+        //Instance.LoadingBar.CallDeferred(CanvasItem.MethodName.SetVisible, visible);
+    }
+
+   
+
+    private async Task StartBootIntro()
+    {
+        Tween introTween = CreateTween(); 
         introTween.SetTrans(Tween.TransitionType.Cubic);
         introTween.SetEase(Tween.EaseType.Out);
         
@@ -101,6 +125,8 @@ public partial class BootScreen : CanvasLayer
     private void AnimateExitSequence()
     {
         SetProgressVisible(false);
+        
+        VerboseText.Visible = false;
 
         Tween exitTween = CreateTween();
         exitTween.SetTrans(Tween.TransitionType.Cubic);

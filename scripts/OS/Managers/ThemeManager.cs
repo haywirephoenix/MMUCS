@@ -116,7 +116,14 @@ public partial class ThemeManager : Node
 
     public void OnUIScaleChanged(float newScale)
     {
-        GetTree().Root.ContentScaleFactor = newScale;
+        // Defer the ContentScaleFactor change so it happens safely on the next frame
+        Callable.From(() => {
+            if (IsInsideTree())
+            {
+                GetTree().Root.ContentScaleFactor = newScale;
+            }
+        }).CallDeferred();
+        
         ConfigManager.UpdateAppSettings(s => s with {GuiScale = newScale} );
     }
 
