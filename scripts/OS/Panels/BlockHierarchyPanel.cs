@@ -18,6 +18,7 @@ public partial class BlockHierarchyPanel : FloatingPanel
     private readonly List<TreeItem> _lflfItems = new();
     private readonly List<TreeItem> _obimItems = new();
     private readonly List<TreeItem> _filteredMatches = new();
+    private HScrollBar _treeHScrollBar;
 
     private bool showRoomNames = false;
     private bool showObjectNames = false;
@@ -43,6 +44,17 @@ public partial class BlockHierarchyPanel : FloatingPanel
         _Container = GetNode<VBoxContainer>(PathContainer);
         _tree = GetNode<Tree>(PathTreeView);
         _searchBox = GetNode<LineEdit>(PathSearchBox);
+        _treeHScrollBar = _GetTreeHScrollBar();
+    }
+    
+    private HScrollBar _GetTreeHScrollBar()
+    {
+        foreach (var child in _tree.GetChildren())
+        {
+            if (child is HScrollBar hScroll)
+                return hScroll;
+        }
+        return null;
     }
 
     protected override void OnReady()
@@ -149,13 +161,13 @@ public partial class BlockHierarchyPanel : FloatingPanel
 
             case Key.Down:
                 TreeItem next = _GetNextFoldAwareItem(selected);
-                if (next != null) { next.Select(0); _tree.EnsureCursorIsVisible(); }
+                if (next != null) { _RevealAndSelect(next); }
                 AcceptEvent();
                 break;
 
             case Key.Up:
                 TreeItem prev = _GetPrevFoldAwareItem(selected);
-                if (prev != null) { prev.Select(0); _tree.EnsureCursorIsVisible(); }
+                if (prev != null) {  _RevealAndSelect(prev); }
                 AcceptEvent();
                 break;
             
@@ -197,10 +209,8 @@ public partial class BlockHierarchyPanel : FloatingPanel
         }
 
         if (target == null) return;
-
-        _RevealPathToItem(target);
-        target.Select(0);
-        _tree.EnsureCursorIsVisible();
+        
+        _RevealAndSelect(target);
     }
 
     private TreeItem GetNextFilteredMatchOutsideParent(TreeItem current, TreeItem excludedParent, string query, uint? targetTag)
@@ -387,6 +397,17 @@ public partial class BlockHierarchyPanel : FloatingPanel
 
         return item.GetText(0).ToLower().Contains(query);
     }
+    
+    private async void _RevealAndSelect(TreeItem target)
+    {
+        _RevealPathToItem(target);
+        target.Select(0);
+        _tree.EnsureCursorIsVisible();
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        _tree.ScrollToItem(target);
+        _ScrollToItemHorizontally(target);
+    }
 
     private void _RevealPathToItem(TreeItem item)
     {
@@ -399,6 +420,28 @@ public partial class BlockHierarchyPanel : FloatingPanel
                 parent.Collapsed = false;
             parent = parent.GetParent();
         }
+    }
+    
+    private void _ScrollToItemHorizontally(TreeItem item)
+    {
+        if (item == null) return;
+
+        HScrollBar hScroll = _GetTreeHScrollBar();
+        if (hScroll == null) return;
+
+        Rect2 itemRect = _tree.GetItemAreaRect(item);
+        float itemLeft  = itemRect.Position.X;
+        float itemRight = itemRect.End.X;
+
+        float viewWidth    = _tree.Size.X;
+        float scrollX      = (float)hScroll.Value;
+        float visibleLeft  = scrollX;
+        float visibleRight = scrollX + viewWidth;
+
+        if (itemLeft < visibleLeft)
+            hScroll.Value = itemLeft - 8;
+        else if (itemRight > visibleRight)
+            hScroll.Value = itemRight - viewWidth + 8;
     }
 
     private void _CopySelectedToClipboard()
@@ -444,25 +487,26 @@ public partial class BlockHierarchyPanel : FloatingPanel
         _tree.Clear();
         _lflfItems.Clear();
         _obimItems.Clear();
+        _tree.HideRoot = true;
         var rootItem = _tree.CreateItem();
         _PopulateItem(root, rootItem);
 
-        var first = FindFirstRealBlock(root);
-        if (first == null)
-        {
-            GD.Print($"[AUTOSELECT] first block not found");
-            return;
-        }
-
-        EventBus.Instance.EmitSignal(EventBus.SignalName.BlockSelected, first);
+        // var first = FindFirstRealBlock(root);
+        // if (first == null)
+        // {
+        //     GD.Print($"[AUTOSELECT] first block not found");
+        //     return;
+        // }
+        // EventBus.Instance.EmitSignal(EventBus.SignalName.BlockSelected, first);
     }
 
     private void _PopulateItem(ScummBlock block, TreeItem parent)
     {
         var item = _tree.CreateItem(parent);
         item.SetText(0, block.TagName);
-        item.SetText(1, _FormatSize(block.Size));
-        item.SetTooltipText(0, block.DisplayName);
+        item.SetTooltipText(0,_FormatSize(block.Size));
+        // item.SetText(1, _FormatSize(block.Size));
+        // item.SetTooltipText(0, block.DisplayName);
         item.SetMetadata(0, block);
 
         if (TagColors.TryGetValue(block.Tag, out var color))
@@ -504,9 +548,10 @@ public partial class BlockHierarchyPanel : FloatingPanel
         var block = item.GetMetadata(0).As<ScummBlock>();
         if (block != null && offset >= block.Offset && offset < block.Offset + block.Size)
         {
-            item.Select(0);
+            // item.Select(0);
+            _RevealAndSelect(item);
             item.UncollapseTree();
-            _tree.ScrollToItem(item);
+            // _tree.ScrollToItem(item);
 
             var child = item.GetFirstChild();
             while (child != null)
