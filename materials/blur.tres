@@ -6,8 +6,11 @@
 [resource]
 shader = ExtResource("1_nrgi3")
 shader_parameter/blurred_wallpaper = ExtResource("2_6b8xf")
-shader_parameter/tint = Color(1, 1, 1, 0.02745098)
+shader_parameter/tint = Color(0.17923622, 0.38410568, 0.85105014, 1)
 shader_parameter/glass_enabled = true
-shader_parameter/rim_color = Color(1, 1, 1, 0.2)
-shader_parameter/rim_thickness_pixels = 2.5050001189874997
-shader_parameter/rim_glow = 0.9370000445075
+shader_parameter/max_tint = 0.027000001282499998
+shader_parameter/rim_color = Color(0.81960785, 0.8392157, 0.8509804, 0.08235294)
+shader_parameter/rim_thickness_pixels = 1.2550000596125
+shader_parameter/rim_glow = 3.154000149815
+shader_parameter/rim_falloff = 1.59300007240762
+shader_parameter/corner_radius_pixels = 16.0
