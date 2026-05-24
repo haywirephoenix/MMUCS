@@ -20,6 +20,7 @@
         public const string HiDpi = "hidpi";
         public const string AutoLoad = "auto_load";
         public const string LastFile = "last_file";
+        public const string FirstRun = "first_run";
     }
 
     public static class Theme

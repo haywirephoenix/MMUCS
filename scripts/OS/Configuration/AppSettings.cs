@@ -14,6 +14,7 @@ public readonly struct AppSettings
     public bool HiDPIEnabled { get; init; }
     public bool AutoLoadLastFile { get; init; }
     public string LastFilePath { get; init; }
+    public bool FirstRun { get; init; }
 
     // --- Theme ---
     public Consts.WallPaperModeEnum WallpaperMode { get; init; }
@@ -36,6 +37,7 @@ public readonly struct AppSettings
         bool hiDpiEnabled,
         bool autoLoadLastFile,
         string lastFilePath,
+        bool firstRun,
         Consts.WallPaperModeEnum wallpaperMode,
         int wallpaperIndex,
         string wallpaperName,
@@ -54,6 +56,7 @@ public readonly struct AppSettings
         HiDPIEnabled = hiDpiEnabled;
         AutoLoadLastFile = autoLoadLastFile;
         LastFilePath = lastFilePath;
+        FirstRun = firstRun;
         WallpaperMode = wallpaperMode;
         WallpaperIndex = wallpaperIndex;
         WallpaperName = wallpaperName;
@@ -73,6 +76,7 @@ public readonly struct AppSettings
         windowAnimations: true,
         hiDpiEnabled:     true,
         autoLoadLastFile: true,
+        firstRun: true,
         lastFilePath:     "",
         wallpaperMode:    Consts.WallPaperModeEnum.Image,
         wallpaperIndex:   0,
@@ -98,6 +102,7 @@ public readonly struct AppSettings
         cfg.SetValue(SettingKeys.App.Section, SettingKeys.App.HiDpi, s.HiDPIEnabled);
         cfg.SetValue(SettingKeys.App.Section, SettingKeys.App.AutoLoad, s.AutoLoadLastFile);
         cfg.SetValue(SettingKeys.App.Section, SettingKeys.App.LastFile, s.LastFilePath);
+        cfg.SetValue(SettingKeys.App.Section, SettingKeys.App.FirstRun, s.FirstRun);
 
         cfg.SetValue(SettingKeys.Theme.Section, SettingKeys.Theme.WallpaperMode, (int)s.WallpaperMode);
         cfg.SetValue(SettingKeys.Theme.Section, SettingKeys.Theme.WallpaperIndex, s.WallpaperIndex);
@@ -128,6 +133,7 @@ public readonly struct AppSettings
             hiDpiEnabled: (bool)cfg.GetValue(SettingKeys.App.Section, SettingKeys.App.HiDpi, d.HiDPIEnabled),
             autoLoadLastFile: (bool)cfg.GetValue(SettingKeys.App.Section, SettingKeys.App.AutoLoad, d.AutoLoadLastFile),
             lastFilePath: (string)cfg.GetValue(SettingKeys.App.Section, SettingKeys.App.LastFile, d.LastFilePath),
+            firstRun: (bool)cfg.GetValue(SettingKeys.App.FirstRun, SettingKeys.App.FirstRun, d.FirstRun),
             
             wallpaperMode: (Consts.WallPaperModeEnum)(int)cfg.GetValue(SettingKeys.Theme.Section, SettingKeys.Theme.WallpaperMode, (int)d.WallpaperMode),
             wallpaperIndex: (int)cfg.GetValue(SettingKeys.Theme.Section, SettingKeys.Theme.WallpaperIndex, d.WallpaperIndex),
