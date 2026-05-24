@@ -16,31 +16,24 @@ public static class TweenUtils
 
     public static void AnimateVisible(this Control ctx, bool isOpening, float delay = 0)
     {
-        if (!ConfigManager.GUISettings.WindowAnimations)
-        {
-            ctx.Visible = isOpening;
-            if(isOpening)
-                ctx.MoveToFront();
-            return;
-        }
         Vector2 originalPosition;
         
-        if (ctx.HasMeta(HomePosMetaKey))
-        {
-            originalPosition = ctx.GetMeta(HomePosMetaKey).AsVector2();
-        }
-        else
-        {
-            originalPosition = ctx.Position;
-            ctx.SetMeta(HomePosMetaKey, originalPosition);
-        }
+        // if (ctx.HasMeta(HomePosMetaKey))
+        // {
+        //     originalPosition = ctx.GetMeta(HomePosMetaKey).AsVector2();
+        // }
+        // else
+        // {
+        //     originalPosition = ctx.Position;
+        //     ctx.SetMeta(HomePosMetaKey, originalPosition);
+        // }
 
         Vector2 viewportCenter = ctx.GetViewportRect().Size * 0.5f;
         Vector2 centeredPosition = viewportCenter - (ctx.Size * 0.5f);
         ctx.PivotOffset = ctx.Size * 0.5f;
 
-        Vector2 startPos = isOpening ? centeredPosition : originalPosition;
-        Vector2 endPos   = isOpening ? originalPosition  : centeredPosition;
+        // Vector2 startPos = isOpening ? centeredPosition : originalPosition;
+        // Vector2 endPos   = isOpening ? originalPosition  : centeredPosition;
 
         Vector2 startScale = isOpening ? Vector2.Zero : Vector2.One;
         Vector2 endScale   = isOpening ? Vector2.One  : Vector2.Zero;
@@ -56,7 +49,7 @@ public static class TweenUtils
             ctx.MoveToFront();
         }
         
-        ctx.Position = startPos;
+        // ctx.Position = startPos;
         ctx.Scale = startScale;
         ctx.Modulate = new Color(ctx.Modulate.R, ctx.Modulate.G, ctx.Modulate.B, startAlpha);
 
@@ -64,7 +57,7 @@ public static class TweenUtils
         tween.SetTrans(Tween.TransitionType.Quart);
         tween.SetEase(easeType);
 
-        tween.TweenProperty(ctx, "position", endPos, 0.6f).SetDelay(delay);
+        // tween.TweenProperty(ctx, "position", endPos, 0.6f).SetDelay(delay);
         tween.TweenProperty(ctx, "scale", endScale, 0.6f).SetDelay(delay);
         tween.TweenProperty(ctx, "modulate:a", endAlpha, isOpening ? 0.4f : 0.6f).SetDelay(delay);
 
