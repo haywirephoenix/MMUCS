@@ -1,8 +1,15 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Godot;
 using DockZone = WindowManager.DockZone;
 public partial class FloatingPanel : Control
 {
+    [Export] public bool IsOpen
+    {
+        get { return _isOpen; }
+        set { _isOpen = value; }
+    }
+    private bool _isOpen = false;
     [Export] public DockZone DefaultDock { get; set; } = DockZone.None;
     [Export] public float DockedThickness { get; set; } = WindowManager.DefaultThickness;
     public Vector2 PreDockPosition { get; private set; }
@@ -19,6 +26,7 @@ public partial class FloatingPanel : Control
     // [Export] public Vector2 CustomMinimumSize { get; set; } = new(200, 100);
 
     public string PanelId { get; private set; } = "panel";
+
 
     [Export] public Control _contentRoot;
 
@@ -58,6 +66,9 @@ public partial class FloatingPanel : Control
 
 
     private bool _animationPlayed;
+    protected bool _isInitialized = false;
+    
+    private TaskCompletionSource<bool> _initTcs;
     
     private static readonly HandleData[] Handles;
     static FloatingPanel()
@@ -102,9 +113,33 @@ public partial class FloatingPanel : Control
         }
     }
 
-    public override void _Ready()
+    public void SetIsOpenNoEvent(bool open)
     {
-        //_canvas = GetParent<Control>();
+        IsOpen =  open;
+    }
+
+    public virtual void Open(bool open, bool animate = false, float delay = 0)
+    {
+        if (!_isInitialized) Task.Run(Init);
+        if (animate && ConfigManager.AppSettings.WindowAnimations)
+            this.AnimateVisible(open, delay);
+        else
+            Visible = open;
+        
+        IsOpen = open;
+        
+        if(open) MoveToFront();
+    }
+    private void OnCloseButtonPressed()
+    {
+        Open(false);
+    }
+
+    public async virtual Task Init()
+    {
+        if(_isInitialized) return;
+        _initTcs = new TaskCompletionSource<bool>();
+        
         _sizeOnStart = Size;
         _minSizeOnStart = CustomMinimumSize;
         PanelId = PanelTitle;
@@ -113,16 +148,13 @@ public partial class FloatingPanel : Control
         // SetSize(DefaultSize);
         // ClipContents = true;
 
-        // _BuildLayout();
-        // _layout.MinimumSizeChanged += _FitToContents;
-
         AssignNodes();
         OnReady();
         SetTitle(PanelTitle);
 
-
-
         SubscribeHandles();
+
+        LoadLayoutDeferred();
 
         //CallDeferred(nameof(LoadLayout), this);
         _titleBar.GuiInput += _OnTitleBarInput;
@@ -132,11 +164,36 @@ public partial class FloatingPanel : Control
         EventBus.Instance.PanelFocusRequested += _OnPanelFocusRequested;
 
         // CallDeferred(nameof(InitializeInBounds));
-
-        CallDeferred(nameof(LoadLayout));
         
         EventBus.Instance.BlockSelected += _OnBlockSelected;
         // CallDeferred(nameof(_FitToContents));
+        await _initTcs.Task;
+        _isInitialized = true;
+    }
+    
+    public void CompleteInitialization()
+    {
+        void CompleteAction() => _initTcs?.TrySetResult(true);
+
+        Callable.From(CompleteAction).CallDeferred();
+    }
+    
+    public virtual void LoadLayout()
+    {
+        // Config.LoadLayout(this);
+        WindowManager.RegisterPanel(this);
+        WindowManager.RefreshZoneLayout(_currentDock);
+        
+        if (DefaultDock != DockZone.None)
+        {
+            DockTo(DefaultDock);
+            return;
+        }
+    }
+
+    public virtual void LoadLayoutDeferred()
+    {
+        CallDeferred(nameof(LoadLayout));
     }
 
     protected virtual void _OnBlockSelected(ScummBlock obimBlock)
@@ -174,10 +231,8 @@ public partial class FloatingPanel : Control
             else GD.PushWarning($"{Name}: missing resize handle at '{handleData.Path}'");
         }
     }
-    private void OnCloseButtonPressed()
-    {
-        Visible = false;
-    }
+
+    
     public virtual void AssignNodes()
     {
         _layout = GetNode<VBoxContainer>(PathLayout);
@@ -200,18 +255,7 @@ public partial class FloatingPanel : Control
 
 
 
-    protected virtual void LoadLayout()
-    {
-        // Config.LoadLayout(this);
-        WindowManager.RegisterPanel(this);
-        WindowManager.RefreshZoneLayout(_currentDock);
-        
-        if (DefaultDock != DockZone.None)
-        {
-            DockTo(DefaultDock);
-            return;
-        }
-    }
+   
     private void OnFileParsed(ScummBlock root)
     {
         // _FitToContents();
@@ -482,6 +526,16 @@ public partial class FloatingPanel : Control
     {
         Size = PreDockSize;
         Position = GetGlobalMousePosition() - (Size * 0.5f);
+    }
+    
+    public void SetCentered()
+    {
+        if(GetParent() is not Control parentCtrl) return;
+        Vector2 parentSize = parentCtrl.Size;
+        Vector2 windowSize = Size;
+        Vector2 centerOffset = (parentSize - windowSize) * 0.5f;
+
+        GlobalPosition = parentCtrl.GlobalPosition + centerOffset;
     }
 
 

@@ -22,6 +22,13 @@ public partial class MMenuBar : MenuBar
 
     public override void _Ready()
     {
+        _openDialog.FileSelected += _OnFileSelected;
+        _fileMenu.IdPressed += _OnFileMenuPressed;
+        
+        _viewMenu.AboutToPopup += UpdateViewMenuChecks;
+        _viewMenu.IdPressed += _OnViewMenuPressed;
+        _toolsMenu.IdPressed += _OnToolsMenuPressed;
+        
         CallDeferred(nameof(ClearDialogPanel));
     }
     
@@ -47,35 +54,33 @@ public partial class MMenuBar : MenuBar
             var newMat = ThemeManager.Instance.WindowMaterial;
             //newMat.Shader = GD.Load<Shader>("res://shaders/blur_reveal.gdshader");
             _openDialogPanel.Material = newMat;
-            
         }
-        
-        _openDialog.FileSelected += _OnFileSelected;
-        _fileMenu.IdPressed += _OnFileMenuPressed;
-        
-        _viewMenu.AboutToPopup += UpdateViewMenuChecks;
-        _viewMenu.IdPressed += _OnViewMenuPressed;
-        _toolsMenu.IdPressed += _OnToolsMenuPressed;
     }
     
     private void _OnViewMenuPressed(long id)
     {
         FloatingPanel target = _mainCanvas.GetPanelByID(id);
+        
         if (target != null)
-            _mainCanvas.ToggleVisible((int)id);
-            // target.Visible = !target.Visible;
-            UpdateViewMenuChecks();
+            SetPanelVisible((int)id,!target.IsOpen);
+           
+        // target.Visible = !target.Visible;
+        UpdateViewMenuChecks();
     }
 
     private void _OnToolsMenuPressed(long id)
     {
-        GD.Print($"Tools action: {id}");
+        // GD.Print($"Tools action: {id}");
         switch (id)
         {
-            case 24: _mainCanvas.ToggleVisible(Consts.OPTS_PNL_ID); break;
+            case 24: SetPanelVisible(Consts.OPTS_PNL_ID); break;
         }
     }
 
+    private void SetPanelVisible(int id, bool visible = true, bool animate = false)
+    {
+        _mainCanvas.OpenPanel((int)id,visible, animate);
+    }
    
     
     private void _OnFileMenuPressed(long id)
@@ -98,7 +103,7 @@ public partial class MMenuBar : MenuBar
         {
             var panel = _mainCanvas.GetPanelByID(i);
             if(panel != null)
-                _viewMenu?.SetItemChecked(i, panel.Visible);
+                _viewMenu?.SetItemChecked(i, panel.IsOpen);
         }
     }
     
