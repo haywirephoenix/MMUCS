@@ -80,10 +80,11 @@ public partial class ThemeManager : Node
         
         WallPapers = [ WallpaperFractal, WallpaperFireSkull];
         WallPaperBlurs = [ WallpaperFractalBlur, WallpaperFireSkullBlur ];
-    
+        IsReady = false;
     }
 
-    public override void _Ready()
+    // public override void _Ready()
+    public void Init()
     {
         // EventBus.Instance.Connect(EventBus.SignalName.WallpaperChangeRequested,
         //     Callable.From<string>(OnWallpaperChanged));
@@ -104,8 +105,17 @@ public partial class ThemeManager : Node
             Callable.From<bool>(OnHiDPIEnabledChanged));
         EventBus.Instance.Connect(EventBus.SignalName.WindowAnimationsChangeRequested,
             Callable.From<bool>(OnWindowAnimationsChanged));
-        
+
+        RefreshState();
+
+        IsReady = true;
+        EventBus.Instance.EmitSignal(EventBus.SignalName.ThemeManagerInitialized);
+    }
+
+    public void RefreshState()
+    {
         OnWallpaperChanged(WallpaperIndex);
+        OnTintColorChanged(GlassTintColor); 
         OnWallpaperColorChanged(WallpaperColor);
         OnGlassEnabledChanged(GlassEnabled);
         OnWallpaperModeChanged(WallpaperMode);

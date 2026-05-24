@@ -1,5 +1,6 @@
 ﻿using Godot;
 using System;
+using System.Threading.Tasks;
 using Range = Godot.Range;
 
 public partial class BootScreen : CanvasLayer
@@ -15,13 +16,15 @@ public partial class BootScreen : CanvasLayer
     [Export] public float MaxLogoAlpha = 0.3f;
     [Export] public Color LogoColor = Colors.White;
     [Export] public Color BackgroundColor = new(0.078f, 0.114f, 0.122f);
+    [Export] public MainCanvas MainCanvas;
     
     private bool _isBooting = true;
     private bool _altHeldDetected = false;
+    private bool _ctrlHeldDetected = false;
     private bool _introComplete = false;
     private bool _exitQueued = false;
+    private bool _isThemeManagerInitialized = false;
     
-    // A fallback property to track visibility state if called before _Ready
     private static bool _pendingProgressVisible = false;
 
     public static bool IsEnabled => Instance != null && Instance.Enabled;
@@ -33,24 +36,13 @@ public partial class BootScreen : CanvasLayer
         OSLayer.Visible = false;
         Visible = true;
         LoadingBar.Visible = false;
+        
     }
-
-    public static void SetProgress(float percentage)
+    public async override void _Ready()
     {
-        if (Instance == null || Instance.LoadingBar == null) return;
-        Instance.LoadingBar.CallDeferred(Range.MethodName.SetValue, percentage);
-    }
-
-    public static void SetProgressVisible(bool visible)
-    {
-        _pendingProgressVisible = visible;
-        if (Instance == null || Instance.LoadingBar == null) return;
-        //Instance.LoadingBar.CallDeferred(CanvasItem.MethodName.SetVisible, visible);
-    }
-
-    public override void _Ready()
-    {
+        EventBus.Instance.ThemeManagerInitialized += InstanceOnThemeManagerInitialized;
         OSLayer.Visible = true;
+        ThemeManager.Instance.Init();
        
         Background.Color = DarkBoot ? Colors.Black : BackgroundColor;
         Background.MouseFilter = Control.MouseFilterEnum.Stop;
@@ -61,13 +53,22 @@ public partial class BootScreen : CanvasLayer
         
         Logo.Modulate = new Color(LogoColor.R, LogoColor.G, LogoColor.B, 0.0f);
 
-        if (Enabled)
-            StartBootIntro();
+        if (Enabled)  
+            await StartBootIntro();
         else
+        {
+            await MainCanvas.Init();
             FinishBoot();
+        }
+    }
+    
+    
+    private void InstanceOnThemeManagerInitialized(string path)
+    {
+        _isThemeManagerInitialized = true;
     }
 
-    private void StartBootIntro()
+    public static void AddBootText(string text)
     {
         Callable.From(() => 
         {
@@ -95,17 +96,24 @@ public partial class BootScreen : CanvasLayer
         Tween introTween = CreateTween(); 
         introTween.SetTrans(Tween.TransitionType.Cubic);
         introTween.SetEase(Tween.EaseType.Out);
-        
+    
         introTween.TweenInterval(1.0f);
         introTween.TweenProperty(Logo, "modulate:a", MaxLogoAlpha, 0.5f);
-        
-        introTween.TweenCallback(Callable.From(() => {
-            _introComplete = true;
-            if (_exitQueued)
-            {
-                AnimateExitSequence();
-            }
-        }));
+
+        await MainCanvas.Init();
+    
+        await ToSignal(introTween, Tween.SignalName.Finished);
+
+        if (_ctrlHeldDetected || _altHeldDetected)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5.0));
+        }
+    
+        _introComplete = true;
+        if (_exitQueued)
+        {
+            AnimateExitSequence();
+        }
     }
 
     public static void RequestExit()
@@ -142,28 +150,48 @@ public partial class BootScreen : CanvasLayer
         exitTween.TweenCallback(Callable.From(FinishBoot));
     }
 
-    public override void _Process(double delta)
+    public override void _Input(InputEvent @event)
     {
-        if (_isBooting)
+        if(!_isBooting) return;
+        if (@event is InputEventKey { Pressed: true } key)
         {
-            if (Input.IsKeyPressed(Key.Alt))
+            if (key.Keycode == Key.Alt && !_altHeldDetected)
             {
-                if (!_altHeldDetected)
-                {
-                    _altHeldDetected = true;
-                    GD.Print("Alt key hold caught! Marking config for reset.");
-                }
+                _altHeldDetected = true;
+                StatusBar.SetStatus("Alt key hold caught! Marking layout for reset.", StatusBar.EStatusType.Notify);
+                ConfigManager.ResetPanelLayouts();
+            }
+            if (key.Keycode == Key.Ctrl && !_ctrlHeldDetected)
+            {
+                _ctrlHeldDetected = true;
+                StatusBar.SetStatus("Control key hold caught! Marking config for reset.", StatusBar.EStatusType.Notify);
+                ConfigManager.ResetAppSettings();
+                ThemeManager.Instance.RefreshState();
             }
         }
     }
 
-    private void FinishBoot()
+    private async void FinishBoot()
     {
         _isBooting = false;
 
         if (_altHeldDetected)
         {
             EventBus.Instance.EmitSignal(EventBus.SignalName.ConfigResetTriggered);
+            
+            // await Task.Delay(TimeSpan.FromSeconds(5.0));
+        }
+
+        if (_ctrlHeldDetected)
+        {
+            EventBus.Instance.EmitSignal(EventBus.SignalName.ThemeResetTriggered);
+            
+            // await Task.Delay(TimeSpan.FromSeconds(5.0));
+        }
+
+        if (!_isThemeManagerInitialized && !ThemeManager.IsReady)
+        {
+            await ToSignal(EventBus.Instance, EventBus.SignalName.ThemeManagerInitialized);
         }
 
         EventBus.Instance.EmitSignal(EventBus.SignalName.StartupComplete);

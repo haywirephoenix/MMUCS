@@ -28,6 +28,18 @@ public partial class MainCanvas : VBoxContainer
     private ScummBlock _loadedVirtualRoot = null;
     
     private bool _isBootSequenceFinished = false;
+    
+    public FloatingPanel GetPanelByID(long id) => id switch
+    {
+        Consts.TREE_PNL_ID => _blockHierarchyPanel,
+        Consts.HEX_PNL_ID => _hexPanel,
+        Consts.ROOM_PNL_ID => _roomPanel,
+        Consts.META_PNL_ID => _metadataPanel,
+        Consts.AKOS_PNL_ID => _akosPanel,
+        Consts.OBIM_PNL_ID => _obimPanel,
+        Consts.OPTS_PNL_ID => _optionsPanel,
+        _ => null,
+    };
 
     public override void _EnterTree()
     {
@@ -39,17 +51,18 @@ public partial class MainCanvas : VBoxContainer
         OS.LowProcessorUsageMode = true;
     }
 
-    public override async void _Ready()
+    public async Task Init()
     {
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         EventBus.Instance.FileParsed += OnScummblockLoaded;
         EventBus.Instance.StartupComplete += OnBootScreenFinished;
     
         HideAllWindows();
+        await InitAllWindows();
 
-        if (AutoLoadLastFile && ConfigManager.GUISettings.AutoLoadLastFile)
+        if (AutoLoadLastFile && ConfigManager.AppSettings.AutoLoadLastFile)
         {
-            string lastPath = ConfigManager.GUISettings.LastFilePath;
+            string lastPath = ConfigManager.AppSettings.LastFilePath;
             if (FileUtils.PathExists(lastPath))
             {
                 _bootLoadTask = LoadScummFileAsync(lastPath);
@@ -70,6 +83,7 @@ public partial class MainCanvas : VBoxContainer
             OnBootScreenFinished();
         }
     }
+    
 
     private void OnBootScreenFinished()
     {
@@ -79,7 +93,7 @@ public partial class MainCanvas : VBoxContainer
         {
             EventBus.Instance.EmitSignal(EventBus.SignalName.FileParsed, _loadedVirtualRoot);
         }
-        else if (!ConfigManager.GUISettings.AutoLoadLastFile || !FileUtils.PathExists(ConfigManager.GUISettings.LastFilePath))
+        else if (!ConfigManager.AppSettings.AutoLoadLastFile || !FileUtils.PathExists(ConfigManager.AppSettings.LastFilePath))
         {
             MMenuBar.OpenFileBrowser();
         }
@@ -162,8 +176,8 @@ public partial class MainCanvas : VBoxContainer
         int blockCount = CountBlocks(virtualRoot);
         GetWindow().Title = $"MMUCS — {baseName}";
         StatusBar.SetStatus($"Loaded {baseName} — {dataFiles.Count} files, {blockCount} blocks");
-
-        ConfigManager.GUISettings.LastFilePath = path;
+        
+        ConfigManager.UpdateAppSettings(s => s with {LastFilePath = path} );
         return virtualRoot;
     }
 
@@ -206,10 +220,26 @@ public partial class MainCanvas : VBoxContainer
         return dot > 0 ? fileName.Substring(0, dot) : fileName;
     }
 
-    public void OnScummblockLoaded(ScummBlock block)
+    private async void OnScummblockLoaded(ScummBlock block)
     {
+        await _blockHierarchyPanel.Init();
         _blockHierarchyPanel.LoadBlocks(block);
         OpenAllWindows();
+    }
+    
+    private async Task InitAllWindows()
+    {
+        var initTasks = new List<Task>();
+        
+        for (int i = 0; i <= Consts.MAX_PANEL_INDEX; i++)
+        {
+            var panel = GetPanelByID(i);
+            if (panel != null)
+            {
+                initTasks.Add(panel.Init());
+            }
+        }
+        await Task.WhenAll(initTasks);
     }
 
     private void HideAllWindows()
@@ -227,26 +257,23 @@ public partial class MainCanvas : VBoxContainer
         for (int i = 0; i <= Consts.MAIN_PANEL_MAX_INDEX; i++)
         {
             var panel = GetPanelByID(i);
-            panel?.PlayOpenAnimation(i * delayStep);
+            
+            if(!panel.IsOpen) continue;
+            OpenPanel(panel, true, true, i * delayStep);
+            // panel?.PlayOpenAnimation(i * delayStep);
         }
     }
 
-    public FloatingPanel GetPanelByID(long id) => id switch
+  
+    public void OpenPanel(FloatingPanel panel, bool open = true, bool animate = false, float delay = 0)
     {
-        Consts.TREE_PNL_ID => _blockHierarchyPanel,
-        Consts.HEX_PNL_ID => _hexPanel,
-        Consts.ROOM_PNL_ID => _roomPanel,
-        Consts.META_PNL_ID => _metadataPanel,
-        Consts.AKOS_PNL_ID => _akosPanel,
-        Consts.OBIM_PNL_ID => _obimPanel,
-        Consts.OPTS_PNL_ID => _optionsPanel,
-        _ => null,
-    };
+        panel?.Open(open, animate, delay);
+    }
     
-    public void ToggleVisible(int panelID)
+    public void OpenPanel(int panelID, bool open = true, bool animate = false, float delay = 0)
     {
         var panel = GetPanelByID(panelID);
-        panel?.AnimateVisible(!panel.Visible);
+        OpenPanel(panel, open, animate, delay);
     }
 
     public async void OnFileSelected(string path)

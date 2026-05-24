@@ -49,23 +49,35 @@ public partial class WindowManager : Node
         Instance = null;
     }
     
-    public static void RegisterPanel(FloatingPanel panel)
+    public static async void RegisterPanel(FloatingPanel panel)
     {
         if (Instance == null) { GD.PushWarning("WindowManager not ready"); return; }
 
         _registeredPanels.Add(panel);
+        var panelParent = panel.GetParent<Control>();
+        Instance.RegisterCanvas(panelParent);
+
+        if (!ConfigManager.TryLoadPanelLayout(panel.PanelId, out LayoutSettings layout))
+        {
+            panel.CallDeferred(FloatingPanel.MethodName.SetIsOpenNoEvent, true);
+            await Instance.ToSignal(Instance.GetTree(), SceneTree.SignalName.ProcessFrame);
+            panel.CompleteInitialization();
+            return;
+        }
+
+        panel.CallDeferred(Control.MethodName.SetPosition, layout.Position);
+        panel.CallDeferred(Control.MethodName.SetSize, layout.Size);
+        panel.CallDeferred(FloatingPanel.MethodName.SetIsOpenNoEvent, layout.IsOpen);
+
+        await Instance.ToSignal(Instance.GetTree(), SceneTree.SignalName.ProcessFrame);
     
-        // if (!ConfigManager.TryLoadPanelLayout(panel.PanelId, out PanelLayout layout)) return;
-
-        // var pos = ClampToCanvas(layout.Position, layout.Size, panel.GetParent<Control>());
-        // panel.CallDeferred(Control.MethodName.SetPosition, layout.Position);
-        // panel.CallDeferred(Control.MethodName.SetSize, layout.Size);
-        // panel.Visible = layout.Visible;
-
-        Instance.RegisterCanvas(panel.GetParent<Control>());
+        panel.CompleteInitialization();
     }
 
-    public static void SaveLayout() => ConfigManager.SavePanelLayouts(_registeredPanels);
+    public static void SaveLayout()
+    {
+        ConfigManager.SavePanelLayouts(_registeredPanels);
+    }
 
     private static Vector2 ClampToCanvas(Vector2 pos, Vector2 size, Control canvas)
     {

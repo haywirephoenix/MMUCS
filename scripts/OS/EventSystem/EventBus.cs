@@ -7,6 +7,7 @@ public partial class EventBus : Node
     // --- Boot ---
     [Signal] public delegate void StartupCompleteEventHandler();
     [Signal] public delegate void ConfigResetTriggeredEventHandler();
+    [Signal] public delegate void ThemeResetTriggeredEventHandler();
 
     // --- Block selection (Tree -> Hex + Metadata) ---
     [Signal] public delegate void BlockSelectedEventHandler(ScummBlock block);
@@ -28,9 +29,12 @@ public partial class EventBus : Node
     [Signal] public delegate void FileParsedEventHandler(ScummBlock root);
     
     // --- Settings: Requests (UI → ThemeManager) ---
+    [Signal] public delegate void AppSettingsChangedEventHandler();
+    [Signal] public delegate void ThemeManagerInitializedEventHandler(string path);
     [Signal] public delegate void WallpaperChangeRequestedEventHandler(string path);
     [Signal] public delegate void WallpaperModeChangeRequestedEventHandler(int mode); // cast to enum in handler
     [Signal] public delegate void WallpaperColorChangeRequestedEventHandler(Color color);
+    [Signal] public delegate void WindowColorChangeRequestedEventHandler(bool enabled);
     [Signal] public delegate void GlassChangeRequestedEventHandler(bool enabled);
     [Signal] public delegate void GlassChangeSystemRequestedEventHandler(bool enabled);
     [Signal] public delegate void WindowAnimationsChangeRequestedEventHandler(bool enabled);
