@@ -1,7 +1,6 @@
-using System;
 using Godot;
-using System.Collections.Generic;
 using System.Linq;
+
 
 public partial class OptionsPanel : FloatingPanel
 {
@@ -14,7 +13,7 @@ public partial class OptionsPanel : FloatingPanel
     // [Export] public ThemeManager ThemeManager { get; set; }
     // [Export] public UserSettings Settings { get; set; }
 
-    private UserSettings Settings => ConfigManager.GUISettings;
+    private AppSettings AppSettings => ConfigManager.AppSettings;
 
     #endregion
 
@@ -24,7 +23,7 @@ public partial class OptionsPanel : FloatingPanel
     //[Export] public Control _contentArea;
     
     // private PanelContainer selectedWallpaperPanel;
-    private readonly List<PanelContainer> wallpaperPanels = new();
+    // private readonly List<PanelContainer> wallpaperPanels = new();
 
     [Export] public Button[] _navButtons;
     [Export] private Control[] _pages;
@@ -241,7 +240,7 @@ public partial class OptionsPanel : FloatingPanel
     {
         InitializeStyles();
         wallpaperGrid.QueueFreeChildren();
-        var activeIndex = ConfigManager.GUISettings.WallpaperIndex;
+        var activeIndex = ConfigManager.AppSettings.WallpaperIndex;
         
         /*
         string activePath = FileUtils.GetOrCreatePath(ConfigManager.GUISettings.WallpaperPath);
@@ -339,7 +338,7 @@ public partial class OptionsPanel : FloatingPanel
                 SelectWallpaper(borderPanel,cuurIndex);
             };
 
-            wallpaperPanels.Add(borderPanel);
+            // wallpaperPanels.Add(borderPanel);
             wallpaperGrid.AddChild(borderPanel);
             
         }

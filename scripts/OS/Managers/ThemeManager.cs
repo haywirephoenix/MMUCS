@@ -3,20 +3,36 @@ using Godot;
 
 public partial class ThemeManager : Node
 {
+    #region References
+    
+    [ExportGroup("References")]
+    [Export] public TextureRect WallpaperTextureRect { get; set; }
+    [Export] public ColorRect WallpaperColorRect { get; set; }
+    [Export] public Material WindowMaterial { get; set; }
+    [Export] public StyleBox WindowStyleBox { get; set; }
+    [Export] public Shader WindowShader { get; set; }
+    
+    [Export] public Texture2D WallpaperFractal { get; set; }
+    [Export] public Texture2D WallpaperFractalBlur { get; set; }
+    [Export] public Texture2D WallpaperFireSkull { get; set; }
+    [Export] public Texture2D WallpaperFireSkullBlur { get; set; }
+    
+    #endregion
+    
     #region Config
     
     // [ExportGroup("Config")]
-    private Consts.WallPaperModeEnum WallpaperMode => ConfigManager.GUISettings.WallpaperMode;
+    private Consts.WallPaperModeEnum WallpaperMode => ConfigManager.AppSettings.WallpaperMode;
     // private Texture2D WallpaperImage => ;
-    // private string WallpaperPath => ConfigManager.GUISettings.WallpaperName;
-    private int WallpaperIndex => ConfigManager.GUISettings.WallpaperIndex;
-    private string WallpaperBlurPath => ConfigManager.GUISettings.WallpaperBlurName;
-    private Color WallpaperColor => ConfigManager.GUISettings.WallpaperColor;
-    private bool GlassEnabled =>  ConfigManager.GUISettings.GlassEnabled;
-    private bool HiDPIEnabled =>  ConfigManager.GUISettings.HiDPIEnabled;
-    private bool WindowAnimations =>  ConfigManager.GUISettings.WindowAnimations;
-    private Color GlassTintColor => ConfigManager.GUISettings.GlassTintColor;
-    private float GUIScale => ConfigManager.GUISettings.GuiScale;
+    // private string WallpaperPath => ConfigManager.AppSettings.WallpaperName;
+    private int WallpaperIndex => ConfigManager.AppSettings.WallpaperIndex;
+    private string WallpaperBlurPath => ConfigManager.AppSettings.WallpaperBlurName;
+    private Color WallpaperColor => ConfigManager.AppSettings.WallpaperColor;
+    private bool GlassEnabled =>  ConfigManager.AppSettings.GlassEnabled;
+    private bool HiDPIEnabled =>  ConfigManager.AppSettings.HiDPIEnabled;
+    private bool WindowAnimations =>  ConfigManager.AppSettings.WindowAnimations;
+    private Color GlassTintColor => ConfigManager.AppSettings.GlassTintColor;
+    private float GUIScale => ConfigManager.AppSettings.GuiScale;
     // private Color WindowColor = Colors.SlateGray;
     
     public bool WallpaperEnabled => WallpaperMode == Consts.WallPaperModeEnum.Image;
@@ -101,6 +117,7 @@ public partial class ThemeManager : Node
     public void OnUIScaleChanged(float newScale)
     {
         GetTree().Root.ContentScaleFactor = newScale;
+        ConfigManager.UpdateAppSettings(s => s with {GuiScale = newScale} );
     }
 
     private bool glassWasDisabledByWallpaperToggle;
@@ -133,12 +150,12 @@ public partial class ThemeManager : Node
         var wptex = WallPapers[wallpaperIndex];
         if (wptex == null) return;
         
-        if (wallpaperIndex == ConfigManager.GUISettings.WallpaperIndex) return; 
+        if (wallpaperIndex == ConfigManager.AppSettings.WallpaperIndex) return; 
         if (WindowMaterial is not ShaderMaterial shaderMat) return;
 
         var blurTex = WallPaperBlurs[wallpaperIndex];
         // var blurName = blurTex.GetName();
-        ConfigManager.GUISettings.WallpaperIndex = wallpaperIndex;
+        ConfigManager.UpdateAppSettings(s => s with {WallpaperIndex = wallpaperIndex} );
 
         // ConfigManager.GUISettings.WallpaperName = wpName;
         // ConfigManager.GUISettings.WallpaperBlurName = blurName;
@@ -177,11 +194,11 @@ public partial class ThemeManager : Node
         // if(WallpaperColorRect == null) return;
         // if(WallpaperColorRect.Color == value) return;
         WallpaperColorRect.Color = value;
-        ConfigManager.GUISettings.WallpaperColor = value;
+        ConfigManager.UpdateAppSettings(s => s with {WallpaperColor = value} );
     }
     private void OnWindowAnimationsChanged(bool value)
     {
-        ConfigManager.GUISettings.WindowAnimations = value;
+        ConfigManager.UpdateAppSettings(s => s with {WindowAnimations = value} );
     }
 
     private void OnHiDPIEnabledChanged(bool value)
@@ -201,7 +218,7 @@ public partial class ThemeManager : Node
             root.ContentScaleFactor = 1.0f;
             // GD.Print("dpi off");
         }
-        ConfigManager.GUISettings.HiDPIEnabled = value;
+        ConfigManager.UpdateAppSettings(s => s with {HiDPIEnabled = value} );
     }
 
     private void OnGlassEnabledChangedSystem(bool value)
@@ -225,7 +242,8 @@ public partial class ThemeManager : Node
         }
 
         shaderMat.SetShaderParameter(SHADER_GLASS_ENABLE_ID, value);
-        ConfigManager.GUISettings.GlassEnabled = value;
+        
+        ConfigManager.UpdateAppSettings(s => s with {GlassEnabled = value} );
         
         if (systemChange)
             EventBus.Instance.EmitSignal(EventBus.SignalName.GlassStateChanged, value);
@@ -250,9 +268,9 @@ public partial class ThemeManager : Node
                 OnGlassEnabledChangedSystem(true);
             }
         }
-
-        ConfigManager.GUISettings.WallpaperMode = value;
-        EventBus.Instance.EmitSignal(EventBus.SignalName.GlassStateChanged, ConfigManager.GUISettings.GlassEnabled);
+        
+        ConfigManager.UpdateAppSettings(s => s with {WallpaperMode = value} );
+        EventBus.Instance.EmitSignal(EventBus.SignalName.GlassStateChanged, ConfigManager.AppSettings.GlassEnabled);
         EventBus.Instance.EmitSignal(EventBus.SignalName.WallpaperModeApplied, (int)value);
         return true;
     }
@@ -261,6 +279,7 @@ public partial class ThemeManager : Node
         // if(value == GlassTintColor) return;
         if (WindowMaterial is not ShaderMaterial shaderMat) return;
         shaderMat.SetShaderParameter(SHADER_GLASS_TINT_ID, value);
+        ConfigManager.UpdateAppSettings(s => s with {GlassTintColor = value} );
     }
     // private void OnWindowColorChanged(Color value)
     // {
