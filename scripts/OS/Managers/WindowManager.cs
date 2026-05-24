@@ -3,13 +3,6 @@ using Godot;
 
 public partial class WindowManager : Node
 {
-    public readonly struct PanelLayout(Vector2 position, Vector2 size, bool visible)
-    {
-        public readonly Vector2 Position = position;
-        public readonly Vector2 Size = size;
-        public readonly bool Visible = visible;
-    }
-    
     public enum DockZone { None, Left, Right } //Top, Bottom
     
     public const float DefaultThickness = 260f;
