@@ -167,7 +167,7 @@ public partial class MetadataPanel : FloatingPanel
         keyLabel.Text = key;
         keyLabel.AddThemeColorOverride("font_color", new Color("aaaaaa"));
         keyLabel.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-        keyLabel.AddThemeFontSizeOverride("font_size", 16);
+        keyLabel.AddThemeFontSizeOverride("font_size", 13);
         //keyLabel.ContextMenuEnabled = true;
         //keyLabel.SelectionEnabled = true;
         grid.AddChild(keyLabel);
@@ -179,7 +179,7 @@ public partial class MetadataPanel : FloatingPanel
         valueLabel.CustomMinimumSize = new Vector2(200, 10);
         //valueLabel.ContextMenuEnabled = true;
         //valueLabel.SelectionEnabled = true;
-        valueLabel.AddThemeFontSizeOverride("font_size", 16);
+        valueLabel.AddThemeFontSizeOverride("font_size", 13);
         grid.AddChild(valueLabel);
     }
 
