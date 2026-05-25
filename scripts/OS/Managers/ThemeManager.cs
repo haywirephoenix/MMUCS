@@ -122,7 +122,6 @@ public partial class ThemeManager : Node
 
     public void OnUIScaleChanged(float newScale)
     {
-        // Defer the ContentScaleFactor change so it happens safely on the next frame
         Callable.From(() => {
             if (IsInsideTree())
             {
@@ -163,7 +162,7 @@ public partial class ThemeManager : Node
         var wptex = WallPapers[wallpaperIndex];
         if (wptex == null) return;
         
-        if (wallpaperIndex == ConfigManager.AppSettings.WallpaperIndex) return; 
+        // if (wallpaperIndex == ConfigManager.AppSettings.WallpaperIndex) return; 
         if (WindowMaterial is not ShaderMaterial shaderMat) return;
 
         var blurTex = WallPaperBlurs[wallpaperIndex];
