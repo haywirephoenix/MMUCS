@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="MMUCS"
-config/version="0.4.1"
+config/version="0.5"
 run/main_scene="uid://ce55h4hcoqn0q"
 config/features=PackedStringArray("4.6", "C#", "GL Compatibility")
 run/low_processor_mode=true
