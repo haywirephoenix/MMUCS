@@ -37,7 +37,12 @@
 [ext_resource type="Texture2D" uid="uid://e6m3xtkg1o34" path="res://wallpapers/fire-skull.png" id="27_tilu5"]
 [ext_resource type="Texture2D" uid="uid://d1q75m0hn3mg0" path="res://wallpapers/blurred/fire-skull_blurred.png" id="28_24xe2"]
 [ext_resource type="Texture2D" uid="uid://ddf5al7cvwuj2" path="res://icon.svg" id="28_qoqhg"]
+[ext_resource type="Script" uid="uid://d1mggfsvpi461" path="res://scripts/OS/Fragments/ResponsiveView.cs" id="28_vnkct"]
 [ext_resource type="StyleBox" uid="uid://ci4e6yoiosvld" path="res://themes/deafult/styleboxflat_white_bootprogress.tres" id="31_xu2l0"]
+[ext_resource type="Texture2D" uid="uid://di3rohhxjh865" path="res://wallpapers/mountains-daniel-leone.png" id="38_f6va0"]
+[ext_resource type="Texture2D" uid="uid://c2x6ogp7atu6a" path="res://wallpapers/blurred/mountains-daniel-leone-blur.png" id="39_uk3k5"]
+[ext_resource type="Texture2D" uid="uid://uhgj440grpu3" path="res://wallpapers/town-sheng-l.png" id="40_0aysq"]
+[ext_resource type="Texture2D" uid="uid://dkp5rao5khjme" path="res://wallpapers/blurred/town-sheng-l-blur.png" id="41_vnkct"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ub8w1"]
 
@@ -646,7 +651,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-texture = ExtResource("3_r3r3k")
+texture = ExtResource("38_f6va0")
 expand_mode = 2
 
 [node name="MainCanvas" type="VBoxContainer" parent="OS" unique_id=914787960 node_paths=PackedStringArray("_canvas", "_menuBar", "_statusBar", "_blockHierarchyPanel", "_hexPanel", "_roomPanel", "_metadataPanel", "_akosPanel", "_obimPanel", "_optionsPanel")]
@@ -676,7 +681,7 @@ layout_mode = 2
 mouse_filter = 1
 theme_override_styles/panel = SubResource("StyleBoxEmpty_ub8w1")
 
-[node name="MenuBar" type="MenuBar" parent="OS/MainCanvas/MenuBarContainer" unique_id=2005378424 node_paths=PackedStringArray("_mainCanvas", "_fileMenu", "_toolsMenu", "_viewMenu", "_openDialog")]
+[node name="MenuBar" type="MenuBar" parent="OS/MainCanvas/MenuBarContainer" unique_id=2005378424 node_paths=PackedStringArray("_mainCanvas", "_shadowTexture", "_fileMenu", "_toolsMenu", "_viewMenu", "_layoutMenu", "_openDialog")]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 theme_override_constants/h_separation = 21
@@ -688,9 +693,11 @@ theme_override_styles/pressed = ExtResource("12_3dlgs")
 theme_override_styles/hover = ExtResource("12_3dlgs")
 script = ExtResource("5_gd4vy")
 _mainCanvas = NodePath("../..")
+_shadowTexture = NodePath("Background")
 _fileMenu = NodePath("File")
 _toolsMenu = NodePath("Tools")
 _viewMenu = NodePath("View")
+_layoutMenu = NodePath("Layout")
 _openDialog = NodePath("../../Canvas/FileDialog")
 
 [node name="Background" type="TextureRect" parent="OS/MainCanvas/MenuBarContainer/MenuBar" unique_id=718530791]
@@ -777,6 +784,20 @@ theme_override_font_sizes/font_size = 13
 theme_override_styles/panel = ExtResource("7_qwhpj")
 item_count = 1
 item_0/text = "Options..."
+item_0/id = 24
+
+[node name="Layout" type="PopupMenu" parent="OS/MainCanvas/MenuBarContainer/MenuBar" unique_id=1284429021]
+oversampling_override = 1.0
+position = Vector2i(0, 45)
+size = Vector2i(225, 212)
+max_size = Vector2i(810, 16384)
+content_scale_mode = 1
+theme_override_constants/item_start_padding = 8
+theme_override_constants/item_end_padding = 8
+theme_override_font_sizes/font_size = 13
+theme_override_styles/panel = ExtResource("7_qwhpj")
+item_count = 1
+item_0/text = "Reset"
 item_0/id = 24
 
 [node name="Title" type="RichTextLabel" parent="OS/MainCanvas/MenuBarContainer/MenuBar" unique_id=526783803]
@@ -2440,23 +2461,38 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="Tabs" type="TabContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot" unique_id=431836618]
+[node name="ResponsiveView" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot" unique_id=430743419 node_paths=PackedStringArray("TabBar", "SplitContainer")]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_styles/panel = ExtResource("12_3dlgs")
-theme_override_styles/tabbar_background = ExtResource("12_3dlgs")
+size_flags_stretch_ratio = 19.33
+script = ExtResource("28_vnkct")
+TabBar = NodePath("TabBar")
+SplitContainer = NodePath("SplitContainer")
+
+[node name="TabBar" type="TabBar" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/ResponsiveView" unique_id=1423689129]
+layout_mode = 2
 theme_override_styles/tab_unselected = ExtResource("12_3dlgs")
 theme_override_styles/tab_hovered = ExtResource("12_3dlgs")
 theme_override_styles/tab_selected = ExtResource("12_3dlgs")
 theme_override_styles/tab_disabled = ExtResource("12_3dlgs")
 theme_override_styles/tab_focus = ExtResource("12_3dlgs")
+theme_override_styles/button_pressed = ExtResource("12_3dlgs")
+theme_override_styles/button_highlight = ExtResource("12_3dlgs")
 current_tab = 0
+tab_count = 2
+tab_0/title = "Preview"
+tab_1/title = "Palette"
 
-[node name="Preview" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=1897223329]
+[node name="SplitContainer" type="HBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/ResponsiveView" unique_id=1747658432]
 layout_mode = 2
-metadata/_tab_index = 0
+size_flags_vertical = 3
 
-[node name="PreviewContainer" type="SubViewportContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview" unique_id=1327008762 node_paths=PackedStringArray("_camera", "_celPreview")]
+[node name="Preview" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/ResponsiveView/SplitContainer" unique_id=1897223329]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PreviewContainer" type="SubViewportContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/ResponsiveView/SplitContainer/Preview" unique_id=1327008762 node_paths=PackedStringArray("_camera", "_celPreview")]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -2466,15 +2502,15 @@ script = ExtResource("17_24xe2")
 _camera = NodePath("SubViewport/Object Camera")
 _celPreview = NodePath("SubViewport/Object Preview")
 
-[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview/PreviewContainer" unique_id=638758665]
+[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer" unique_id=638758665]
 transparent_bg = true
 handle_input_locally = false
 snap_2d_transforms_to_pixel = true
 positional_shadow_atlas_size = 0
-size = Vector2i(306, 433)
-render_target_update_mode = 4
+size = Vector2i(316, 399)
+render_target_update_mode = 0
 
-[node name="Object Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview/PreviewContainer/SubViewport" unique_id=609620734]
+[node name="Object Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer/SubViewport" unique_id=609620734]
 texture_filter = 1
 custom_minimum_size = Vector2(200, 0)
 offset_right = 257.0
@@ -2483,10 +2519,37 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 stretch_mode = 2
 
-[node name="Object Camera" type="Camera2D" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview/PreviewContainer/SubViewport" unique_id=1028180553]
+[node name="Object Camera" type="Camera2D" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer/SubViewport" unique_id=1028180553]
 zoom = Vector2(2.46, 2.46)
 
-[node name="FrameSlider" type="HSlider" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Preview" unique_id=1797667655]
+[node name="Palette" type="ScrollContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/ResponsiveView/SplitContainer" unique_id=899832692]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PaletteMargin" type="MarginContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/ResponsiveView/SplitContainer/Palette" unique_id=859161531]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_top = 55
+
+[node name="PaletteGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/ResponsiveView/SplitContainer/Palette/PaletteMargin" unique_id=143517509]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 16
+
+[node name="Controls" type="CenterContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot" unique_id=977224518]
+custom_minimum_size = Vector2(316, 0)
+layout_mode = 2
+size_flags_vertical = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Controls" unique_id=1004888294]
+custom_minimum_size = Vector2(316, 0)
+layout_mode = 2
+
+[node name="FrameSlider" type="HSlider" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Controls/VBoxContainer" unique_id=1797667655]
+custom_minimum_size = Vector2(316, 0)
 layout_mode = 2
 theme_override_styles/slider = ExtResource("12_3dlgs")
 theme_override_styles/grabber_area = ExtResource("12_3dlgs")
@@ -2497,20 +2560,41 @@ scrollable = false
 ticks_on_borders = true
 ticks_position = 3
 
-[node name="Palette" type="ScrollContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs" unique_id=899832692]
-visible = false
-layout_mode = 2
-metadata/_tab_index = 1
+[node name="FrameLabel" type="Label" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Controls/VBoxContainer/FrameSlider" unique_id=1818470295]
+layout_mode = 0
+offset_right = 316.0
+offset_bottom = 17.0
+theme_override_colors/font_color = Color(0.7708395, 0.77083945, 0.77083945, 1)
+theme_override_font_sizes/font_size = 12
+text = "Frame"
+horizontal_alignment = 2
 
-[node name="_VBoxContainer_264" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Palette" unique_id=211451230]
+[node name="HSeparator" type="HSeparator" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Controls/VBoxContainer" unique_id=266827144]
+custom_minimum_size = Vector2(316, 0)
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
+theme_override_constants/separation = 12
+theme_override_styles/separator = ExtResource("15_udg8a")
 
-[node name="PaletteGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Tabs/Palette/_VBoxContainer_264" unique_id=143517509]
+[node name="PaletteSlider" type="HSlider" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Controls/VBoxContainer" unique_id=1659430686]
+custom_minimum_size = Vector2(316, 0)
 layout_mode = 2
-size_flags_vertical = 3
-columns = 16
+theme_override_styles/slider = ExtResource("12_3dlgs")
+theme_override_styles/grabber_area = ExtResource("12_3dlgs")
+theme_override_styles/grabber_area_highlight = ExtResource("12_3dlgs")
+max_value = 3.0
+rounded = true
+scrollable = false
+ticks_on_borders = true
+ticks_position = 3
+
+[node name="Palette" type="Label" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ContentRoot/Controls/VBoxContainer/PaletteSlider" unique_id=1463767206]
+layout_mode = 0
+offset_right = 316.0
+offset_bottom = 17.0
+theme_override_colors/font_color = Color(0.7708395, 0.77083945, 0.77083945, 1)
+theme_override_font_sizes/font_size = 12
+text = "Palette"
+horizontal_alignment = 2
 
 [node name="ResizeHandles" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer" unique_id=72044487]
 layout_mode = 2
@@ -3095,8 +3179,6 @@ vertical_alignment = 1
 custom_minimum_size = Vector2(80, 28)
 layout_mode = 2
 color = Color(0.18039216, 0.38431373, 0.8509804, 1)
-edit_alpha = false
-edit_intensity = false
 
 [node name="SectionCard" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage" unique_id=1524246540]
 layout_mode = 2
@@ -3680,10 +3762,17 @@ stretch_mode = 5
 
 [node name="VerboseText" type="RichTextLabel" parent="Boot" unique_id=42719480]
 custom_minimum_size = Vector2(500, 400)
-offset_left = 1112.0
-offset_top = 339.0
-offset_right = 1612.0
-offset_bottom = 739.0
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 228.0
+offset_top = -200.0
+offset_right = 728.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_colors/default_color = Color(1, 1, 1, 0.44313726)
 theme_override_font_sizes/normal_font_size = 16
 theme_override_font_sizes/bold_font_size = 16
@@ -3722,6 +3811,10 @@ WallpaperColorRect = NodePath("../OS/WallpaperContainer/WallpaperColorRect")
 WindowMaterial = ExtResource("13_sq7yr")
 WindowStyleBox = ExtResource("7_qwhpj")
 WindowShader = ExtResource("7_50g4q")
+WallpaperMountains = ExtResource("38_f6va0")
+WallpaperMountainsBlur = ExtResource("39_uk3k5")
+WallpaperTown = ExtResource("40_0aysq")
+WallpaperTownBlur = ExtResource("41_vnkct")
 WallpaperFractal = ExtResource("3_r3r3k")
 WallpaperFractalBlur = ExtResource("26_8pgb7")
 WallpaperFireSkull = ExtResource("27_tilu5")
