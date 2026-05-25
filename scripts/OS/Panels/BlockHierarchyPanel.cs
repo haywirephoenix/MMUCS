@@ -71,12 +71,14 @@ public partial class BlockHierarchyPanel : FloatingPanel
     {
         showObjectNames = toggledOn;
         ToggleTreeObjectNames(toggledOn);
+        _OnSearchChanged(_searchBox.Text);
     }
 
     private void OnRoomNamesToggled(bool toggledOn)
     {
         showRoomNames = toggledOn;
         ToggleTreeRoomNames(toggledOn);
+        _OnSearchChanged(_searchBox.Text);
     }
 
     private void ToggleTreeRoomNames(bool enabled)
