@@ -9,7 +9,7 @@ public static class ScummImageUtils
         int height,
         int pitch,
         ReadOnlySpan<byte> palette,
-        byte? transparentIndex = null)
+        int? transparentIndex = null)
     {
         try
         {
