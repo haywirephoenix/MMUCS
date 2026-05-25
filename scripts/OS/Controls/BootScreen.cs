@@ -21,6 +21,7 @@ public partial class BootScreen : CanvasLayer
     private bool _isBooting = true;
     private bool _altHeldDetected = false;
     private bool _ctrlHeldDetected = false;
+    private bool _shiftHeldDetected = false;
     private bool _introComplete = false;
     private bool _exitQueued = false;
     private bool _isThemeManagerInitialized = false;
@@ -154,7 +155,7 @@ public partial class BootScreen : CanvasLayer
         
         StatusBar.SetStatus($"Welcome to MMUCS v{mmucsVersion}");
         
-        if (_ctrlHeldDetected || _altHeldDetected)
+        if (_ctrlHeldDetected || _altHeldDetected || _shiftHeldDetected)
         {
             await Task.Delay(TimeSpan.FromSeconds(5.0));
         }
@@ -225,6 +226,13 @@ public partial class BootScreen : CanvasLayer
                 StatusBar.SetStatus("Control key hold caught! Marking config for reset.", StatusBar.EStatusType.Notify);
                 ConfigManager.ResetAppSettings();
                 ThemeManager.Instance.RefreshState();
+            }
+            if (key.Keycode == Key.Shift && !_shiftHeldDetected)
+            {
+                _shiftHeldDetected = true;
+                StatusBar.SetStatus("Shift key hold caught! Clearing all caches.", StatusBar.EStatusType.Notify);
+                AkosCelCache.ClearDiskCache();
+                ScummBackgroundCache.ClearDiskCache();
             }
         }
     }

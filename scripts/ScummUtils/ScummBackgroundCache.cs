@@ -8,9 +8,11 @@ using Godot;
 public static class ScummBackgroundCache
 {
     private static readonly Dictionary<int, IndexedSurface> RamCache = new();
+    
+    private const string bgCachePath = "user://bgcache/";
     public static string GetBackgroundCachePath(int roomId)
     {
-        string godotFilePath = $"user://bgcache/room_{roomId}.bin";
+        string godotFilePath = $"{bgCachePath}room_{roomId}.bin";
         return FileUtils.GetOrCreatePath(godotFilePath);
     }
 
@@ -143,5 +145,26 @@ public static class ScummBackgroundCache
         RamCache.Clear();
     }
     
-    
+    public static void ClearDiskCache()
+    {
+        try
+        {
+            RamCache.Clear();
+            string globalPath = ProjectSettings.GlobalizePath(bgCachePath);
+
+            if (Directory.Exists(globalPath))
+            {
+                string[] files = Directory.GetFiles(globalPath, "room_*.bin");
+                foreach (string file in files)
+                {
+                    File.Delete(file);
+                }
+                StatusBar.SetStatus("Scumm Background disk cache cleared successfully.");
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusBar.SetStatus($"Failed to clear background disk cache: {ex.Message}", StatusBar.EStatusType.Error);
+        }
+    }
 }

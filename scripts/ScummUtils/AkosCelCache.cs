@@ -7,10 +7,11 @@ using Godot;
 public static class AkosCelCache
 {
     private const int HeaderSize = 12;
+    private const string akosCachePath = "user://akoscache/";
     
     public static string GetCelCachePath(long celKey)
     {
-        string godotFilePath = $"user://akoscache/cel_{celKey}.bin";
+        string godotFilePath = $"{akosCachePath}cel_{celKey}.bin";
         return FileUtils.GetOrCreatePath(godotFilePath); 
     }
     
@@ -134,4 +135,34 @@ public static class AkosCelCache
             return false;
         }
     }
+    
+    public static void ClearRamCache(AkosData akos)
+    {
+        if (akos?.DecodedCels != null)
+        {
+            akos.DecodedCels.Clear();
+        }
+    }
+    public static void ClearDiskCache()
+    {
+        try
+        {
+            string globalPath = ProjectSettings.GlobalizePath(akosCachePath);
+
+            if (Directory.Exists(globalPath))
+            {
+                string[] files = Directory.GetFiles(globalPath, "cel_*.bin");
+                foreach (string file in files)
+                {
+                    File.Delete(file);
+                }
+                StatusBar.SetStatus("Akos Cel disk cache cleared successfully.");
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusBar.SetStatus($"Failed to clear Akos disk cache: {ex.Message}", StatusBar.EStatusType.Error);
+        }
+    }
+    
 }
