@@ -64,8 +64,8 @@ public partial class ConfigManager : Node
 
         if (settings.ShellMode == Window.ModeEnum.Windowed)
         {
-            if (settings.ShellSize != new Vector2I(-1, -1))
-                ShellManager.Resize(settings.ShellSize);
+            // if (settings.ShellSize != new Vector2I(-1, -1))
+            //     ShellManager.Resize(settings.ShellSize);
 
             if (settings.ShellPosition == new Vector2I(-1, -1))
                 ShellManager.MoveToCenter();
