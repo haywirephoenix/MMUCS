@@ -322,10 +322,10 @@ public partial class HexPanel : FloatingPanel
     {
         if (@event is InputEventMouseButton { Pressed: true } mb)
         {
-            if (mb.ButtonIndex == MouseButton.Left)
-            {
-                _hexView.GrabFocus();
-            }
+            // if (mb.ButtonIndex == MouseButton.Left)
+            // {
+            //     _hexView.GrabFocus();
+            // }
             if (mb.ButtonIndex == MouseButton.WheelDown)
                 _vScroll.Value += RowHeight * 3;
             else if (mb.ButtonIndex == MouseButton.WheelUp)
