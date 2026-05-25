@@ -196,7 +196,7 @@ public partial class FloatingPanel : Control
         CallDeferred(nameof(LoadLayout));
     }
 
-    protected virtual void _OnBlockSelected(ScummBlock obimBlock)
+    protected virtual void _OnBlockSelected(ScummBlock block)
     {
         
     }
