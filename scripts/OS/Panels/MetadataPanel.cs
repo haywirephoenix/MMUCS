@@ -82,35 +82,35 @@ public partial class MetadataPanel : FloatingPanel
         _metagrid = GetNode<GridContainer>(PathMetaGrid);
     }
     
-    protected override void _OnBlockSelected(ScummBlock obimBlock)
+    protected override void _OnBlockSelected(ScummBlock block)
     {
         // GD.Print($"[META] {block.TagName}");
         
-        SetTitle($"Properties — {obimBlock.TagName}");
-        _blockPath.Text = obimBlock.FullPath;
+        SetTitle($"Properties — {block.TagName}");
+        _blockPath.Text = block.FullPath;
 
         _ClearGrid();
 
-        if (!string.IsNullOrEmpty(obimBlock.FullName))
+        if (!string.IsNullOrEmpty(block.FullName))
         {
-            _AddRow("Name", obimBlock.FullName);
-            _AddRow("Description", obimBlock.Description);
+            _AddRow("Name", block.FullName);
+            _AddRow("Description", block.Description);
         }
         
-        _AddRow("Tag", obimBlock.TagName);
-        _AddRow("Offset", $"0x{obimBlock.Offset:X8}  ({obimBlock.Offset})");
-        _AddRow("Size", $"{obimBlock.Size} bytes");
-        _AddRow("Data offset", $"0x{obimBlock.DataOffset:X8}");
-        _AddRow("Children", obimBlock.Children.Count.ToString());
+        _AddRow("Tag", block.TagName);
+        _AddRow("Offset", $"0x{block.Offset:X8}  ({block.Offset})");
+        _AddRow("Size", $"{block.Size} bytes");
+        _AddRow("Data offset", $"0x{block.DataOffset:X8}");
+        _AddRow("Children", block.Children.Count.ToString());
 
         // Decoded metadata
-        foreach (var (vKey, vValue) in obimBlock.GetMetaDataDict())
+        foreach (var (vKey, vValue) in block.GetMetaDataDict())
         {
             string label = "";
             
-            if (obimBlock.MetaSchema != null && vKey.VariantType == Variant.Type.Int)
+            if (block.MetaSchema != null && vKey.VariantType == Variant.Type.Int)
             {
-                label = Enum.GetName(obimBlock.MetaSchema, vKey.AsInt32()) ?? $"Unknown({vKey})";
+                label = Enum.GetName(block.MetaSchema, vKey.AsInt32()) ?? $"Unknown({vKey})";
             }
             else
             {

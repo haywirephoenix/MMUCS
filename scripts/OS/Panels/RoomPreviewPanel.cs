@@ -257,16 +257,16 @@ public partial class RoomPreviewPanel : FloatingPanel
     private static readonly Vector2 H2Half = new Vector2(0.5f, 0.5f);
     
     
-    protected override void _OnBlockSelected(ScummBlock obimBlock)
+    protected override void _OnBlockSelected(ScummBlock block)
     {
-        if (obimBlock == null) { OnRoomDeselected(); return; }
+        if (block == null) { OnRoomDeselected(); return; }
 
-        switch (obimBlock.Tag)
+        switch (block.Tag)
         {
-            case ScummTag.LFLF:             _lflfBlock = obimBlock;                 break;
+            case ScummTag.LFLF:             _lflfBlock = block;                 break;
             case ScummTag.ROOM:
-            case ScummTag.RMSC:             _lflfBlock = obimBlock.Parent;          break;
-            case ScummTag.RMHD:             _lflfBlock = obimBlock.Parent.Parent;   break; // RMHD > ROOM > LFLF
+            case ScummTag.RMSC:             _lflfBlock = block.Parent;          break;
+            case ScummTag.RMHD:             _lflfBlock = block.Parent.Parent;   break; // RMHD > ROOM > LFLF
             default:                        return; // keep current view, do nothing
         }
 

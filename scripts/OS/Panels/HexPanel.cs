@@ -208,25 +208,25 @@ public partial class HexPanel : FloatingPanel
         _vScroll = GetNode<VScrollBar>(PathvScroll);
     }
 
-    protected override void _OnBlockSelected(ScummBlock obimBlock)
+    protected override void _OnBlockSelected(ScummBlock block)
     {
 
-        currentBlock = obimBlock;
+        currentBlock = block;
 
-        ReadOnlySpan<byte> rawData = obimBlock.DataSpan;
+        ReadOnlySpan<byte> rawData = block.DataSpan;
 
         if (rawData == null)
         {
             return;
         }
 
-        SetTitle($"Hex View — {obimBlock.Tag} @ 0x{obimBlock.Offset:X8}");
-        _offsetLabel.Text = $"Offset: 0x{obimBlock.Offset:X8}   Size: {obimBlock.Size} bytes   Path: {obimBlock.FullPath}";
+        SetTitle($"Hex View — {block.Tag} @ 0x{block.Offset:X8}");
+        _offsetLabel.Text = $"Offset: 0x{block.Offset:X8}   Size: {block.Size} bytes   Path: {block.FullPath}";
 
         _highlightStart = 0;
         _scrollOffset = 0;
 
-        _vScroll.MaxValue = (obimBlock.DataLength / BytesPerRow) * RowHeight;
+        _vScroll.MaxValue = (block.DataLength / BytesPerRow) * RowHeight;
         _Render();
     }
 
