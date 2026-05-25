@@ -144,6 +144,7 @@ public partial class OptionsPanel : FloatingPanel
         tintColorPicker.Color = AppSettings.GlassTintColor;
         modeOpt.Selected = (int)AppSettings.WallpaperMode;
         scaleSlider.Value = AppSettings.GuiScale;
+        UpdateScaleLabelText(AppSettings.GuiScale);
         
         // bool isColor = AppSettings.WallpaperMode == Consts.WallPaperModeEnum.Color;
         // glassToggle.Disabled = isColor;
@@ -177,8 +178,8 @@ public partial class OptionsPanel : FloatingPanel
         glassToggle.Toggled        += v   => EventBus.Instance.EmitSignal(EventBus.SignalName.GlassChangeRequested, v);
         hiDpiToggle.Toggled        += v   => EventBus.Instance.EmitSignal(EventBus.SignalName.HiDPIChangeRequested, v);
         animToggle.Toggled         += v   => EventBus.Instance.EmitSignal(EventBus.SignalName.WindowAnimationsChangeRequested, v);
-        scaleSlider.DragEnded      += changed => { if (changed) EventBus.Instance.EmitSignal(EventBus.SignalName.UIScaleChangeRequested, (float)scaleSlider.Value); };
-        scaleSlider.ValueChanged   += v   => scaleLabel.Text = $"{v:0.00}×";
+        scaleSlider.DragEnded      += OnScaleSliderDragEnd;
+        scaleSlider.ValueChanged   += UpdateScaleLabelText;
         resOpt.ItemSelected        += OnResolutionChanged;
         
         EventBus.Instance.Connect(EventBus.SignalName.GlassStateChanged,
@@ -202,7 +203,7 @@ public partial class OptionsPanel : FloatingPanel
         DisplayServer.WindowSetSize(r);
     }
 
-    private void OnScaleSlideValueChange(double v)
+    private void UpdateScaleLabelText(double v)
     {
         scaleLabel.Text = $"{v:0.00}×";
     }
