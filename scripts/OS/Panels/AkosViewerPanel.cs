@@ -1,6 +1,5 @@
 using System;
 using Godot;
-
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,12 +8,12 @@ using System.Threading.Tasks;
 public partial class AkosViewerPanel : FloatingPanel
 {
     public override string PanelTitle => "AKOS Viewer";
-    [Export] public bool CacheDisabled {get{return _cacheDisabled;} set{ _cacheDisabled = value;}}
+    [Export] public bool CacheDisabled { get { return _cacheDisabled; } set { _cacheDisabled = value; } }
     private bool _cacheDisabled;
     [Export] public Material akosShaderMaterial;
- 
+
     [Export] public TabContainer _tabs;
-    
+
     //options
     [Export] public OptionButton _modeOptionButton;
     [Export] public CheckButton _optionsToggle;
@@ -28,9 +27,9 @@ public partial class AkosViewerPanel : FloatingPanel
     [Export] public CheckButton _autoZoomToggle;
 
     // Tab 0 – Overview
-    [Export] public  GridContainer _headerGrid;
-    [Export] public  GridContainer _configGrid;
-    [Export] public  Label _codecLabel;
+    [Export] public GridContainer _headerGrid;
+    [Export] public GridContainer _configGrid;
+    [Export] public Label _codecLabel;
 
     // Tab 1 – Cel Browser
     [Export] public ItemList _celList;
@@ -38,7 +37,7 @@ public partial class AkosViewerPanel : FloatingPanel
     [Export] public Label _celInfoLabel;
     [Export] public Camera2D _camera;
     [Export] public ZoomableViewport _previewContainer;
-    
+
 
     // Tab 2 – Chore / Sequence tree
     [Export] public Tree _choreTree;
@@ -46,21 +45,21 @@ public partial class AkosViewerPanel : FloatingPanel
 
     // Tab 3 – Palette
     [Export] public GridContainer _paletteGrid;
-    
+
     private CancellationTokenSource _decodeCts;
 
     // ── State
     private AkosData _akos;
     private int _selectedCelIndex = -1;
     private Color[] _externalPalette;
-    
+
     private ViewMode CurrentViewMode = ViewMode.Shader;
-    private enum ViewMode { Shader,Index,Raw }
-    
+    private enum ViewMode { Shader, Index, Raw }
+
     private Vector2 _minZoom = new Vector2(0.5f, 0.5f);
     private Vector2 _maxZoom = new Vector2(10.0f, 10.0f);
     private float _zoomStep = 0.5f;
-    
+
     private const string s_tabsPath = "Layout/MarginContainer/ContentRoot/Tabs";
     private const string s_celsVBox = s_tabsPath + "/Cels/VBoxContainer";
     private const string s_previewRow = s_celsVBox + "/PreviewRow";
@@ -104,11 +103,11 @@ public partial class AkosViewerPanel : FloatingPanel
 
     // Palette Tab
     private static readonly NodePath PathPaletteGrid = s_tabsPath + "/Palette/PaletteContainer/PaletteGrid";
-    
+
     public override void AssignNodes()
     {
         base.AssignNodes();
-        
+
         _tabs = GetNode<TabContainer>(PathTabs);
         _headerGrid = GetNode<GridContainer>(PathheaderGrid);
         _configGrid = GetNode<GridContainer>(PathConfigGrid);
@@ -119,7 +118,7 @@ public partial class AkosViewerPanel : FloatingPanel
 
         _previewContainer = GetNode<ZoomableViewport>(PathPreviewContainer);
         _camera = GetNode<Camera2D>(PathCelCamera);
-            
+
         _modeOptionButton = GetNode<OptionButton>(PathModeOptionButton);
         _optionsToggle = GetNode<CheckButton>(PathOptionsToggle);
         _infoToggle = GetNode<CheckButton>(PathInfoToggle);
@@ -127,15 +126,14 @@ public partial class AkosViewerPanel : FloatingPanel
         _shadowColorToggle = GetNode<CheckButton>(PathShadowColorToggle);
         _vectorToggle = GetNode<CheckButton>(PathVectorToggle);
         _shadowSlider = GetNode<Slider>(PathShadowSlider);
-        _filterOptionButton =  GetNode<OptionButton>(PathFilterOptionButton);
-        _stretchOptionButton =  GetNode<OptionButton>(PathStretchOptionButton);
-        _autoZoomToggle =  GetNode<CheckButton>(PathAAutoZoomToggle);
-        
+        _filterOptionButton = GetNode<OptionButton>(PathFilterOptionButton);
+        _stretchOptionButton = GetNode<OptionButton>(PathStretchOptionButton);
+        _autoZoomToggle = GetNode<CheckButton>(PathAAutoZoomToggle);
         _choreTree = GetNode<Tree>(PathChoreTree);
         _sequenceDetail = GetNode<Label>(PathSequenceDetail);
         _paletteGrid = GetNode<GridContainer>(PathPaletteGrid);
     }
-    
+
     protected override void OnReady()
     {
         _optionsToggle.Toggled += OptionsToggleOnToggled;
@@ -148,13 +146,13 @@ public partial class AkosViewerPanel : FloatingPanel
         _filterOptionButton.ItemSelected += FilterOptionButtonOnItemSelected;
         _stretchOptionButton.ItemSelected += StretchOptionButtonOnItemSelected;
         _autoZoomToggle.Toggled += AutoZoomToggleOnToggled;
-        
+
         _choreTree.ItemCollapsed += _OnItemCollapsed;
         _choreTree.ItemSelected += _OnChoreItemSelected;
         _celList.ItemSelected += _OnCelSelected;
         _tabs.TabChanged += _OnTabChanged;
         VectorToggle.ResetClickCount();
-        
+
     }
     private void InfoToggleOnToggled(bool toggledOn)
     {
@@ -162,30 +160,31 @@ public partial class AkosViewerPanel : FloatingPanel
     }
     private void OptionsToggleOnToggled(bool toggledOn)
     {
-        _configGrid.Visible  = toggledOn;
+        _configGrid.Visible = toggledOn;
     }
     private void AutoZoomToggleOnToggled(bool toggledOn)
     {
-        if(toggledOn)
+        if (toggledOn)
             _previewContainer.ZoomToFitDeferred();
         else
             _previewContainer.ResetZoomDeferred();
     }
-    
+
     private void ModeOptionButtonOnItemSelected(long index)
-    { 
+    {
         CurrentViewMode = (ViewMode)index;
         _RefreshCelPreview();
     }
-
+    
     private void ToggleShader(bool toggledOn)
     {
         SetShaderParameter("is_active", toggledOn);
         _alphaToggle.Disabled = !toggledOn;
         _shadowColorToggle.Disabled = !toggledOn;
-        _vectorToggle.Disabled  = !toggledOn;
-        _shadowSlider.Editable =  toggledOn;
+        _vectorToggle.Disabled = !toggledOn;
+        _shadowSlider.Editable = toggledOn;
     }
+    
     private void StretchOptionButtonOnItemSelected(long index)
     {
         _celPreview.StretchMode = index switch
@@ -196,7 +195,7 @@ public partial class AkosViewerPanel : FloatingPanel
         };
         _previewContainer.CenterCameraDeferred();
     }
-    
+
     private void FilterOptionButtonOnItemSelected(long index)
     {
         bool islinear = index == 1;
@@ -209,30 +208,28 @@ public partial class AkosViewerPanel : FloatingPanel
     {
         SetShaderParameter("shadow_color_enabled", toggledOn);
     }
-   
+
     private void AlphaToggleOnToggled(bool toggledOn)
     {
         SetShaderParameter("alpha_enabled", toggledOn);
     }
+    
     private void OnVectorToggled(bool toggledOn)
     {
         VectorToggle.OnVectorToggled(toggledOn);
     }
     
-   
-
     private void _OnShadowAmountChanged(double value)
     {
         SetShaderParameter("shadow_amount", value);
     }
-    
-   
+
     private void SetShaderParameter(string paramName, Variant value)
     {
         if (_celPreview.Material is ShaderMaterial sm)
             sm.SetShaderParameter(paramName, value);
     }
-    
+
     private void _OnItemCollapsed(TreeItem item)
     {
         if (!item.Collapsed)
@@ -251,7 +248,7 @@ public partial class AkosViewerPanel : FloatingPanel
             }
         }
     }
-    
+
     private void _ExpandAnimation(TreeItem animItem)
     {
         if (!IsInstanceValid(animItem)) return;
@@ -266,7 +263,7 @@ public partial class AkosViewerPanel : FloatingPanel
 
         int animIdx = animItem.GetMetadata(0).AsInt32();
         int dirs = _akos.DirectionCount;
-        
+
         for (int d = 0; d < dirs; d++)
         {
             int choreIdx = animIdx * dirs + d;
@@ -278,7 +275,7 @@ public partial class AkosViewerPanel : FloatingPanel
             var dirItem = _choreTree.CreateItem(animItem);
             dirItem.SetText(0, _GetDirName(d));
             dirItem.Collapsed = true;
-        
+
             var steps = _parser.DecodeSingleSequence(_akos, seqOffset);
             foreach (var step in steps)
             {
@@ -287,49 +284,55 @@ public partial class AkosViewerPanel : FloatingPanel
             }
         }
     }
-    
+
     private static readonly Dictionary<AkosStepKind, Color> ChoreColors = new()
     {
         { AkosStepKind.DrawSingle, new Color("88ccff") }, // Light Blue
-        { AkosStepKind.DrawMany,   new Color("88ffcc") }, // Seafoam
-        { AkosStepKind.End,        new Color("ff8888") }, // Soft Red
-        { AkosStepKind.Empty,      new Color("888888") }  // Grey
+        { AkosStepKind.DrawMany, new Color("88ffcc") }, // Seafoam
+        { AkosStepKind.End, new Color("ff8888") }, // Soft Red
+        { AkosStepKind.Empty, new Color("888888") } // Grey
     };
-    
+
     private void _FormatStepItem(TreeItem item, AkosChoreStep step)
     {
         string label = step.Kind switch
         {
             AkosStepKind.DrawSingle => $"Draw cel {step.CelIndex}",
-            AkosStepKind.DrawMany   => $"DrawMany ({step.MultiCels.Count} cels)",
-            AkosStepKind.End        => "EndSeq",
-            AkosStepKind.Empty      => "EmptyCel",
-            _                       => step.OpcodeName ?? $"OP_{step.RawCode:X4}",
+            AkosStepKind.DrawMany => $"DrawMany ({step.MultiCels.Count} cels)",
+            AkosStepKind.End => "EndSeq",
+            AkosStepKind.Empty => "EmptyCel",
+            _ => step.OpcodeName ?? $"OP_{step.RawCode:X4}",
         };
 
         item.SetText(0, label);
         item.SetText(1, $"0x{step.Offset:X4}");
-        
+
         if (!ChoreColors.TryGetValue(step.Kind, out Color stepColor))
             stepColor = new Color("ffcc88"); // Orange (Control Ops / Default)
-        
+
         item.SetCustomColor(0, stepColor);
-        
+
         if (step.Kind == AkosStepKind.DrawSingle)
             item.SetMetadata(0, step.CelIndex);
         else
             item.SetMetadata(0, -1);
-        
+
     }
 
     private string _GetDirName(int d)
     {
-        string[] dirNames4 = { "Right", "Left", "Front", "Back" };
-        string[] dirNames8 = { "Right", "UpRight", "Up", "UpLeft", "Left", "DownLeft", "Down", "DownRight" };
+        string[] dirNames4 =
+        {
+            "Right", "Left", "Front", "Back"
+        };
+        string[] dirNames8 =
+        {
+            "Right", "UpRight", "Up", "UpLeft", "Left", "DownLeft", "Down", "DownRight"
+        };
         var set = _akos.Header.HasManyDirections ? dirNames8 : dirNames4;
         return d < set.Length ? set[d] : $"Dir {d}";
     }
-    
+
     private async void _OnTabChanged(long tab)
     {
         if (tab == 1 && _akos.Chores == null)
@@ -338,23 +341,23 @@ public partial class AkosViewerPanel : FloatingPanel
 
     private AkosParser _parser = new AkosParser();
 
-   
+
     // ── Data loading ──────────────────────────────────────────────────────────
 
-    protected override async void _OnBlockSelected(ScummBlock obimBlock)
+    protected override async void _OnBlockSelected(ScummBlock block)
     {
-        if (obimBlock.Tag != ScummTag.AKOS) return;
-        
+        if (block.Tag != ScummTag.AKOS) return;
+
         if (_celList.ItemCount > 0 && _celList.IsVisibleInTree())
             FocusManager.SetNextFocusOverride(_celList);
 
         _parser = new();
 
-        _akos = await Task.Run(() => _parser.Parse(obimBlock, _externalPalette));
+        _akos = await Task.Run(() => _parser.Parse(block, _externalPalette));
 
         _PopulateOverview();
         _PopulateCelList();
-    
+
         if (_celList.ItemCount > 0)
         {
             _celList.Select(0);
@@ -368,7 +371,7 @@ public partial class AkosViewerPanel : FloatingPanel
         _previewContainer.ResetHasFitOnce();
         AutoZoomToggleOnToggled(_autoZoomToggle.ButtonPressed);
     }
-    
+
     private async void _LazyLoadChores()
     {
         // prevents double-loading if user clicks the tab multiple times
@@ -395,7 +398,6 @@ public partial class AkosViewerPanel : FloatingPanel
         }
     }
 
-
     public void SetExternalPalette(Color[] palette)
     {
         _externalPalette = palette;
@@ -408,21 +410,21 @@ public partial class AkosViewerPanel : FloatingPanel
         foreach (Node child in _headerGrid.GetChildren()) child.QueueFree();
 
         var h = _akos.Header;
-        _AddGridRow("Version",     h.VersionNumber.ToString());
-        _AddGridRow("Flags",       $"0x{h.CostumeFlags:X4}  ({(h.HasManyDirections ? "8-dir" : "4-dir")}{(h.MirroredCostume ? ", mirrored" : "")})");
+        _AddGridRow("Version", h.VersionNumber.ToString());
+        _AddGridRow("Flags", $"0x{h.CostumeFlags:X4}  ({(h.HasManyDirections ? "8-dir" : "4-dir")}{(h.MirroredCostume ? ", mirrored" : "")})");
         _AddGridRow("Chore count", h.ChoreCount.ToString());
-        _AddGridRow("Cel count",   h.CelsCount.ToString());
+        _AddGridRow("Cel count", h.CelsCount.ToString());
         _AddGridRow("Layer count", h.LayerCount.ToString());
-        _AddGridRow("Anim count",  _akos.AnimCount.ToString());
+        _AddGridRow("Anim count", _akos.AnimCount.ToString());
         _AddGridRow("Direction count", _akos.DirectionCount.ToString());
 
         _codecLabel.Text = h.Codec switch
         {
             AkosCodec.ByleRLE => "1 – Byle RLE\nUsed by SCUMM v7/v8 (COMI/DIG). Variable-length run-length encoding per scanline.",
             AkosCodec.CdatRLE => "2 – CDAT RLE (BOMP)\nBomp decompressor. Used by earlier SCUMM versions.",
-            AkosCodec.MajMin  => "5 – MajMin\nMajority/Minority bit-plane codec. Used by HE games.",
-            AkosCodec.TRLE    => "16 – TRLE\nTransparent RLE, HE95+. Supports alpha and shadow tables.",
-            _                 => $"Unknown codec {(int)h.Codec}",
+            AkosCodec.MajMin => "5 – MajMin\nMajority/Minority bit-plane codec. Used by HE games.",
+            AkosCodec.TRLE => "16 – TRLE\nTransparent RLE, HE95+. Supports alpha and shadow tables.",
+            _ => $"Unknown codec {(int)h.Codec}",
         };
     }
 
@@ -466,6 +468,7 @@ public partial class AkosViewerPanel : FloatingPanel
     {
         _celPreview.Material = akosShaderMaterial;
     }
+    
     private void DisableMaterial()
     {
         _celPreview.Material = akosShaderMaterial;
@@ -488,12 +491,12 @@ public partial class AkosViewerPanel : FloatingPanel
         int capturedIndex = _selectedCelIndex;
         _UpdateCelLabels(_akos.CelInfos[capturedIndex]);
 
-        try 
+        try
         {
             var surface = await AkosCelCache.GetCachedCelAsync(_akos, capturedIndex, token);
             if (surface == null || token.IsCancellationRequested) return;
 
-            var dataImage = (CurrentViewMode != ViewMode.Raw) 
+            var dataImage = (CurrentViewMode != ViewMode.Raw)
                 ? IndexedRenderer.CreateDataImage(surface, _akos)
                 : IndexedRenderer.CreateImage(surface, _akos);
 
@@ -501,11 +504,11 @@ public partial class AkosViewerPanel : FloatingPanel
             {
                 _celPreview.Texture = ImageTexture.CreateFromImage(dataImage);
                 UpdateUI();
-                
+
                 _PopulatePalette();
             }
         }
-        catch (OperationCanceledException) {  }
+        catch (OperationCanceledException) { }
     }
 
     private void UpdateUI()
@@ -521,15 +524,15 @@ public partial class AkosViewerPanel : FloatingPanel
             if (_celPreview.Material == null)
                 _celPreview.Material = akosShaderMaterial;
             SetShaderParameter("is_active", shaderActive);
-            
-            _UpdateShaderPalette(); 
+
+            _UpdateShaderPalette();
         }
-        
+
         _alphaToggle.Disabled = !shaderActive;
         _shadowColorToggle.Disabled = !shaderActive;
         _shadowSlider.Editable = shaderActive;
-        
-        
+
+
         // _previewContainer.ZoomToFit();
         // _previewContainer.CenterCameraDeferred();
         ZoomCameraToFit();
@@ -537,12 +540,12 @@ public partial class AkosViewerPanel : FloatingPanel
 
     private void ZoomCameraToFit()
     {
-        if(_autoZoomToggle.ButtonPressed)
+        if (_autoZoomToggle.ButtonPressed)
             _previewContainer.ZoomToFitDeferred();
         else
             _previewContainer.ZoomToFitOnceDeferred();
     }
-    
+
     private void _UpdateCelLabels(AkosCelInfo ci)
     {
         _celInfoLabel.Text =
@@ -552,7 +555,7 @@ public partial class AkosViewerPanel : FloatingPanel
             $"AKCD offset: 0x{_akos.CelOffsets?[_selectedCelIndex].AkcdOffset:X8}\n" +
             $"AKCI offset: 0x{_akos.CelOffsets?[_selectedCelIndex].AkciOffset:X4}";
     }
-    
+
     private ImageTexture _paletteTextureCache;
 
     private void _UpdateShaderPalette()
@@ -570,7 +573,7 @@ public partial class AkosViewerPanel : FloatingPanel
         _paletteTextureCache = ImageTexture.CreateFromImage(img);
         SetShaderParameter("room_palette", _paletteTextureCache);
     }
-    
+
     // ── Chore tree ─────────────────────────────────────────────────
 
     private void _PopulateChoreTree()
@@ -588,7 +591,7 @@ public partial class AkosViewerPanel : FloatingPanel
             animItem.SetText(0, $"Anim {i}");
             animItem.SetMetadata(0, i); // Store the AnimIndex
             animItem.Collapsed = true;
-        
+
             var placeholder = _choreTree.CreateItem(animItem);
             placeholder.SetText(0, "Loading...");
         }
@@ -600,12 +603,16 @@ public partial class AkosViewerPanel : FloatingPanel
         if (item == null) return;
 
         var meta = item.GetMetadata(0);
-    
+
         // Check if this item is a Step (3rd level deep)
         // Root (0) -> Anim (1) -> Dir (2) -> Step (3)
         int depth = 0;
         var temp = item;
-        while (temp.GetParent() != null) { temp = temp.GetParent(); depth++; }
+        while (temp.GetParent() != null)
+        {
+            temp = temp.GetParent();
+            depth++;
+        }
 
         if (depth == 3 && meta.VariantType == Variant.Type.Int)
         {
@@ -625,23 +632,23 @@ public partial class AkosViewerPanel : FloatingPanel
     {
         foreach (Node child in _paletteGrid.GetChildren()) child.QueueFree();
     }
-    
+
     private void _PopulatePalette()
     {
         ClearPallette();
         if (_akos.ResolvedColors == null) return;
-    
+
         // ResolvedColors length (256)
         for (int i = 0; i < _akos.ResolvedColors.Length; i++)
         {
-            
+
             Color c = _akos.ResolvedColors[i];
             // if (c.R == 1.0f && c.G == 0.0f && c.B == 1.0f) continue; //skip magenta
 
             var swatch = new ColorRect();
             swatch.Color = c;
             swatch.CustomMinimumSize = new Vector2(20, 20);
-            
+
             swatch.TooltipText = $"Global Index: {i}\nColor: {c}";
             _paletteGrid.AddChild(swatch);
         }
@@ -652,7 +659,7 @@ public partial class AkosViewerPanel : FloatingPanel
         foreach (Node child in _paletteGrid.GetChildren()) child.QueueFree();
 
         if (_akos.ResolvedColors == null) return;
-        
+
         var paletteSpan = _akos.Palette.Span;
 
         for (int i = 0; i < _akos.ResolvedColors.Length; i++)
@@ -664,8 +671,7 @@ public partial class AkosViewerPanel : FloatingPanel
             _paletteGrid.AddChild(swatch);
         }
     }
-    
-    
+
     private static Label _MakeSectionLabel(string text)
     {
         var lbl = new Label();
