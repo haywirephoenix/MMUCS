@@ -218,6 +218,7 @@ public partial class OptionsPanel : FloatingPanel
     private void OnScaleChangeCompleted()
     {
         SetCentered();
+        WindowManager.ResetWindowLayout();
     }
 
     private void OnWallpaperModeChanged(int newModeIndex)

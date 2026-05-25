@@ -67,20 +67,20 @@ public partial class WindowManager : Node
         var panelParent = panel.GetParent<Control>();
         Instance.RegisterCanvas(panelParent);
 
+        await Instance.ToSignal(Instance.GetTree(), SceneTree.SignalName.ProcessFrame);
+
         if (!ConfigManager.TryLoadPanelLayout(panel.PanelId, out LayoutSettings layout))
         {
-            panel.CallDeferred(FloatingPanel.MethodName.SetIsOpenNoEvent, true);
-            await Instance.ToSignal(Instance.GetTree(), SceneTree.SignalName.ProcessFrame);
+            panel.SetIsOpenNoEvent(true);
             panel.CompleteInitialization();
             return;
         }
 
-        panel.CallDeferred(Control.MethodName.SetPosition, layout.Position);
-        panel.CallDeferred(Control.MethodName.SetSize, layout.Size);
-        panel.CallDeferred(FloatingPanel.MethodName.SetIsOpenNoEvent, layout.IsOpen);
+        panel.Position = layout.Position;
+        panel.Size = layout.Size;
+        panel.SetIsOpenNoEvent(layout.IsOpen);
 
-        await Instance.ToSignal(Instance.GetTree(), SceneTree.SignalName.ProcessFrame);
-    
+        panel.ForceUpdateTransform();
         panel.CompleteInitialization();
     }
 

@@ -123,20 +123,6 @@ public partial class ThemeManager : Node
         OnHiDPIEnabledChanged(HiDPIEnabled);
     }
 
-
-    public async void OnUIScaleChanged(float newScale)
-    {
-        if (!IsInsideTree()) return;
-
-        GetTree().Root.ContentScaleFactor = newScale;
-        ConfigManager.UpdateAppSettings(s => s with { GuiScale = newScale });
-
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-
-        EventBus.Instance.EmitSignal(EventBus.SignalName.UIScaleChangedCompleted);
-    }
-
     private bool glassWasDisabledByWallpaperToggle;
     
     /*
@@ -218,24 +204,46 @@ public partial class ThemeManager : Node
         ConfigManager.UpdateAppSettings(s => s with {WindowAnimations = value} );
     }
 
-    private void OnHiDPIEnabledChanged(bool value)
+    private void ApplyFinalUIScale()
     {
-        Window root = GetTree().Root;
-        
+        if (!IsInsideTree()) return;
 
-        if (value)
-        {
-            root.ContentScaleMode = Window.ContentScaleModeEnum.CanvasItems;
-            root.ContentScaleFactor = DisplayServer.ScreenGetMaxScale();
-            // GD.Print("dpi on");
-        }
-        else
-        {
-            root.ContentScaleMode = Window.ContentScaleModeEnum.Viewport;
-            root.ContentScaleFactor = 1.0f;
-            // GD.Print("dpi off");
-        }
-        ConfigManager.UpdateAppSettings(s => s with {HiDPIEnabled = value} );
+        float dpiScale = HiDPIEnabled ? DisplayServer.ScreenGetMaxScale() : 1.0f;
+        float finalScale = dpiScale * GUIScale;
+
+        GetTree().Root.ContentScaleMode = HiDPIEnabled 
+            ? Window.ContentScaleModeEnum.CanvasItems 
+            : Window.ContentScaleModeEnum.Viewport;
+
+        GetTree().Root.ContentScaleFactor = finalScale;
+    }
+
+    public async void OnUIScaleChanged(float newScale)
+    {
+        if (!IsInsideTree()) return;
+
+        ConfigManager.UpdateAppSettings(s => s with { GuiScale = newScale });
+
+        ApplyFinalUIScale();
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+        EventBus.Instance.EmitSignal(EventBus.SignalName.UIScaleChangedCompleted);
+    }
+
+    public async void OnHiDPIEnabledChanged(bool value)
+    {
+        if (!IsInsideTree()) return;
+
+        ConfigManager.UpdateAppSettings(s => s with { HiDPIEnabled = value });
+
+        ApplyFinalUIScale();
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+        EventBus.Instance.EmitSignal(EventBus.SignalName.UIScaleChangedCompleted);
     }
 
     private void OnGlassEnabledChangedSystem(bool value)

@@ -187,8 +187,11 @@ public partial class FloatingPanel : Control
     
     public void CompleteInitialization()
     {
+        // _sizeOnStart = Size;
+        // _positionOnStart = Position;
+        // if (_canvas != null) _canvasSizeOnStart = _canvas.Size;
+    
         void CompleteAction() => _initTcs?.TrySetResult(true);
-
         Callable.From(CompleteAction).CallDeferred();
     }
     
@@ -226,25 +229,24 @@ public partial class FloatingPanel : Control
     
     private void OnScaleChangedCompleted()
     {
-        if (!_isInitialized) return;
-        RescaleProportional();
-        // WindowManager.ClampToCanvas(this);
+        // if (!_isInitialized) return;
+        // RescaleProportional();
+        WindowManager.ClampToCanvas(this);
     }
 
     public void RescaleProportional()
     {
-        if (!_isInitialized) return;
+        if (!IsInsideTree() || _canvas == null) return;
+
+        float activeScale = GetTree().Root.ContentScaleFactor;
+
+        if (activeScale <= 0) activeScale = 1.0f;
+
+        Size = _sizeOnStart / activeScale;
+        Position = _positionOnStart / activeScale;
     
-        Vector2 currentCanvasSize = _canvas.Size;
-
-        if (_canvasSizeOnStart is { X: > 0, Y: > 0 })
-        {
-            Vector2 totalScaleRatio = currentCanvasSize / _canvasSizeOnStart;
-            Size = _sizeOnStart * totalScaleRatio;
-            Position = _positionOnStart * totalScaleRatio;
-        }
-
-        _lastCanvasSize = currentCanvasSize;
+        ForceUpdateTransform();
+        WindowManager.ClampToCanvas(this);
     }
 
     private void InitializeInBounds()
