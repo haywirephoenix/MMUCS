@@ -36,6 +36,8 @@ public partial class BootScreen : CanvasLayer
 
     public static bool IsEnabled => Instance != null && Instance.Enabled;
     public static bool IsBooting => Instance != null && Instance._isBooting;
+    
+    private string mmucsVersion;
 
     public override void _EnterTree()
     {
@@ -56,6 +58,8 @@ public partial class BootScreen : CanvasLayer
 
     public override void _Ready()
     {
+        mmucsVersion = ProjectSettings.GetSetting("application/config/version").AsString();
+        
         AssignNodes();
     
         OSLayer.Visible = false;
@@ -148,11 +152,15 @@ public partial class BootScreen : CanvasLayer
             StatusBar.SetStatus($"OS exception: {e.Message}", StatusBar.EStatusType.Error);
         }
         
-        StatusBar.SetStatus("Welcome to MMUCS");
+        StatusBar.SetStatus($"Welcome to MMUCS v{mmucsVersion}");
         
         if (_ctrlHeldDetected || _altHeldDetected)
         {
             await Task.Delay(TimeSpan.FromSeconds(5.0));
+        }
+        else
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1.0));
         }
 
         _introComplete = true;
