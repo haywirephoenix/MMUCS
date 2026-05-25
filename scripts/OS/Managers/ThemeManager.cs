@@ -12,6 +12,10 @@ public partial class ThemeManager : Node
     [Export] public StyleBox WindowStyleBox { get; set; }
     [Export] public Shader WindowShader { get; set; }
     
+    [Export] public Texture2D WallpaperMountains { get; set; }
+    [Export] public Texture2D WallpaperMountainsBlur { get; set; }
+    [Export] public Texture2D WallpaperTown { get; set; }
+    [Export] public Texture2D WallpaperTownBlur { get; set; }
     [Export] public Texture2D WallpaperFractal { get; set; }
     [Export] public Texture2D WallpaperFractalBlur { get; set; }
     [Export] public Texture2D WallpaperFireSkull { get; set; }
@@ -64,8 +68,8 @@ public partial class ThemeManager : Node
     {
         Instance = this;
         
-        WallPapers = [ WallpaperFractal, WallpaperFireSkull];
-        WallPaperBlurs = [ WallpaperFractalBlur, WallpaperFireSkullBlur ];
+        WallPapers = [  WallpaperMountains, WallpaperTown, WallpaperFractal, WallpaperFireSkull,];
+        WallPaperBlurs = [  WallpaperMountainsBlur, WallpaperTownBlur, WallpaperFractalBlur, WallpaperFireSkullBlur,];
         IsReady = false;
     }
 
