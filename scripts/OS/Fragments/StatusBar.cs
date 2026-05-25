@@ -18,6 +18,7 @@ public partial class StatusBar : Control
     [Export] public int statusShowDuration = 5;
     [Export] public ProgressBar _progressBar;
     [Export] public Label _statusLabel;
+    [Export] public Control _parentContainer;
     
     private static StatusBar Instance;
     private CancellationTokenSource _statusCts;
@@ -35,6 +36,12 @@ public partial class StatusBar : Control
     public override void _EnterTree()
     {
         Instance = this;
+    }
+
+    public override void _Ready()
+    {
+        _parentContainer = GetParent<Control>();
+        _parentContainer.Visible = false;
     }
     
     public static void SetStatus(string text, EStatusType type = EStatusType.Normal)
@@ -77,12 +84,6 @@ public partial class StatusBar : Control
     }
 
     
-    
-   
-
-    
-
-
     private string ColorText(string text, EStatusType type = EStatusType.Normal)
     {
         switch (type)
@@ -105,6 +106,8 @@ public partial class StatusBar : Control
         _statusLabel.Text = formattedText;
 
         if (string.IsNullOrEmpty(text)) return;
+        
+        _parentContainer.Visible = true;
     
         GD.PrintRich(formattedText);
     
@@ -132,6 +135,7 @@ public partial class StatusBar : Control
     private void ClearStatusText()
     {
         _statusLabel.Text = string.Empty;
+        _parentContainer.Visible = false;
     }
     
 
