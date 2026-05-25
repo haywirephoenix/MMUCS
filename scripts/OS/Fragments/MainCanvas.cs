@@ -21,13 +21,14 @@ public partial class MainCanvas : VBoxContainer
     [Export] public OBIMViewerPanel _obimPanel;
     [Export] public OptionsPanel _optionsPanel;
 
-    private static MainCanvas Instance;
+    public static MainCanvas Instance;
     private readonly ScummResourceParser _scummResourceParser = new();
     
     private Task<ScummBlock> _bootLoadTask;
     private ScummBlock _loadedVirtualRoot = null;
     
     private bool _isBootSequenceFinished = false;
+    private bool _startupAnimationPlayed = false;
     
     public FloatingPanel GetPanelByID(long id) => id switch
     {
@@ -51,6 +52,10 @@ public partial class MainCanvas : VBoxContainer
         OS.LowProcessorUsageMode = true;
     }
 
+    public override void _ExitTree()
+    {
+        ScummBackgroundCache.ClearRamCache();
+    }
     public async Task Init()
     {
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -244,9 +249,13 @@ public partial class MainCanvas : VBoxContainer
 
     private async void OnScummblockLoaded(ScummBlock block)
     {
-        await _blockHierarchyPanel.Init();
+        // await _blockHierarchyPanel.Init();
         _blockHierarchyPanel.LoadBlocks(block);
-        OpenAllWindows();
+        if (!_startupAnimationPlayed)
+        {
+            OpenAllWindows();
+            _startupAnimationPlayed = true;
+        }
     }
     
     private async Task InitAllWindows()
