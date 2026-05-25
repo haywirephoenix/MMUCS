@@ -145,8 +145,16 @@ public partial class BootScreen : CanvasLayer
         
         try
         {
-            if(MainCanvas != null)
-                await MainCanvas.Init();
+            if (MainCanvas == null)
+            {
+                StatusBar.SetStatus("OS canvas can't be found", StatusBar.EStatusType.Error);
+                throw new ArgumentNullException(paramName: nameof(MainCanvas), message: "OS canvas can't be found");
+            }
+            
+            await MainCanvas.Init();
+            
+            // MainCanvas.ForceUpdateTransform();
+            // await ToSignal(EventBus.Instance, EventBus.SignalName.UIScaleChangedCompleted);
         }
         catch (Exception e)
         {
