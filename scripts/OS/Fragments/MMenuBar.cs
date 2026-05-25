@@ -12,6 +12,7 @@ public partial class MMenuBar : MenuBar
     [Export] public PopupMenu _fileMenu;
     [Export] public PopupMenu _toolsMenu;
     [Export] public PopupMenu _viewMenu;
+    [Export] public PopupMenu _layoutMenu;
     
     [Export] public FileDialog _openDialog;
     [Export] public Panel _openDialogPanel;
@@ -20,6 +21,8 @@ public partial class MMenuBar : MenuBar
     {
         Instance = this;
     }
+    
+    
 
     public override void _Ready()
     {
@@ -29,6 +32,8 @@ public partial class MMenuBar : MenuBar
         _viewMenu.AboutToPopup += UpdateViewMenuChecks;
         _viewMenu.IdPressed += _OnViewMenuPressed;
         _toolsMenu.IdPressed += _OnToolsMenuPressed;
+        _layoutMenu.IdPressed += LayoutMenuOnIdPressed;
+
         _shadowTexture.Visible = !IsNativeMenu();
         
         CallDeferred(nameof(ClearDialogPanel));
