@@ -290,7 +290,7 @@ public partial class ThemeManager : Node
     {
         // if(value == GlassTintColor) return;
         if (WindowMaterial is not ShaderMaterial shaderMat) return;
-        value.A = 1.0f;
+        //value.A = 1.0f;
         shaderMat.SetShaderParameter(SHADER_GLASS_TINT_ID, value);
         ConfigManager.UpdateAppSettings(s => s with {GlassTintColor = value} );
     }
