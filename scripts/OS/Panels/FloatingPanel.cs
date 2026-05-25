@@ -48,8 +48,11 @@ public partial class FloatingPanel : Control
     private float _expandedHeight;
 
     private bool _resizing;
+    private Vector2 _positionOnStart;
+    private Vector2 _canvasSizeOnStart;
     private Vector2 _sizeOnStart;
     private Vector2 _minSizeOnStart;
+    private Vector2 _lastCanvasSize;
     
     private Vector2 _resizeStartMouse;
     private Vector2 _resizeStartSize;
@@ -140,8 +143,8 @@ public partial class FloatingPanel : Control
         if(_isInitialized) return;
         _initTcs = new TaskCompletionSource<bool>();
         
-        _sizeOnStart = Size;
-        _minSizeOnStart = CustomMinimumSize;
+        ForceUpdateTransform();
+        
         PanelId = PanelTitle;
         Name = PanelTitle;
         // Size = DefaultSize;
@@ -149,6 +152,7 @@ public partial class FloatingPanel : Control
         // ClipContents = true;
 
         AssignNodes();
+        StoreInitialState();
         OnReady();
         SetTitle(PanelTitle);
 
@@ -162,13 +166,23 @@ public partial class FloatingPanel : Control
         _collapseButton.Pressed += _OnCollapsePressed;
         EventBus.Instance.FileParsed += OnFileParsed;
         EventBus.Instance.PanelFocusRequested += _OnPanelFocusRequested;
-
+       
         // CallDeferred(nameof(InitializeInBounds));
         
         EventBus.Instance.BlockSelected += _OnBlockSelected;
+        EventBus.Instance.Connect(EventBus.SignalName.UIScaleChangedCompleted, Callable.From(OnScaleChangedCompleted));
         // CallDeferred(nameof(_FitToContents));
         await _initTcs.Task;
         _isInitialized = true;
+    }
+
+    private void StoreInitialState()
+    {
+        _sizeOnStart = Size;
+        _positionOnStart = Position;
+        _canvasSizeOnStart = _canvas.Size;
+        _lastCanvasSize = _canvasSizeOnStart;
+        _minSizeOnStart = CustomMinimumSize;
     }
     
     public void CompleteInitialization()
@@ -191,6 +205,15 @@ public partial class FloatingPanel : Control
         }
     }
 
+    public void ResetSizeToDefault()
+    {
+        Size = _sizeOnStart;
+    }
+    public void ResetPositionToDefault()
+    {
+        Position = _positionOnStart;
+    }
+
     public virtual void LoadLayoutDeferred()
     {
         CallDeferred(nameof(LoadLayout));
@@ -199,6 +222,29 @@ public partial class FloatingPanel : Control
     protected virtual void _OnBlockSelected(ScummBlock block)
     {
         
+    }
+    
+    private void OnScaleChangedCompleted()
+    {
+        if (!_isInitialized) return;
+        RescaleProportional();
+        // WindowManager.ClampToCanvas(this);
+    }
+
+    public void RescaleProportional()
+    {
+        if (!_isInitialized) return;
+    
+        Vector2 currentCanvasSize = _canvas.Size;
+
+        if (_canvasSizeOnStart is { X: > 0, Y: > 0 })
+        {
+            Vector2 totalScaleRatio = currentCanvasSize / _canvasSizeOnStart;
+            Size = _sizeOnStart * totalScaleRatio;
+            Position = _positionOnStart * totalScaleRatio;
+        }
+
+        _lastCanvasSize = currentCanvasSize;
     }
 
     private void InitializeInBounds()
@@ -530,7 +576,10 @@ public partial class FloatingPanel : Control
     
     public void SetCentered()
     {
-        if(GetParent() is not Control parentCtrl) return;
+        if (GetParent() is not Control parentCtrl) return;
+
+        parentCtrl.ForceUpdateTransform();
+        ForceUpdateTransform();
         Vector2 parentSize = parentCtrl.Size;
         Vector2 windowSize = Size;
         Vector2 centerOffset = (parentSize - windowSize) * 0.5f;

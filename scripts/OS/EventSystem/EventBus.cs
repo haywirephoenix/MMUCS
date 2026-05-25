@@ -39,6 +39,7 @@ public partial class EventBus : Node
     [Signal] public delegate void GlassChangeSystemRequestedEventHandler(bool enabled);
     [Signal] public delegate void WindowAnimationsChangeRequestedEventHandler(bool enabled);
     [Signal] public delegate void UIScaleChangeRequestedEventHandler(float scale);
+    [Signal] public delegate void UIScaleChangedCompletedEventHandler();
     [Signal] public delegate void HiDPIChangeRequestedEventHandler(bool enabled);
 
     // --- Settings: Confirmations (ThemeManager → UI) ---

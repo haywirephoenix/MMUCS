@@ -38,7 +38,12 @@ public partial class MMenuBar : MenuBar
         
         CallDeferred(nameof(ClearDialogPanel));
     }
-    
+    private void LayoutMenuOnIdPressed(long id)
+    {
+        ConfigManager.ResetPanelLayouts();
+        WindowManager.ResetWindowLayout();
+    }
+
     public static void OpenFileBrowser()
     {
         //todo: animate filedialog?

@@ -31,7 +31,12 @@ public partial class WindowManager : Node
     {
         Instance = this;
     }
-    
+
+    public override void _Ready()
+    {
+        EventBus.Instance.Connect(EventBus.SignalName.UIScaleChangedCompleted, Callable.From(OnScaleChangeCompleted));
+    }
+
     public override void _ExitTree()
     {
         if (IsInstanceValid(_canvas)) _canvas.Resized -= _OnCanvasResized;
@@ -47,6 +52,11 @@ public partial class WindowManager : Node
         _hoverStartMs = 0;
     
         Instance = null;
+    }
+    
+    private void OnScaleChangeCompleted()
+    {
+        // ClampAllToCanvas();
     }
     
     public static async void RegisterPanel(FloatingPanel panel)
@@ -79,6 +89,26 @@ public partial class WindowManager : Node
         ConfigManager.SavePanelLayouts(_registeredPanels);
     }
 
+    public static void ResetWindowLayout()
+    {
+        foreach (var panel in _registeredPanels)
+        {
+            panel.RescaleProportional();
+        }
+    }
+
+    public static void ClampAllToCanvas()
+    {
+        foreach (var panel in _registeredPanels)
+        {
+            ClampToCanvas(panel);
+        }
+    }
+    
+    public static void ClampToCanvas(FloatingPanel panel)
+    {
+        panel.Position = ClampToCanvas(panel.GlobalPosition, panel.Size, panel._canvas);
+    }
     private static Vector2 ClampToCanvas(Vector2 pos, Vector2 size, Control canvas)
     {
         if (canvas == null) return pos;

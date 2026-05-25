@@ -187,6 +187,8 @@ public partial class OptionsPanel : FloatingPanel
         
         EventBus.Instance.Connect(EventBus.SignalName.WallpaperModeApplied,
             Callable.From<int>(OnWallpaperModeChanged));
+        
+        EventBus.Instance.Connect(EventBus.SignalName.UIScaleChangedCompleted, Callable.From(OnScaleChangeCompleted));
 
         foreach (var (btn, index) in _navButtons.Select((b, i) => (b, i)))
             btn.Connect(BaseButton.SignalName.Pressed, Callable.From(() => SelectPage(index)));
@@ -209,8 +211,13 @@ public partial class OptionsPanel : FloatingPanel
     }
     private void OnScaleSliderDragEnd(bool valueHasChanged)
     {
-        if (valueHasChanged)
+        if (valueHasChanged) 
             EventBus.Instance.EmitSignal(EventBus.SignalName.UIScaleChangeRequested, (float)scaleSlider.Value);
+    }
+    
+    private void OnScaleChangeCompleted()
+    {
+        SetCentered();
     }
 
     private void OnWallpaperModeChanged(int newModeIndex)

@@ -124,16 +124,17 @@ public partial class ThemeManager : Node
     }
 
 
-    public void OnUIScaleChanged(float newScale)
+    public async void OnUIScaleChanged(float newScale)
     {
-        Callable.From(() => {
-            if (IsInsideTree())
-            {
-                GetTree().Root.ContentScaleFactor = newScale;
-            }
-        }).CallDeferred();
-        
-        ConfigManager.UpdateAppSettings(s => s with {GuiScale = newScale} );
+        if (!IsInsideTree()) return;
+
+        GetTree().Root.ContentScaleFactor = newScale;
+        ConfigManager.UpdateAppSettings(s => s with { GuiScale = newScale });
+
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+        EventBus.Instance.EmitSignal(EventBus.SignalName.UIScaleChangedCompleted);
     }
 
     private bool glassWasDisabledByWallpaperToggle;
