@@ -6,6 +6,7 @@ public partial class MMenuBar : MenuBar
     private static MMenuBar Instance;
     
     [Export] public MainCanvas _mainCanvas;
+    [Export] public TextureRect _shadowTexture;
     
     // [Export] public MenuBar _menuBar;
     [Export] public PopupMenu _fileMenu;
@@ -28,6 +29,7 @@ public partial class MMenuBar : MenuBar
         _viewMenu.AboutToPopup += UpdateViewMenuChecks;
         _viewMenu.IdPressed += _OnViewMenuPressed;
         _toolsMenu.IdPressed += _OnToolsMenuPressed;
+        _shadowTexture.Visible = !IsNativeMenu();
         
         CallDeferred(nameof(ClearDialogPanel));
     }
