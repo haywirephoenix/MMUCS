@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using Godot.Collections;
 public static class NodeUtils
 {
     public static void QueueFreeChildren(this Node node)
@@ -90,5 +91,21 @@ public static class NodeUtils
     public static void LogNodePath(this Node root, Node node)
     {
         GD.Print($"private static readonly NodePath Path{node.Name} = \"{root.GetPathTo(node)}\";");
+    }
+    
+    public static T GetChildByType<T>(this Node parent) where T : Node
+    {
+        Array<Node> nodes = parent.GetChildren();
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            Node child = nodes[i];
+            if (child is T typedChild)
+                return typedChild;
+
+            var found = child.GetChildByType<T>();
+            if (found != null)
+                return found;
+        }
+        return null;
     }
 }
