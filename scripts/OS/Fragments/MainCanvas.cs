@@ -286,7 +286,8 @@ public partial class MainCanvas : VBoxContainer
 
     private void OpenAllWindows()
     {
-        float delayStep = 0.05f;
+        float delayStep = 0.02f;
+        bool classicMode = LayoutModes.IsClassicMode();
         for (int i = 0; i <= Consts.MAIN_PANEL_MAX_INDEX; i++)
         {
             var panel = GetPanelByID(i);
