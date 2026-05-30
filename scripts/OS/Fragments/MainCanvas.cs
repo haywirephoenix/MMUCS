@@ -293,6 +293,12 @@ public partial class MainCanvas : VBoxContainer
             var panel = GetPanelByID(i);
             
             if(!panel.IsOpen) continue;
+            if (panel.IsClassic && !classicMode)
+            {
+                panel.Visible = false;
+                panel.SetIsOpenNoEvent(false);
+                continue;
+            }
             OpenPanel(panel, true, true, i * delayStep);
             // panel?.PlayOpenAnimation(i * delayStep);
         }
