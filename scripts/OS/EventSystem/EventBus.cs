@@ -1,3 +1,4 @@
+using System;
 using Godot;
 
 public partial class EventBus : Node
@@ -23,10 +24,14 @@ public partial class EventBus : Node
 
     // --- Panel focus request ---
     [Signal] public delegate void PanelFocusRequestedEventHandler(string panelId);
-    
+    // --- File parsed ---
     [Signal] public delegate void FileSelectedEventHandler();
-    
     [Signal] public delegate void FileParsedEventHandler(ScummBlock root);
+    
+    // --- Block type selected ---
+    [Signal] public delegate void ObimSelectedEventHandler();
+    [Signal] public delegate void RoomSelectedEventHandler();
+    [Signal] public delegate void AkosSelectedEventHandler();
     
     // --- Settings: Requests (UI → ThemeManager) ---
     [Signal] public delegate void AppSettingsChangedEventHandler();
@@ -47,6 +52,7 @@ public partial class EventBus : Node
     // OptionsPanel uses these to sync controls without causing feedback loops.
     [Signal] public delegate void GlassStateChangedEventHandler(bool enabled);
     [Signal] public delegate void WallpaperModeAppliedEventHandler(int mode);
+    
     
     public override void _Ready()
     {
