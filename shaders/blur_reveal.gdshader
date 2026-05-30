@@ -1,5 +1,6 @@
 shader_type canvas_item;
 
+uniform sampler2D wallpaper : source_color, filter_linear;
 uniform sampler2D blurred_wallpaper : source_color, filter_linear;
 uniform vec4 tint : source_color = vec4(0.0, 0.0, 0.0, 0.027);
 uniform bool glass_enabled = true;
@@ -50,7 +51,6 @@ float calculate_rim(vec2 pos, vec2 uv) {
 
 void fragment() {
 	float rim_factor = calculate_rim(pixel_pos, UV);
-	
 	float rad = radians(rim_gradient_angle);
 	vec2 dir = vec2(cos(rad), sin(rad));
 
@@ -65,21 +65,34 @@ void fragment() {
 	float final_alpha;
 
 	if (glass_enabled) {
-		vec4 blur_color = texture(blurred_wallpaper, SCREEN_UV);
-		final_rgb = mix(blur_color.rgb, tint.rgb, max_tint);
+		vec4 blur_color   = texture(blurred_wallpaper, SCREEN_UV);
+		vec3 bg_rgb = blur_color.rgb;
 
+		final_rgb = mix(bg_rgb, tint.rgb, max_tint);
 		final_alpha = mix(COLOR.a, 1.0, rim_factor * dynamic_rim_color.a);
 		final_rgb = mix(final_rgb, dynamic_rim_color.rgb * rim_glow, rim_factor * dynamic_rim_color.a);
 
 	} else {
-		float bg_alpha = tint.a;
 		float rim_alpha = rim_factor * dynamic_rim_color.a;
+
+		vec3 bg_rgb;
+		float bg_alpha;
+		vec3 clampedTint = tint.rgb * 0.55;
+
+		if (tint.a < 1.0) {
+			vec4 normal_color = texture(wallpaper, SCREEN_UV);
+			
+			bg_rgb   = mix(normal_color.rgb, clampedTint, tint.a);
+			bg_alpha = 1.0;
+		} else {
+			bg_rgb   = clampedTint;
+			bg_alpha = tint.a;
+		}
 
 		final_alpha = clamp(bg_alpha + rim_alpha, 0.0, 1.0);
 
 		float bg_visible_factor = bg_alpha * (1.0 - rim_alpha);
-
-		vec3 bg_premult = tint.rgb * bg_visible_factor * 0.2;
+		vec3 bg_premult  = bg_rgb * bg_visible_factor;
 		vec3 rim_premult = (dynamic_rim_color.rgb * rim_glow) * rim_alpha;
 
 		final_rgb = (bg_premult + rim_premult) / max(final_alpha, 0.001);

@@ -49,6 +49,7 @@ public partial class ThemeManager : Node
 
     #region Consts
     
+    private const string SHADER_WALL_ID = "wallpaper";
     private const string SHADER_BLURRED_WALL_ID = "blurred_wallpaper";
     private const string SHADER_GLASS_ENABLE_ID = "glass_enabled";
     private const string SHADER_GLASS_TINT_ID = "tint";
@@ -165,6 +166,7 @@ public partial class ThemeManager : Node
     
         WallpaperTextureRect.Texture = wptex;
         shaderMat.SetShaderParameter(SHADER_BLURRED_WALL_ID, blurTex);
+        shaderMat.SetShaderParameter(SHADER_WALL_ID, wptex);
     }
     /*
     private void OnWallpaperChanged(string wallpaperName)

@@ -80,10 +80,10 @@ public readonly struct AppSettings
         lastFilePath:     "",
         wallpaperMode:    Consts.WallPaperModeEnum.Image,
         wallpaperIndex:   0,
-        wallpaperName:    "fire-skull.png",
-        wallpaperBlurName:"fractal1_blurred.png",
+        wallpaperName:    "mountains-daniel-leone",
+        wallpaperBlurName:"mountains-daniel-leone-blur",
         wallpaperColor:   Colors.SlateGray,
-        glassTintColor:   new Color(0.18f, 0.384f, 0.851f, 0.027f),
+        glassTintColor:   new Color(0.133f, 0.302f, 0.38f),
         glassEnabled:     true,
         mainFont:     "Roboto-Regular"
     );

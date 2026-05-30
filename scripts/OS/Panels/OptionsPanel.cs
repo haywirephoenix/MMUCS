@@ -173,9 +173,9 @@ public partial class OptionsPanel : FloatingPanel
         UpdateUIState();
         
         bgColorPicker.ColorChanged   += c   => EventBus.Instance.EmitSignal(EventBus.SignalName.WallpaperColorChangeRequested, c);
-        tintColorPicker.ColorChanged   += c   => EventBus.Instance.EmitSignal(EventBus.SignalName.WindowColorChangeRequested, c);
+        tintColorPicker.ColorChanged   += TintColorPickerOnColorChanged;
         modeOpt.ItemSelected       += i   => EventBus.Instance.EmitSignal(EventBus.SignalName.WallpaperModeChangeRequested, (int)i);
-        glassToggle.Toggled        += v   => EventBus.Instance.EmitSignal(EventBus.SignalName.GlassChangeRequested, v);
+        glassToggle.Toggled        += GlassToggleOnToggled;
         hiDpiToggle.Toggled        += v   => EventBus.Instance.EmitSignal(EventBus.SignalName.HiDPIChangeRequested, v);
         animToggle.Toggled         += v   => EventBus.Instance.EmitSignal(EventBus.SignalName.WindowAnimationsChangeRequested, v);
         scaleSlider.DragEnded      += OnScaleSliderDragEnd;
@@ -198,7 +198,21 @@ public partial class OptionsPanel : FloatingPanel
         Visible = false;
         _optionsInitialized = true;
     }
-    
+    private void TintColorPickerOnColorChanged(Color color)
+    {
+        EventBus.Instance.EmitSignal(EventBus.SignalName.WindowColorChangeRequested, color);
+    }
+    private void GlassToggleOnToggled(bool toggledOn)
+    {
+        var col = tintColorPicker.Color;
+        col.A = 1;
+        tintColorPicker.Color = col;
+        tintColorPicker.EditAlpha = !toggledOn;
+        TintColorPickerOnColorChanged(col);
+           
+        EventBus.Instance.EmitSignal(EventBus.SignalName.GlassChangeRequested, toggledOn);
+    }
+
     private void OnResolutionChanged(long idx)
     {
         var r = resolutions[idx];
