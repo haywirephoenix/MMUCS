@@ -59,12 +59,21 @@ public partial class BlockHierarchyPanel : FloatingPanel
 
     protected override void OnReady()
     {
-        _searchBox.TextChanged += _OnSearchChanged;
-        _tree.ItemSelected += _OnItemSelected;
-        _tree.GuiInput += TreeOnGuiInput;
+        _searchBox.TextChanged      += _OnSearchChanged;
+        _tree.ItemSelected          += _OnItemSelected;
+        _tree.GuiInput              += TreeOnGuiInput;
+        _roomNamesToggle.Toggled    += OnRoomNamesToggled;
+        _objectNamesToggle.Toggled  += ObjectNamesToggleOnToggled;
+    }
 
-        _roomNamesToggle.Toggled += OnRoomNamesToggled;
-        _objectNamesToggle.Toggled += ObjectNamesToggleOnToggled;
+    protected override void OnExit()
+    {
+        _searchBox.TextChanged      -= _OnSearchChanged;
+        _tree.ItemSelected          -= _OnItemSelected;
+        _tree.GuiInput              -= TreeOnGuiInput;
+
+        _roomNamesToggle.Toggled    -= OnRoomNamesToggled;
+        _objectNamesToggle.Toggled  -= ObjectNamesToggleOnToggled;
     }
 
     private void ObjectNamesToggleOnToggled(bool toggledOn)
