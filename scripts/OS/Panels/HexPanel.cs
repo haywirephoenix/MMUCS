@@ -257,7 +257,7 @@ public partial class HexPanel : FloatingPanel
         asciiBb.Append(s_codeTagStart);
 
         int startRow = (int)(_vScroll.Value / RowHeight);
-        int visibleRows = (int)(_contentRoot.Size.Y / RowHeight) + 2;
+        int visibleRows = (int)(_marginContainer.Size.Y / RowHeight) + 2;
         int endRow = Mathf.Min(startRow + visibleRows, (currentBlock.DataLength + BytesPerRow - 1) / BytesPerRow);
 
         for (int row = startRow; row < endRow; row++)
