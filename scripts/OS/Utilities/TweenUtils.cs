@@ -16,6 +16,41 @@ public static class TweenUtils
 
     public static void AnimateVisible(this Control ctx, bool isOpening, float delay = 0)
     {
+        ctx.CreateTween().Kill();
+
+        ctx.PivotOffset = ctx.Size * 0.5f;
+
+        Vector2 startScale = isOpening ? Vector2.Zero : Vector2.One;
+        Vector2 endScale   = isOpening ? Vector2.One  : Vector2.Zero;
+
+        float startAlpha = isOpening ? 0.0f : 1.0f;
+        float endAlpha   = isOpening ? 1.0f : 0.0f;
+
+        ctx.Scale = startScale;
+        ctx.Modulate = new Color(ctx.Modulate.R, ctx.Modulate.G, ctx.Modulate.B, startAlpha);
+        ctx.Visible = true;
+
+        if (isOpening) ctx.MoveToFront();
+
+        Tween tween = ctx.CreateTween().SetParallel(true);
+        tween.SetTrans(Tween.TransitionType.Quart);
+        tween.SetEase(Tween.EaseType.Out);
+
+        tween.TweenProperty(ctx, s_scale, endScale, 0.6f).SetDelay(delay);
+        tween.TweenProperty(ctx, s_modulatea, endAlpha, isOpening ? 0.4f : 0.6f).SetDelay(delay);
+
+        if (!isOpening)
+        {
+            tween.Chain().TweenCallback(Callable.From(() =>
+            {
+                ctx.Visible = false;
+                ctx.Scale = Vector2.One;
+            }));
+        }
+    }
+    
+    public static PropertyTweener TweenPosition(this Control ctx, Vector2 targetPosition, double duration = DefaultDuration)
+    {
         Vector2 originalPosition;
         
         // if (ctx.HasMeta(HomePosMetaKey))
