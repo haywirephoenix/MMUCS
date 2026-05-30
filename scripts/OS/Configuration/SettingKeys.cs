@@ -3,6 +3,7 @@
     public const string UserDir = "user://";
     public const string SettingsPath = "user://settings.cfg";
     public const string LayoutPath = "user://layout.cfg";
+    public const string TemplateLayoutsDir  = "res://configs/layouts";
     public static class Shell
     {
         public const string Section = "Shell";
@@ -38,10 +39,14 @@
     
     public static class Layout
     {
+        public const string Global = "Global";
         public const string X = "x";
         public const string Y = "y";
         public const string Width = "w";
         public const string Height = "h";
         public const string IsOpen = "open";
+        public const string LayoutMode = "layout_mode";
+        public const string Classic = "classic";
+        public const string Unified = "unified";
     }
 }

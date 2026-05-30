@@ -64,23 +64,16 @@ public partial class WindowManager : Node
         if (Instance == null) { GD.PushWarning("WindowManager not ready"); return; }
 
         _registeredPanels.Add(panel);
-        var panelParent = panel.GetParent<Control>();
-        Instance.RegisterCanvas(panelParent);
+        Instance.RegisterCanvas(panel.GetParent<Control>());
 
         await Instance.ToSignal(Instance.GetTree(), SceneTree.SignalName.ProcessFrame);
 
-        if (!ConfigManager.TryLoadPanelLayout(panel.PanelId, out LayoutSettings layout))
+        if (LayoutSettings.TryLoadPanelLayout(panel.PanelId, out LayoutSettings layout) ||
+            LayoutSettings.TryLoadTemplateLayout(LayoutModes.CurrentLayoutMode, panel.PanelId, out layout))
         {
-            panel.SetIsOpenNoEvent(true);
-            panel.CompleteInitialization();
-            return;
+            layout.ApplyTo(panel, false);
         }
 
-        panel.Position = layout.Position;
-        panel.Size = layout.Size;
-        panel.SetIsOpenNoEvent(layout.IsOpen);
-
-        panel.ForceUpdateTransform();
         panel.CompleteInitialization();
     }
 
@@ -93,6 +86,12 @@ public partial class WindowManager : Node
     {
         foreach (var panel in _registeredPanels)
         {
+            if (LayoutSettings.TryLoadPanelLayout(panel.PanelId, out LayoutSettings layout) ||
+                LayoutSettings.TryLoadTemplateLayout(LayoutModes.CurrentLayoutMode, panel.PanelId, out layout))
+            {
+                layout.ApplyTo(panel, false);
+                panel.StorePosAndSize();
+            }
             panel.RescaleProportional();
         }
     }
@@ -187,6 +186,17 @@ public partial class WindowManager : Node
     }
 
     // ── Layout ────────────────────────────────────────────────────────────────
+
+    public static void ApplyLayoutTemplate(string templateName)
+    {
+        if (!LayoutSettings.TryLoadTemplate(templateName, out ConfigFile cfg)) return;
+        
+        foreach (var panel in _registeredPanels)
+        {
+            if (LayoutSettings.TryApplyTemplate(cfg, panel.PanelId, out LayoutSettings layout))
+                layout.ApplyTo(panel, invokeOpen: true);
+        }
+    }
     
     public static Rect2 GetDockedRect(FloatingPanel panel)
     {

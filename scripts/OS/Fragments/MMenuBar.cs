@@ -21,8 +21,6 @@ public partial class MMenuBar : MenuBar
     {
         Instance = this;
     }
-    
-    
 
     public override void _Ready()
     {
@@ -33,12 +31,57 @@ public partial class MMenuBar : MenuBar
         _viewMenu.IdPressed += _OnViewMenuPressed;
         _toolsMenu.IdPressed += _OnToolsMenuPressed;
         _layoutMenu.IdPressed += LayoutMenuOnIdPressed;
+        _layoutMenu.AboutToPopup += LayoutMenuOnAboutToPopup;
 
         _shadowTexture.Visible = !IsNativeMenu();
         
         CallDeferred(nameof(ClearDialogPanel));
     }
+    private void LayoutMenuOnAboutToPopup()
+    {
+        UpdateLayoutMenuCheckmarks((int)LayoutModes.CurrentELayoutMode);
+    }
     private void LayoutMenuOnIdPressed(long id)
+    {
+        switch (id)
+        {
+            case 0: 
+            case 1: 
+                OnLayoutMenuPressed((int)id); 
+                break;
+            case 99: 
+                OnResetLayoutMenuPressed(); 
+                break;
+        }
+    }
+
+    private void OnLayoutMenuPressed(int selectedId)
+    {
+        // if (LayoutModes.GetELayoutMode() == (LayoutModes.ELayoutMode)selectedId) return;
+        var eLayoutMode = (LayoutModes.ELayoutMode)selectedId;
+    
+        LayoutModes.SetLayoutMode(eLayoutMode);
+        
+        WindowManager.ApplyLayoutTemplate(LayoutModes.LayoutModeToString(eLayoutMode));
+
+        UpdateLayoutMenuCheckmarks(selectedId);
+    }
+
+    private void UpdateLayoutMenuCheckmarks(int activeId)
+    {
+
+        for (int i = 0; i < _layoutMenu.ItemCount; i++)
+        {
+            int itemId = _layoutMenu.GetItemId(i);
+
+            if (itemId == 99) continue;
+            
+            _layoutMenu.SetItemChecked(i, itemId == activeId);
+            
+        }
+    }
+
+    private void OnResetLayoutMenuPressed()
     {
         ConfigManager.ResetPanelLayouts();
         WindowManager.ResetWindowLayout();
@@ -72,26 +115,30 @@ public partial class MMenuBar : MenuBar
     private void _OnViewMenuPressed(long id)
     {
         FloatingPanel target = _mainCanvas.GetPanelByID(id);
-        
+    
         if (target != null)
-            SetPanelVisible((int)id,!target.IsOpen);
-           
-        // target.Visible = !target.Visible;
+            SetPanelVisible((int)id, !target.IsOpen);
+       
         UpdateViewMenuChecks();
     }
 
     private void _OnToolsMenuPressed(long id)
     {
         // GD.Print($"Tools action: {id}");
+        FloatingPanel options = _mainCanvas.GetPanelByID(Consts.OPTS_PNL_ID);
         switch (id)
         {
-            case 24: SetPanelVisible(Consts.OPTS_PNL_ID); break;
+            case 24: SetPanelVisible(options, !options.IsOpen); break;
         }
     }
 
-    private void SetPanelVisible(int id, bool visible = true, bool animate = false)
+    private void SetPanelVisible(int id, bool visible = true, bool animate = true)
     {
         _mainCanvas.OpenPanel((int)id,visible, animate);
+    }
+    private void SetPanelVisible(FloatingPanel panel, bool visible = true, bool animate = true)
+    {
+        _mainCanvas.OpenPanel(panel,visible, animate);
     }
    
     
@@ -111,11 +158,28 @@ public partial class MMenuBar : MenuBar
     
     private void UpdateViewMenuChecks()
     {
+        _viewMenu.Clear();
+
+        bool classicMode = LayoutModes.IsClassicMode();
+    
         for (int i = 0; i <= Consts.MAIN_PANEL_MAX_INDEX; i++)
         {
             var panel = _mainCanvas.GetPanelByID(i);
-            if(panel != null)
-                _viewMenu?.SetItemChecked(i, panel.IsOpen);
+            
+            if (panel == null) continue;
+            
+            bool shouldHide = (!classicMode && panel.IsClassic) || (classicMode && panel.PanelId == "Preview");
+            
+            if (shouldHide) continue; 
+                
+            _viewMenu.AddCheckItem(panel.Name, i); 
+                
+            int currentIdx = _viewMenu.GetItemIndex(i);
+
+            bool disable = false;
+            
+            _viewMenu.SetItemChecked(currentIdx, panel.IsOpen);
+            _viewMenu.SetItemDisabled(currentIdx, disable);
         }
     }
     
