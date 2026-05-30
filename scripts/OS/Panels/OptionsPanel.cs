@@ -91,8 +91,8 @@ public partial class OptionsPanel : FloatingPanel
     public override void Open(bool open, bool animate = false, float delay = 0)
     {
         if(!_optionsInitialized) InitOptions();
+        if(open) SetCentered();
         base.Open(open, animate, delay);
-        SetCentered();
     }
     
     [Export] public ColorPickerButton bgColorPicker;
