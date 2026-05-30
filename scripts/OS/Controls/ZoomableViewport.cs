@@ -31,8 +31,17 @@ public partial class ZoomableViewport : SubViewportContainer
     
     public override void _Ready()
     {
+        _camera = this.GetChildByType<Camera2D>();
+        _celPreview = this.GetChildByType<TextureRect>();
+        _celSprite = this.GetChildByType<Sprite2D>();
+        
         CallDeferred(nameof(InitializeZoomConstraints));
         Resized += InitializeZoomConstraints;
+    }
+
+    public override void _ExitTree()
+    {
+        Resized -= InitializeZoomConstraints;
     }
 
     public override void _GuiInput(InputEvent @event)
