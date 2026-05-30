@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using MMUCS.scripts.OS.Panels;
 
 public partial class MainCanvas : VBoxContainer
 {
@@ -20,6 +19,7 @@ public partial class MainCanvas : VBoxContainer
     [Export] public AkosViewerPanel _akosPanel;
     [Export] public OBIMViewerPanel _obimPanel;
     [Export] public OptionsPanel _optionsPanel;
+    [Export] public UnifiedPreviewPanel _unifedPreviewPanel;
 
     public static MainCanvas Instance;
     private readonly ScummResourceParser _scummResourceParser = new();
@@ -39,6 +39,7 @@ public partial class MainCanvas : VBoxContainer
         Consts.AKOS_PNL_ID => _akosPanel,
         Consts.OBIM_PNL_ID => _obimPanel,
         Consts.OPTS_PNL_ID => _optionsPanel,
+        Consts.PREVIEW_PNL_ID => _unifedPreviewPanel,
         _ => null,
     };
 
@@ -79,15 +80,12 @@ public partial class MainCanvas : VBoxContainer
             {
                 string lastPath = ConfigManager.AppSettings.LastFilePath;
                 if (FileUtils.PathExists(lastPath))
-                {
                     _bootLoadTask = LoadScummFileAsync(lastPath);
-                }
+                
             }
 
             if (_bootLoadTask != null)
-            {
                 _loadedVirtualRoot = await _bootLoadTask;
-            }
         }
         catch (Exception ex)
         {
@@ -97,13 +95,9 @@ public partial class MainCanvas : VBoxContainer
         try 
         {
             if (BootScreen.IsBooting && BootScreen.IsEnabled)
-            {
                 BootScreen.RequestExit();
-            }
             else
-            {
                 OnBootScreenFinished();
-            }
         }
         catch (Exception ex)
         {
@@ -117,13 +111,10 @@ public partial class MainCanvas : VBoxContainer
         _isBootSequenceFinished = true;
 
         if (_loadedVirtualRoot != null)
-        {
             EventBus.Instance.EmitSignal(EventBus.SignalName.FileParsed, _loadedVirtualRoot);
-        }
+        
         else if (!ConfigManager.AppSettings.AutoLoadLastFile || !FileUtils.PathExists(ConfigManager.AppSettings.LastFilePath))
-        {
             MMenuBar.OpenFileBrowser();
-        }
     }
 
     public async Task<ScummBlock> LoadScummFileAsync(string path)
@@ -286,7 +277,7 @@ public partial class MainCanvas : VBoxContainer
 
     private void HideAllWindows()
     {
-        for (int i = 0; i <= Consts.MAIN_PANEL_MAX_INDEX; i++)
+        for (int i = 0; i <= Consts.MAX_PANEL_INDEX; i++)
         {
             var panel = GetPanelByID(i);
             if (panel != null) panel.Visible = false;

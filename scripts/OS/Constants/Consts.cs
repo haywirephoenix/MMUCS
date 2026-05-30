@@ -10,10 +10,11 @@ public static class Consts
     public const int META_PNL_ID = 3;
     public const int AKOS_PNL_ID = 4;
     public const int OBIM_PNL_ID = 5;
+    public const int PREVIEW_PNL_ID = 6;
     
-    public const int OPTS_PNL_ID = 6;
+    public const int OPTS_PNL_ID = 7;
     
-    public const int MAIN_PANEL_MAX_INDEX = 5;
-    public const int MAX_PANEL_INDEX = 6;
+    public const int MAIN_PANEL_MAX_INDEX = 6;
+    public const int MAX_PANEL_INDEX = 7;
     
 }
