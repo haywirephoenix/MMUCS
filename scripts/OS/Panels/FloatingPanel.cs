@@ -22,13 +22,14 @@ public partial class FloatingPanel : Control
     private float _resizeStartDockedThickness;
     private const float UndockThreshold = 40f;
     public virtual string PanelTitle => "Panel";
+    public virtual bool IsClassic => false;
     [Export] public Vector2 DefaultSize { get; set; } = new(400, 300);
     // [Export] public Vector2 CustomMinimumSize { get; set; } = new(200, 100);
 
     public string PanelId { get; private set; } = "panel";
 
 
-    [Export] public Control _contentRoot;
+    // [Export] public Control _contentRoot;
 
     [Export] public Panel _background;
     [Export] public Label _titleLabel;
@@ -41,6 +42,7 @@ public partial class FloatingPanel : Control
     [Export] public VBoxContainer _layout;
     [Export] public MarginContainer _marginContainer;
     [Export] public HBoxContainer _btnRow;
+    [Signal] public delegate void PanelTitleChangedEventHandler(string title);
 
     private bool _dragging;
     private Vector2 _dragOffset;
@@ -95,7 +97,7 @@ public partial class FloatingPanel : Control
 
     // Nested Layout Nodes
     private static readonly NodePath PathMarginContainer = "Layout/MarginContainer";
-    private static readonly NodePath PathContentRoot = "Layout/MarginContainer/ContentRoot";
+    // private static readonly NodePath PathContentRoot = "Layout/MarginContainer/ContentRoot";
 
     // Title Bar Hierarchy
     private static readonly NodePath PathTitleBar = "Layout/TitleBar";
@@ -113,6 +115,7 @@ public partial class FloatingPanel : Control
         {
             EventBus.Instance.BlockSelected -= _OnBlockSelected;
             WindowManager.UnregisterPanel(this);
+            OnExit();
         }
     }
 
@@ -123,19 +126,19 @@ public partial class FloatingPanel : Control
 
     public virtual void Open(bool open, bool animate = false, float delay = 0)
     {
-        if (!_isInitialized) Task.Run(Init);
+        // if (!_isInitialized) Task.Run(Init);
         if (animate && ConfigManager.AppSettings.WindowAnimations)
             this.AnimateVisible(open, delay);
         else
             Visible = open;
-        
+
         IsOpen = open;
         
-        if(open) MoveToFront();
+        if (open) MoveToFront();
     }
     private void OnCloseButtonPressed()
     {
-        Open(false);
+        Open(false, true);
     }
 
     public async virtual Task Init()
@@ -146,14 +149,14 @@ public partial class FloatingPanel : Control
         ForceUpdateTransform();
         
         PanelId = PanelTitle;
-        Name = PanelTitle;
+        // Name = PanelTitle;
         // Size = DefaultSize;
         // SetSize(DefaultSize);
         // ClipContents = true;
 
         AssignNodes();
         StoreInitialState();
-        OnReady();
+        
         SetTitle(PanelTitle);
 
         SubscribeHandles();
@@ -173,13 +176,20 @@ public partial class FloatingPanel : Control
         EventBus.Instance.Connect(EventBus.SignalName.UIScaleChangedCompleted, Callable.From(OnScaleChangedCompleted));
         // CallDeferred(nameof(_FitToContents));
         await _initTcs.Task;
+        
+        OnReady();
         _isInitialized = true;
+    }
+
+    public void StorePosAndSize()
+    {
+        _sizeOnStart = Size;
+        _positionOnStart = Position;
     }
 
     private void StoreInitialState()
     {
-        _sizeOnStart = Size;
-        _positionOnStart = Position;
+        StorePosAndSize();
         _canvasSizeOnStart = _canvas.Size;
         _lastCanvasSize = _canvasSizeOnStart;
         _minSizeOnStart = CustomMinimumSize;
@@ -288,7 +298,7 @@ public partial class FloatingPanel : Control
         _handlesContainer = GetNode<Control>(PathResizeHandles);
         
         _marginContainer = GetNode<MarginContainer>(PathMarginContainer);
-        _contentRoot = GetNode<VBoxContainer>(PathContentRoot);
+        // _contentRoot = GetNode<VBoxContainer>(PathContentRoot);
 
         _titleBar = GetNode<Control>(PathTitleBar);
         _titleHBox = GetNode<HBoxContainer>(PathTitleHBox);
@@ -310,6 +320,7 @@ public partial class FloatingPanel : Control
     }
 
     protected virtual void OnReady() { }
+    protected virtual void OnExit() { }
 
 
     public void UpdateHandleInput(InputEvent @event, Vector2 direction) =>
@@ -472,7 +483,7 @@ public partial class FloatingPanel : Control
                 var localMousePos = _canvas.GetLocalMousePosition();
                 Vector2 targetPos = localMousePos - _dragOffset;
                 Position = targetPos.ClampToCanvas(Size, _canvas);
-                _dragCandidateZone = WindowManager.UpdatePreview(this, Position, Size, localMousePos, DockedThickness);
+                // _dragCandidateZone = WindowManager.UpdatePreview(this, Position, Size, localMousePos, DockedThickness);
             }
         }
     }
@@ -485,17 +496,15 @@ public partial class FloatingPanel : Control
             _expandedHeight = Size.Y;
             
             CustomMinimumSize = new Vector2(Size.X, 28);
-            _contentRoot.Visible = false;
+            _marginContainer.Visible = false;
             _collapseButton.Text = s_expandIcon;
             _handlesContainer.Visible = false;
-            _marginContainer.Visible = false;
             Size = new Vector2(Size.X, 28);
         }
         else
         {
             CustomMinimumSize = _minSizeOnStart;
             Size = new Vector2(Size.X, _expandedHeight);
-            _contentRoot.Visible = true;
             _marginContainer.Visible = true;
             _collapseButton.Text = s_collapseIcon;
             _handlesContainer.Visible = true;
@@ -507,11 +516,12 @@ public partial class FloatingPanel : Control
     {
     }
 
-    public void SetTitle(string title)
+    public virtual void SetTitle(string title)
     {
         // PanelTitle = title;
-        if (_titleLabel != null)
-            _titleLabel.Text = title;
+        if (_titleLabel == null) return;
+        _titleLabel.Text = title;
+        EmitSignal(SignalName.PanelTitleChanged, title);
     }
 
     private void _FitToContents()
@@ -526,7 +536,7 @@ public partial class FloatingPanel : Control
 
         Size = minSize;
 
-        _contentRoot.ExpandAndFillHV();
+        // _contentRoot.ExpandAndFillHV();
         Position = Position.ClampToCanvas(Size, _canvas);
     }
 
@@ -541,7 +551,7 @@ public partial class FloatingPanel : Control
         _currentDock = zone;
         _userResized = false;
         _collapsed = false;
-        _contentRoot.Visible = true;
+        _marginContainer.Visible = true;
         _btnRow.Visible = false; // collapsing conflicts with docked layout?
         _handlesContainer.Visible = true;
         WindowManager.Dock(this, zone);
