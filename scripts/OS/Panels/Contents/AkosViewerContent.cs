@@ -131,8 +131,18 @@ public partial class AkosViewerContent : Control
         _sequenceDetail = GetNode<Label>(PathSequenceDetail);
         _paletteGrid = GetNode<GridContainer>(PathPaletteGrid);
     }
+    
+    public override void _Notification(int what)
+    {
+        base._Notification(what);
 
-   public void OnReady()
+        if (what == NotificationResized)
+        {
+            _previewContainer?.ZoomToFitDeferred();
+        }
+    }
+    
+    public void OnReady()
     {
         _optionsToggle.Toggled             += OptionsToggleOnToggled;
         _infoToggle.Toggled                += InfoToggleOnToggled;
