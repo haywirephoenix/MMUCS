@@ -23,26 +23,23 @@
 [ext_resource type="StyleBox" uid="uid://t2wm3jj75b5e" path="res://themes/deafult/styleboxEmpty.tres" id="12_3dlgs"]
 [ext_resource type="Script" uid="uid://dupgsb5njq2fl" path="res://scripts/OS/Fragments/StatusBar.cs" id="12_qw60f"]
 [ext_resource type="FontFile" uid="uid://c84nc5gpd4rsn" path="res://fonts/Roboto/Roboto-Regular.ttf" id="12_sq7yr"]
-[ext_resource type="StyleBox" uid="uid://lma70m471ebn" path="res://themes/deafult/styleboxTitlebar.tres" id="13_lci31"]
+[ext_resource type="PackedScene" uid="uid://bpnvsigpgjsmu" path="res://prefabs/OS/fragments/title_bar.tscn" id="13_mh7w8"]
 [ext_resource type="Material" uid="uid://d0qm6uvo47dxm" path="res://materials/blur.tres" id="13_sq7yr"]
-[ext_resource type="Script" uid="uid://c0a8q22makisf" path="res://scripts/OS/Controls/Focusables/FocusableItemList.cs" id="13_ub8w1"]
-[ext_resource type="Material" uid="uid://dg42w3bb5qow4" path="res://materials/akos_mat.tres" id="15_po8fv"]
 [ext_resource type="StyleBox" uid="uid://b3qpjc2tfdmk5" path="res://themes/deafult/styleboxlineH.tres" id="15_udg8a"]
 [ext_resource type="Script" uid="uid://b468sw2ix4guh" path="res://scripts/OS/Controls/ScrollSafeRichTextLabel.cs" id="16_24xe2"]
-[ext_resource type="Script" uid="uid://lioesdywkjoh" path="res://scripts/OS/Controls/ZoomableViewport.cs" id="17_24xe2"]
+[ext_resource type="PackedScene" uid="uid://di5k1mvd4dxf3" path="res://prefabs/OS/fragments/resize_handles.tscn" id="17_obcww"]
 [ext_resource type="StyleBox" uid="uid://ciu2hp6ve5f3u" path="res://themes/deafult/styleboxlineV.tres" id="20_cr30j"]
 [ext_resource type="Script" uid="uid://dmqdghi8o7k1v" path="res://scripts/OS/Managers/FocusManager.cs" id="21_vte5o"]
 [ext_resource type="Script" uid="uid://cs8fcoa0klm7h" path="res://scripts/OS/Panels/OBIMViewerPanel.cs" id="22_tilu5"]
+[ext_resource type="PackedScene" uid="uid://bs6ytkslw747u" path="res://prefabs/contents/room_viewer_content.tscn" id="23_623xu"]
+[ext_resource type="PackedScene" uid="uid://cgan04nov7w8v" path="res://prefabs/contents/akos_viewer_content.tscn" id="25_sbofu"]
 [ext_resource type="Texture2D" uid="uid://57we6xnbhmr6" path="res://wallpapers/blurred/fractal1_blurred.png" id="26_8pgb7"]
 [ext_resource type="Texture2D" uid="uid://e6m3xtkg1o34" path="res://wallpapers/fire-skull.png" id="27_tilu5"]
 [ext_resource type="Texture2D" uid="uid://d1q75m0hn3mg0" path="res://wallpapers/blurred/fire-skull_blurred.png" id="28_24xe2"]
 [ext_resource type="Texture2D" uid="uid://ddf5al7cvwuj2" path="res://icon.svg" id="28_qoqhg"]
-[ext_resource type="Script" uid="uid://d1mggfsvpi461" path="res://scripts/OS/Fragments/ResponsiveView.cs" id="28_vnkct"]
 [ext_resource type="Script" uid="uid://bkqxm11832w4i" path="res://scripts/OS/Panels/UnifiedPreviewPanel.cs" id="30_obcww"]
-[ext_resource type="Script" uid="uid://6780a11u4rtq" path="res://scripts/OS/Panels/Contents/RoomViewerContent.cs" id="31_sbofu"]
+[ext_resource type="PackedScene" uid="uid://caee58yppqk40" path="res://prefabs/contents/obim_viewer_content.tscn" id="31_ans7r"]
 [ext_resource type="StyleBox" uid="uid://ci4e6yoiosvld" path="res://themes/deafult/styleboxflat_white_bootprogress.tres" id="31_xu2l0"]
-[ext_resource type="Script" uid="uid://d2j75vfnbdd2r" path="res://scripts/OS/Panels/Contents/AkosViewerContent.cs" id="32_ans7r"]
-[ext_resource type="Script" uid="uid://utf8ikv8yqa" path="res://scripts/OS/Panels/Contents/OBIMViewerContent.cs" id="33_7qgyb"]
 [ext_resource type="Texture2D" uid="uid://di3rohhxjh865" path="res://wallpapers/mountains-daniel-leone.png" id="38_f6va0"]
 [ext_resource type="Texture2D" uid="uid://c2x6ogp7atu6a" path="res://wallpapers/blurred/mountains-daniel-leone-blur.png" id="39_uk3k5"]
 [ext_resource type="Texture2D" uid="uid://uhgj440grpu3" path="res://wallpapers/town-sheng-l.png" id="40_0aysq"]
@@ -722,6 +719,7 @@ mouse_filter = 2
 texture = SubResource("GradientTexture2D_8pgb7")
 
 [node name="File" type="PopupMenu" parent="OS/MainCanvas/MenuBarContainer/MenuBar" unique_id=1956783732]
+gui_embed_subwindows = true
 oversampling_override = 1.0
 position = Vector2i(0, 45)
 size = Vector2i(196, 86)
@@ -740,11 +738,12 @@ item_2/text = "Quit"
 item_2/id = 2
 
 [node name="View" type="PopupMenu" parent="OS/MainCanvas/MenuBarContainer/MenuBar" unique_id=1841889657]
+gui_embed_subwindows = true
 oversampling_override = 1.0
 position = Vector2i(0, 45)
 size = Vector2i(188, 200)
 max_size = Vector2i(810, 16384)
-content_scale_mode = 1
+content_scale_mode = 2
 theme_override_constants/item_start_padding = 8
 theme_override_constants/item_end_padding = 8
 theme_override_font_sizes/font_size = 13
@@ -780,6 +779,7 @@ item_6/text = "Preview"
 item_6/id = 6
 
 [node name="Tools" type="PopupMenu" parent="OS/MainCanvas/MenuBarContainer/MenuBar" unique_id=327625442]
+gui_embed_subwindows = true
 oversampling_override = 1.0
 position = Vector2i(0, 45)
 size = Vector2i(225, 212)
@@ -794,6 +794,7 @@ item_0/text = "Options..."
 item_0/id = 24
 
 [node name="Layout" type="PopupMenu" parent="OS/MainCanvas/MenuBarContainer/MenuBar" unique_id=1284429021]
+gui_embed_subwindows = true
 oversampling_override = 1.0
 position = Vector2i(0, 45)
 size = Vector2i(225, 212)
@@ -845,7 +846,6 @@ mouse_behavior_recursive = 2
 
 [node name="Block Hierarchy" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=934878275]
 clip_contents = true
-custom_minimum_size = Vector2(200, 600)
 layout_mode = 0
 offset_top = -3.0
 offset_right = 325.0
@@ -854,7 +854,6 @@ focus_behavior_recursive = 1
 theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("6_qw60f")
 IsOpen = true
-DefaultSize = Vector2(200, 600)
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Block Hierarchy" unique_id=1655376274]
 material = ExtResource("13_sq7yr")
@@ -865,51 +864,9 @@ theme_override_styles/panel = ExtResource("7_qwhpj")
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" type="Panel" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout" unique_id=1790402946]
-custom_minimum_size = Vector2(0, 28)
+[node name="TitleBar" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout" unique_id=27902639 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
-mouse_behavior_recursive = 2
-theme_override_styles/panel = ExtResource("13_lci31")
-
-[node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/TitleBar" unique_id=874370908]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="VSeparator" type="VSeparator" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/TitleBar/TitleHBox" unique_id=1215361743]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="Button Row" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/TitleBar/TitleHBox" unique_id=32830567]
-custom_minimum_size = Vector2(56, 0)
-layout_mode = 2
-
-[node name="CloseButton" type="Button" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/TitleBar/TitleHBox/Button Row" unique_id=1707205553]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 15
-text = "x"
-
-[node name="CollapseButton" type="Button" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/TitleBar/TitleHBox/Button Row" unique_id=1933280309]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 14
-text = "△"
-
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/TitleBar/TitleHBox" unique_id=260573321]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_font_sizes/font_size = 13
-text = "Block Hierarchy"
-vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
+Title = "Block Hierarchy"
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout" unique_id=1157590658]
 layout_mode = 2
@@ -924,7 +881,6 @@ theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
 [node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer" unique_id=367559778]
-custom_minimum_size = Vector2(100, 100)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -935,7 +891,42 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
+[node name="MenuBar" type="MenuBar" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container" unique_id=1888947813]
+custom_minimum_size = Vector2(0, 27.915)
+layout_mode = 2
+theme_override_styles/normal = ExtResource("12_3dlgs")
+prefer_global_menu = false
+
+[node name="Options" type="PopupMenu" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/MenuBar" unique_id=251280575]
+gui_embed_subwindows = true
+theme_override_styles/panel = ExtResource("7_qwhpj")
+item_count = 2
+item_0/text = "Room Names"
+item_0/checkable = 1
+item_0/id = 0
+item_1/text = "Object Names"
+item_1/checkable = 1
+item_1/id = 1
+
+[node name="SearchBox" type="LineEdit" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/MenuBar" unique_id=1016981287]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 66.0
+grow_horizontal = 2
+grow_vertical = 2
+focus_mode = 1
+focus_behavior_recursive = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = ExtResource("12_3dlgs")
+theme_override_styles/read_only = ExtResource("12_3dlgs")
+theme_override_styles/focus = ExtResource("12_3dlgs")
+placeholder_text = "Filter blocks..."
+select_all_on_focus = true
+
 [node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container" unique_id=1692891182]
+visible = false
 layout_mode = 2
 
 [node name="RoomNamesToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/HBoxContainer" unique_id=395903526]
@@ -949,17 +940,6 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 13
 theme_override_styles/hover_pressed = ExtResource("12_3dlgs")
 text = "Object Names"
-
-[node name="SearchBox" type="LineEdit" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container" unique_id=1016981287]
-layout_mode = 2
-focus_mode = 1
-focus_behavior_recursive = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/normal = ExtResource("12_3dlgs")
-theme_override_styles/read_only = ExtResource("12_3dlgs")
-theme_override_styles/focus = ExtResource("12_3dlgs")
-placeholder_text = "Filter blocks..."
-select_all_on_focus = true
 
 [node name="TreeView" type="Tree" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container" unique_id=1579526488]
 layout_mode = 2
@@ -980,90 +960,11 @@ allow_reselect = true
 auto_tooltip = false
 script = ExtResource("9_ynlg5")
 
-[node name="ResizeHandles" type="Control" parent="OS/MainCanvas/Canvas/Block Hierarchy" unique_id=416640315]
+[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Block Hierarchy" unique_id=932809559 instance=ExtResource("17_obcww")]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-mouse_filter = 2
-metadata/_edit_lock_ = true
-
-[node name="HandleLeft" type="Control" parent="OS/MainCanvas/Canvas/Block Hierarchy/ResizeHandles" unique_id=377619322]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleRight" type="Control" parent="OS/MainCanvas/Canvas/Block Hierarchy/ResizeHandles" unique_id=1971759828]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleTop" type="Control" parent="OS/MainCanvas/Canvas/Block Hierarchy/ResizeHandles" unique_id=375948325]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-grow_horizontal = 2
-mouse_default_cursor_shape = 9
-
-[node name="HandleBottom" type="Control" parent="OS/MainCanvas/Canvas/Block Hierarchy/ResizeHandles" unique_id=2109927180]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_default_cursor_shape = 9
-
-[node name="HandleTopLeft" type="Control" parent="OS/MainCanvas/Canvas/Block Hierarchy/ResizeHandles" unique_id=1994376425]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 0
-mouse_default_cursor_shape = 12
-
-[node name="HandleTopRight" type="Control" parent="OS/MainCanvas/Canvas/Block Hierarchy/ResizeHandles" unique_id=1419523036]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-grow_horizontal = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomLeft" type="Control" parent="OS/MainCanvas/Canvas/Block Hierarchy/ResizeHandles" unique_id=1714349712]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-grow_vertical = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomRight" type="Control" parent="OS/MainCanvas/Canvas/Block Hierarchy/ResizeHandles" unique_id=601083332]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 0
-mouse_default_cursor_shape = 12
 
 [node name="Metadata" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=1069389248]
 clip_contents = true
-custom_minimum_size = Vector2(311.69, 100)
 layout_mode = 0
 offset_left = 334.0
 offset_top = -3.0
@@ -1082,51 +983,9 @@ theme_override_styles/panel = ExtResource("7_qwhpj")
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" type="Panel" parent="OS/MainCanvas/Canvas/Metadata/Layout" unique_id=579275031]
-custom_minimum_size = Vector2(0, 28)
+[node name="TitleBar" parent="OS/MainCanvas/Canvas/Metadata/Layout" unique_id=1563752254 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
-mouse_behavior_recursive = 2
-theme_override_styles/panel = ExtResource("13_lci31")
-
-[node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/TitleBar" unique_id=1755657845]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="VSeparator" type="VSeparator" parent="OS/MainCanvas/Canvas/Metadata/Layout/TitleBar/TitleHBox" unique_id=247583064]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="Button Row" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/TitleBar/TitleHBox" unique_id=909868154]
-custom_minimum_size = Vector2(56, 0)
-layout_mode = 2
-
-[node name="CloseButton" type="Button" parent="OS/MainCanvas/Canvas/Metadata/Layout/TitleBar/TitleHBox/Button Row" unique_id=769085023]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 15
-text = "x"
-
-[node name="CollapseButton" type="Button" parent="OS/MainCanvas/Canvas/Metadata/Layout/TitleBar/TitleHBox/Button Row" unique_id=1752337458]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 14
-text = "△"
-
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Metadata/Layout/TitleBar/TitleHBox" unique_id=1237974360]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_font_sizes/font_size = 13
-text = "Metadata"
-vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
+Title = "Metadata"
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Metadata/Layout" unique_id=1988112684]
 layout_mode = 2
@@ -1141,7 +1000,6 @@ theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
 [node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer" unique_id=1720700542]
-custom_minimum_size = Vector2(100, 100)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -1157,34 +1015,16 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=1853551514]
+[node name="MetadataDisplay" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=1272645974]
 layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_right = 16
 
-[node name="BlockPath" type="Label" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/MarginContainer" unique_id=11573284]
-custom_minimum_size = Vector2(200, 16.55)
+[node name="BlockPath" type="Label" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=11573284]
+custom_minimum_size = Vector2(0, 16.55)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.53333336, 0.53333336, 0.53333336, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 12
 text = "—"
 autowrap_mode = 3
-
-[node name="_HSeparator_214" type="HSeparator" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=978370053]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="PropertyGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=1927527022]
-layout_mode = 2
-columns = 2
-
-[node name="_HSeparator_216" type="HSeparator" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=310170063]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="MetaGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=2142224093]
-layout_mode = 2
-columns = 2
 
 [node name="noPreviewLabel" type="Label" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=933485747]
 visible = false
@@ -1196,95 +1036,15 @@ horizontal_alignment = 1
 
 [node name="imagePreview" type="TextureRect" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=1715422571]
 visible = false
-custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 expand_mode = 5
 stretch_mode = 4
 
-[node name="ResizeHandles" type="Control" parent="OS/MainCanvas/Canvas/Metadata" unique_id=1575888812]
+[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Metadata" unique_id=1544975199 instance=ExtResource("17_obcww")]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-mouse_filter = 2
-metadata/_edit_lock_ = true
-
-[node name="HandleLeft" type="Control" parent="OS/MainCanvas/Canvas/Metadata/ResizeHandles" unique_id=1637200874]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleRight" type="Control" parent="OS/MainCanvas/Canvas/Metadata/ResizeHandles" unique_id=551116959]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleTop" type="Control" parent="OS/MainCanvas/Canvas/Metadata/ResizeHandles" unique_id=1588464880]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-grow_horizontal = 2
-mouse_default_cursor_shape = 9
-
-[node name="HandleBottom" type="Control" parent="OS/MainCanvas/Canvas/Metadata/ResizeHandles" unique_id=1165117096]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_default_cursor_shape = 9
-
-[node name="HandleTopLeft" type="Control" parent="OS/MainCanvas/Canvas/Metadata/ResizeHandles" unique_id=248172039]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 0
-mouse_default_cursor_shape = 12
-
-[node name="HandleTopRight" type="Control" parent="OS/MainCanvas/Canvas/Metadata/ResizeHandles" unique_id=1225400142]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-grow_horizontal = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomLeft" type="Control" parent="OS/MainCanvas/Canvas/Metadata/ResizeHandles" unique_id=1537049752]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-grow_vertical = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomRight" type="Control" parent="OS/MainCanvas/Canvas/Metadata/ResizeHandles" unique_id=1256657444]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 0
-mouse_default_cursor_shape = 12
 
 [node name="Hex View" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=967761753]
 clip_contents = true
-custom_minimum_size = Vector2(200, 100)
 layout_mode = 0
 offset_left = 324.0
 offset_top = 575.0
@@ -1302,51 +1062,9 @@ theme_override_styles/panel = ExtResource("7_qwhpj")
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" type="Panel" parent="OS/MainCanvas/Canvas/Hex View/Layout" unique_id=1718610084]
-custom_minimum_size = Vector2(0, 28)
+[node name="TitleBar" parent="OS/MainCanvas/Canvas/Hex View/Layout" unique_id=1822999498 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
-mouse_behavior_recursive = 2
-theme_override_styles/panel = ExtResource("13_lci31")
-
-[node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/TitleBar" unique_id=1486072402]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Button Row" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/TitleBar/TitleHBox" unique_id=976702195]
-custom_minimum_size = Vector2(56, 0)
-layout_mode = 2
-
-[node name="VSeparator" type="VSeparator" parent="OS/MainCanvas/Canvas/Hex View/Layout/TitleBar/TitleHBox/Button Row" unique_id=949688862]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="CloseButton" type="Button" parent="OS/MainCanvas/Canvas/Hex View/Layout/TitleBar/TitleHBox/Button Row" unique_id=1297778435]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 15
-text = "x"
-
-[node name="CollapseButton" type="Button" parent="OS/MainCanvas/Canvas/Hex View/Layout/TitleBar/TitleHBox/Button Row" unique_id=333261915]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 14
-text = "△"
-
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Hex View/Layout/TitleBar/TitleHBox" unique_id=1021017859]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_font_sizes/font_size = 13
-text = "Hex View"
-vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
+Title = "Hex View"
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Hex View/Layout" unique_id=2141132152]
 layout_mode = 2
@@ -1361,7 +1079,6 @@ theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
 [node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer" unique_id=953631564]
-custom_minimum_size = Vector2(100, 100)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -1373,6 +1090,8 @@ theme_override_styles/normal = ExtResource("12_3dlgs")
 prefer_global_menu = false
 
 [node name="Edit" type="PopupMenu" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/MenuBar" unique_id=651823440]
+gui_embed_subwindows = true
+theme_override_styles/panel = ExtResource("7_qwhpj")
 item_count = 3
 item_0/text = "Copy Hex"
 item_0/id = 0
@@ -1381,23 +1100,25 @@ item_1/id = 1
 item_2/text = " Copy All"
 item_2/id = 2
 
+[node name="OffsetLabel" type="Label" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/MenuBar" unique_id=832481430]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 52.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.6666667, 0.6666667, 0.6666667, 1)
+theme_override_font_sizes/font_size = 13
+text = "No block selected"
+vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
+
 [node name="Container" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot" unique_id=658666636]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-
-[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container" unique_id=1544067666]
-layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_right = 16
-
-[node name="OffsetLabel" type="Label" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/MarginContainer" unique_id=832481430]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.6666667, 0.6666667, 0.6666667, 1)
-theme_override_font_sizes/font_size = 13
-text = "No block selected"
-clip_text = true
-text_overrun_behavior = 3
 
 [node name="_HSeparator_172" type="HSeparator" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container" unique_id=597278043]
 layout_mode = 2
@@ -1418,11 +1139,10 @@ dragger_visibility = 2
 split_offset = 80
 
 [node name="offsetView" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=1349973421]
-custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 0.63
+size_flags_stretch_ratio = 0.43
 focus_mode = 2
 focus_behavior_recursive = 1
 theme_override_fonts/mono_font = ExtResource("10_50g4q")
@@ -1433,7 +1153,9 @@ theme_override_font_sizes/italics_font_size = 13
 theme_override_font_sizes/mono_font_size = 13
 bbcode_enabled = true
 scroll_active = false
+autowrap_mode = 0
 context_menu_enabled = true
+threaded = true
 selection_enabled = true
 script = ExtResource("16_24xe2")
 
@@ -1451,11 +1173,11 @@ theme_override_constants/separation = 1
 theme_override_styles/separator = ExtResource("20_cr30j")
 
 [node name="hexView" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=2070395090]
-custom_minimum_size = Vector2(480, 0)
+custom_minimum_size = Vector2(105, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 0.7
+size_flags_stretch_ratio = 9.2
 focus_mode = 2
 focus_behavior_recursive = 1
 theme_override_fonts/mono_font = ExtResource("10_50g4q")
@@ -1466,7 +1188,9 @@ theme_override_font_sizes/italics_font_size = 13
 theme_override_font_sizes/mono_font_size = 13
 bbcode_enabled = true
 scroll_active = false
+autowrap_mode = 0
 context_menu_enabled = true
+threaded = true
 selection_enabled = true
 script = ExtResource("16_24xe2")
 
@@ -1483,11 +1207,10 @@ theme_override_constants/separation = 1
 theme_override_styles/separator = ExtResource("20_cr30j")
 
 [node name="asciiView" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=415103921]
-custom_minimum_size = Vector2(160, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 0.0
+size_flags_stretch_ratio = 1.3
 focus_mode = 2
 focus_behavior_recursive = 1
 theme_override_fonts/mono_font = ExtResource("10_50g4q")
@@ -1498,96 +1221,21 @@ theme_override_font_sizes/italics_font_size = 13
 theme_override_font_sizes/mono_font_size = 13
 bbcode_enabled = true
 scroll_active = false
+autowrap_mode = 0
 context_menu_enabled = true
+threaded = true
 selection_enabled = true
 script = ExtResource("16_24xe2")
 
 [node name="vScroll" type="VScrollBar" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox" unique_id=1858725623]
 layout_mode = 2
 
-[node name="ResizeHandles" type="Control" parent="OS/MainCanvas/Canvas/Hex View" unique_id=977653182]
+[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Hex View" unique_id=1316750909 instance=ExtResource("17_obcww")]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-mouse_filter = 2
-metadata/_edit_lock_ = true
-
-[node name="HandleLeft" type="Control" parent="OS/MainCanvas/Canvas/Hex View/ResizeHandles" unique_id=615418944]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleRight" type="Control" parent="OS/MainCanvas/Canvas/Hex View/ResizeHandles" unique_id=285686695]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleTop" type="Control" parent="OS/MainCanvas/Canvas/Hex View/ResizeHandles" unique_id=1209513042]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-grow_horizontal = 2
-mouse_default_cursor_shape = 9
-
-[node name="HandleBottom" type="Control" parent="OS/MainCanvas/Canvas/Hex View/ResizeHandles" unique_id=2079099883]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_default_cursor_shape = 9
-
-[node name="HandleTopLeft" type="Control" parent="OS/MainCanvas/Canvas/Hex View/ResizeHandles" unique_id=486441659]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 0
-mouse_default_cursor_shape = 12
-
-[node name="HandleTopRight" type="Control" parent="OS/MainCanvas/Canvas/Hex View/ResizeHandles" unique_id=1911462451]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-grow_horizontal = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomLeft" type="Control" parent="OS/MainCanvas/Canvas/Hex View/ResizeHandles" unique_id=1201534566]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-grow_vertical = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomRight" type="Control" parent="OS/MainCanvas/Canvas/Hex View/ResizeHandles" unique_id=1011433847]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 0
-mouse_default_cursor_shape = 12
 
 [node name="Room Preview" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=1324843179 node_paths=PackedStringArray("Content")]
 process_mode = 3
+clip_contents = true
 custom_minimum_size = Vector2(200, 100)
 layout_mode = 0
 offset_left = 652.0
@@ -1607,51 +1255,9 @@ theme_override_styles/panel = ExtResource("7_qwhpj")
 [node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Room Preview" unique_id=867488721]
 layout_mode = 2
 
-[node name="TitleBar" type="Panel" parent="OS/MainCanvas/Canvas/Room Preview/Layout" unique_id=1721161997]
-custom_minimum_size = Vector2(0, 28)
+[node name="TitleBar" parent="OS/MainCanvas/Canvas/Room Preview/Layout" unique_id=1012558580 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
-mouse_behavior_recursive = 2
-theme_override_styles/panel = ExtResource("13_lci31")
-
-[node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Room Preview/Layout/TitleBar" unique_id=699373542]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Button Row" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Room Preview/Layout/TitleBar/TitleHBox" unique_id=388889058]
-custom_minimum_size = Vector2(56, 0)
-layout_mode = 2
-
-[node name="VSeparator" type="VSeparator" parent="OS/MainCanvas/Canvas/Room Preview/Layout/TitleBar/TitleHBox/Button Row" unique_id=1141013347]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="CloseButton" type="Button" parent="OS/MainCanvas/Canvas/Room Preview/Layout/TitleBar/TitleHBox/Button Row" unique_id=960307786]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 15
-text = "x"
-
-[node name="CollapseButton" type="Button" parent="OS/MainCanvas/Canvas/Room Preview/Layout/TitleBar/TitleHBox/Button Row" unique_id=471590405]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 14
-text = "△"
-
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Room Preview/Layout/TitleBar/TitleHBox" unique_id=1415302944]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_font_sizes/font_size = 13
-text = "Room Preview"
-vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
+Title = "Room Preview"
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Room Preview/Layout" unique_id=507391402]
 layout_mode = 2
@@ -1665,201 +1271,12 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="RoomViewerContent" type="Control" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer" unique_id=1097330290 node_paths=PackedStringArray("ParentPanel")]
+[node name="RoomViewerContent" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer" unique_id=1812416459 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("23_623xu")]
 layout_mode = 2
-script = ExtResource("31_sbofu")
 ParentPanel = NodePath("../../..")
 
-[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent" unique_id=1978585796]
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = 901.0
-offset_bottom = 506.0
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="_VBoxContainer_186" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot" unique_id=262164966]
+[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Room Preview" unique_id=651822108 instance=ExtResource("17_obcww")]
 layout_mode = 2
-size_flags_vertical = 3
-
-[node name="_HBoxContainer_187" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186" unique_id=1658682997]
-custom_minimum_size = Vector2(0, 30)
-layout_mode = 2
-
-[node name="BoundsToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=508305817]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/hover_pressed = ExtResource("12_3dlgs")
-text = "Bounds"
-
-[node name="HotspotsToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=1106902155]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Hotspots"
-
-[node name="ObjectsToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=1089647541]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Objects"
-
-[node name="ActorsToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=1064857252]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Actors"
-
-[node name="WalkboxesToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=1855561763]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Walkboxes"
-
-[node name="ResetButton" type="Button" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=1951050513]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 13
-text = "Reset View"
-
-[node name="ZoomLabel" type="Label" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=1282577434]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "Zoom:"
-
-[node name="HSplitContainer" type="HSplitContainer" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186" unique_id=403948263]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="ViewportContainer" type="SubViewportContainer" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer" unique_id=887598836 node_paths=PackedStringArray("_camera", "_celSprite")]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-stretch = true
-script = ExtResource("17_24xe2")
-_camera = NodePath("SubViewport/RoomRoot/roomCamera")
-_celSprite = NodePath("SubViewport/RoomRoot/backgroundSprite")
-FitOncePerGroup = false
-
-[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer" unique_id=172386171]
-disable_3d = true
-transparent_bg = true
-handle_input_locally = false
-size = Vector2i(625, 456)
-render_target_update_mode = 4
-
-[node name="RoomRoot" type="Node2D" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport" unique_id=1140387204]
-
-[node name="backgroundSprite" type="Sprite2D" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=670584009]
-centered = false
-
-[node name="hotspotLayer" type="Node2D" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=1367152505]
-
-[node name="objectLayer" type="Node2D" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=183246717]
-
-[node name="actorLayer" type="Node2D" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=1401710467]
-
-[node name="boundsLayer" type="Node2D" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=629022137]
-
-[node name="roomCamera" type="Camera2D" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=313551260]
-anchor_mode = 0
-
-[node name="ObjectNamesList" type="ItemList" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer" unique_id=1441868260]
-custom_minimum_size = Vector2(250, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.0
-focus_mode = 1
-focus_behavior_recursive = 2
-mouse_force_pass_scroll_events = false
-theme_override_styles/panel = ExtResource("12_3dlgs")
-allow_reselect = true
-same_column_width = true
-script = ExtResource("13_ub8w1")
-
-[node name="ResizeHandles" type="Control" parent="OS/MainCanvas/Canvas/Room Preview" unique_id=59344697]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-mouse_filter = 2
-metadata/_edit_lock_ = true
-
-[node name="HandleLeft" type="Control" parent="OS/MainCanvas/Canvas/Room Preview/ResizeHandles" unique_id=149247625]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleRight" type="Control" parent="OS/MainCanvas/Canvas/Room Preview/ResizeHandles" unique_id=451265229]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleTop" type="Control" parent="OS/MainCanvas/Canvas/Room Preview/ResizeHandles" unique_id=707538679]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-grow_horizontal = 2
-mouse_default_cursor_shape = 9
-
-[node name="HandleBottom" type="Control" parent="OS/MainCanvas/Canvas/Room Preview/ResizeHandles" unique_id=1191353912]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_default_cursor_shape = 9
-
-[node name="HandleTopLeft" type="Control" parent="OS/MainCanvas/Canvas/Room Preview/ResizeHandles" unique_id=22616258]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 0
-mouse_default_cursor_shape = 12
-
-[node name="HandleTopRight" type="Control" parent="OS/MainCanvas/Canvas/Room Preview/ResizeHandles" unique_id=957968870]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-grow_horizontal = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomLeft" type="Control" parent="OS/MainCanvas/Canvas/Room Preview/ResizeHandles" unique_id=1894599199]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-grow_vertical = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomRight" type="Control" parent="OS/MainCanvas/Canvas/Room Preview/ResizeHandles" unique_id=291048479]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 0
-mouse_default_cursor_shape = 12
 
 [node name="AKOS Viewer" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=392982589 node_paths=PackedStringArray("Content")]
 clip_contents = true
@@ -1884,50 +1301,8 @@ clip_contents = true
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" type="Panel" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout" unique_id=1003329234]
-custom_minimum_size = Vector2(0, 28)
+[node name="TitleBar" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout" unique_id=878287754 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
-mouse_behavior_recursive = 2
-theme_override_styles/panel = ExtResource("13_lci31")
-
-[node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/TitleBar" unique_id=988975736]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Button Row" type="HBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/TitleBar/TitleHBox" unique_id=1340459877]
-custom_minimum_size = Vector2(56, 0)
-layout_mode = 2
-
-[node name="VSeparator" type="VSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/TitleBar/TitleHBox/Button Row" unique_id=1450860039]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="CloseButton" type="Button" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/TitleBar/TitleHBox/Button Row" unique_id=1583511718]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 15
-text = "x"
-
-[node name="CollapseButton" type="Button" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/TitleBar/TitleHBox/Button Row" unique_id=1361942399]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "△"
-
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/TitleBar/TitleHBox" unique_id=583299830]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_font_sizes/font_size = 13
-text = "AKOS Viewer"
-vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout" unique_id=1199205963]
 layout_mode = 2
@@ -1941,478 +1316,12 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="AkosViewerContent" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer" unique_id=1078522173 node_paths=PackedStringArray("ParentPanel")]
+[node name="AkosViewerContent" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer" unique_id=56898944 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("25_sbofu")]
 layout_mode = 2
-script = ExtResource("32_ans7r")
 ParentPanel = NodePath("../../..")
 
-[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent" unique_id=1298535863]
-clip_contents = true
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = 789.0
-offset_bottom = 383.0
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Tabs" type="TabContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot" unique_id=731808865]
-clip_contents = true
+[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/AKOS Viewer" unique_id=1435679148 instance=ExtResource("17_obcww")]
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/side_margin = 0
-theme_override_font_sizes/font_size = 13
-theme_override_styles/panel = ExtResource("12_3dlgs")
-theme_override_styles/tabbar_background = ExtResource("12_3dlgs")
-theme_override_styles/tab_unselected = ExtResource("12_3dlgs")
-theme_override_styles/tab_hovered = ExtResource("12_3dlgs")
-theme_override_styles/tab_selected = ExtResource("12_3dlgs")
-theme_override_styles/tab_disabled = ExtResource("12_3dlgs")
-theme_override_styles/tab_focus = ExtResource("12_3dlgs")
-current_tab = 0
-
-[node name="Cels" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs" unique_id=995910168]
-layout_mode = 2
-metadata/_tab_index = 0
-
-[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels" unique_id=432348065]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="OptionsRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer" unique_id=1176393621]
-custom_minimum_size = Vector2(0, 30)
-layout_mode = 2
-
-[node name="OptionsToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/OptionsRow" unique_id=1515263308]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/hover_pressed = ExtResource("12_3dlgs")
-text = "Options"
-
-[node name="InfoToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/OptionsRow" unique_id=1136292461]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/hover_pressed = ExtResource("12_3dlgs")
-text = "Info"
-
-[node name="ResetButton" type="Button" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/OptionsRow" unique_id=190683669]
-visible = false
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 13
-text = "Reset View"
-
-[node name="PreviewRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer" unique_id=796875792]
-clip_contents = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="ConfigGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow" unique_id=1810827723]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 0
-size_flags_vertical = 0
-theme = ExtResource("8_blcw0")
-columns = 2
-
-[node name="Labels" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid" unique_id=1711113164]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="HSeparator" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=418502111]
-custom_minimum_size = Vector2(0, 13)
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="ModeLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=400301464]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Mode"
-vertical_alignment = 1
-
-[node name="AlphaLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=850660758]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Alpha"
-vertical_alignment = 1
-
-[node name="ShadowColorLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=677343072]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Shadow Color"
-vertical_alignment = 1
-
-[node name="ShadowLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=2002377961]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Shadow Alpha"
-vertical_alignment = 1
-
-[node name="VectorLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=1054861430]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Vector"
-vertical_alignment = 1
-
-[node name="FilterLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=929477687]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Filter"
-vertical_alignment = 1
-
-[node name="StretchLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=136993671]
-visible = false
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Stretch"
-vertical_alignment = 1
-
-[node name="AutoZoomLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=1407554640]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "AutoZoom"
-vertical_alignment = 1
-
-[node name="Controls" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid" unique_id=87237938]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="HSeparator" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=541180575]
-custom_minimum_size = Vector2(0, 13)
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="ModeOptionButton" type="OptionButton" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=1735037248]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-selected = 0
-item_count = 3
-popup/item_0/text = "Shader"
-popup/item_0/id = 0
-popup/item_1/text = "Index"
-popup/item_1/id = 1
-popup/item_2/text = "Raw"
-popup/item_2/id = 2
-
-[node name="AlphaToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=1196017854]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-size_flags_horizontal = 0
-button_pressed = true
-clip_text = true
-
-[node name="ShadowColorToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=812541248]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-size_flags_horizontal = 0
-button_pressed = true
-clip_text = true
-
-[node name="ShadowSlider" type="HSlider" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=820205382]
-custom_minimum_size = Vector2(134.21, 34)
-layout_mode = 2
-size_flags_horizontal = 3
-max_value = 1.0
-step = 0.001
-value = 0.4
-
-[node name="VectorToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=365830527]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_font_sizes/font_size = 13
-clip_text = true
-
-[node name="FilterOptionButton" type="OptionButton" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=496364083]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-selected = 0
-item_count = 2
-popup/item_0/text = "Nearest"
-popup/item_0/id = 0
-popup/item_1/text = "Linear"
-popup/item_1/id = 1
-
-[node name="StretchOptionButton" type="OptionButton" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=403510098]
-visible = false
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-selected = 0
-item_count = 2
-popup/item_0/text = "Fill"
-popup/item_0/id = 0
-popup/item_1/text = "Original"
-popup/item_1/id = 1
-
-[node name="AutoZoomToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=1797204380]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_font_sizes/font_size = 13
-clip_text = true
-
-[node name="PreviewWrapper" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow" unique_id=995977995]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="PreviewContainer" type="SubViewportContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/PreviewWrapper" unique_id=1304935133 node_paths=PackedStringArray("_camera", "_celPreview")]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-size_flags_stretch_ratio = 3.14
-stretch = true
-script = ExtResource("17_24xe2")
-_camera = NodePath("SubViewport/CelCamera")
-_celPreview = NodePath("SubViewport/Cel Preview")
-
-[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/PreviewWrapper/PreviewContainer" unique_id=192205678]
-transparent_bg = true
-handle_input_locally = false
-snap_2d_transforms_to_pixel = true
-positional_shadow_atlas_size = 0
-size = Vector2i(607, 287)
-render_target_update_mode = 4
-
-[node name="Cel Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/PreviewWrapper/PreviewContainer/SubViewport" unique_id=358585209]
-texture_filter = 1
-material = ExtResource("15_po8fv")
-custom_minimum_size = Vector2(200, 0)
-offset_right = 257.0
-offset_bottom = 307.0
-size_flags_horizontal = 3
-size_flags_vertical = 3
-size_flags_stretch_ratio = 2.98
-stretch_mode = 2
-
-[node name="CelCamera" type="Camera2D" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/PreviewWrapper/PreviewContainer/SubViewport" unique_id=53690378]
-zoom = Vector2(2.46, 2.46)
-
-[node name="Cel Info" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/PreviewWrapper" unique_id=1384045548]
-visible = false
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 0
-offset_top = 54.0
-offset_right = 245.0
-offset_bottom = 285.0
-size_flags_vertical = 3
-theme_override_font_sizes/font_size = 13
-vertical_alignment = 2
-autowrap_mode = 3
-
-[node name="Cel List" type="ItemList" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow" unique_id=1555080060]
-custom_minimum_size = Vector2(120, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-size_flags_stretch_ratio = 0.26
-focus_mode = 1
-focus_behavior_recursive = 2
-mouse_force_pass_scroll_events = false
-theme_override_styles/panel = ExtResource("12_3dlgs")
-allow_reselect = true
-same_column_width = true
-script = ExtResource("13_ub8w1")
-
-[node name="Chores" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs" unique_id=1459511968]
-visible = false
-layout_mode = 2
-metadata/_tab_index = 1
-
-[node name="Cores Title" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Chores" unique_id=252543977]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Animation Chores (AKCH → AKSQ)"
-
-[node name="ChoresContainer" type="HSplitContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Chores" unique_id=417024574]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="ChoreTree" type="Tree" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Chores/ChoresContainer" unique_id=87294798]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme = ExtResource("8_blcw0")
-theme_override_styles/panel = ExtResource("12_3dlgs")
-theme_override_styles/focus = ExtResource("12_3dlgs")
-theme_override_styles/hovered = ExtResource("12_3dlgs")
-theme_override_styles/hovered_dimmed = ExtResource("12_3dlgs")
-theme_override_styles/hovered_selected = ExtResource("12_3dlgs")
-theme_override_styles/hovered_selected_focus = ExtResource("12_3dlgs")
-theme_override_styles/selected = ExtResource("12_3dlgs")
-theme_override_styles/selected_focus = ExtResource("12_3dlgs")
-theme_override_styles/title_button_normal = ExtResource("12_3dlgs")
-theme_override_styles/title_button_pressed = ExtResource("12_3dlgs")
-theme_override_styles/title_button_hover = ExtResource("12_3dlgs")
-columns = 3
-column_titles_visible = true
-
-[node name="SequenceDetail" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Chores/ChoresContainer" unique_id=2118817752]
-custom_minimum_size = Vector2(180, 0)
-layout_mode = 2
-autowrap_mode = 3
-
-[node name="Palette" type="ScrollContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs" unique_id=369523761]
-visible = false
-layout_mode = 2
-metadata/_tab_index = 2
-
-[node name="PaletteContainer" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Palette" unique_id=2140564288]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="_Label_265" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Palette/PaletteContainer" unique_id=359272785]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "AKPL → resolved colors"
-
-[node name="PaletteGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Palette/PaletteContainer" unique_id=1819397483]
-layout_mode = 2
-size_flags_vertical = 3
-columns = 16
-
-[node name="Overview" type="ScrollContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs" unique_id=676642636]
-visible = false
-layout_mode = 2
-metadata/_tab_index = 3
-
-[node name="OverviewContainer" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Overview" unique_id=1086844425]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Header Title" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=1767277851]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Header (AKHD)"
-
-[node name="headerGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=1337632421]
-layout_mode = 2
-columns = 2
-
-[node name="_HSeparator_233" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=1668558074]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="Codec Title" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=1589182127]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Compression Codec"
-
-[node name="CodecLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=1383773845]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-autowrap_mode = 3
-
-[node name="_HSeparator_236" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=971345321]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="BlockSummaryLabel" type="Label" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=896695228]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Block Summary"
-
-[node name="ResizeHandles" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer" unique_id=74315955]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-mouse_filter = 2
-metadata/_edit_lock_ = true
-
-[node name="HandleLeft" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer/ResizeHandles" unique_id=61688917]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleRight" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer/ResizeHandles" unique_id=643844540]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleTop" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer/ResizeHandles" unique_id=830790920]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-grow_horizontal = 2
-mouse_default_cursor_shape = 9
-
-[node name="HandleBottom" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer/ResizeHandles" unique_id=243236997]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_default_cursor_shape = 9
-
-[node name="HandleTopLeft" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer/ResizeHandles" unique_id=1123797298]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 0
-mouse_default_cursor_shape = 12
-
-[node name="HandleTopRight" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer/ResizeHandles" unique_id=943672838]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-grow_horizontal = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomLeft" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer/ResizeHandles" unique_id=1537968187]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-grow_vertical = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomRight" type="Control" parent="OS/MainCanvas/Canvas/AKOS Viewer/ResizeHandles" unique_id=1633788140]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 0
-mouse_default_cursor_shape = 12
 
 [node name="OBIM Viewer" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=162859358 node_paths=PackedStringArray("Content")]
 clip_contents = true
@@ -2437,50 +1346,9 @@ clip_contents = true
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" type="Panel" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout" unique_id=1795121112]
-custom_minimum_size = Vector2(0, 28)
+[node name="TitleBar" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout" unique_id=1710347355 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
-mouse_behavior_recursive = 2
-theme_override_styles/panel = ExtResource("13_lci31")
-
-[node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/TitleBar" unique_id=1401430358]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Button Row" type="HBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/TitleBar/TitleHBox" unique_id=368560904]
-custom_minimum_size = Vector2(56, 0)
-layout_mode = 2
-
-[node name="VSeparator" type="VSeparator" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/TitleBar/TitleHBox/Button Row" unique_id=499312978]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="CloseButton" type="Button" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/TitleBar/TitleHBox/Button Row" unique_id=438385892]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 15
-text = "x"
-
-[node name="CollapseButton" type="Button" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/TitleBar/TitleHBox/Button Row" unique_id=1377240028]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "△"
-
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/TitleBar/TitleHBox" unique_id=1865223467]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_font_sizes/font_size = 13
-text = "OBIM Viewer"
-vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
+Title = "OBIM Viewer"
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout" unique_id=934486190]
 layout_mode = 2
@@ -2494,239 +1362,16 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="ObimViewerContent" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer" unique_id=789991340 node_paths=PackedStringArray("ParentPanel")]
+[node name="ObimViewerContent" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer" unique_id=1673595245 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("31_ans7r")]
 layout_mode = 2
-script = ExtResource("33_7qgyb")
 ParentPanel = NodePath("../../..")
 
-[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent" unique_id=1644777313]
-clip_contents = true
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = 324.0
-offset_bottom = 519.0
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="ResponsiveView" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot" unique_id=430743419 node_paths=PackedStringArray("TabBar", "SplitContainer")]
+[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/OBIM Viewer" unique_id=94878266 instance=ExtResource("17_obcww")]
 layout_mode = 2
-size_flags_vertical = 3
-size_flags_stretch_ratio = 19.33
-script = ExtResource("28_vnkct")
-TabBar = NodePath("TabBar")
-SplitContainer = NodePath("SplitContainer")
-
-[node name="TabBar" type="TabBar" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/ResponsiveView" unique_id=1423689129]
-layout_mode = 2
-theme_override_styles/tab_unselected = ExtResource("12_3dlgs")
-theme_override_styles/tab_hovered = ExtResource("12_3dlgs")
-theme_override_styles/tab_selected = ExtResource("12_3dlgs")
-theme_override_styles/tab_disabled = ExtResource("12_3dlgs")
-theme_override_styles/tab_focus = ExtResource("12_3dlgs")
-theme_override_styles/button_pressed = ExtResource("12_3dlgs")
-theme_override_styles/button_highlight = ExtResource("12_3dlgs")
-current_tab = 0
-tab_count = 2
-tab_0/title = "Preview"
-tab_1/title = "Palette"
-
-[node name="SplitContainer" type="HBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/ResponsiveView" unique_id=1747658432]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="Preview" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer" unique_id=1897223329]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="PreviewContainer" type="SubViewportContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Preview" unique_id=1327008762 node_paths=PackedStringArray("_camera", "_celPreview")]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-size_flags_stretch_ratio = 25.6
-stretch = true
-script = ExtResource("17_24xe2")
-_camera = NodePath("SubViewport/Object Camera")
-_celPreview = NodePath("SubViewport/Object Preview")
-
-[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer" unique_id=638758665]
-transparent_bg = true
-handle_input_locally = false
-snap_2d_transforms_to_pixel = true
-positional_shadow_atlas_size = 0
-size = Vector2i(316, 398)
-render_target_update_mode = 4
-
-[node name="Object Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer/SubViewport" unique_id=609620734]
-texture_filter = 1
-custom_minimum_size = Vector2(200, 0)
-offset_right = 257.0
-offset_bottom = 307.0
-size_flags_horizontal = 3
-size_flags_vertical = 3
-stretch_mode = 2
-
-[node name="Object Camera" type="Camera2D" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer/SubViewport" unique_id=1028180553]
-zoom = Vector2(2.46, 2.46)
-
-[node name="Palette" type="ScrollContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer" unique_id=899832692]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="PaletteMargin" type="CenterContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Palette" unique_id=439866692]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="PaletteGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Palette/PaletteMargin" unique_id=143517509]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/h_separation = 0
-theme_override_constants/v_separation = 0
-columns = 16
-
-[node name="Controls" type="CenterContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot" unique_id=977224518]
-custom_minimum_size = Vector2(316, 0)
-layout_mode = 2
-size_flags_vertical = 10
-
-[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/Controls" unique_id=1004888294]
-custom_minimum_size = Vector2(316, 0)
-layout_mode = 2
-
-[node name="FrameSlider" type="HSlider" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/Controls/VBoxContainer" unique_id=1797667655]
-custom_minimum_size = Vector2(316, 0)
-layout_mode = 2
-theme_override_styles/slider = ExtResource("12_3dlgs")
-theme_override_styles/grabber_area = ExtResource("12_3dlgs")
-theme_override_styles/grabber_area_highlight = ExtResource("12_3dlgs")
-max_value = 3.0
-rounded = true
-scrollable = false
-ticks_on_borders = true
-ticks_position = 3
-
-[node name="FrameLabel" type="Label" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/Controls/VBoxContainer/FrameSlider" unique_id=1818470295]
-layout_mode = 0
-offset_right = 316.0
-offset_bottom = 17.0
-theme_override_colors/font_color = Color(0.7708395, 0.77083945, 0.77083945, 1)
-theme_override_font_sizes/font_size = 12
-text = "Frame"
-horizontal_alignment = 2
-
-[node name="HSeparator" type="HSeparator" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/Controls/VBoxContainer" unique_id=266827144]
-custom_minimum_size = Vector2(316, 0)
-layout_mode = 2
-theme_override_constants/separation = 12
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="PaletteSlider" type="HSlider" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/Controls/VBoxContainer" unique_id=1659430686]
-custom_minimum_size = Vector2(316, 0)
-layout_mode = 2
-theme_override_styles/slider = ExtResource("12_3dlgs")
-theme_override_styles/grabber_area = ExtResource("12_3dlgs")
-theme_override_styles/grabber_area_highlight = ExtResource("12_3dlgs")
-max_value = 3.0
-rounded = true
-scrollable = false
-ticks_on_borders = true
-ticks_position = 3
-
-[node name="Palette" type="Label" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer/ObimViewerContent/ContentRoot/Controls/VBoxContainer/PaletteSlider" unique_id=1463767206]
-layout_mode = 0
-offset_right = 316.0
-offset_bottom = 17.0
-theme_override_colors/font_color = Color(0.7708395, 0.77083945, 0.77083945, 1)
-theme_override_font_sizes/font_size = 12
-text = "Palette"
-horizontal_alignment = 2
-
-[node name="ResizeHandles" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer" unique_id=72044487]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-mouse_filter = 2
-metadata/_edit_lock_ = true
-
-[node name="HandleLeft" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer/ResizeHandles" unique_id=1866163071]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleRight" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer/ResizeHandles" unique_id=1258340137]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-
-[node name="HandleTop" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer/ResizeHandles" unique_id=573057651]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-grow_horizontal = 2
-mouse_default_cursor_shape = 9
-
-[node name="HandleBottom" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer/ResizeHandles" unique_id=976570548]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_default_cursor_shape = 9
-
-[node name="HandleTopLeft" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer/ResizeHandles" unique_id=1897394969]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 0
-mouse_default_cursor_shape = 12
-
-[node name="HandleTopRight" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer/ResizeHandles" unique_id=613907512]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-grow_horizontal = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomLeft" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer/ResizeHandles" unique_id=807880100]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-grow_vertical = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomRight" type="Control" parent="OS/MainCanvas/Canvas/OBIM Viewer/ResizeHandles" unique_id=2047790877]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 0
-mouse_default_cursor_shape = 12
 
 [node name="Preview" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=2015632589 node_paths=PackedStringArray("RoomContent", "AkosContent", "ObimContent")]
 process_mode = 3
+clip_contents = true
 custom_minimum_size = Vector2(200, 100)
 layout_mode = 0
 offset_left = 652.0
@@ -2748,51 +1393,9 @@ theme_override_styles/panel = ExtResource("7_qwhpj")
 [node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview" unique_id=1479342150]
 layout_mode = 2
 
-[node name="TitleBar" type="Panel" parent="OS/MainCanvas/Canvas/Preview/Layout" unique_id=1849686939]
-custom_minimum_size = Vector2(0, 28)
+[node name="TitleBar" parent="OS/MainCanvas/Canvas/Preview/Layout" unique_id=729715750 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
-mouse_behavior_recursive = 2
-theme_override_styles/panel = ExtResource("13_lci31")
-
-[node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/TitleBar" unique_id=1776648042]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Button Row" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/TitleBar/TitleHBox" unique_id=121445543]
-custom_minimum_size = Vector2(56, 0)
-layout_mode = 2
-
-[node name="VSeparator" type="VSeparator" parent="OS/MainCanvas/Canvas/Preview/Layout/TitleBar/TitleHBox/Button Row" unique_id=586846683]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="CloseButton" type="Button" parent="OS/MainCanvas/Canvas/Preview/Layout/TitleBar/TitleHBox/Button Row" unique_id=1359747777]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 15
-text = "x"
-
-[node name="CollapseButton" type="Button" parent="OS/MainCanvas/Canvas/Preview/Layout/TitleBar/TitleHBox/Button Row" unique_id=1103511060]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 14
-text = "△"
-
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/TitleBar/TitleHBox" unique_id=1062123225]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_font_sizes/font_size = 13
-text = "Preview"
-vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
+Title = "Preview"
 
 [node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Preview/Layout" unique_id=1071922100]
 layout_mode = 2
@@ -2812,767 +1415,28 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="RoomViewerContent" type="Control" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=261330437 node_paths=PackedStringArray("ParentPanel")]
+[node name="RoomViewerContent" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=382922196 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("23_623xu")]
+visible = false
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("31_sbofu")
 ParentPanel = NodePath("../../../..")
 
-[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent" unique_id=1483489867]
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="_VBoxContainer_186" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot" unique_id=1530546610]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="_HBoxContainer_187" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186" unique_id=480667304]
-custom_minimum_size = Vector2(0, 30)
-layout_mode = 2
-
-[node name="BoundsToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=515304512]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/hover_pressed = ExtResource("12_3dlgs")
-text = "Bounds"
-
-[node name="HotspotsToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=1317311790]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Hotspots"
-
-[node name="ObjectsToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=107468562]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Objects"
-
-[node name="ActorsToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=1743725178]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Actors"
-
-[node name="WalkboxesToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=218500006]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Walkboxes"
-
-[node name="ResetButton" type="Button" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=530919379]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 13
-text = "Reset View"
-
-[node name="ZoomLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/_HBoxContainer_187" unique_id=1726835504]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "Zoom:"
-
-[node name="HSplitContainer" type="HSplitContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186" unique_id=1347378886]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="ViewportContainer" type="SubViewportContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer" unique_id=532584840 node_paths=PackedStringArray("_camera", "_celSprite")]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-stretch = true
-script = ExtResource("17_24xe2")
-_camera = NodePath("SubViewport/RoomRoot/roomCamera")
-_celSprite = NodePath("SubViewport/RoomRoot/backgroundSprite")
-FitOncePerGroup = false
-
-[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer" unique_id=1149542521]
-disable_3d = true
-transparent_bg = true
-handle_input_locally = false
-size = Vector2i(625, 456)
-render_target_update_mode = 4
-
-[node name="RoomRoot" type="Node2D" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport" unique_id=610600869]
-
-[node name="backgroundSprite" type="Sprite2D" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=503077991]
-centered = false
-
-[node name="hotspotLayer" type="Node2D" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=1240707958]
-
-[node name="objectLayer" type="Node2D" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=959434054]
-
-[node name="actorLayer" type="Node2D" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=525370748]
-
-[node name="boundsLayer" type="Node2D" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=1119380409]
-
-[node name="roomCamera" type="Camera2D" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot" unique_id=889964135]
-anchor_mode = 0
-
-[node name="ObjectNamesList" type="ItemList" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/RoomViewerContent/ContentRoot/_VBoxContainer_186/HSplitContainer" unique_id=553959941]
-custom_minimum_size = Vector2(250, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.0
-focus_mode = 1
-focus_behavior_recursive = 2
-mouse_force_pass_scroll_events = false
-theme_override_styles/panel = ExtResource("12_3dlgs")
-allow_reselect = true
-same_column_width = true
-script = ExtResource("13_ub8w1")
-
-[node name="AkosViewerContent" type="Control" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=66893629 node_paths=PackedStringArray("ParentPanel")]
+[node name="AkosViewerContent" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=1655939172 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("25_sbofu")]
 visible = false
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("32_ans7r")
-ParentPanel = NodePath("../../../..")
-akosShaderMaterial = ExtResource("15_po8fv")
-
-[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent" unique_id=1654852991]
-clip_contents = true
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Tabs" type="TabContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot" unique_id=1927208797]
-clip_contents = true
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/side_margin = 0
-theme_override_font_sizes/font_size = 13
-theme_override_styles/panel = ExtResource("12_3dlgs")
-theme_override_styles/tabbar_background = ExtResource("12_3dlgs")
-theme_override_styles/tab_unselected = ExtResource("12_3dlgs")
-theme_override_styles/tab_hovered = ExtResource("12_3dlgs")
-theme_override_styles/tab_selected = ExtResource("12_3dlgs")
-theme_override_styles/tab_disabled = ExtResource("12_3dlgs")
-theme_override_styles/tab_focus = ExtResource("12_3dlgs")
-current_tab = 0
-
-[node name="Cels" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs" unique_id=670881693]
-layout_mode = 2
-metadata/_tab_index = 0
-
-[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels" unique_id=313657200]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="OptionsRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer" unique_id=1166855003]
-custom_minimum_size = Vector2(0, 30)
-layout_mode = 2
-
-[node name="OptionsToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/OptionsRow" unique_id=875897479]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/hover_pressed = ExtResource("12_3dlgs")
-text = "Options"
-
-[node name="InfoToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/OptionsRow" unique_id=918868914]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/hover_pressed = ExtResource("12_3dlgs")
-text = "Info"
-
-[node name="ResetButton" type="Button" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/OptionsRow" unique_id=7934355]
-visible = false
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 13
-text = "Reset View"
-
-[node name="PreviewRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer" unique_id=1015038992]
-clip_contents = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="ConfigGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow" unique_id=2036048991]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 0
-size_flags_vertical = 0
-theme = ExtResource("8_blcw0")
-columns = 2
-
-[node name="Labels" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid" unique_id=1859498717]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="HSeparator" type="HSeparator" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=2058758862]
-custom_minimum_size = Vector2(0, 13)
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="ModeLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=162325421]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Mode"
-vertical_alignment = 1
-
-[node name="AlphaLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=1302350505]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Alpha"
-vertical_alignment = 1
-
-[node name="ShadowColorLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=1471497845]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Shadow Color"
-vertical_alignment = 1
-
-[node name="ShadowLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=2076820579]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Shadow Alpha"
-vertical_alignment = 1
-
-[node name="VectorLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=1766663003]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Vector"
-vertical_alignment = 1
-
-[node name="FilterLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=450985187]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Filter"
-vertical_alignment = 1
-
-[node name="StretchLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=447963043]
-visible = false
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Stretch"
-vertical_alignment = 1
-
-[node name="AutoZoomLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=170474979]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "AutoZoom"
-vertical_alignment = 1
-
-[node name="Controls" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid" unique_id=1647233220]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="HSeparator" type="HSeparator" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=174307912]
-custom_minimum_size = Vector2(0, 13)
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="ModeOptionButton" type="OptionButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=1077082721]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-selected = 0
-item_count = 3
-popup/item_0/text = "Shader"
-popup/item_0/id = 0
-popup/item_1/text = "Index"
-popup/item_1/id = 1
-popup/item_2/text = "Raw"
-popup/item_2/id = 2
-
-[node name="AlphaToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=1833277169]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-size_flags_horizontal = 0
-button_pressed = true
-clip_text = true
-
-[node name="ShadowColorToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=1232941545]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-size_flags_horizontal = 0
-button_pressed = true
-clip_text = true
-
-[node name="ShadowSlider" type="HSlider" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=83050821]
-custom_minimum_size = Vector2(134.21, 34)
-layout_mode = 2
-size_flags_horizontal = 3
-max_value = 1.0
-step = 0.001
-value = 0.4
-
-[node name="VectorToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=374312039]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_font_sizes/font_size = 13
-clip_text = true
-
-[node name="FilterOptionButton" type="OptionButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=1419880718]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-selected = 0
-item_count = 2
-popup/item_0/text = "Nearest"
-popup/item_0/id = 0
-popup/item_1/text = "Linear"
-popup/item_1/id = 1
-
-[node name="StretchOptionButton" type="OptionButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=2026049407]
-visible = false
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-selected = 0
-item_count = 2
-popup/item_0/text = "Fill"
-popup/item_0/id = 0
-popup/item_1/text = "Original"
-popup/item_1/id = 1
-
-[node name="AutoZoomToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=277418023]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_font_sizes/font_size = 13
-clip_text = true
-
-[node name="PreviewWrapper" type="Control" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow" unique_id=889427225]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="PreviewContainer" type="SubViewportContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/PreviewWrapper" unique_id=1320700044 node_paths=PackedStringArray("_camera", "_celPreview")]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-size_flags_stretch_ratio = 3.14
-stretch = true
-script = ExtResource("17_24xe2")
-_camera = NodePath("SubViewport/CelCamera")
-_celPreview = NodePath("SubViewport/Cel Preview")
-
-[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/PreviewWrapper/PreviewContainer" unique_id=2034009407]
-transparent_bg = true
-handle_input_locally = false
-snap_2d_transforms_to_pixel = true
-positional_shadow_atlas_size = 0
-size = Vector2i(696, 410)
-render_target_update_mode = 0
-
-[node name="Cel Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/PreviewWrapper/PreviewContainer/SubViewport" unique_id=648235716]
-texture_filter = 1
-material = ExtResource("15_po8fv")
-custom_minimum_size = Vector2(200, 0)
-offset_right = 257.0
-offset_bottom = 307.0
-size_flags_horizontal = 3
-size_flags_vertical = 3
-size_flags_stretch_ratio = 2.98
-stretch_mode = 2
-
-[node name="CelCamera" type="Camera2D" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/PreviewWrapper/PreviewContainer/SubViewport" unique_id=1980540413]
-zoom = Vector2(2.46, 2.46)
-
-[node name="Cel Info" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/PreviewWrapper" unique_id=496623212]
-visible = false
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 0
-offset_top = 54.0
-offset_right = 245.0
-offset_bottom = 285.0
-size_flags_vertical = 3
-theme_override_font_sizes/font_size = 13
-vertical_alignment = 2
-autowrap_mode = 3
-
-[node name="Cel List" type="ItemList" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow" unique_id=2023957538]
-custom_minimum_size = Vector2(120, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-size_flags_stretch_ratio = 0.26
-focus_mode = 1
-focus_behavior_recursive = 2
-mouse_force_pass_scroll_events = false
-theme_override_styles/panel = ExtResource("12_3dlgs")
-allow_reselect = true
-same_column_width = true
-script = ExtResource("13_ub8w1")
-
-[node name="Chores" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs" unique_id=2127509847]
-visible = false
-layout_mode = 2
-metadata/_tab_index = 1
-
-[node name="Cores Title" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Chores" unique_id=1510360618]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Animation Chores (AKCH → AKSQ)"
-
-[node name="ChoresContainer" type="HSplitContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Chores" unique_id=1479045258]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="ChoreTree" type="Tree" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Chores/ChoresContainer" unique_id=893502767]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme = ExtResource("8_blcw0")
-theme_override_styles/panel = ExtResource("12_3dlgs")
-theme_override_styles/focus = ExtResource("12_3dlgs")
-theme_override_styles/hovered = ExtResource("12_3dlgs")
-theme_override_styles/hovered_dimmed = ExtResource("12_3dlgs")
-theme_override_styles/hovered_selected = ExtResource("12_3dlgs")
-theme_override_styles/hovered_selected_focus = ExtResource("12_3dlgs")
-theme_override_styles/selected = ExtResource("12_3dlgs")
-theme_override_styles/selected_focus = ExtResource("12_3dlgs")
-theme_override_styles/title_button_normal = ExtResource("12_3dlgs")
-theme_override_styles/title_button_pressed = ExtResource("12_3dlgs")
-theme_override_styles/title_button_hover = ExtResource("12_3dlgs")
-columns = 3
-column_titles_visible = true
-
-[node name="SequenceDetail" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Chores/ChoresContainer" unique_id=1947085082]
-custom_minimum_size = Vector2(180, 0)
-layout_mode = 2
-autowrap_mode = 3
-
-[node name="Palette" type="ScrollContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs" unique_id=1658848825]
-visible = false
-layout_mode = 2
-metadata/_tab_index = 2
-
-[node name="PaletteContainer" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Palette" unique_id=362006056]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="_Label_265" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Palette/PaletteContainer" unique_id=117416535]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "AKPL → resolved colors"
-
-[node name="PaletteGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Palette/PaletteContainer" unique_id=2140935923]
-layout_mode = 2
-size_flags_vertical = 3
-columns = 16
-
-[node name="Overview" type="ScrollContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs" unique_id=845232797]
-visible = false
-layout_mode = 2
-metadata/_tab_index = 3
-
-[node name="OverviewContainer" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Overview" unique_id=290487937]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Header Title" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=288230952]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Header (AKHD)"
-
-[node name="headerGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=1196443996]
-layout_mode = 2
-columns = 2
-
-[node name="_HSeparator_233" type="HSeparator" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=1282408880]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="Codec Title" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=1604553169]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Compression Codec"
-
-[node name="CodecLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=2055611541]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-autowrap_mode = 3
-
-[node name="_HSeparator_236" type="HSeparator" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=978033174]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="BlockSummaryLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/AkosViewerContent/ContentRoot/Tabs/Overview/OverviewContainer" unique_id=515336022]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Block Summary"
-
-[node name="ObimViewerContent" type="Control" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=727237909 node_paths=PackedStringArray("ParentPanel")]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("33_7qgyb")
 ParentPanel = NodePath("../../../..")
 
-[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent" unique_id=1888081560]
-clip_contents = true
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="ResponsiveView" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot" unique_id=1958667921 node_paths=PackedStringArray("TabBar", "SplitContainer")]
-layout_mode = 2
-size_flags_vertical = 3
-size_flags_stretch_ratio = 19.33
-script = ExtResource("28_vnkct")
-TabBar = NodePath("TabBar")
-SplitContainer = NodePath("SplitContainer")
-
-[node name="TabBar" type="TabBar" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/ResponsiveView" unique_id=1666054295]
-layout_mode = 2
-theme_override_styles/tab_unselected = ExtResource("12_3dlgs")
-theme_override_styles/tab_hovered = ExtResource("12_3dlgs")
-theme_override_styles/tab_selected = ExtResource("12_3dlgs")
-theme_override_styles/tab_disabled = ExtResource("12_3dlgs")
-theme_override_styles/tab_focus = ExtResource("12_3dlgs")
-theme_override_styles/button_pressed = ExtResource("12_3dlgs")
-theme_override_styles/button_highlight = ExtResource("12_3dlgs")
-current_tab = 0
-tab_count = 2
-tab_0/title = "Preview"
-tab_1/title = "Palette"
-
-[node name="SplitContainer" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/ResponsiveView" unique_id=895052469]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="Preview" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer" unique_id=2068503044]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="PreviewContainer" type="SubViewportContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Preview" unique_id=2077442562 node_paths=PackedStringArray("_camera", "_celPreview")]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-size_flags_stretch_ratio = 25.6
-stretch = true
-script = ExtResource("17_24xe2")
-_camera = NodePath("SubViewport/Object Camera")
-_celPreview = NodePath("SubViewport/Object Preview")
-
-[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer" unique_id=149722365]
-transparent_bg = true
-handle_input_locally = false
-snap_2d_transforms_to_pixel = true
-positional_shadow_atlas_size = 0
-size = Vector2i(877, 370)
-render_target_update_mode = 0
-
-[node name="Object Preview" type="TextureRect" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer/SubViewport" unique_id=1824150437]
-texture_filter = 1
-custom_minimum_size = Vector2(200, 0)
-offset_right = 257.0
-offset_bottom = 307.0
-size_flags_horizontal = 3
-size_flags_vertical = 3
-stretch_mode = 2
-
-[node name="Object Camera" type="Camera2D" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer/SubViewport" unique_id=1084678050]
-zoom = Vector2(2.46, 2.46)
-
-[node name="Palette" type="ScrollContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer" unique_id=1046977052]
+[node name="ObimViewerContent" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=680119532 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("31_ans7r")]
 visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="PaletteMargin" type="CenterContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Palette" unique_id=1619438623]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="PaletteGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/ResponsiveView/SplitContainer/Palette/PaletteMargin" unique_id=412929069]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/h_separation = 0
-theme_override_constants/v_separation = 0
-columns = 16
-
-[node name="Controls" type="CenterContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot" unique_id=1537415751]
-custom_minimum_size = Vector2(316, 0)
-layout_mode = 2
-size_flags_vertical = 10
-
-[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/Controls" unique_id=1549252146]
-custom_minimum_size = Vector2(316, 0)
-layout_mode = 2
-
-[node name="FrameSlider" type="HSlider" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/Controls/VBoxContainer" unique_id=637854681]
-custom_minimum_size = Vector2(316, 0)
-layout_mode = 2
-theme_override_styles/slider = ExtResource("12_3dlgs")
-theme_override_styles/grabber_area = ExtResource("12_3dlgs")
-theme_override_styles/grabber_area_highlight = ExtResource("12_3dlgs")
-max_value = 3.0
-rounded = true
-scrollable = false
-ticks_on_borders = true
-ticks_position = 3
-
-[node name="FrameLabel" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/Controls/VBoxContainer/FrameSlider" unique_id=107456194]
-layout_mode = 0
-offset_right = 316.0
-offset_bottom = 17.0
-theme_override_colors/font_color = Color(0.7708395, 0.77083945, 0.77083945, 1)
-theme_override_font_sizes/font_size = 12
-text = "Frame"
-horizontal_alignment = 2
-
-[node name="HSeparator" type="HSeparator" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/Controls/VBoxContainer" unique_id=405845660]
-custom_minimum_size = Vector2(316, 0)
-layout_mode = 2
-theme_override_constants/separation = 12
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="PaletteSlider" type="HSlider" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/Controls/VBoxContainer" unique_id=2119290138]
-custom_minimum_size = Vector2(316, 0)
-layout_mode = 2
-theme_override_styles/slider = ExtResource("12_3dlgs")
-theme_override_styles/grabber_area = ExtResource("12_3dlgs")
-theme_override_styles/grabber_area_highlight = ExtResource("12_3dlgs")
-max_value = 3.0
-rounded = true
-scrollable = false
-ticks_on_borders = true
-ticks_position = 3
-
-[node name="Palette" type="Label" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot/ObimViewerContent/ContentRoot/Controls/VBoxContainer/PaletteSlider" unique_id=1455606577]
-layout_mode = 0
-offset_right = 316.0
-offset_bottom = 17.0
-theme_override_colors/font_color = Color(0.7708395, 0.77083945, 0.77083945, 1)
-theme_override_font_sizes/font_size = 12
-text = "Palette"
-horizontal_alignment = 2
-
-[node name="ResizeHandles" type="Control" parent="OS/MainCanvas/Canvas/Preview" unique_id=1424197551]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-mouse_filter = 2
-metadata/_edit_lock_ = true
-
-[node name="HandleLeft" type="Control" parent="OS/MainCanvas/Canvas/Preview/ResizeHandles" unique_id=1191006249]
-custom_minimum_size = Vector2(6, 0)
 layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
+ParentPanel = NodePath("../../../..")
 
-[node name="HandleRight" type="Control" parent="OS/MainCanvas/Canvas/Preview/ResizeHandles" unique_id=1839568164]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
+[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Preview" unique_id=1605187155 instance=ExtResource("17_obcww")]
+layout_mode = 2
 
-[node name="HandleTop" type="Control" parent="OS/MainCanvas/Canvas/Preview/ResizeHandles" unique_id=880369926]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-grow_horizontal = 2
-mouse_default_cursor_shape = 9
-
-[node name="HandleBottom" type="Control" parent="OS/MainCanvas/Canvas/Preview/ResizeHandles" unique_id=1169090121]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_default_cursor_shape = 9
-
-[node name="HandleTopLeft" type="Control" parent="OS/MainCanvas/Canvas/Preview/ResizeHandles" unique_id=374968243]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 0
-mouse_default_cursor_shape = 12
-
-[node name="HandleTopRight" type="Control" parent="OS/MainCanvas/Canvas/Preview/ResizeHandles" unique_id=1137040471]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-grow_horizontal = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomLeft" type="Control" parent="OS/MainCanvas/Canvas/Preview/ResizeHandles" unique_id=1885025029]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-grow_vertical = 0
-mouse_default_cursor_shape = 11
-
-[node name="HandleBottomRight" type="Control" parent="OS/MainCanvas/Canvas/Preview/ResizeHandles" unique_id=1490575671]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 0
-mouse_default_cursor_shape = 12
-
-[node name="Options" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=2063126943 node_paths=PackedStringArray("_navButtons", "_pages", "bgColorPicker", "tintColorPicker", "modeOpt", "appearanceColor", "glassToggle", "sideBarContainer", "scaleLabel", "scaleSlider", "animToggle", "wallpaperGrid", "wallpaperGridOuter", "hiDpiToggle", "_background", "_titleLabel", "_closeButton", "_collapseButton", "_titleHBox", "_titleBar", "_canvas", "_handlesContainer", "_layout", "_marginContainer", "_btnRow")]
+[node name="Options" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=2063126943 node_paths=PackedStringArray("_navButtons", "_pages", "bgColorPicker", "tintColorPicker", "modeOpt", "appearanceColor", "glassToggle", "sideBarContainer", "scaleLabel", "scaleSlider", "animToggle", "wallpaperGrid", "wallpaperGridOuter", "hiDpiToggle")]
 visible = false
+top_level = true
+visibility_layer = 3
 clip_contents = true
 custom_minimum_size = Vector2(200, 100)
 layout_mode = 0
@@ -3593,21 +1457,9 @@ sideBarContainer = NodePath("Layout/MarginContainer/ContentRoot/Options/SidebarB
 scaleLabel = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer/ScaleLabel")
 scaleSlider = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer/ScaleSlider")
 animToggle = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/AnimToggle")
-wallpaperGrid = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid")
+wallpaperGrid = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid")
 wallpaperGridOuter = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter")
 hiDpiToggle = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin2/SettingsRow/_CheckButton_198")
-DefaultSize = Vector2(660, 440)
-_background = NodePath("Background")
-_titleLabel = NodePath("Layout/TitleBar/TitleHBox/TitleLabel")
-_closeButton = NodePath("Layout/TitleBar/TitleHBox/Button Row/CloseButton")
-_collapseButton = NodePath("Layout/TitleBar/TitleHBox/Button Row/CollapseButton")
-_titleHBox = NodePath("Layout/TitleBar/TitleHBox")
-_titleBar = NodePath("Layout/TitleBar")
-_canvas = NodePath("..")
-_handlesContainer = NodePath("ResizeHandles")
-_layout = NodePath("Layout")
-_marginContainer = NodePath("Layout/MarginContainer")
-_btnRow = NodePath("Layout/TitleBar/TitleHBox/Button Row")
 
 [node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Options" unique_id=8366700]
 material = ExtResource("13_sq7yr")
@@ -3618,51 +1470,9 @@ theme_override_styles/panel = ExtResource("7_qwhpj")
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" type="Panel" parent="OS/MainCanvas/Canvas/Options/Layout" unique_id=72827507]
-custom_minimum_size = Vector2(0, 28)
+[node name="TitleBar" parent="OS/MainCanvas/Canvas/Options/Layout" unique_id=698973341 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
-mouse_behavior_recursive = 2
-theme_override_styles/panel = ExtResource("13_lci31")
-
-[node name="TitleHBox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/TitleBar" unique_id=6011352]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="Button Row" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/TitleBar/TitleHBox" unique_id=533286837]
-custom_minimum_size = Vector2(56, 0)
-layout_mode = 2
-
-[node name="VSeparator" type="VSeparator" parent="OS/MainCanvas/Canvas/Options/Layout/TitleBar/TitleHBox/Button Row" unique_id=973444747]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("12_3dlgs")
-
-[node name="CloseButton" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/TitleBar/TitleHBox/Button Row" unique_id=1703068384]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 15
-text = "x"
-
-[node name="CollapseButton" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/TitleBar/TitleHBox/Button Row" unique_id=535560806]
-layout_mode = 2
-theme = ExtResource("8_blcw0")
-theme_override_font_sizes/font_size = 14
-text = "△"
-
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/TitleBar/TitleHBox" unique_id=1049887780]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_font_sizes/font_size = 13
-text = "Options"
-vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
+Title = "Options"
 
 [node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout" unique_id=1514092841]
 layout_mode = 2
@@ -3977,28 +1787,38 @@ theme_override_font_sizes/font_size = 13
 text = "Wallpapers"
 vertical_alignment = 1
 
-[node name="WallpaperGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow" unique_id=249292913]
+[node name="WallpaperScrollContainer" type="ScrollContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow" unique_id=1901194651]
+custom_minimum_size = Vector2(300, 90)
 layout_mode = 2
+theme_override_constants/scrollbar_v_separation = 8
+horizontal_scroll_mode = 4
+vertical_scroll_mode = 0
+scroll_hint_mode = 1
+
+[node name="WallpaperGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer" unique_id=249292913]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 4
 
-[node name="PanelContainer" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid" unique_id=1917411577]
+[node name="PanelContainer" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid" unique_id=1917411577]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_vte5o")
 
-[node name="_PanelContainer_219" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid/PanelContainer" unique_id=1695522634]
+[node name="_PanelContainer_219" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/PanelContainer" unique_id=1695522634]
 clip_children = 2
 clip_contents = true
 custom_minimum_size = Vector2(92, 72)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_ttwx7")
 
-[node name="TextureRect" type="TextureRect" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid/PanelContainer/_PanelContainer_219" unique_id=988656805]
+[node name="TextureRect" type="TextureRect" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/PanelContainer/_PanelContainer_219" unique_id=988656805]
 layout_mode = 2
 expand_mode = 3
 
-[node name="_Button_218" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid/PanelContainer/_PanelContainer_219" unique_id=2112106137]
+[node name="_Button_218" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/PanelContainer/_PanelContainer_219" unique_id=2112106137]
 clip_children = 2
 clip_contents = true
 layout_mode = 2
@@ -4008,13 +1828,13 @@ clip_text = true
 icon_alignment = 1
 expand_icon = true
 
-[node name="_PanelContainer_221" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid" unique_id=1862511836]
+[node name="_PanelContainer_221" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid" unique_id=1862511836]
 clip_contents = true
 custom_minimum_size = Vector2(92, 72)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_6p5ma")
 
-[node name="_Button_220" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid/_PanelContainer_221" unique_id=773664917]
+[node name="_Button_220" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/_PanelContainer_221" unique_id=773664917]
 clip_children = 2
 clip_contents = true
 layout_mode = 2
@@ -4464,94 +2284,8 @@ layout_mode = 2
 focus_mode = 0
 button_pressed = true
 
-[node name="ResizeHandles" type="Control" parent="OS/MainCanvas/Canvas/Options" unique_id=1898591600]
+[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Options" unique_id=634369761 instance=ExtResource("17_obcww")]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-mouse_filter = 2
-metadata/_edit_lock_ = true
-
-[node name="HandleLeft" type="Control" parent="OS/MainCanvas/Canvas/Options/ResizeHandles" unique_id=925219907]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 9
-anchor_bottom = 1.0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-metadata/_edit_lock_ = true
-
-[node name="HandleRight" type="Control" parent="OS/MainCanvas/Canvas/Options/ResizeHandles" unique_id=1239413494]
-custom_minimum_size = Vector2(6, 0)
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-metadata/_edit_lock_ = true
-
-[node name="HandleTop" type="Control" parent="OS/MainCanvas/Canvas/Options/ResizeHandles" unique_id=1449009311]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-grow_horizontal = 2
-mouse_default_cursor_shape = 9
-metadata/_edit_lock_ = true
-
-[node name="HandleBottom" type="Control" parent="OS/MainCanvas/Canvas/Options/ResizeHandles" unique_id=578151751]
-custom_minimum_size = Vector2(0, 6)
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_default_cursor_shape = 9
-metadata/_edit_lock_ = true
-
-[node name="HandleTopLeft" type="Control" parent="OS/MainCanvas/Canvas/Options/ResizeHandles" unique_id=1348446650]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 0
-mouse_default_cursor_shape = 12
-metadata/_edit_lock_ = true
-
-[node name="HandleTopRight" type="Control" parent="OS/MainCanvas/Canvas/Options/ResizeHandles" unique_id=1374637603]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-grow_horizontal = 0
-mouse_default_cursor_shape = 11
-metadata/_edit_lock_ = true
-
-[node name="HandleBottomLeft" type="Control" parent="OS/MainCanvas/Canvas/Options/ResizeHandles" unique_id=1739411982]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-grow_vertical = 0
-mouse_default_cursor_shape = 11
-metadata/_edit_lock_ = true
-
-[node name="HandleBottomRight" type="Control" parent="OS/MainCanvas/Canvas/Options/ResizeHandles" unique_id=548351129]
-custom_minimum_size = Vector2(6, 6)
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 0
-grow_vertical = 0
-mouse_default_cursor_shape = 12
-metadata/_edit_lock_ = true
 
 [node name="FileDialog" type="FileDialog" parent="OS/MainCanvas/Canvas" unique_id=957215295]
 disable_3d = true
