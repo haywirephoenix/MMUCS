@@ -7,43 +7,53 @@ using Godot;
 
 public static class ScummBackgroundCache
 {
-    private static readonly Dictionary<int, IndexedSurface> RamCache = new();
+    public readonly struct BackgroundResult(IndexedSurface surface, byte[] paletteBytes, Image executedImage = null)
+    {
+        public IndexedSurface Surface { get; } = surface;
+        public byte[] PaletteBytes { get; } = paletteBytes;
+        public Image ExecutedImage { get; } = executedImage;
+    }
     
     private const string bgCachePath = "user://bgcache/";
+    
+    private static readonly Dictionary<int, BackgroundResult> RamCache = new();
+    private const int HeaderSize = 12;
     public static string GetBackgroundCachePath(int roomId)
     {
         string godotFilePath = $"{bgCachePath}room_{roomId}.bin";
         return FileUtils.GetOrCreatePath(godotFilePath);
     }
 
-    private const int HeaderSize = 12;
     
-    public static async Task<IndexedSurface> GetCachedBackgroundAsync(
-        int roomId, 
-        ScummBlock rmhd,
-        ScummBlock room,
-        bool cacheDisabled,
-        CancellationToken token)
+    public static async Task<BackgroundResult> GetCachedBackgroundAsync(
+    int roomId, 
+    ScummBlock rmhd,
+    ScummBlock room,
+    bool cacheDisabled,
+    int paletteIndex,
+    CancellationToken token)
     {
-        if (!cacheDisabled && RamCache.TryGetValue(roomId, out var surface))
+        if (!cacheDisabled && RamCache.TryGetValue(roomId, out var cachedResult))
         {
-            return surface;
+            var (paletteBytes, outImage) = RoomDecoders.ResolveImageAndPalette(room, rmhd, cachedResult.Surface, paletteIndex);
+            return new BackgroundResult(cachedResult.Surface, paletteBytes, outImage);
         }
 
-        surface = await Task.Run(() =>
+        var result = await Task.Run(() =>
         {
-            if (token.IsCancellationRequested) return null;
+            if (token.IsCancellationRequested) return default;
             string path = GetBackgroundCachePath(roomId);
-
+            
             if (!cacheDisabled && TryLoadIndexedBackground(path, out var diskSurface))
             {
-                return diskSurface;
+                var (paletteBytes, outImage) = RoomDecoders.ResolveImageAndPalette(room, rmhd, diskSurface, paletteIndex);
+                return new BackgroundResult(diskSurface, paletteBytes, outImage);
             }
 
-            if (token.IsCancellationRequested) return null;
+            if (token.IsCancellationRequested) return default;
             
-            if (ScummDecoders.DecodeBackgroundImage(roomId, rmhd, room, token, 
-                out Image _, out byte[] rawBuffer, out int pitch))
+            if (RoomDecoders.DecodeBackgroundImage(roomId, rmhd, room, paletteIndex, token, 
+                out Image backgroundImage, out byte[] rawBuffer, out int pitch, out ReadOnlySpan<byte> roomPalette, generateImage: true))
             {
                 int width = (int)rmhd.GetMetadataItem(ScummMeta.RMHD.width);
                 int height = (int)rmhd.GetMetadataItem(ScummMeta.RMHD.height);
@@ -55,22 +65,21 @@ public static class ScummBackgroundCache
                     Pitch = pitch,
                     Pixels = rawBuffer
                 };
-
+                
                 if (!cacheDisabled && !token.IsCancellationRequested)
                     SaveIndexedBackground(path, freshlyDecoded);
                 
-                return freshlyDecoded;
+                return new BackgroundResult(freshlyDecoded, roomPalette.ToArray(), backgroundImage);
             }
 
-            return null;
+            return default;
         }, token);
+        
+        if (result.Surface != null && !cacheDisabled && !token.IsCancellationRequested)
+            RamCache[roomId] = result;
 
-        if (surface != null && !cacheDisabled && !token.IsCancellationRequested)
-            RamCache[roomId] = surface;
-
-        return surface;
+        return result;
     }
-    
     private static void SaveIndexedBackground(string cachePath, IndexedSurface surface)
     {
         try
