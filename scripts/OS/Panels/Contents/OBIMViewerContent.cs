@@ -272,19 +272,44 @@ public partial class OBIMViewerContent  : Control
 
         try
         {
-            var decodeResult = await Task.Run(() =>
-            {
-                if (ScummDecoders.TryDecodeObimFrame(objectBlock, token, frameIndex, _selectedPaletteIndex, out var r))
-                    return (OBIMDecoders.ObimDecodeResult?)r;
-                return null;
-            }, token);
+            var result = await ObimCache.GetCachedObimAsync(
+                objectBlock, 
+                frameIndex, 
+                _paletteSlider.CurrentIndex, 
+                bakeImage: true, 
+                token);
 
-            if (!token.IsCancellationRequested && decodeResult.HasValue)
+            if (!token.IsCancellationRequested && result.Surface != null)
             {
-                ResolvedColors = decodeResult.Value.ResolvedPalette;
+                ResolvedColors = result.ResolvedPalette;
                 _PopulatePalette();
-                SetOBIMTexture(decodeResult.Value.Image);
+                SetOBIMTexture(result.ExecutedImage);
             }
+        }
+        catch (OperationCanceledException) { }
+    }
+    
+    private void ClearPallette()
+    {
+        foreach (Node child in _paletteGrid.GetChildren()) child.QueueFree();
+    }
+    
+    private void _PopulatePalette()
+    {
+        ClearPallette();
+        if (ResolvedColors == null) return;
+
+        for (int i = 0; i < ResolvedColors.Length; i++)
+        {
+            
+            Color c = ResolvedColors[i];
+
+            var swatch = new ColorRect();
+            swatch.Color = c;
+            swatch.CustomMinimumSize = new Vector2(paletteSwatchSize, paletteSwatchSize);
+            
+            swatch.TooltipText = $"Global Index: {i}\nColor: {c}";
+            _paletteGrid.AddChild(swatch);
         }
         catch (OperationCanceledException) { }
     }
