@@ -109,51 +109,58 @@ public partial class OptionsPanel : FloatingPanel
     [Export] public CheckButton hiDpiToggle;
 
     private const string s_optionsPath = "Layout/MarginContainer/ContentRoot/Options";
-    private const string s_stackPath = s_optionsPath+"/ContentBackground/ContentScroll/ContentPageStack/Stack";
-    private const string s_sidebarPath = s_optionsPath+"/SidebarBackground/SideBar";
-    
-    private static readonly NodePath PathColorPickerButton197 = s_stackPath+"/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/BGColorPickerOuter/ColorPickerRow/_ColorPickerButton_197";
-    private static readonly NodePath PathOptionButton194 = s_stackPath+"/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpaperModeOuter/WallpaperModeRow/_OptionButton_194";
-    private static readonly NodePath PathBGColorPickerOuter = s_stackPath+"/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/BGColorPickerOuter";
-    private static readonly NodePath PathGlassCheckButton = s_stackPath+"/AppearancePage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/_CheckButton_198";
-    private static readonly NodePath PathSideBar = s_sidebarPath;
-    private static readonly NodePath PathScaleLabel = s_stackPath+"/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer/ScaleLabel";
-    private static readonly NodePath PathScaleSlider = s_stackPath+"/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer/ScaleSlider";
-    private static readonly NodePath PathAnimToggle = s_stackPath+"/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/AnimToggle";
-    private static readonly NodePath PathWallpaperGrid = s_stackPath+"/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperGrid";
-    private static readonly NodePath PathWallpapersGridOuter = s_stackPath+"/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter";
-    
-    private static readonly NodePath PathAppearanceNavButton = s_sidebarPath+"/AppearanceNavButton";
-    private static readonly NodePath PathDisplayNavButton = s_sidebarPath+"/DisplayNavButton";
-    private static readonly NodePath PathFontsNavButton = s_sidebarPath+"/FontsNavButton";
-    private static readonly NodePath PathGeneralNavButton = s_sidebarPath+"/GeneralNavButton";
-    
-    private static readonly NodePath PathAppearancePage = s_stackPath+"/AppearancePage";
-    private static readonly NodePath PathDisplayPage = s_stackPath+"/DisplayPage";
-    private static readonly NodePath PathFontsPage = s_stackPath+"/FontsPage";
-    private static readonly NodePath PathGeneralPage = s_stackPath+"/GeneralPage";
+    private const string s_stackPath = s_optionsPath + "/ContentBackground/ContentScroll/ContentPageStack/Stack";
+    private const string s_sidebarPath = s_optionsPath + "/SidebarBackground/SideBar";
 
-  
+    // Sub-Branch Common Paths
+    private const string s_appearanceRows = s_stackPath + "/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows";
+    private const string s_displayRows    = s_stackPath + "/DisplayPage/SectionCard/SectionPanel/Rows";
+    private const string s_generalRows    = s_stackPath + "/GeneralPage/SectionCard/SectionPanel/Rows";
 
-    private void UpdateUIState()
-    {
-        glassToggle.SetPressedNoSignal(AppSettings.GlassEnabled);
-        hiDpiToggle.SetPressedNoSignal(AppSettings.HiDPIEnabled);
-        // resOpt.Selected
-        bgColorPicker.Color = AppSettings.WallpaperColor;
-        tintColorPicker.Color = AppSettings.GlassTintColor;
-        modeOpt.Selected = (int)AppSettings.WallpaperMode;
-        scaleSlider.Value = AppSettings.GuiScale;
-        UpdateScaleLabelText(AppSettings.GuiScale);
-        
-        // bool isColor = AppSettings.WallpaperMode == Consts.WallPaperModeEnum.Color;
-        // glassToggle.Disabled = isColor;
-        
-        OnWallpaperModeChanged((int)ConfigManager.AppSettings.WallpaperMode);
-    }
+    // Component Paths
+    private static readonly NodePath PathColorPickerButton197 = s_appearanceRows + "/BGColorPickerOuter/ColorPickerRow/_ColorPickerButton_197";
+    private static readonly NodePath PathTintColorPicker      = s_appearanceRows + "/WindowTintColorPickerOuter/ColorPickerRow/_ColorPickerButton_197";
+    private static readonly NodePath PathOptionButton194       = s_appearanceRows + "/WallpaperModeOuter/WallpaperModeRow/_OptionButton_194";
+    private static readonly NodePath PathBGColorPickerOuter   = s_appearanceRows + "/BGColorPickerOuter";
+    private static readonly NodePath PathWallpaperGrid        = s_appearanceRows + "/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid";
+    private static readonly NodePath PathWallpapersGridOuter  = s_appearanceRows + "/WallpapersGridOuter";
+    
+    private static readonly NodePath PathSideBar              = s_sidebarPath;
+    
+    private static readonly NodePath PathGlassCheckButton     = s_stackPath + "/AppearancePage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/_CheckButton_198";
+    private static readonly NodePath PathHiDpiToggle          = s_displayRows + "/SettingsRowMargin2/SettingsRow/_CheckButton_198";
+    
+    private static readonly NodePath PathScaleLabel           = s_displayRows + "/_MarginContainer_207/SettingsRow/ScaleContainer/ScaleLabel";
+    private static readonly NodePath PathScaleSlider           = s_displayRows + "/_MarginContainer_207/SettingsRow/ScaleContainer/ScaleSlider";
+    
+    private static readonly NodePath PathAnimToggle           = s_generalRows + "/SettingsRowMargin/SettingsRow/AnimToggle";
+
+    // Navigation & Page Paths
+    private static readonly NodePath PathAppearanceNavButton = s_sidebarPath + "/AppearanceNavButton";
+    private static readonly NodePath PathDisplayNavButton    = s_sidebarPath + "/DisplayNavButton";
+    private static readonly NodePath PathFontsNavButton      = s_sidebarPath + "/FontsNavButton";
+    private static readonly NodePath PathGeneralNavButton    = s_sidebarPath + "/GeneralNavButton";
+
+    private static readonly NodePath PathAppearancePage = s_stackPath + "/AppearancePage";
+    private static readonly NodePath PathDisplayPage    = s_stackPath + "/DisplayPage";
+    private static readonly NodePath PathFontsPage      = s_stackPath + "/FontsPage";
+    private static readonly NodePath PathGeneralPage    = s_stackPath + "/GeneralPage";
 
     private void InitOptions()
     {
+        bgColorPicker      = GetNode<ColorPickerButton>(PathColorPickerButton197);
+        tintColorPicker    = GetNode<ColorPickerButton>(PathTintColorPicker);
+        modeOpt            = GetNode<OptionButton>(PathOptionButton194);
+        appearanceColor    = GetNode<MarginContainer>(PathBGColorPickerOuter);
+        glassToggle        = GetNode<CheckButton>(PathGlassCheckButton);
+        sideBarContainer   = GetNode<VBoxContainer>(PathSideBar);
+        scaleLabel         = GetNode<Label>(PathScaleLabel);
+        scaleSlider        = GetNode<HSlider>(PathScaleSlider);
+        animToggle         = GetNode<CheckButton>(PathAnimToggle);
+        wallpaperGrid      = GetNode<GridContainer>(PathWallpaperGrid);
+        wallpaperGridOuter = GetNode<Control>(PathWallpapersGridOuter);
+        hiDpiToggle        = GetNode<CheckButton>(PathHiDpiToggle);
+        
         _navButtons =
         [
             GetNode<Button>(PathAppearanceNavButton),
@@ -188,7 +195,7 @@ public partial class OptionsPanel : FloatingPanel
         EventBus.Instance.Connect(EventBus.SignalName.WallpaperModeApplied,
             Callable.From<int>(OnWallpaperModeChanged));
         
-        EventBus.Instance.Connect(EventBus.SignalName.UIScaleChangedCompleted, Callable.From(OnScaleChangeCompleted));
+        // EventBus.Instance.Connect(EventBus.SignalName.UIScaleChangedCompleted, Callable.From(OnScaleChangedCompleted));
 
         foreach (var (btn, index) in _navButtons.Select((b, i) => (b, i)))
             btn.Connect(BaseButton.SignalName.Pressed, Callable.From(() => SelectPage(index)));
@@ -197,6 +204,23 @@ public partial class OptionsPanel : FloatingPanel
         SelectPage(0);
         Visible = false;
         _optionsInitialized = true;
+    }
+    
+    private void UpdateUIState()
+    {
+        glassToggle.SetPressedNoSignal(AppSettings.GlassEnabled);
+        hiDpiToggle.SetPressedNoSignal(AppSettings.HiDPIEnabled);
+        // resOpt.Selected
+        bgColorPicker.Color = AppSettings.WallpaperColor;
+        tintColorPicker.Color = AppSettings.GlassTintColor;
+        modeOpt.Selected = (int)AppSettings.WallpaperMode;
+        scaleSlider.Value = AppSettings.GuiScale;
+        UpdateScaleLabelText(AppSettings.GuiScale);
+        
+        // bool isColor = AppSettings.WallpaperMode == Consts.WallPaperModeEnum.Color;
+        // glassToggle.Disabled = isColor;
+        
+        OnWallpaperModeChanged((int)ConfigManager.AppSettings.WallpaperMode);
     }
     private void TintColorPickerOnColorChanged(Color color)
     {
@@ -229,10 +253,12 @@ public partial class OptionsPanel : FloatingPanel
             EventBus.Instance.EmitSignal(EventBus.SignalName.UIScaleChangeRequested, (float)scaleSlider.Value);
     }
     
-    private void OnScaleChangeCompleted()
+    protected override void OnScaleChangedCompleted()
     {
-        SetCentered();
+        ConfigManager.ResetPanelLayouts();
         WindowManager.ResetWindowLayout();
+        SetCentered();
+        MoveToFront();
     }
 
     private void OnWallpaperModeChanged(int newModeIndex)
