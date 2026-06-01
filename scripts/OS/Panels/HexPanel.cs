@@ -13,6 +13,8 @@ public partial class HexPanel : FloatingPanel
     [Export] public HScrollBar _hScroll;
     [Export] public VScrollBar _vScroll;
     [Export] public PopupMenu _editMenu;
+    [Export] public HSplitContainer _hSplit;
+
 
     private ScummBlock currentBlock;
     private StringBuilder offsetBb = new();
@@ -22,7 +24,7 @@ public partial class HexPanel : FloatingPanel
     private int _highlightLength;
     private int _scrollOffset;
 
-    private const int BytesPerRow = 16;
+    private int _bytesPerRow = 16;
     private const int RowHeight = 18;
 
     private const string s_codeTagStart = "[code]";
@@ -44,12 +46,27 @@ public partial class HexPanel : FloatingPanel
     private const char s_dot = '.';
     private const char s_newline = '\n';
 
-    private static readonly NodePath PathEditMenu = "Layout/MarginContainer/ContentRoot/MenuBar/Edit";
-    private static readonly NodePath PathAsciiView = "Layout/MarginContainer/ContentRoot/Container/hbox/HSplit/asciiView";
-    private static readonly NodePath PathOffsetView = "Layout/MarginContainer/ContentRoot/Container/hbox/HSplit/offsetView";
-    private static readonly NodePath PathhexView = "Layout/MarginContainer/ContentRoot/Container/hbox/HSplit/hexView";
-    private static readonly NodePath PathOffsetLabel = "Layout/MarginContainer/ContentRoot/Container/MarginContainer/OffsetLabel";
-    private static readonly NodePath PathvScroll = "Layout/MarginContainer/ContentRoot/Container/hbox/vScroll";
+    private const string s_contentRootPath = "Layout/MarginContainer/ContentRoot";
+    private const string s_containerPath = s_contentRootPath + "/Container";
+
+    private static readonly NodePath PathEditMenu = s_contentRootPath + "/MenuBar/Edit";
+    
+    private static readonly NodePath PathOffsetLabel = s_contentRootPath + "/MenuBar/OffsetLabel";
+    private static readonly NodePath PathAsciiView = s_containerPath + "/hbox/HSplit/asciiView";
+    private static readonly NodePath PathOffsetView = s_containerPath + "/hbox/HSplit/offsetView";
+    private static readonly NodePath PathhexView = s_containerPath + "/hbox/HSplit/hexView";
+    private static readonly NodePath PathvScroll = s_containerPath + "/hbox/vScroll";
+    private static readonly NodePath PathHSplit= s_containerPath + "/hbox/HSplit";
+    
+    public override void _Notification(int what)
+    {
+        base._Notification(what);
+
+        if (what == NotificationResized)
+        {
+            UpdateBytesPerRowBasedOnWidth();
+        }
+    }
 
     protected override void OnReady()
     {
@@ -58,6 +75,12 @@ public partial class HexPanel : FloatingPanel
         _asciiView.GuiInput += _OnAsciiInput;
         _vScroll.ValueChanged += _OnScroll;
         _editMenu.IdPressed += EditMenuOnIdPressed;
+        _hSplit.Resized += UpdateBytesPerRowBasedOnWidth;
+        // _hSplit.Dragged += HSplitOnDragged;
+    }
+    private void HSplitOnDragged(long offset)
+    {
+        UpdateBytesPerRowBasedOnWidth();
     }
     private void EditMenuOnIdPressed(long id)
     {
@@ -113,7 +136,7 @@ public partial class HexPanel : FloatingPanel
         {
             sb.Append(data[i].ToString(s_X2)).Append(' ');
 
-            int col = i % BytesPerRow;
+            int col = i % _bytesPerRow;
             if (col == 7)
             {
                 sb.Append(' ');
@@ -129,10 +152,10 @@ public partial class HexPanel : FloatingPanel
 
     private void CopyOffsets(ReadOnlySpan<byte> data,StringBuilder sb)
     {
-        int totalRows = (data.Length + BytesPerRow - 1) / BytesPerRow;
+        int totalRows = (data.Length + _bytesPerRow - 1) / _bytesPerRow;
         for (int row = 0; row < totalRows; row++)
         {
-            sb.Append($"{(row * BytesPerRow):X8}\n");
+            sb.Append($"{(row * _bytesPerRow):X8}\n");
         }
         
         StatusBar.SetStatus("All offsets copied to clipboard.");
@@ -147,7 +170,7 @@ public partial class HexPanel : FloatingPanel
             char ascii = (b >= 32 && b < 127) ? (char)b : s_dot;
             sb.Append(ascii);
 
-            if ((i + 1) % BytesPerRow == 0 && i < data.Length - 1)
+            if ((i + 1) % _bytesPerRow == 0 && i < data.Length - 1)
             {
                 sb.Append('\n');
             }
@@ -158,17 +181,17 @@ public partial class HexPanel : FloatingPanel
     
     private void CopyCombined(ReadOnlySpan<byte> data, StringBuilder sb)
     {
-        int totalRows = (data.Length + BytesPerRow - 1) / BytesPerRow;
+        int totalRows = (data.Length + _bytesPerRow - 1) / _bytesPerRow;
 
         for (int row = 0; row < totalRows; row++)
         {
-            int rowOffset = row * BytesPerRow;
+            int rowOffset = row * _bytesPerRow;
 
             sb.Append($"{rowOffset:X8}:  ");
 
             StringBuilder asciiRow = new();
 
-            for (int col = 0; col < BytesPerRow; col++)
+            for (int col = 0; col < _bytesPerRow; col++)
             {
                 int idx = rowOffset + col;
 
@@ -206,6 +229,7 @@ public partial class HexPanel : FloatingPanel
         _asciiView = GetNode<RichTextLabel>(PathAsciiView);
         _offsetLabel = GetNode<Label>(PathOffsetLabel);
         _vScroll = GetNode<VScrollBar>(PathvScroll);
+        _hSplit = GetNode<HSplitContainer>(PathHSplit);
     }
 
     protected override void _OnBlockSelected(ScummBlock block)
@@ -226,14 +250,14 @@ public partial class HexPanel : FloatingPanel
         _highlightStart = 0;
         _scrollOffset = 0;
 
-        _vScroll.MaxValue = (block.DataLength / BytesPerRow) * RowHeight;
+        _vScroll.MaxValue = (block.DataLength / _bytesPerRow) * RowHeight;
         _Render();
     }
 
     public void ScrollToOffset(int offset)
     {
         if (currentBlock.DataSpan == null) return;
-        var row = offset / BytesPerRow;
+        var row = offset / _bytesPerRow;
         _vScroll.Value = row * RowHeight;
     }
 
@@ -245,6 +269,7 @@ public partial class HexPanel : FloatingPanel
     }
     private void _Render()
     {
+        if(currentBlock == null) return;
         var _data = currentBlock.DataSpan;
         if (_data == null) return;
 
@@ -258,14 +283,14 @@ public partial class HexPanel : FloatingPanel
 
         int startRow = (int)(_vScroll.Value / RowHeight);
         int visibleRows = (int)(_marginContainer.Size.Y / RowHeight) + 2;
-        int endRow = Mathf.Min(startRow + visibleRows, (currentBlock.DataLength + BytesPerRow - 1) / BytesPerRow);
+        int endRow = Mathf.Min(startRow + visibleRows, (currentBlock.DataLength + _bytesPerRow - 1) / _bytesPerRow);
 
         for (int row = startRow; row < endRow; row++)
         {
-            int rowOffset = row * BytesPerRow;
+            int rowOffset = row * _bytesPerRow;
             offsetBb.Append($"{s_colorTagStart66}{rowOffset:X8}{s_colorTagEnd}\n");
 
-            for (int col = 0; col < BytesPerRow; col++)
+            for (int col = 0; col < _bytesPerRow; col++)
             {
                 int idx = rowOffset + col;
 
@@ -297,7 +322,14 @@ public partial class HexPanel : FloatingPanel
                         .Append(ascii).Append(s_colorTagEnd);
                 }
 
-                if (col == 7) hexBb.Append(s_space);
+                if (_bytesPerRow == 16 && col == 7) 
+                {
+                    hexBb.Append(s_space);
+                }
+                else if (_bytesPerRow == 8 && col == 3)
+                {
+                    hexBb.Append(s_space);
+                }
             }
 
             hexBb.Append(s_newline);
@@ -369,5 +401,42 @@ public partial class HexPanel : FloatingPanel
         string selected = label.GetSelectedText();
         DisplayServer.ClipboardSet(selected.TrimEnd());
         StatusBar.SetStatus("hex data copied to clipboard.");
+    }
+    
+    
+    private void UpdateBytesPerRowBasedOnWidth()
+    {
+        if (currentBlock == null || currentBlock.DataSpan == null) return;
+
+        float totalAvailableWidth = _marginContainer.Size.X; 
+        float charWidth = GetFontCharWidth(_hexView);
+        int separation = _hSplit.GetThemeConstant("separation"); 
+    
+        float widthNeededFor16 = (73 * charWidth) + (separation * 2);
+        float widthNeededFor8  = (40 * charWidth) + (separation * 2);
+
+        int targetBytes = 16;
+        if (totalAvailableWidth >= widthNeededFor16)
+            targetBytes = 16;
+        else if (totalAvailableWidth >= widthNeededFor8)
+            targetBytes = 8;
+        else
+            targetBytes = 4;
+
+        if (targetBytes != _bytesPerRow)
+        {
+            _bytesPerRow = targetBytes;
+            _vScroll.MaxValue = ((currentBlock.DataLength + _bytesPerRow - 1) / _bytesPerRow) * RowHeight;
+        }
+
+        _Render();
+    }
+    
+    private float GetFontCharWidth(RichTextLabel label)
+    {
+        Font font = label.GetThemeFont("normal_font");
+        int fontSize = label.GetThemeFontSize("normal_font_size");
+    
+        return font.GetStringSize("X", HorizontalAlignment.Left, -1, fontSize).X;
     }
 }
