@@ -11,7 +11,9 @@
   <a href="https://github.com/haywirephoenix/MMUCS/releases"> 
   <!-- <a href="https://github.com/haywirephoenix/MMUCS/issues"> <img alt="GitHub Issues" src="https://img.shields.io/github/issues/haywirephoenix/MMUCS?style=for-the-badge"> </a> -->
   <a href="https://github.com/haywirephoenix/MMUCS/blob/main/LICENSE"> <img alt="GitHub License" src="https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-orange?style=for-the-badge"></a>
-  <img alt="Download Latest Release" src="https://img.shields.io/github/v/release/haywirephoenix/MMUCS?include_prereleases&label=Download&style=for-the-badge&color=brightgreen">
+  <a href="https://github.com/haywirephoenix/MMUCS/releases/latest">
+  <img alt="Download Latest Release" src="https://img.shields.io/github/v/release/haywirephoenix/MMUCS?include_prereleases&label=Download&style=for-the-badge&color=brightgreen"/>
+</a>
 </a>
 </p>
 
@@ -61,8 +63,9 @@ As a result, it will most likely not work as expected with other SCUMM games out
 
 Download the latest release here :
 
-<img alt="Download Latest Release" src="https://img.shields.io/github/v/release/haywirephoenix/MMUCS?include_prereleases&label=Download&style=for-the-badge&color=brightgreen"/></p>
-
+<a href="https://github.com/haywirephoenix/MMUCS/releases/latest">
+  <img alt="Download Latest Release" src="https://img.shields.io/github/v/release/haywirephoenix/MMUCS?include_prereleases&label=Download&style=for-the-badge&color=brightgreen"/>
+</a>
 
 ---
 
@@ -101,13 +104,14 @@ Please let me know if I missed any decoding formats in Scumm V8 - feel free to a
 ## Todo/Ideas
 
 - Add export functionality - decoding is done.
-- Add OBIM decoding and display in Room panel
-- Add hotspots etc to Room panel
-- Update UI config - not all settings persist yet, new config changes pedning
-- Improve UI flow and reliability = window size and position can be stored, it's disabled for this release
+- ~~Add OBIM decoding and display in Room panel~~
+- Add hotspots etc to Room panel  
+- ~~Update UI config - not all settings persist yet~~
+- ~~Improve UI flow and reliability~~ 
+- ~~Window size and position can be stored~~
 - Unify base window into own scene, and make each window type a variant
-- Maybe make Akos animations playable - instructions are decoded
-- Add more wallpapers
+- Maybe make Akos animations playable - instructions are decoded  
+- ~~Add more wallpapers~~
 - Script decoder
 - SCUMM Runner
 
