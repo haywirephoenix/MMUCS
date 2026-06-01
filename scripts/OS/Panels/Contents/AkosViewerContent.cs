@@ -518,20 +518,20 @@ public partial class AkosViewerContent : Control
 
         try
         {
-            var surface = await AkosCelCache.GetCachedCelAsync(_akos, capturedIndex, token);
-            if (surface == null || token.IsCancellationRequested) return;
+            var result = await AkosCelCache.GetCachedCelAsync(_akos, capturedIndex, bakeImages: true, token);
+            if (result.Surface == null || token.IsCancellationRequested) return;
 
-            var dataImage = (CurrentViewMode != ViewMode.Raw)
-                ? IndexedRenderer.CreateDataImage(surface, _akos)
-                : IndexedRenderer.CreateImage(surface, _akos);
+            if (_selectedCelIndex != capturedIndex) return;
+            
+            Image displayImage = (CurrentViewMode != ViewMode.Raw)
+                ? result.ShaderDataImage
+                : result.FinalProcessedImage;
 
-            if (_selectedCelIndex == capturedIndex)
-            {
-                _celPreview.Texture = ImageTexture.CreateFromImage(dataImage);
-                UpdateUI();
-
-                _PopulatePalette();
-            }
+            if (displayImage != null)
+                _celPreview.Texture = ImageTexture.CreateFromImage(displayImage);
+                
+            UpdateUI();
+            _PopulatePalette();
         }
         catch (OperationCanceledException) { }
     }

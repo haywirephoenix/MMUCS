@@ -6,6 +6,13 @@ using Godot;
 
 public static class AkosCelCache
 {
+    public readonly struct CelResult(IndexedSurface surface, Image shaderDataImage = null, Image finalProcessedImage = null)
+    {
+        public IndexedSurface Surface { get; } = surface;
+        public Image ShaderDataImage { get; } = shaderDataImage;
+        public Image FinalProcessedImage { get; } = finalProcessedImage;
+    }
+    
     private const int HeaderSize = 12;
     private const string akosCachePath = "user://akoscache/";
     
@@ -15,29 +22,32 @@ public static class AkosCelCache
         return FileUtils.GetOrCreatePath(godotFilePath); 
     }
     
-    public static async Task<IndexedSurface> GetCachedCelAsync(AkosData akos, int index, CancellationToken token)
+    public static async Task<CelResult> GetCachedCelAsync(
+        AkosData akos, 
+        int index, 
+        bool bakeImages,
+        CancellationToken token)
     {
-        long key = AkosCelCache.BuildCelCacheKey(akos, index);
+        long key = BuildCelCacheKey(akos, index);
 
-        if (akos.DecodedCels.TryGetValue(key, out var surface))
+        if (akos.DecodedCels.TryGetValue(key, out var cachedSurface))
         {
-            return surface;
+            var (dataImg, finalImg) = ResolveCelImages(cachedSurface, akos, bakeImages);
+            return new CelResult(cachedSurface, dataImg, finalImg);
         }
 
-        surface = await Task.Run(() => 
+        var surface = await Task.Run(() => 
         {
             if (token.IsCancellationRequested) return null;
 
             string path = GetCelCachePath(key);
 
             if (TryLoad(path, out var diskSurface))
-            {
                 return diskSurface;
-            }
-            
+        
             if (token.IsCancellationRequested) return null;
+        
             var decodedSurface = AkosDecoders.DecodeCel(akos, index, token);
-
             if (decodedSurface != null && !token.IsCancellationRequested)
             {
                 Save(path, decodedSurface);
@@ -49,9 +59,28 @@ public static class AkosCelCache
         if (surface != null && !token.IsCancellationRequested)
         {
             akos.DecodedCels[key] = surface;
+            var (dataImg, finalImg) = ResolveCelImages(surface, akos, bakeImages);
+            return new CelResult(surface, dataImg, finalImg);
         }
 
-        return surface;
+        return default;
+    }
+
+    private static (Image shaderDataImg, Image finalImg) ResolveCelImages(
+        IndexedSurface surface, 
+        AkosData akos, 
+        bool bakeImages, 
+        CelExportConfig? config = null)
+    {
+        if (!bakeImages || surface == null) 
+            return (null, null);
+
+        Image shaderData = IndexedRenderer.CreateDataImage(surface, akos);
+    
+        CelExportConfig activeConfig = config ?? new CelExportConfig();
+        Image finalProcessed = IndexedRenderer.RenderWithConfig(shaderData, akos.ResolvedColors, activeConfig);
+
+        return (shaderData, finalProcessed);
     }
     
     public static long BuildCelCacheKey(

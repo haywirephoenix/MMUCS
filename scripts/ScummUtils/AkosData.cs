@@ -114,3 +114,12 @@ public struct AkosChoreStep()
 }
 
 public enum AkosStepKind { DrawSingle, DrawMany, Control, Empty, End }
+
+public struct CelExportConfig
+{
+    public bool AlphaEnabled { get; set; } = true;
+    public bool ShadowColorEnabled { get; set; } = true;
+    public float ShadowAmount { get; set; } = 0.4f;
+    public bool UseLinearFilter { get; set; } = false;
+    public CelExportConfig() {}
+}
