@@ -245,7 +245,7 @@ public partial class RoomViewerContent : Control
         _backgroundSprite.Texture = texture;
         _backgroundSprite.Centered = false;
         _backgroundSprite.Position = Vector2.Zero;
-        _backgroundSprite.TextureFilter = TextureFilterEnum.Nearest;
+        // _backgroundSprite.TextureFilter = TextureFilterEnum.Nearest;
         // _viewportContainer.CenterCameraOnTexture();
         if (wasForced)
         {
