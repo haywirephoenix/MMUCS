@@ -70,7 +70,9 @@ public partial class RoomViewerContent : Control
     private const string s_TogglesPath = "ContentRoot/_VBoxContainer_186/_HBoxContainer_187/";
     
 
-    private static readonly NodePath PathViewportContainer = s_HSplitContainerPath + "/ViewportContainer";
+    private static readonly NodePath PathOptionsMenu = "ContentRoot/_VBoxContainer_186/_HBoxContainer_187/MenuBar/Options";
+
+    private static readonly NodePath PathViewportContainer = s_HSplitContainerPath + "/PreviewWrapper/ViewportContainer";
     private static readonly NodePath PathObjectNamesList = s_HSplitContainerPath + "/ObjectNamesList";
     private static readonly NodePath PathSubViewport = s_SubViewportPath;
     private static readonly NodePath PathRoomRoot = s_RoomRootPath;
@@ -88,6 +90,40 @@ public partial class RoomViewerContent : Control
     private static readonly NodePath PathWalkboxesToggle = s_TogglesPath + "/WalkboxesToggle";
 
     private long selectedIdx = -1;
+    
+    public void AssignNodes()
+    {
+        _optionsMenu = GetNode<PopupMenu>(PathOptionsMenu); 
+        _previewContainer = GetNode<ZoomableViewport>(PathViewportContainer);
+        _objectNamesList = GetNode<ItemList>(PathObjectNamesList);
+        _viewport = GetNode<SubViewport>(PathSubViewport);
+        _roomRoot = GetNode<Node2D>(PathRoomRoot);
+        _backgroundSprite = GetNode<Sprite2D>(PathbackgroundSprite);
+        _hotspotLayer = GetNode<Node2D>(PathhotspotLayer);
+        _objectLayer = GetNode<Node2D>(PathobjectLayer);
+        _actorLayer = GetNode<Node2D>(PathactorLayer);
+        _boundsLayer = GetNode<Node2D>(PathBoundsLayer);
+        // _camera = GetNode<Camera2D>(PathroomCamera);
+        resetBtn = GetNode<Button>(PathResetButton);
+        
+        boundsToggle    = GetNode<Button>(PathBoundsToggle);
+        hotspotsToggle  = GetNode<Button>(PathHotspotsToggle);
+        objectsToggle   = GetNode<Button>(PathObjectsToggle);
+        actorsToggle    = GetNode<Button>(PathActorsToggle);
+        walkboxesToggle = GetNode<Button>(PathWalkboxesToggle);
+        paletteSlider   = GetNode<MSlider>(PathPaletteSlider);
+    }
+    
+    public override void _Notification(int what)
+    {
+        base._Notification(what);
+
+        if (what == NotificationResized)
+        {
+            _previewContainer?.ZoomToFitDeferred();
+        }
+    }
+    
 
     public void OnReady()
     {
@@ -113,8 +149,25 @@ public partial class RoomViewerContent : Control
         
         _objectLayer.Connect("draw", Callable.From(_DrawObjectLayer));
         _boundsLayer.Connect("draw", Callable.From(_DrawBoundsLayer));
+        
+        _optionsMenu.IdPressed += OptionsMenuOnIdPressed;
 
         // _hotspotLayer.Connect("draw", Callable.From(_DrawHotspotLayer));
+    }
+    private void OptionsMenuOnIdPressed(long id)
+    {
+        switch (id)
+        {
+            case 0: OnObjectsToggled(!_showObjects);  break;
+            case 1: ShowObjectsList(!_objectNamesList.Visible); break;
+        }
+        UpdateOptionsMenuState();
+    }
+
+    private void UpdateOptionsMenuState()
+    {
+        _optionsMenu.SetItemChecked(0, _showObjects);
+        _optionsMenu.SetItemChecked(1, _objectNamesList.Visible);
     }
 
     public void OnExit()
@@ -145,6 +198,11 @@ public partial class RoomViewerContent : Control
         _showObjects = v;
         _objectNamesList.Visible = v;
         _objectLayer.QueueRedraw();
+    }
+
+    private void ShowObjectsList(bool v)
+    {
+        _objectNamesList.Visible = v;
     }
 
     private void OnActorsToggled(bool v)
@@ -269,6 +327,9 @@ public partial class RoomViewerContent : Control
     public void OnBlockSelected(ScummBlock block)
     {
         if(!ParentPanel.IsOpen) return;
+
+        _showObjects = false;
+        UpdateOptionsMenuState();
         
         if (block == null) { OnRoomDeselected(); return; }
 
