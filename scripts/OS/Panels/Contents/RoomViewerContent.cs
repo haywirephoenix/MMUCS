@@ -9,7 +9,7 @@ public partial class RoomViewerContent : Control
     [Export] public FloatingPanel ParentPanel;
     [Export] public bool CacheDisabled {get{return _cacheDisabled;} set{ _cacheDisabled = value;}}
 
-    [Export] public ZoomableViewport _viewportContainer;
+    [Export] public ZoomableViewport _previewContainer;
     [Export] public SubViewport _viewport;
     [Export] public ItemList _objectNamesList;
     [Export] public Node2D _roomRoot;
@@ -36,7 +36,6 @@ public partial class RoomViewerContent : Control
     private ScummBlock _roomBlock;
     private ScummBlock _rmscBlock;
     private ScummBlock _rmhdBlock;
-    
     
     private float _zoom = 1.0f;
     private float _roomWidth = 10;
@@ -65,10 +64,10 @@ public partial class RoomViewerContent : Control
 
     private const string s_ContentRootPath = "ContentRoot";
     private const string s_HSplitContainerPath = "ContentRoot/_VBoxContainer_186/HSplitContainer";
-    private const string s_SubViewportPath = "ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport";
-    private const string s_RoomRootPath = "ContentRoot/_VBoxContainer_186/HSplitContainer/ViewportContainer/SubViewport/RoomRoot";
+    private const string s_SubViewportPath = "ContentRoot/_VBoxContainer_186/HSplitContainer/PreviewWrapper/ViewportContainer/SubViewport";
+    private const string s_RoomRootPath = "ContentRoot/_VBoxContainer_186/HSplitContainer/PreviewWrapper/ViewportContainer/SubViewport/RoomRoot";
     private const string s_TogglesPath = "ContentRoot/_VBoxContainer_186/_HBoxContainer_187/";
-    
+
 
     private static readonly NodePath PathOptionsMenu = "ContentRoot/_VBoxContainer_186/_HBoxContainer_187/MenuBar/Options";
 
@@ -88,6 +87,7 @@ public partial class RoomViewerContent : Control
     private static readonly NodePath PathObjectsToggle = s_TogglesPath + "/ObjectsToggle";
     private static readonly NodePath PathActorsToggle = s_TogglesPath + "/ActorsToggle";
     private static readonly NodePath PathWalkboxesToggle = s_TogglesPath + "/WalkboxesToggle";
+    private static readonly NodePath PathPaletteSlider = s_TogglesPath + "/PaletteSlider";
 
     private long selectedIdx = -1;
     
@@ -196,7 +196,6 @@ public partial class RoomViewerContent : Control
     private void OnObjectsToggled(bool v)
     {
         _showObjects = v;
-        _objectNamesList.Visible = v;
         _objectLayer.QueueRedraw();
     }
 
@@ -229,32 +228,8 @@ public partial class RoomViewerContent : Control
     }
     private void ResetBtnOnPressed()
     {
-        _viewportContainer.ZoomToFitDeferred();
+        _previewContainer.ZoomToFitDeferred();
     }
-
-    
-
-    public void AssignNodes()
-    {
-        _viewportContainer = GetNode<ZoomableViewport>(PathViewportContainer);
-        _objectNamesList = GetNode<ItemList>(PathObjectNamesList);
-        _viewport = GetNode<SubViewport>(PathSubViewport);
-        _roomRoot = GetNode<Node2D>(PathRoomRoot);
-        _backgroundSprite = GetNode<Sprite2D>(PathbackgroundSprite);
-        _hotspotLayer = GetNode<Node2D>(PathhotspotLayer);
-        _objectLayer = GetNode<Node2D>(PathobjectLayer);
-        _actorLayer = GetNode<Node2D>(PathactorLayer);
-        _boundsLayer = GetNode<Node2D>(PathBoundsLayer);
-        // _camera = GetNode<Camera2D>(PathroomCamera);
-        resetBtn = GetNode<Button>(PathResetButton);
-        
-        boundsToggle = GetNode<Button>(PathBoundsToggle);
-        hotspotsToggle = GetNode<Button>(PathHotspotsToggle);
-        objectsToggle = GetNode<Button>(PathObjectsToggle);
-        actorsToggle = GetNode<Button>(PathActorsToggle);
-        walkboxesToggle = GetNode<Button>(PathWalkboxesToggle);
-    }
-
    
     public void SetBackground(Image image)
     {
@@ -270,13 +245,14 @@ public partial class RoomViewerContent : Control
         _backgroundSprite.Texture = texture;
         _backgroundSprite.Centered = false;
         _backgroundSprite.Position = Vector2.Zero;
+        _backgroundSprite.TextureFilter = TextureFilterEnum.Nearest;
         // _viewportContainer.CenterCameraOnTexture();
         if (wasForced)
         {
             wasForced = false;
             return;
         }
-        _viewportContainer.ZoomToFitOnceDeferred();
+        _previewContainer.ZoomToFitOnceDeferred();
     }
 
    
@@ -392,7 +368,7 @@ public partial class RoomViewerContent : Control
         _objectLayer.QueueRedraw();
         _boundsLayer.QueueRedraw();
         QueueRedraw();
-        _viewportContainer.ResetHasFitOnce();
+        _previewContainer.ResetHasFitOnce();
     }
 
     private void ResetToggles()
@@ -421,17 +397,12 @@ public partial class RoomViewerContent : Control
     
     private async void GetBackgroundData()
     {
-        
         ClearObimTextures();
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
-        int roomId = _roomNo;
-        var rmhd = _rmhdBlock;
-        var room = _roomBlock;
-        
         if (_IsNoBGRoom())
         {
             SetBackground(null); 
@@ -441,17 +412,14 @@ public partial class RoomViewerContent : Control
 
         try
         {
-            var surface = await ScummBackgroundCache.GetCachedBackgroundAsync(
-                roomId, rmhd, room, CacheDisabled, token);
+            var result = await ScummBackgroundCache.GetCachedBackgroundAsync(
+                _roomNo, _rmhdBlock, _roomBlock, CacheDisabled, paletteSlider.CurrentIndex, token);
 
-            if (surface != null && !token.IsCancellationRequested)
+            if (token.IsCancellationRequested) return;
+
+            if (result.ExecutedImage != null)
             {
-                var apal = room.FindChildRecursive(ScummTag.APAL);
-                Image resultImage = ScummImageUtils.CreateGodotImage(
-                    surface.Pixels, surface.Width, surface.Height, surface.Pitch, apal.DataSpan);
-
-                SetBackground(resultImage);
-                // SelectObjectInList(0);
+                SetBackground(result.ExecutedImage);
                 LoadObimTextures(token);
             }
         }
@@ -465,7 +433,7 @@ public partial class RoomViewerContent : Control
         int obimIndex = 0;
         foreach (var child in _roomBlock.Children)
         {
-            if (child.Tag != ScummTag.OBIM) continue; // skip, don't increment
+            if (child.Tag != ScummTag.OBIM) continue; 
 
             bool hasImage = child.GetMetadataItem(ScummMeta.OBIM.imageCount, out Variant imgCount)
                 && (int)imgCount > 0;
@@ -473,19 +441,18 @@ public partial class RoomViewerContent : Control
             if (hasImage)
             {
                 int i = obimIndex;
-                var block = child;
-
-                var result = await Task.Run(() =>
-                {
-                    if (ScummDecoders.TryDecodeObimFrame(block, token, 0, 0, out var r))
-                        return (OBIMDecoders.ObimDecodeResult?)r;
-                    return null;
-                }, token);
+                
+                var result = await ObimCache.GetCachedObimAsync(
+                    child, 
+                    frameIndex: 0, 
+                    paletteSlider.CurrentIndex, 
+                    bakeImage: true, 
+                    token);
 
                 if (token.IsCancellationRequested) return;
 
-                _obimTextures[i] = result.HasValue
-                    ? ImageTexture.CreateFromImage(result.Value.Image)
+                _obimTextures[i] = (result.Surface != null && result.ExecutedImage != null)
+                    ? ImageTexture.CreateFromImage(result.ExecutedImage)
                     : null;
             }
             else
@@ -532,7 +499,7 @@ public partial class RoomViewerContent : Control
     private void ScaleRoomToViewport()
     {
         if(_rmhdBlock == null) return;
-        Vector2 containerSize = _viewportContainer.Size;
+        Vector2 containerSize = _previewContainer.Size;
         
         // var rmhd = _rmhdBlock;
         float roomW = _roomWidth;
@@ -585,7 +552,6 @@ public partial class RoomViewerContent : Control
             /* Rendering */
             if (_showObjects)
             {
-                // Texture lookup still uses raw data currentIndex (0-bound)
                 if (_obimTextures.TryGetValue(currentIndex, out var tex) && tex != null)
                 {
                     var size = tex.GetSize();

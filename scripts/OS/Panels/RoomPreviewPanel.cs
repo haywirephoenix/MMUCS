@@ -1,8 +1,4 @@
-using System;
 using Godot;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 /// <summary>
 /// Visual room preview. Renders background strips, overlays hotspot rects,
