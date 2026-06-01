@@ -14,6 +14,7 @@ public partial class BlockHierarchyPanel : FloatingPanel
     [Export] public VBoxContainer _Container;
     [Export] public CheckButton _roomNamesToggle;
     [Export] public CheckButton _objectNamesToggle;
+    [Export] public PopupMenu _optionsMenu;
 
     private readonly List<TreeItem> _lflfItems = new();
     private readonly List<TreeItem> _obimItems = new();
@@ -31,12 +32,14 @@ public partial class BlockHierarchyPanel : FloatingPanel
     private static readonly NodePath PathRoomNamesToggle = "Layout/MarginContainer/ContentRoot/Container/HBoxContainer/RoomNamesToggle";
     private static readonly NodePath PathObjectNamesToggle = "Layout/MarginContainer/ContentRoot/Container/HBoxContainer/ObjectNamesToggle";
     private static readonly NodePath PathTreeView = "Layout/MarginContainer/ContentRoot/Container/TreeView";
-    private static readonly NodePath PathSearchBox = "Layout/MarginContainer/ContentRoot/Container/SearchBox";
+    private static readonly NodePath PathOptionsMenu = "Layout/MarginContainer/ContentRoot/Container/MenuBar/Options";
+    private static readonly NodePath PathSearchBox = "Layout/MarginContainer/ContentRoot/Container/MenuBar/SearchBox";
 
 
     public override void AssignNodes()
     {
         base.AssignNodes();
+        _optionsMenu = GetNode<PopupMenu>(PathOptionsMenu);
         _mainCanvas = GetNode<MainCanvas>(PathMainCanvas);
         _roomNamesToggle = GetNode<CheckButton>(PathRoomNamesToggle);
         _objectNamesToggle = GetNode<CheckButton>(PathObjectNamesToggle);
@@ -63,7 +66,19 @@ public partial class BlockHierarchyPanel : FloatingPanel
         _tree.ItemSelected          += _OnItemSelected;
         _tree.GuiInput              += TreeOnGuiInput;
         _roomNamesToggle.Toggled    += OnRoomNamesToggled;
-        _objectNamesToggle.Toggled  += ObjectNamesToggleOnToggled;
+        _objectNamesToggle.Toggled  += OnObjectNamesToggled;
+        _optionsMenu.IdPressed      += OptionsMenuOnIdPressed;
+    }
+    private void OptionsMenuOnIdPressed(long id)
+    {
+        switch (id)
+        {
+            case 0: OnRoomNamesToggled(!showRoomNames); break;
+            case 1: OnObjectNamesToggled(!showObjectNames); break;
+        }
+        
+        _optionsMenu.SetItemChecked(0, showRoomNames);
+        _optionsMenu.SetItemChecked(1, showObjectNames);
     }
 
     protected override void OnExit()
@@ -73,10 +88,10 @@ public partial class BlockHierarchyPanel : FloatingPanel
         _tree.GuiInput              -= TreeOnGuiInput;
 
         _roomNamesToggle.Toggled    -= OnRoomNamesToggled;
-        _objectNamesToggle.Toggled  -= ObjectNamesToggleOnToggled;
+        _objectNamesToggle.Toggled  -= OnObjectNamesToggled;
     }
 
-    private void ObjectNamesToggleOnToggled(bool toggledOn)
+    private void OnObjectNamesToggled(bool toggledOn)
     {
         showObjectNames = toggledOn;
         ToggleTreeObjectNames(toggledOn);
