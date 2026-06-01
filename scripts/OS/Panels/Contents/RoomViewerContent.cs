@@ -49,6 +49,9 @@ public partial class RoomViewerContent : Control
 
     private Dictionary<string, Rect2> _hotspotRects = new();
     private string _selectedAssetId;
+    private Rect2? _currentSelectedObjectRect = null;
+    private Color _selectionColor = new Color(1, 1, 0, 1.0f);
+    private float _selectionThickness = 2.0f;
     
     private bool _IsNoBGRoom() => _roomNo == 3;
 
@@ -148,6 +151,7 @@ public partial class RoomViewerContent : Control
         resetBtn.Pressed += ResetBtnOnPressed;
         
         _objectLayer.Connect("draw", Callable.From(_DrawObjectLayer));
+        _hotspotLayer.Connect("draw", Callable.From(_DrawHotspotLayer));
         _boundsLayer.Connect("draw", Callable.From(_DrawBoundsLayer));
         
         _optionsMenu.IdPressed += OptionsMenuOnIdPressed;
@@ -225,6 +229,7 @@ public partial class RoomViewerContent : Control
     {
         selectedIdx = i;
         _objectLayer.QueueRedraw();
+        _boundsLayer.QueueRedraw();
     }
     private void ResetBtnOnPressed()
     {
@@ -440,12 +445,14 @@ public partial class RoomViewerContent : Control
 
             if (hasImage)
             {
+
+                ScummDecoders.TryGetObimInfo(child, out var info);
                 int i = obimIndex;
                 
                 var result = await ObimCache.GetCachedObimAsync(
                     child, 
                     frameIndex: 0, 
-                    paletteSlider.CurrentIndex, 
+                    info.DefaultPaletteIndex, 
                     bakeImage: true, 
                     token);
 
@@ -484,16 +491,18 @@ public partial class RoomViewerContent : Control
     
     private void _DrawBoundsLayer()
     {
-        if(!_showBounds) return;
-        if (_rmhdBlock == null) return;
-        // _viewportContainer.ZoomToFitDeferred();
-        // ScaleRoomToViewport();
-        // float rawW = (float)wVal;
-        // float rawH = (float)_rmhdBlock.Metadata["height"];
+        if (_showBounds && _rmhdBlock != null) 
+            _boundsLayer.DrawRect(new Rect2(Vector2.Zero, new Vector2(_roomWidth, _roomHeight)), Colors.Orange, false, 2.0f);
 
-                                    // Drawing in room-space
-        _boundsLayer.DrawRect(new Rect2(Vector2.Zero, new Vector2(_roomWidth, _roomHeight)), Colors.Orange, false, 2.0f);
-    
+        if (_currentSelectedObjectRect.HasValue)
+        {
+            _boundsLayer.DrawRect(
+                _currentSelectedObjectRect.Value, 
+                _selectionColor, 
+                false, 
+                _selectionThickness
+            );
+        }
     }
     
     private void ScaleRoomToViewport()
@@ -523,8 +532,9 @@ public partial class RoomViewerContent : Control
         if (_roomBlock == null) return;
 
         _objectNamesList.Clear();
-
         _objectNamesList.AddItem("None");
+
+        _currentSelectedObjectRect = null; 
 
         int currentIndex = 0;
         foreach (var child in _roomBlock.Children)
@@ -542,46 +552,39 @@ public partial class RoomViewerContent : Control
 
             var rect = new Rect2(x, y, w, h);
         
-            /* Selection */
             int visualUIIndex = currentIndex + 1; 
             bool isSelected = (visualUIIndex == selectedIdx);
-            
-            float borderThickness = isSelected ? 2.0f : 0f;
-            Color rectColor = isSelected ? new Color(1, 1, 0, 1.0f) : new Color(1, 1, 0, 0.0f);
-            
-            /* Rendering */
+        
+            if (isSelected)
+                _currentSelectedObjectRect = rect;
+        
             if (_showObjects)
             {
                 if (_obimTextures.TryGetValue(currentIndex, out var tex) && tex != null)
                 {
-                    var size = tex.GetSize();
-
-                    if (size == Vector2.Zero)
-                        size = new Vector2(w, h);
-
-                    if (size == Vector2.Zero)
-                        size = Vector2.One;
-                    
-                    _objectLayer.DrawTextureRect(
-                        tex,
-                        new Rect2(rect.Position, size), 
-                        false
-                    );
+                    bool canDraw = tex.GetWidth() < 640 || isSelected;
+                    if (canDraw)
+                    {
+                        var size = tex.GetSize() == Vector2.Zero ? new Vector2(w, h) : tex.GetSize();
+                        _objectLayer.DrawTextureRect(tex, new Rect2(rect.Position, size), false);
+                    }
                 }
-
-                _objectLayer.DrawRect(rect, rectColor, false, borderThickness);
             }
 
-            /* */
-            
             string label = child.GetMetadataItem(ScummMeta.OBIM.name, out var n) ? (string)n : "?";
             _objectNamesList.AddItem(label, selectable: true);
-            
+        
             currentIndex++;
         }
-        
+    
         SelectCurrentIndex();
     }
+    
+    private void _DrawHotspotLayer()
+    {
+        if (!_showHotspots || _roomBlock == null) return;
+    }
+    
     private void SelectCurrentIndex()
     {
         if (_objectNamesList == null || _objectNamesList.ItemCount == 0) return;
