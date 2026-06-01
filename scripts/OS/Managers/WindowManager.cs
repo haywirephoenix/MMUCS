@@ -68,13 +68,25 @@ public partial class WindowManager : Node
 
         await Instance.ToSignal(Instance.GetTree(), SceneTree.SignalName.ProcessFrame);
 
-        if (LayoutSettings.TryLoadPanelLayout(panel.PanelId, out LayoutSettings layout) ||
-            LayoutSettings.TryLoadTemplateLayout(LayoutModes.CurrentLayoutMode, panel.PanelId, out layout))
+        if (LayoutSettings.TryLoadPanelLayout(panel.PanelId, out LayoutSettings userLayout))
         {
-            layout.ApplyTo(panel, false);
+            userLayout.ApplyTo(panel, false);
+            ClampToCanvas(panel);
+        }
+        else if (LayoutSettings.TryLoadTemplateLayout(LayoutModes.CurrentLayoutMode, panel.PanelId, out LayoutSettings templateLayout))
+        {
+            ApplyTemplateLayoutTo(templateLayout, panel, false, false);
         }
 
         panel.CompleteInitialization();
+    }
+
+    public static void ApplyTemplateLayoutTo(LayoutSettings layout, FloatingPanel panel, bool invokeOpen, bool tween)
+    {
+        var canvasSize = panel._canvas?.Size ?? GetCanvasSize();
+        layout = LayoutSettings.ScaleToCanvas(layout, canvasSize);
+        layout.ApplyTo(panel, invokeOpen, tween);
+        ClampToCanvas(panel);
     }
 
     public static void SaveLayout()
@@ -84,15 +96,16 @@ public partial class WindowManager : Node
 
     public static void ResetWindowLayout()
     {
+        LayoutSettings.ResetPanelLayouts();
+
         foreach (var panel in _registeredPanels)
         {
-            if (LayoutSettings.TryLoadPanelLayout(panel.PanelId, out LayoutSettings layout) ||
-                LayoutSettings.TryLoadTemplateLayout(LayoutModes.CurrentLayoutMode, panel.PanelId, out layout))
+            if (LayoutSettings.TryLoadTemplateLayout(
+                LayoutModes.CurrentLayoutMode, panel.PanelId, out LayoutSettings layout))
             {
-                layout.ApplyTo(panel, false);
+                ApplyTemplateLayoutTo(layout, panel, true, false);
                 panel.StorePosAndSize();
             }
-            panel.RescaleProportional();
         }
     }
 
@@ -133,6 +146,20 @@ public partial class WindowManager : Node
         _canvas = canvas;
         _canvas.Resized += _OnCanvasResized;
         _BuildPreview();
+    }
+    
+    private static Vector2 GetCanvasSize()
+    {
+        if (_canvas is { } canvas && canvas.Size != Vector2.Zero)
+            return canvas.Size;
+
+        if (Instance?.GetTree().Root is { } root)
+        {
+            float scale = root.ContentScaleFactor > 0 ? root.ContentScaleFactor : 1f;
+            return new Vector2(root.Size.X, root.Size.Y) / scale;
+        }
+
+        return new Vector2(LayoutSettings.RefWidth, LayoutSettings.RefHeight);
     }
 
     private void _BuildPreview()
@@ -187,14 +214,15 @@ public partial class WindowManager : Node
 
     // ── Layout ────────────────────────────────────────────────────────────────
 
-    public static void ApplyLayoutTemplate(string templateName)
+    public static void ApplyLayoutTemplate(string templateName, bool tween)
     {
         if (!LayoutSettings.TryLoadTemplate(templateName, out ConfigFile cfg)) return;
         
         foreach (var panel in _registeredPanels)
         {
             if (LayoutSettings.TryApplyTemplate(cfg, panel.PanelId, out LayoutSettings layout))
-                layout.ApplyTo(panel, invokeOpen: true);
+                ApplyTemplateLayoutTo(layout, panel, true, tween);
+                // layout.ApplyTo(panel, invokeOpen: true);
         }
     }
     

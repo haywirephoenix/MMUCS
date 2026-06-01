@@ -66,12 +66,13 @@ public partial class BootScreen : CanvasLayer
         OSLayer.Visible = false;
         Visible = true;
         LoadingBar.Visible = false;
+        
+        ThemeManager.Instance.Init();
 
         try 
         {
             EventBus.Instance.ThemeManagerInitialized += InstanceOnThemeManagerInitialized;
             OSLayer.Visible = true;
-            ThemeManager.Instance.Init();
         }
         catch (Exception ex)
         {
@@ -152,7 +153,7 @@ public partial class BootScreen : CanvasLayer
             }
             
             await MainCanvas.Init();
-            
+
             // MainCanvas.ForceUpdateTransform();
             // await ToSignal(EventBus.Instance, EventBus.SignalName.UIScaleChangedCompleted);
         }
@@ -211,7 +212,9 @@ public partial class BootScreen : CanvasLayer
         
         exitTween.TweenCallback(Callable.From(() => Background.MouseFilter = Control.MouseFilterEnum.Ignore));
         
+        
         exitTween.SetEase(Tween.EaseType.InOut);
+        // exitTween.TweenCallback(Callable.From(() =>  ThemeManager.Instance.Init()));
         exitTween.TweenProperty(Background, "modulate:a", 0.0f, 0.5f);
         
         exitTween.TweenCallback(Callable.From(FinishBoot));

@@ -62,7 +62,7 @@ public partial class MMenuBar : MenuBar
     
         LayoutModes.SetLayoutMode(eLayoutMode);
         
-        WindowManager.ApplyLayoutTemplate(LayoutModes.LayoutModeToString(eLayoutMode));
+        WindowManager.ApplyLayoutTemplate(LayoutModes.LayoutModeToString(eLayoutMode), true);
 
         UpdateLayoutMenuCheckmarks(selectedId);
     }

@@ -23,7 +23,7 @@ public partial class FloatingPanel : Control
     private const float UndockThreshold = 40f;
     public virtual string PanelTitle => "Panel";
     public virtual bool IsClassic => false;
-    [Export] public Vector2 DefaultSize { get; set; } = new(400, 300);
+    // [Export] public Vector2 DefaultSize { get; set; } = new(400, 300);
     // [Export] public Vector2 CustomMinimumSize { get; set; } = new(200, 100);
 
     public string PanelId { get; private set; } = "panel";
@@ -237,24 +237,25 @@ public partial class FloatingPanel : Control
         
     }
     
-    private void OnScaleChangedCompleted()
+    protected virtual void OnScaleChangedCompleted()
     {
         // if (!_isInitialized) return;
-        // RescaleProportional();
+        RescaleProportional();
         WindowManager.ClampToCanvas(this);
+        StorePosAndSize();
     }
-
+    
     public void RescaleProportional()
     {
         if (!IsInsideTree() || _canvas == null) return;
 
         float activeScale = GetTree().Root.ContentScaleFactor;
-
         if (activeScale <= 0) activeScale = 1.0f;
 
         Size = _sizeOnStart / activeScale;
         Position = _positionOnStart / activeScale;
-    
+        CustomMinimumSize = _minSizeOnStart / activeScale;
+
         ForceUpdateTransform();
         WindowManager.ClampToCanvas(this);
     }
@@ -360,21 +361,10 @@ public partial class FloatingPanel : Control
         {
             if (!isSync) FocusManager.CurrentResized = null;
 
-            Vector2 finalSize = Size;//.SnapVector()
-            finalSize.X = Mathf.Max(finalSize.X, CustomMinimumSize.X);
-            finalSize.Y = Mathf.Max(finalSize.Y, CustomMinimumSize.Y);
-
-            if (_currentDirection.X < 0 || _currentDirection.Y < 0)
+            if (_currentDock != DockZone.None)
             {
-                Vector2 sizeDiff = finalSize - Size;
-                if (_currentDirection.X < 0) Position -= new Vector2(sizeDiff.X, 0);
-                if (_currentDirection.Y < 0) Position -= new Vector2(0, sizeDiff.Y);
-            }
-
-            if (_currentDock == DockZone.None)
-                Size = finalSize;
-            else
                 WindowManager.RefreshZoneLayout(_currentDock);
+            }
         }
     }
 
@@ -405,21 +395,37 @@ public partial class FloatingPanel : Control
 
         if (_currentDirection.X != 0)
         {
+            // Calculate the raw delta based on direction
             float deltaX = mouseDiff.X * _currentDirection.X;
-            float targetWidth = Mathf.Max(_resizeStartSize.X + deltaX, CustomMinimumSize.X);
-            if (_currentDirection.X < 0) newPos.X -= targetWidth - _resizeStartSize.X;
-            newSize.X = targetWidth;
+            // Clamp the size first so we know the TRUE new size
+            newSize.X = Mathf.Max(_resizeStartSize.X + deltaX, CustomMinimumSize.X);
+            
+            // Shift position based on the ACTUAL change in size
+            if (_currentDirection.X < 0) 
+            {
+                newPos.X = _resizeStartPosition.X - (newSize.X - _resizeStartSize.X);
+            }
         }
 
         if (_currentDirection.Y != 0)
         {
             float deltaY = mouseDiff.Y * _currentDirection.Y;
-            float targetHeight = Mathf.Max(_resizeStartSize.Y + deltaY, CustomMinimumSize.Y);
-            if (_currentDirection.Y < 0) newPos.Y -= targetHeight - _resizeStartSize.Y;
-            newSize.Y = targetHeight;
+            newSize.Y = Mathf.Max(_resizeStartSize.Y + deltaY, CustomMinimumSize.Y);
+            
+            if (_currentDirection.Y < 0) 
+            {
+                newPos.Y = _resizeStartPosition.Y - (newSize.Y - _resizeStartSize.Y);
+            }
+        }
+        Size = newSize;
+        if (_currentDirection.X < 0 || _currentDirection.Y < 0)
+        {
+            Vector2 actualSizeChange = Size - _resizeStartSize;
+    
+            if (_currentDirection.X < 0) newPos.X = _resizeStartPosition.X - actualSizeChange.X;
+            if (_currentDirection.Y < 0) newPos.Y = _resizeStartPosition.Y - actualSizeChange.Y;
         }
 
-        Size = newSize;
         Position = newPos.ClampToCanvas(Size, _canvas);
     }
 
