@@ -93,4 +93,88 @@ public static class IndexedRenderer
 
         return Image.CreateFromData(width, height, false, Image.Format.Rgba8, rgba);
     }
+    
+    public static Image RenderWithConfig(Image shaderDataImage, Color[] roomPalette, CelExportConfig config)
+    {
+        if (shaderDataImage == null || roomPalette == null) return null;
+
+        int width = shaderDataImage.GetWidth();
+        int height = shaderDataImage.GetHeight();
+        
+        byte[] srcRgba = shaderDataImage.GetData();
+        byte[] dstRgba = new byte[width * height * 4];
+
+        for (int y = 0; y < height; y++)
+        {
+            int dstRowOffset = y * width * 4;
+
+            for (int x = 0; x < width; x++)
+            {
+                Color finalPixelColor;
+
+                if (config.UseLinearFilter)
+                {
+                    float sampleX = x - 0.5f;
+                    float sampleY = y - 0.5f;
+
+                    int ix = (int)Mathf.Floor(sampleX);
+                    int iy = (int)Mathf.Floor(sampleY);
+
+                    float fx = sampleX - ix;
+                    float fy = sampleY - iy;
+
+                    Color c00 = GetDecodedColorAt(ix,     iy);
+                    Color c10 = GetDecodedColorAt(ix + 1, iy);
+                    Color c01 = GetDecodedColorAt(ix,     iy + 1);
+                    Color c11 = GetDecodedColorAt(ix + 1, iy + 1);
+
+                    Color top = c00.Lerp(c10, fx);
+                    Color bottom = c01.Lerp(c11, fx);
+                    finalPixelColor = top.Lerp(bottom, fy);
+                }
+                else
+                {
+                    finalPixelColor = GetDecodedColorAt(x, y);
+                }
+
+                int dstIdx = dstRowOffset + (x * 4);
+                dstRgba[dstIdx + 0] = (byte)(finalPixelColor.R * 255);
+                dstRgba[dstIdx + 1] = (byte)(finalPixelColor.G * 255);
+                dstRgba[dstIdx + 2] = (byte)(finalPixelColor.B * 255);
+                dstRgba[dstIdx + 3] = (byte)(finalPixelColor.A * 255);
+            }
+        }
+
+        return Image.CreateFromData(width, height, false, Image.Format.Rgba8, dstRgba);
+
+        Color GetDecodedColorAt(int x, int y)
+        {
+            x = Mathf.Clamp(x, 0, width - 1);
+            y = Mathf.Clamp(y, 0, height - 1);
+            int idx = (y * width + x) * 4;
+
+            byte r = srcRgba[idx + 0];
+            byte g = srcRgba[idx + 1];
+            byte a = srcRgba[idx + 3];
+
+            if (a < 127)
+                return config.AlphaEnabled ? new Color(0, 0, 0, 0) : new Color(0, 0, 0, 1);
+
+            int globalIdx = r;
+            bool isShadow = g > 127;
+
+            Color baseColor = (globalIdx < roomPalette.Length) ? roomPalette[globalIdx] : new Color(1, 0, 1, 1);
+            Color finalColor = (config.ShadowColorEnabled && isShadow) ? new Color(0, 0, 0) : baseColor;
+
+            float finalAlpha = 1.0f;
+            if (config.AlphaEnabled && config.ShadowColorEnabled && isShadow)
+                finalAlpha = config.ShadowAmount;
+            else if (config.AlphaEnabled)
+                finalAlpha = baseColor.A;
+
+            finalColor.A = finalAlpha;
+            return finalColor;
+        }
+    }
+    
 }
