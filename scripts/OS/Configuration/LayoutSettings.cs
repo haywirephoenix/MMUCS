@@ -220,10 +220,12 @@ public readonly struct LayoutSettings(Vector2 position, Vector2 size, bool isOpe
     {
         cfg = new ConfigFile();
         string path = FileUtils.CombinePaths(SettingKeys.TemplateLayoutsDir, $"{templateName}.cfg");
-
-        if (!FileUtils.FileExists(path) || cfg.Load(path) != Error.Ok)
+        
+        Error result = cfg.Load(path);
+    
+        if (result != Error.Ok)
         {
-            StatusBar.SetStatus($"Template '{templateName}' not found.");
+            StatusBar.SetStatus($"Template '{templateName}' not found or failed to load. Error: {result}");
             return false;
         }
 
