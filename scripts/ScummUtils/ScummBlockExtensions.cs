@@ -6,7 +6,6 @@ using System.Linq;
 public static class ScummBlockExtensions
 {
     
-    
     private static bool IsSliceValid(ReadOnlySpan<byte> span, int offset, int size)
     {
         return offset >= 0 && offset + size <= span.Length;
@@ -58,6 +57,11 @@ public static class ScummBlockExtensions
             table[i] = span.U16LE(i * 2);
         }
         return table;
+    }
+    
+    public static int Align8(this int value)
+    {
+        return (value + 7) & ~7;
     }
 
 

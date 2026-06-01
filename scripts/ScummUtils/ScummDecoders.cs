@@ -8,165 +8,49 @@ using Godot;
 
 public static class ScummDecoders
 {
-    
     #region OBIM
     
-    public static bool TryGetObimInfo(ScummBlock obimBlock, out OBIMDecoders.ObimInfo info)
-    {
-        info = default;
-
-        var imhd = obimBlock.FindChild(ScummTag.IMHD);
-        if (imhd == null) return false;
-
-        var palsBlock = obimBlock.Parent?.FindChild(ScummTag.PALS);
-        var wrapBlock = palsBlock?.FindChild(ScummTag.WRAP);
-        var apals = wrapBlock?.FindChildrenRecursive(ScummTag.APAL);
-        int totalPalettes = apals?.Count ?? 0;
-
-        var imag = obimBlock.FindChild(ScummTag.IMAG);
-        int totalFrames = 0;
-        if (imag != null)
-        {
-            foreach (var child in imag.FindChildrenRecursive(ScummTag.BOMP))
-                if (child.Tag == ScummTag.BOMP) totalFrames++;
-        }
-
-        int width = (int)imhd.DataSpan.U32LE(56);
-        int defaultPaletteIndex = width == 640 ? 1 : 0;
-        defaultPaletteIndex = Mathf.Clamp(defaultPaletteIndex, 0, Mathf.Max(0, totalPalettes - 1));
-
-        info = new OBIMDecoders.ObimInfo(totalFrames, totalPalettes, defaultPaletteIndex);
-        return true;
-    }
-
+    public static bool TryGetObimInfo(ScummBlock obimBlock, out ObimDecoders.ObimInfo info)
+    => ObimDecoders.TryGetObimInfo(obimBlock, out info);
+    
     public static bool TryDecodeObimFrame(
         ScummBlock objectBlock,
         CancellationToken token,
         int frameIndex,
         int paletteIndex,
-        out OBIMDecoders.ObimDecodeResult result)
-        {
-            result = default;
-
-            var imhd = objectBlock.FindChild(ScummTag.IMHD);
-            if (imhd == null) { GD.PrintErr("IMHD not found"); return false; }
-
-            var room = objectBlock.FindParent(ScummTag.ROOM);
-            var palsBlock = room?.FindChild(ScummTag.PALS);
-            if (palsBlock == null) { GD.PrintErr("PALS not found"); return false; }
-
-            var apals = palsBlock.FindChild(ScummTag.WRAP)?.FindChildrenRecursive(ScummTag.APAL);
-            if (apals == null || apals.Count == 0) { GD.Print("No APALs found"); return false; }
-
-            var apal = apals[Mathf.Clamp(paletteIndex, 0, apals.Count - 1)];
-            var roomPalette = apal.DataSpan;
-            var resolvedPalette = ExtractPalette(apal);
-
-            var s = imhd.DataSpan;
-            int width  = (int)s.U32LE(56);
-            int height = (int)s.U32LE(60);
-            if (width <= 0 || height <= 0) return false;
-
-            var rmhdSpan = room.FindChild(ScummTag.RMHD).DataSpan;
-            int transparentIndex = (int)rmhdSpan.U32LE(20);
-
-            var imag = objectBlock.FindChild(ScummTag.IMAG);
-            if (imag == null) { GD.PrintErr("IMAG not found"); return false; }
-
-            ScummBlock smap = imag.FindChildRecursive(ScummTag.SMAP);
-            ScummBlock bomp = null;
-
-            if (smap == null)
-            {
-                foreach (var child in imag.FindChildrenRecursive(ScummTag.BOMP))
-                {
-                    if (child.Tag == ScummTag.BOMP && child.TagSiblingIndex == frameIndex)
-                    {
-                        bomp = child;
-                        break;
-                    }
-                }
-            }
-
-            byte[] buffer;
-            int pitch;
-
-            if (smap != null)
-            {
-                if (!TryDecodeSmapBlock(smap, width, height, roomPalette, token, out buffer, out pitch))
-                    return false;
-            }
-            else if (bomp != null)
-            {
-                buffer = OBIMDecoders.DecodeBomp(bomp.FullSpan, width, height);
-                pitch = Align8(width);
-                transparentIndex = 255;
-            }
-            else
-            {
-                GD.PrintErr("Neither SMAP nor BOMP found");
-                return false;
-            }
-
-            var image = ScummImageUtils.CreateGodotImage(buffer, width, height, pitch, apal.DataSpan, transparentIndex);
-            result = new OBIMDecoders.ObimDecodeResult(image, buffer, pitch, resolvedPalette);
-            return true;
-    }
+        out ObimDecoders.ObimDecodeRawResult result,
+        out Image bakedImage,
+        bool generateImage = false)
+    => ObimDecoders.TryDecodeObimFrame(objectBlock, token, frameIndex, paletteIndex, out result, out bakedImage, generateImage);
+    
     #endregion
 
-    #region Backgrounds
+    #region ROOM
+    
     public static bool DecodeBackgroundImage(
         int roomId,
         ScummBlock _rmhdBlock,
         ScummBlock _roomBlock,
+        int paletteIndex,
         CancellationToken token,
         out Image backgroundImage,
         out byte[] indexedPixels,
-        out int outPitch)
-    {
-        backgroundImage = null;
-        indexedPixels = null;
-        outPitch = 0;
-        ReadOnlySpan<byte> _roomPalette;
-
-        var rmhd = _rmhdBlock;
-        if (rmhd == null) return false;
-
-        var apal = _roomBlock.FindChildRecursive(ScummTag.APAL);
-        if (apal == null) return false;
-
-        _roomPalette = apal.DataSpan;
-
-        var rmhdSpan = rmhd.DataSpan;
-        int width = (int)rmhdSpan.U32LE(4);
-        int height = (int)rmhdSpan.U32LE(8);
-        int transparentIndex = (int)rmhdSpan.U32LE(20);
-
-        var smap = _roomBlock.FindChildRecursive(ScummTag.SMAP);
-        if (smap == null) return false;
-
-        if (!TryDecodeSmapBlock(smap, width, height, _roomPalette, token, out byte[] flatBuffer, out int pitch))
-        {
-            return false;
-        }
-
-        outPitch = pitch;
-        indexedPixels = flatBuffer;
-        
-        backgroundImage = ScummImageUtils.CreateGodotImage(flatBuffer, width, height, pitch, apal.DataSpan, (byte)transparentIndex);
-        return (backgroundImage != null);
-    }
+        out int outPitch,
+        out ReadOnlySpan<byte> roomPalette,
+        bool generateImage = false) =>
+        RoomDecoders.DecodeBackgroundImage(roomId, _rmhdBlock, _roomBlock, paletteIndex, token, out backgroundImage, out indexedPixels, out outPitch, out roomPalette, generateImage);
+    
+    public static bool TryGetRoomInfo(ScummBlock rmhdBlock, ScummBlock roomBlock, out RoomDecoders.RoomInfo info)
+    =>  RoomDecoders.TryGetRoomInfo(rmhdBlock, roomBlock, out info);
     
     #endregion
-    
+
     #region Common
 
-   public static byte LastStripOverride = 5;
    public static bool TryDecodeSmapBlock(
     ScummBlock smapBlock,
     int width,
     int height,
-    ReadOnlySpan<byte> roompalette,
     CancellationToken token,
     out byte[] indexedPixels,
     out int outPitch)
@@ -249,7 +133,6 @@ public static class ScummDecoders
 
             Span<byte> destSpan = flatBuffer.AsSpan(destX, flatBuffer.Length - destX);
             
-
             DecodeStrip(compressedPayload, destSpan, codec, pitch, height);
         }
 
@@ -258,7 +141,6 @@ public static class ScummDecoders
         return true;
     }
    
-  
     
     private static void DecodeMajMin(
         ReadOnlySpan<byte> src,
@@ -528,6 +410,7 @@ public static class ScummDecoders
 
 
     }
+    
     #endregion
 
     #region Helpers
@@ -538,10 +421,7 @@ public static class ScummDecoders
         //     for (int x = 0; x < image.GetWidth(); x++)
         //         image.SetPixel(x, y, ((x / 8 + y / 8) % 2 == 0) ? tint : Colors.Transparent);
     }
-    private static int Align8(int value)
-    {
-        return (value + 7) & ~7;
-    }
+    
     private static int ResolveObjectStripOffset(ScummBlock smap, uint stripOffset)
     {
         int offstet = 0;

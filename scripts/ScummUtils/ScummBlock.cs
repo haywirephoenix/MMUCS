@@ -17,12 +17,10 @@ public partial class ScummBlock : RefCounted
     // public byte[] RawData { get; set; }     // raw bytes, lazy-loaded
     public List<ScummBlock> Children { get; set; } = new();
     public ScummBlock Parent { get; set; }
-
     public int TagSiblingIndex { get; set; } = 0;
-
-
-
+    
     public byte[] FileData;
+    
     public int DataLength;
 
     public bool IsContainer => Children.Count > 0;
@@ -47,7 +45,6 @@ public partial class ScummBlock : RefCounted
 
     public Dictionary<Variant, Variant> GetMetaDataDict() => Metadata;
     public void SetMetaDataDict(Dictionary<Variant, Variant> newdict) => Metadata = newdict;
-
 
     public void SetMetaDataItem<T>(T key, Variant value, bool propagate = false) where T : Enum
     {
