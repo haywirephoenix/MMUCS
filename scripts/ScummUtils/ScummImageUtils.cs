@@ -86,6 +86,73 @@ public static class ScummImageUtils
         }
     }
     
+    public static Image CreateGodotImageDualPalette(
+    byte[] pixels,
+    int width,
+    int height,
+    int pitch,
+    ReadOnlySpan<byte> paletteA,
+    ReadOnlySpan<byte> paletteB,
+    int splitX,
+    int? transparentIndex = null)
+    {
+        try
+        {
+            if (pitch <= 0) pitch = width;
+            
+            byte[] sanitizedPixels = pixels;
+            if (pitch != width)
+            {
+                sanitizedPixels = new byte[width * height];
+                for (int y = 0; y < height; y++)
+                {
+                    Buffer.BlockCopy(pixels, y * pitch, sanitizedPixels, y * width, width);
+                }
+            }
+            
+            byte[] rgbaData = new byte[width * height * 4];
+            int dst = 0;
+
+            for (int y = 0; y < height; y++)
+            {
+                int rowOffset = y * width;
+
+                for (int x = 0; x < width; x++)
+                {
+                    byte paletteIndex = sanitizedPixels[rowOffset + x];
+
+                    if (transparentIndex.HasValue && paletteIndex == transparentIndex.Value)
+                    {
+                        rgbaData[dst++] = 0; rgbaData[dst++] = 0; rgbaData[dst++] = 0; rgbaData[dst++] = 0;
+                        continue;
+                    }
+
+                    ReadOnlySpan<byte> currentPalette = (x >= splitX) ? paletteB : paletteA;
+                    
+
+                    int palOffset = paletteIndex * 3;
+                    if (palOffset + 2 >= currentPalette.Length)
+                    {
+                        rgbaData[dst++] = 0; rgbaData[dst++] = 0; rgbaData[dst++] = 0; rgbaData[dst++] = 0;
+                        continue;
+                    }
+
+                    rgbaData[dst++] = currentPalette[palOffset + 0]; // R
+                    rgbaData[dst++] = currentPalette[palOffset + 1]; // G
+                    rgbaData[dst++] = currentPalette[palOffset + 2]; // B
+                    rgbaData[dst++] = 255;                            // A
+                }
+            }
+
+            return Image.CreateFromData(width, height, false, Image.Format.Rgba8, rgbaData);
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"[ImageLoader] Failed to process dual palette image data: {ex.Message}");
+            return null;
+        }
+    }
+    
     /*
     public static Image CreateGodotImageIndexed(
         byte[] indexed,
