@@ -1,0 +1,174 @@
+[gd_scene format=3 uid="uid://caee58yppqk40"]
+
+[ext_resource type="Script" uid="uid://utf8ikv8yqa" path="res://scripts/OS/Panels/Contents/OBIMViewerContent.cs" id="1_2nyae"]
+[ext_resource type="Script" uid="uid://d1mggfsvpi461" path="res://scripts/OS/Fragments/ResponsiveView.cs" id="2_sp74r"]
+[ext_resource type="StyleBox" uid="uid://t2wm3jj75b5e" path="res://themes/deafult/styleboxEmpty.tres" id="3_q21wl"]
+[ext_resource type="Script" uid="uid://lioesdywkjoh" path="res://scripts/OS/Controls/ZoomableViewport.cs" id="4_mlqhc"]
+[ext_resource type="StyleBox" uid="uid://b3qpjc2tfdmk5" path="res://themes/deafult/styleboxlineH.tres" id="5_e2w52"]
+[ext_resource type="Script" uid="uid://ddkdunskov3k3" path="res://scripts/OS/Panels/Fragments/MSlider.cs" id="5_sp74r"]
+
+[node name="ObimViewerContent" type="Control" unique_id=1673595245]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_2nyae")
+
+[node name="ContentRoot" type="VBoxContainer" parent="." unique_id=1003339631]
+clip_contents = true
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="ResponsiveView" type="VBoxContainer" parent="ContentRoot" unique_id=1302722902 node_paths=PackedStringArray("TabBar", "SplitContainer")]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 19.33
+script = ExtResource("2_sp74r")
+TabBar = NodePath("TabBar")
+SplitContainer = NodePath("SplitContainer")
+
+[node name="TabBar" type="TabBar" parent="ContentRoot/ResponsiveView" unique_id=764904302]
+layout_mode = 2
+theme_override_styles/tab_unselected = ExtResource("3_q21wl")
+theme_override_styles/tab_hovered = ExtResource("3_q21wl")
+theme_override_styles/tab_selected = ExtResource("3_q21wl")
+theme_override_styles/tab_disabled = ExtResource("3_q21wl")
+theme_override_styles/tab_focus = ExtResource("3_q21wl")
+theme_override_styles/button_pressed = ExtResource("3_q21wl")
+theme_override_styles/button_highlight = ExtResource("3_q21wl")
+current_tab = 0
+tab_count = 2
+tab_0/title = "Preview"
+tab_1/title = "Palette"
+
+[node name="SplitContainer" type="HBoxContainer" parent="ContentRoot/ResponsiveView" unique_id=1843994430]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Preview" type="VBoxContainer" parent="ContentRoot/ResponsiveView/SplitContainer" unique_id=707360210]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PreviewContainer" type="SubViewportContainer" parent="ContentRoot/ResponsiveView/SplitContainer/Preview" unique_id=105209074 node_paths=PackedStringArray("_camera", "_celPreview")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 25.6
+stretch = true
+script = ExtResource("4_mlqhc")
+_camera = NodePath("SubViewport/Object Camera")
+_celPreview = NodePath("SubViewport/Object Preview")
+
+[node name="SubViewport" type="SubViewport" parent="ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer" unique_id=1155119222]
+transparent_bg = true
+handle_input_locally = false
+snap_2d_transforms_to_pixel = true
+canvas_item_default_texture_filter = 0
+positional_shadow_atlas_size = 0
+size = Vector2i(1920, 968)
+render_target_update_mode = 4
+
+[node name="Object Preview" type="TextureRect" parent="ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer/SubViewport" unique_id=21094310]
+texture_filter = 1
+custom_minimum_size = Vector2(200, 0)
+offset_right = 257.0
+offset_bottom = 307.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch_mode = 2
+
+[node name="Object Camera" type="Camera2D" parent="ContentRoot/ResponsiveView/SplitContainer/Preview/PreviewContainer/SubViewport" unique_id=652294607]
+zoom = Vector2(2.46, 2.46)
+
+[node name="Palette" type="ScrollContainer" parent="ContentRoot/ResponsiveView/SplitContainer" unique_id=473253076]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PaletteMargin" type="CenterContainer" parent="ContentRoot/ResponsiveView/SplitContainer/Palette" unique_id=1598524125]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PaletteGrid" type="GridContainer" parent="ContentRoot/ResponsiveView/SplitContainer/Palette/PaletteMargin" unique_id=708338569]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 16
+
+[node name="Controls" type="CenterContainer" parent="ContentRoot" unique_id=576513384]
+custom_minimum_size = Vector2(316, 0)
+layout_mode = 2
+size_flags_vertical = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ContentRoot/Controls" unique_id=1321765897]
+custom_minimum_size = Vector2(316, 0)
+layout_mode = 2
+
+[node name="FrameSlider" type="HSlider" parent="ContentRoot/Controls/VBoxContainer" unique_id=33555925]
+custom_minimum_size = Vector2(316, 0)
+layout_mode = 2
+theme_override_styles/slider = ExtResource("3_q21wl")
+theme_override_styles/grabber_area = ExtResource("3_q21wl")
+theme_override_styles/grabber_area_highlight = ExtResource("3_q21wl")
+max_value = 3.0
+rounded = true
+scrollable = false
+ticks_on_borders = true
+ticks_position = 3
+script = ExtResource("5_sp74r")
+
+[node name="FrameLabel" type="Label" parent="ContentRoot/Controls/VBoxContainer/FrameSlider" unique_id=1805423227]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.7708395, 0.77083945, 0.77083945, 1)
+theme_override_font_sizes/font_size = 12
+text = "Frame"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="ContentRoot/Controls/VBoxContainer" unique_id=1092002686]
+custom_minimum_size = Vector2(316, 0)
+layout_mode = 2
+theme_override_constants/separation = 12
+theme_override_styles/separator = ExtResource("5_e2w52")
+
+[node name="PaletteSlider" type="HSlider" parent="ContentRoot/Controls/VBoxContainer" unique_id=1195099533]
+custom_minimum_size = Vector2(316, 0)
+layout_mode = 2
+theme_override_styles/slider = ExtResource("3_q21wl")
+theme_override_styles/grabber_area = ExtResource("3_q21wl")
+theme_override_styles/grabber_area_highlight = ExtResource("3_q21wl")
+max_value = 3.0
+rounded = true
+scrollable = false
+ticks_on_borders = true
+ticks_position = 3
+script = ExtResource("5_sp74r")
+
+[node name="Palette" type="Label" parent="ContentRoot/Controls/VBoxContainer/PaletteSlider" unique_id=1779689828]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.7708395, 0.77083945, 0.77083945, 1)
+theme_override_font_sizes/font_size = 12
+text = "Palette"
+horizontal_alignment = 2
+vertical_alignment = 1
