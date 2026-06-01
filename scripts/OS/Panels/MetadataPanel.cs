@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using Godot;
 
 public partial class MetadataPanel : FloatingPanel
@@ -6,24 +7,26 @@ public partial class MetadataPanel : FloatingPanel
     public override string PanelTitle => "Metadata";
     
     [Export] public Label _blockPath;
-    [Export] public GridContainer _propertyGrid;
-    [Export] public GridContainer _metagrid;
     [Export] public TextureRect _imagePreview;
     [Export] public Label _noPreviewLabel;
     [Export] public VBoxContainer _vbox;
     
-    private static readonly NodePath VBoxPath = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox";
-    private static readonly NodePath PathBlockPath = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/MarginContainer/BlockPath";
-    private static readonly NodePath PathPropertyGrid = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/PropertyGrid";
-    private static readonly NodePath PathMetaGrid = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/MetaGrid";
-    private static readonly NodePath PathimagePreview = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/imagePreview";
-    private static readonly NodePath PathnoPreviewLabel = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox/noPreviewLabel";
+    [Export] public RichTextLabel _metadataDisplay;
+    
+    private const string vBoxPath = "Layout/MarginContainer/ContentRoot/ScrollContainer/VBox";
+    
+    private static readonly NodePath VBoxPath = vBoxPath;
+    private static readonly NodePath PathBlockPath = vBoxPath+"/BlockPath";
+    private static readonly NodePath PathMetadataDisplay = vBoxPath+"/MetadataDisplay";
+    private static readonly NodePath PathimagePreview = vBoxPath+"/imagePreview";
+    private static readonly NodePath PathnoPreviewLabel = vBoxPath+"/noPreviewLabel";
 
+    private System.Collections.Generic.List<(string Key, string Value)> _properties = new();
+    private System.Collections.Generic.List<(string Key, string Value)> _metadata = new();
 
     protected override void OnReady()
     {
         GuiInput += TreeOnGuiInput;
-        
         EventBus.Instance.AssetSelected += _OnAssetSelected;
     }
     
@@ -40,27 +43,21 @@ public partial class MetadataPanel : FloatingPanel
     {
         var lines = new System.Collections.Generic.List<string>();
 
-        void ProcessGrid(GridContainer grid, string sectionHeader)
+        void ProcessSection(System.Collections.Generic.List<(string Key, string Value)> section, string sectionHeader)
         {
-            var children = grid.GetChildren();
-            if (children.Count == 0) return;
+            if (section.Count == 0) return;
 
-            lines.Add($"--- {sectionHeader} ---");
-        
-            for (int i = 0; i < children.Count; i += 2)
+            lines.Add(sectionHeader);
+            foreach (var row in section)
             {
-                if (children[i] is not Label keyLabel || children[i + 1] is not Label valueLabel)
-                    continue;
-                
-                string key = keyLabel.Text.PadRight(20);
-                string value = valueLabel.Text;
-                lines.Add($"{key}: {value}");
+                string key = row.Key.PadRight(20);
+                lines.Add($"{key}: {row.Value}");
             }
             lines.Add(""); 
         }
 
-        ProcessGrid(_propertyGrid, "PROPERTIES");
-        ProcessGrid(_metagrid, "METADATA");
+        ProcessSection(_properties, "Properties");
+        ProcessSection(_metadata, "Metadata");
 
         if (lines.Count > 0)
         {
@@ -74,19 +71,24 @@ public partial class MetadataPanel : FloatingPanel
     {
         base.AssignNodes();
         
-        _vbox = GetNode<VBoxContainer>(VBoxPath);;
+        _vbox = GetNode<VBoxContainer>(VBoxPath);
         _blockPath = GetNode<Label>(PathBlockPath);
-        _propertyGrid = GetNode<GridContainer>(PathPropertyGrid);
         _imagePreview = GetNode<TextureRect>(PathimagePreview);
         _noPreviewLabel = GetNode<Label>(PathnoPreviewLabel);
-        _metagrid = GetNode<GridContainer>(PathMetaGrid);
+        
+        _metadataDisplay = GetNode<RichTextLabel>(PathMetadataDisplay);
+        
+        _metadataDisplay.BbcodeEnabled = true;
+        _metadataDisplay.SelectionEnabled = true;
+        _metadataDisplay.ContextMenuEnabled = true;
+        _metadataDisplay.FitContent = true;
+        _metadataDisplay.ScrollActive = false;
+        _metadataDisplay.AddThemeFontSizeOverride("font_size", 13);
     }
     
     protected override void _OnBlockSelected(ScummBlock block)
     {
-        // GD.Print($"[META] {block.TagName}");
-        
-        SetTitle($"Properties — {block.TagName}");
+        SetTitle($"Metadata — {block.TagName}");
         _blockPath.Text = block.FullPath;
 
         _ClearGrid();
@@ -103,11 +105,9 @@ public partial class MetadataPanel : FloatingPanel
         _AddRow("Data offset", $"0x{block.DataOffset:X8}");
         _AddRow("Children", block.Children.Count.ToString());
 
-        // Decoded metadata
         foreach (var (vKey, vValue) in block.GetMetaDataDict())
         {
             string label = "";
-            
             if (block.MetaSchema != null && vKey.VariantType == Variant.Type.Int)
             {
                 label = Enum.GetName(block.MetaSchema, vKey.AsInt32()) ?? $"Unknown({vKey})";
@@ -120,11 +120,7 @@ public partial class MetadataPanel : FloatingPanel
             _AddRow(label, vValue.ToString(), true);
         }
 
-        // AddExtraData(block);
-        
-        // bool hasPreview = block.TagName is "BMAP" or "AKOS" or "CHAR" or "AKPL";
-        //_noPreviewLabel.Visible = !hasPreview;
-        //_imagePreview.Visible = false;
+        RenderText();
     }
 
     private void _OnAssetSelected(string assetId, string assetType)
@@ -135,6 +131,8 @@ public partial class MetadataPanel : FloatingPanel
         _ClearGrid();
         _AddRow("ID", assetId);
         _AddRow("Type", assetType);
+        
+        RenderText();
     }
     
     public void SetPreviewImage(Image image)
@@ -151,44 +149,53 @@ public partial class MetadataPanel : FloatingPanel
         _noPreviewLabel.Visible = false;
     }
 
-    /// <summary>
-    /// Add extra decoded properties to the panel from outside.
-    /// Call after BlockSelected is emitted with your decoded results.
-    /// </summary>
     public void AddProperty(string key, string value)
     {
         _AddRow(key, value);
+        RenderText();
     }
 
     private void _AddRow(string key, string value, bool isMeta = false)
     {
-        var grid = isMeta ? _metagrid : _propertyGrid;
-        var keyLabel = new Label();
-        keyLabel.Text = key;
-        keyLabel.AddThemeColorOverride("font_color", new Color("aaaaaa"));
-        keyLabel.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-        keyLabel.AddThemeFontSizeOverride("font_size", 13);
-        //keyLabel.ContextMenuEnabled = true;
-        //keyLabel.SelectionEnabled = true;
-        grid.AddChild(keyLabel);
-
-        var valueLabel = new Label();
-        valueLabel.Text = value;
-        valueLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        valueLabel.SizeFlagsHorizontal = SizeFlags.Fill;
-        valueLabel.CustomMinimumSize = new Vector2(200, 10);
-        //valueLabel.ContextMenuEnabled = true;
-        //valueLabel.SelectionEnabled = true;
-        valueLabel.AddThemeFontSizeOverride("font_size", 13);
-        grid.AddChild(valueLabel);
+        if (isMeta)
+            _metadata.Add((key, value));
+        else
+            _properties.Add((key, value));
     }
 
     private void _ClearGrid()
     {
-        foreach (Node child in _propertyGrid.GetChildren())
-            child.QueueFree();
-        
-        foreach (Node child in _metagrid.GetChildren())
-            child.QueueFree();
+        _properties.Clear();
+        _metadata.Clear();
+        _metadataDisplay.Text = "";
+    }
+
+
+    private void RenderText()
+    {
+        StringBuilder sb = new StringBuilder();
+
+        void AppendSection(System.Collections.Generic.List<(string Key, string Value)> section, string title)
+        {
+            if (section.Count == 0) return;
+
+            sb.AppendLine($"[b][color=gray]{title}[/color][/b]\n");
+            
+            sb.AppendLine("[table=2, 1, 2]"); 
+            
+            foreach (var row in section)
+            {
+                sb.AppendLine($"[cell][color=aaaaaa]{row.Key}[/color][/cell]");
+                sb.AppendLine($"[cell]{row.Value}[/cell]");
+            }
+            
+            sb.AppendLine("[/table]");
+            sb.AppendLine();
+        }
+
+        AppendSection(_properties, "Properties");
+        AppendSection(_metadata, "Metadata");
+
+        _metadataDisplay.Text = sb.ToString();
     }
 }
