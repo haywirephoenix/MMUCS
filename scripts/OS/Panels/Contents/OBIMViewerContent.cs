@@ -13,8 +13,8 @@ public partial class OBIMViewerContent  : Control
     [Export] public Camera2D _camera;
     [Export] public ZoomableViewport _previewContainer;
     [Export] public GridContainer _paletteGrid;
-    [Export] public Slider _frameSlider;
-    [Export] public Slider _paletteSlider;
+    [Export] public MSlider _frameSlider;
+    [Export] public MSlider _paletteSlider;
     private const float paletteSwatchSize = 10;
 
     private Color[] ResolvedColors;
@@ -35,79 +35,52 @@ public partial class OBIMViewerContent  : Control
     public void AssignNodes()
     {
         _previewContainer = GetNode<ZoomableViewport>(PathPreviewContainer);
-        _frameSlider = GetNode<Slider>(PathFrameSlider);
-        _paletteSlider = GetNode<Slider>(PathPaletteSlider);
+        _frameSlider = GetNode<MSlider>(PathFrameSlider);
+        _paletteSlider = GetNode<MSlider>(PathPaletteSlider);
         _camera = GetNode<Camera2D>(PathObjectCamera);
         _objectPreview = GetNode<TextureRect>(PathObjectPreview);
         _paletteGrid = GetNode<GridContainer>(PathPaletteGrid);
     }
     
-    private void ClearPallette()
+    public override void _Notification(int what)
     {
-        foreach (Node child in _paletteGrid.GetChildren()) child.QueueFree();
-    }
-    
-    private void _PopulatePalette()
-    {
-        ClearPallette();
-        if (ResolvedColors == null) return;
+        base._Notification(what);
 
-        for (int i = 0; i < ResolvedColors.Length; i++)
+        if (what == NotificationResized)
         {
-            
-            Color c = ResolvedColors[i];
-
-            var swatch = new ColorRect();
-            swatch.Color = c;
-            swatch.CustomMinimumSize = new Vector2(paletteSwatchSize, paletteSwatchSize);
-            
-            swatch.TooltipText = $"Global Index: {i}\nColor: {c}";
-            _paletteGrid.AddChild(swatch);
+            _previewContainer?.ZoomToFitDeferred();
         }
     }
 
     public void OnReady()
     {
-        _frameSlider.ValueChanged += FrameSliderOnValueChanged;
-        _paletteSlider.ValueChanged += PaletteSliderOnValueChanged;
+        _frameSlider.IndexChanged += OnFrameIndexChanged;
+        _paletteSlider.IndexChanged += OnPaletteIndexChanged; 
         
-        ResetPaletteSlider();
-        ResetFrameSlider();
+        _frameSlider.Reset();
+        _paletteSlider.Reset();
     }
     
     public void OnExit()
     {
-        _frameSlider.ValueChanged -= FrameSliderOnValueChanged;
-        _paletteSlider.ValueChanged -= PaletteSliderOnValueChanged;
+        _frameSlider.IndexChanged -= OnFrameIndexChanged;
+        _paletteSlider.IndexChanged -= OnPaletteIndexChanged;
     }
     
-    private void PaletteSliderOnValueChanged(double value)
+    private void OnPaletteIndexChanged(int newIndex)
     {
-        _selectedPaletteIndex = (int)value;
-        if (_obimBlock != null)
-        {
-            GetObjectData(_obimBlock, _selectedBompFrameIndex);
-        }
+        if (_obimBlock != null) GetObjectData(_obimBlock, _frameSlider.CurrentIndex);
     }
-    private void FrameSliderOnValueChanged(double value)
+
+    private void OnFrameIndexChanged(int newIndex)
     {
-        _selectedBompFrameIndex = (int)value;
-        if (_obimBlock != null)
-        {
-            GetObjectData(_obimBlock, _selectedBompFrameIndex);
-        }
+        if (_obimBlock != null) GetObjectData(_obimBlock, newIndex);
     }
 
     string _currentName = "";
     private int _currentImageCount = 0;
     private bool _bompSelected = false;
-    private int _selectedBompOffset = -1;
-    private int _selectedBompFrameIndex = 0;
-    private int _totalBompFrames = 0;
-    
-    private int _selectedPaletteOffset = -1;
-    private int _selectedPaletteIndex = 0;
-    private int _totalPalettes = 0;
+
     public void OnBlockSelected(ScummBlock block)
     {
         if(!ParentPanel.IsOpen) return;
@@ -118,17 +91,12 @@ public partial class OBIMViewerContent  : Control
             obimBlock = block;
 
         _bompSelected = block.Tag == ScummTag.BOMP;
-    
-        _selectedBompFrameIndex = 0;
-        _selectedPaletteIndex = 0;
         
-        ResetFrameSlider();
-        ResetPaletteSlider();
+        _frameSlider.Reset();
+        _paletteSlider.Reset();
 
         if (_bompSelected)
         {
-            _selectedBompOffset = block.Offset;
-            _selectedBompFrameIndex = block.TagSiblingIndex;
             obimBlock = block.FindParent(ScummTag.OBIM);
         }
         else if (block.Tag == ScummTag.SMAP)
@@ -144,15 +112,13 @@ public partial class OBIMViewerContent  : Control
             
             if (ScummDecoders.TryGetObimInfo(_obimBlock, out var info))
             {
-                _totalBompFrames  = info.TotalFrames;
-                _totalPalettes    = info.TotalPalettes;
-                _selectedPaletteIndex = info.DefaultPaletteIndex;
+                _frameSlider.Setup(info.TotalFrames, _bompSelected ? block.TagSiblingIndex : 0);
+                _paletteSlider.Setup(info.TotalPalettes, info.DefaultPaletteIndex);
             }
             else
             {
-                _totalBompFrames  = 0;
-                _totalPalettes    = 0;
-                _selectedPaletteIndex = 0;
+                _frameSlider.Reset();
+                _paletteSlider.Reset();
             }
 
             OnOBIMSelected();
@@ -174,66 +140,9 @@ public partial class OBIMViewerContent  : Control
     private void OnOBIMSelected()
     {
         ParentPanel.SetTitle($"{ParentPanel.PanelTitle} - {_currentName}");
-        
-        UpdateSliders();
 
         if (_obimBlock != null)
-            GetObjectData(_obimBlock, _selectedBompFrameIndex);
-    }
-    
-    private void UpdateSliders()
-    {
-        _selectedBompFrameIndex = _totalBompFrames > 0
-            ? Mathf.Clamp(_selectedBompFrameIndex, 0, _totalBompFrames - 1)
-            : 0;
-
-        _selectedPaletteIndex = _totalPalettes > 0
-            ? Mathf.Clamp(_selectedPaletteIndex, 0, _totalPalettes - 1)
-            : 0;
-
-        if (_totalBompFrames > 1) EnableFrameSlider(); else ResetFrameSlider();
-        if (_totalPalettes    > 1) EnablePaletteSlider(); else ResetPaletteSlider();
-    }
-
-    
-
-    
-    private void EnableFrameSlider()
-    {
-        // _frameSlider.Visible = true;
-        _frameSlider.Editable = true;
-        _frameSlider.MinValue = 0;
-        _frameSlider.MaxValue = _totalBompFrames - 1;
-        _frameSlider.TickCount = _totalBompFrames;
-        _frameSlider.SetValueNoSignal(_selectedBompFrameIndex);
-    }
-    
-    private void ResetFrameSlider()
-    {
-        _frameSlider.Editable = false;
-        _frameSlider.TickCount = 0;
-        _frameSlider.MinValue = 0;
-        _frameSlider.MaxValue = 1;
-        _frameSlider.SetValueNoSignal(0);
-    }
-    
-    private void EnablePaletteSlider()
-    {
-        _paletteSlider.Editable = true;
-        _paletteSlider.MinValue = 0;
-        _paletteSlider.MaxValue = _totalPalettes - 1;
-        _paletteSlider.TickCount = _totalPalettes;
-        _paletteSlider.SetValueNoSignal(_selectedPaletteIndex);
-    }
-    
-    private void ResetPaletteSlider()
-    {
-        
-        _paletteSlider.Editable = false;
-        _paletteSlider.TickCount = 0;
-        _paletteSlider.MinValue = 0;
-        _paletteSlider.MaxValue = 1;
-        _paletteSlider.SetValueNoSignal(0);
+            GetObjectData(_obimBlock, _frameSlider.CurrentIndex);
     }
     
     private void OnOBIMDeselected()
@@ -241,6 +150,8 @@ public partial class OBIMViewerContent  : Control
         ParentPanel.SetTitle(ParentPanel.PanelTitle);
         SetOBIMTexture(null);
         ClearPallette();
+        _frameSlider.Reset();
+        _paletteSlider.Reset();
     }
     
     private void SetOBIMTexture(Image image)
@@ -267,6 +178,7 @@ public partial class OBIMViewerContent  : Control
         if (_currentImageCount == 0) { SetOBIMTexture(null); return; }
 
         _cts?.Cancel();
+        _cts?.Dispose();
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
@@ -311,9 +223,7 @@ public partial class OBIMViewerContent  : Control
             swatch.TooltipText = $"Global Index: {i}\nColor: {c}";
             _paletteGrid.AddChild(swatch);
         }
-        catch (OperationCanceledException) { }
     }
-
 
     private void ZoomCameraToFit()
     {

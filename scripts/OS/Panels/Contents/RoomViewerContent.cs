@@ -25,6 +25,8 @@ public partial class RoomViewerContent : Control
     [Export] public Button objectsToggle;
     [Export] public Button actorsToggle;
     [Export] public Button walkboxesToggle;
+    [Export] public MSlider paletteSlider;
+    [Export] public PopupMenu _optionsMenu;
     
     private Dictionary<int, ImageTexture> _obimTextures = new(); //tod: move to cache
     
@@ -100,6 +102,8 @@ public partial class RoomViewerContent : Control
         SetupToggle(actorsToggle, OnActorsToggled, actorsToggle.ButtonPressed);
         SetupToggle(walkboxesToggle, OnWalkboxesToggled, walkboxesToggle.ButtonPressed);
         
+        paletteSlider.IndexChanged += OnPaletteIndexChanged;
+        
         _objectNamesList.ItemSelected += OnObjectSelected;
         // if (_objectNamesList.ItemCount > 0)
         //     OnObjectSelected(0); 
@@ -153,6 +157,11 @@ public partial class RoomViewerContent : Control
     {
         _showWalkboxes = v;
         QueueRedraw();
+    }
+    
+    private void OnPaletteIndexChanged(int newIndex)
+    {
+        if (_roomBlock != null) GetBackgroundData();
     }
 
     private void OnObjectSelected(long i)
@@ -279,6 +288,7 @@ public partial class RoomViewerContent : Control
         }
         
         ResetToggles();
+        paletteSlider.Reset();
         
         if (_objectNamesList.ItemCount > 0 && _objectNamesList.IsVisibleInTree())
             FocusManager.SetNextFocusOverride(_objectNamesList);
@@ -309,6 +319,12 @@ public partial class RoomViewerContent : Control
                 _roomHeight = (float)foundheight;
             // GD.Print($"room width: {rawW} room height: {rawH}");
         }
+        
+        if (_roomBlock.Offset != 45980903 && ScummDecoders.TryGetRoomInfo(_rmhdBlock, _roomBlock, out var roomInfo))
+            paletteSlider.Setup(roomInfo.TotalPalettes, roomInfo.DefaultPaletteIndex);
+        else
+            paletteSlider.Reset();
+        
 
         OnRoomSelected();
         EventBus.Instance.EmitSignal(EventBus.SignalName.RoomSelected);
@@ -428,6 +444,7 @@ public partial class RoomViewerContent : Control
         ParentPanel.SetTitle(ParentPanel.PanelTitle);
         ClearObimTextures();
         ResetToggles();
+        paletteSlider.Reset();
     }
     
     private void ClearObimTextures()
