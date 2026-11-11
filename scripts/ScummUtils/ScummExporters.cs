@@ -38,7 +38,7 @@ public class ScummExporters
     {
         for (int i = 0; i < akos.CelOffsets.Length; i++)
         {
-            var celResult = await AkosCelCache.GetCachedCelAsync(akos, i, bakeImages: true, CancellationToken.None);
+            var celResult = await AkosCelCache.GetCachedCelAsync(akos, i, bakeImages: true, false, CancellationToken.None);
         
             Image finalizedExportImage = IndexedRenderer.RenderWithConfig(
                 celResult.ShaderDataImage, 

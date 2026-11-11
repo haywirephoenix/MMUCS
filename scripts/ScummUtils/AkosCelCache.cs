@@ -6,11 +6,18 @@ using Godot;
 
 public static class AkosCelCache
 {
-    public readonly struct CelResult(IndexedSurface surface, Image shaderDataImage = null, Image finalProcessedImage = null)
+    public readonly struct CelResult
     {
-        public IndexedSurface Surface { get; } = surface;
-        public Image ShaderDataImage { get; } = shaderDataImage;
-        public Image FinalProcessedImage { get; } = finalProcessedImage;
+        public IndexedSurface Surface { get; }
+        public Image ShaderDataImage { get; }
+        public Image RawUnshadedImage { get; }
+
+        public CelResult(IndexedSurface surface, Image shaderDataImage = null, Image rawUnshadedImage = null)
+        {
+            Surface          = surface;
+            ShaderDataImage  = shaderDataImage;
+            RawUnshadedImage = rawUnshadedImage;
+        }
     }
     
     private const int HeaderSize = 12;
@@ -26,11 +33,12 @@ public static class AkosCelCache
         AkosData akos, 
         int index, 
         bool bakeImages,
+        bool cacheDisabled,
         CancellationToken token)
     {
         long key = BuildCelCacheKey(akos, index);
 
-        if (akos.DecodedCels.TryGetValue(key, out var cachedSurface))
+        if (!cacheDisabled && akos.DecodedCels.TryGetValue(key, out var cachedSurface))
         {
             var (dataImg, finalImg) = ResolveCelImages(cachedSurface, akos, bakeImages);
             return new CelResult(cachedSurface, dataImg, finalImg);
@@ -66,21 +74,15 @@ public static class AkosCelCache
         return default;
     }
 
-    private static (Image shaderDataImg, Image finalImg) ResolveCelImages(
-        IndexedSurface surface, 
-        AkosData akos, 
-        bool bakeImages, 
-        CelExportConfig? config = null)
+    private static (Image shaderDataImg, Image rawUnshadedImg) ResolveCelImages(IndexedSurface surface, AkosData akos, bool bakeImages)
     {
         if (!bakeImages || surface == null) 
             return (null, null);
 
         Image shaderData = IndexedRenderer.CreateDataImage(surface, akos);
-    
-        CelExportConfig activeConfig = config ?? new CelExportConfig();
-        Image finalProcessed = IndexedRenderer.RenderWithConfig(shaderData, akos.ResolvedColors, activeConfig);
+        Image rawUnshaded = IndexedRenderer.CreateImage(surface, akos);
 
-        return (shaderData, finalProcessed);
+        return (shaderData, rawUnshaded);
     }
     
     public static long BuildCelCacheKey(

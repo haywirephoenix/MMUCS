@@ -11,6 +11,8 @@ public class AkosData
     public long Offset;
     public bool IsPassthroughPalette =>
         !Palette.IsEmpty && Palette.Span[0] == 0xFF;
+    
+    public int DefaultPaletteIndex { get; set; } = 0;
 
     public byte TransparentIndex => IsPassthroughPalette ? (byte)255 : (byte)0;
     // ── Data Blobs (Memory views) ────────────────────────────────────────────
@@ -69,10 +71,11 @@ public struct AkosCelInfo
 {
     public ushort Width;
     public ushort Height;
-    public short RelX;    // draw position relative to actor origin
-    public short RelY;
-    public short MoveX;   // advance actor origin after drawing
-    public short MoveY;
+    public short  RelX;    // draw position relative to actor origin
+    public short  RelY;
+    public short  MoveX;   // advance actor origin after drawing
+    public short  MoveY;
+    public bool   is640Width;
 }
 
 public enum AkosCodec : ushort

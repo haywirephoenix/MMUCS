@@ -4,9 +4,10 @@
 [ext_resource type="Material" uid="uid://dg42w3bb5qow4" path="res://materials/akos_mat.tres" id="2_mikf2"]
 [ext_resource type="StyleBox" uid="uid://t2wm3jj75b5e" path="res://themes/deafult/styleboxEmpty.tres" id="3_8rult"]
 [ext_resource type="Theme" uid="uid://cw71dfiy4lc66" path="res://themes/deafult/cleardefault.tres" id="4_xq74n"]
+[ext_resource type="Script" uid="uid://ddkdunskov3k3" path="res://scripts/OS/Panels/Fragments/MSlider.cs" id="5_fwkix"]
 [ext_resource type="Script" uid="uid://lioesdywkjoh" path="res://scripts/OS/Controls/ZoomableViewport.cs" id="5_h1uex"]
 [ext_resource type="Script" uid="uid://c0a8q22makisf" path="res://scripts/OS/Controls/Focusables/FocusableItemList.cs" id="6_ayh3i"]
-[ext_resource type="StyleBox" uid="uid://b3qpjc2tfdmk5" path="res://themes/deafult/styleboxlineH.tres" id="7_71s6p"]
+[ext_resource type="StyleBox" uid="uid://duayj10sqwqj6" path="res://themes/deafult/styleboxline.tres" id="7_ek5jj"]
 
 [node name="AkosViewerContent" type="Control" unique_id=56898944]
 layout_mode = 3
@@ -16,6 +17,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_wg4yh")
+CacheDisabled = true
 akosShaderMaterial = ExtResource("2_mikf2")
 
 [node name="ContentRoot" type="VBoxContainer" parent="." unique_id=652280384]
@@ -157,6 +159,13 @@ theme_override_font_sizes/font_size = 13
 text = "AutoZoom"
 vertical_alignment = 1
 
+[node name="PaletteLabel" type="Label" parent="ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Labels" unique_id=716701318]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Palette"
+vertical_alignment = 1
+
 [node name="Controls" type="VBoxContainer" parent="ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid" unique_id=17968480]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -238,6 +247,13 @@ layout_mode = 2
 size_flags_horizontal = 0
 theme_override_font_sizes/font_size = 13
 clip_text = true
+
+[node name="PaletteSlider" type="HSlider" parent="ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow/ConfigGrid/Controls" unique_id=1821736575]
+custom_minimum_size = Vector2(134.21, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+script = ExtResource("5_fwkix")
 
 [node name="PreviewWrapper" type="Control" parent="ContentRoot/Tabs/Cels/VBoxContainer/PreviewRow" unique_id=1151474998]
 layout_mode = 2
@@ -386,7 +402,7 @@ columns = 2
 
 [node name="_HSeparator_233" type="HSeparator" parent="ContentRoot/Tabs/Overview/OverviewContainer" unique_id=1742316082]
 layout_mode = 2
-theme_override_styles/separator = ExtResource("7_71s6p")
+theme_override_styles/separator = ExtResource("7_ek5jj")
 
 [node name="Codec Title" type="Label" parent="ContentRoot/Tabs/Overview/OverviewContainer" unique_id=93627040]
 layout_mode = 2
@@ -400,7 +416,7 @@ autowrap_mode = 3
 
 [node name="_HSeparator_236" type="HSeparator" parent="ContentRoot/Tabs/Overview/OverviewContainer" unique_id=18189711]
 layout_mode = 2
-theme_override_styles/separator = ExtResource("7_71s6p")
+theme_override_styles/separator = ExtResource("7_ek5jj")
 
 [node name="BlockSummaryLabel" type="Label" parent="ContentRoot/Tabs/Overview/OverviewContainer" unique_id=766109913]
 layout_mode = 2
