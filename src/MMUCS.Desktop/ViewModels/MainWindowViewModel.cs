@@ -62,14 +62,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         foreach (var f in Settings.RecentFiles) RecentFiles.Add(f);
         _reopenLastFileOnStartup = Settings.ReopenLastFileOnStartup;
         TreeOptions.ShowRoomNames = Settings.ShowRoomNames;
-        TreeOptions.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName != nameof(TreeOptions.ShowRoomNames)) return;
-            Settings.ShowRoomNames = TreeOptions.ShowRoomNames;
-            Settings.Save();
-            // The filter matches label text, which includes room names.
-            if (!string.IsNullOrWhiteSpace(FilterText)) ApplyFilter();
-        };
+        TreeOptions.ShowObjectNames = Settings.ShowObjectNames;
+        TreeOptions.ColorizeTags = Settings.ColorizeTags;
+        TreeOptions.PropertyChanged += (_, e) => OnTreeOptionChanged(e.PropertyName);
 
         // Warnings stay in the debug log so parser noise doesn't overwrite useful status text.
         Log.Message += (level, msg) =>
@@ -77,6 +72,21 @@ public sealed partial class MainWindowViewModel : ObservableObject
             if (level == LogLevel.Warning) return;
             Dispatcher.UIThread.Post(() => Status = level == LogLevel.Error ? $"⚠ {msg}" : msg);
         };
+    }
+
+    private void OnTreeOptionChanged(string property)
+    {
+        Settings.ShowRoomNames = TreeOptions.ShowRoomNames;
+        Settings.ShowObjectNames = TreeOptions.ShowObjectNames;
+        Settings.ColorizeTags = TreeOptions.ColorizeTags;
+        Settings.Save();
+
+        if (property is nameof(TreeOptions.ShowRoomNames) or nameof(TreeOptions.ShowObjectNames))
+        {
+            // The filter matches label text, so an active filter must be re-run.
+            if (!string.IsNullOrWhiteSpace(FilterText)) ApplyFilter();
+            else foreach (var r in Roots) r.RefreshLabels();
+        }
     }
 
     partial void OnReopenLastFileOnStartupChanged(bool value)
@@ -197,12 +207,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
             var visible = new HashSet<ScummBlock>();
             var found = new List<ScummBlock>();
-            bool roomNames = TreeOptions.ShowRoomNames;
 
             bool IsMatch(ScummBlock b) => tag.HasValue
                 ? b.Tag == tag.Value
                 : (b.TagName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true
-                   || BlockNodeViewModel.LabelFor(b, roomNames).Contains(q, StringComparison.OrdinalIgnoreCase));
+                   || BlockNodeViewModel.LabelFor(b, TreeOptions).Contains(q, StringComparison.OrdinalIgnoreCase));
 
             bool Walk(ScummBlock b, bool ancestorMatched)
             {

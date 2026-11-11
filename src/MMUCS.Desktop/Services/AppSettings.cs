@@ -16,6 +16,8 @@ public sealed class AppSettings
     public List<string> RecentFiles { get; set; } = new();
     public bool ReopenLastFileOnStartup { get; set; } = true;
     public bool ShowRoomNames { get; set; } = true;
+    public bool ShowObjectNames { get; set; }
+    public bool ColorizeTags { get; set; } = true;
 
     private static string FilePath => Path.Combine(CorePaths.Root, "settings.json");
 

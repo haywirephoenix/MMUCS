@@ -47,20 +47,33 @@
         <Border DockPanel.Dock="Top" Classes="panel-header">
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Text="BLOCK HIERARCHY" VerticalAlignment="Center" />
-            <CheckBox Grid.Column="1" Content="Room names" FontSize="11" MinHeight="0" Padding="4,0,0,0"
-                      IsChecked="{Binding TreeOptions.ShowRoomNames}" />
+            <Button Grid.Column="1" Content="Options ▾" FontSize="11" Padding="6,1" MinHeight="0"
+                    Background="Transparent" ToolTip.Tip="Tree display options">
+              <Button.Flyout>
+                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                  <MenuItem Header="Room names" ToggleType="CheckBox" IsChecked="{Binding TreeOptions.ShowRoomNames}" />
+                  <MenuItem Header="Object names" ToggleType="CheckBox" IsChecked="{Binding TreeOptions.ShowObjectNames}" />
+                  <MenuItem Header="Colour by tag" ToggleType="CheckBox" IsChecked="{Binding TreeOptions.ColorizeTags}" />
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
           </Grid>
         </Border>
         <StackPanel DockPanel.Dock="Top" Margin="6,6,6,4" Spacing="2">
           <TextBox x:Name="FilterBox" Text="{Binding FilterText}" Classes="clearButton"
-                   Watermark="Filter: tag (AKOS) or name (cannon)   Ctrl+F" FontSize="12"
+                   PlaceholderText="Filter: tag (AKOS) or name (cannon)   Ctrl+F" FontSize="12"
                    KeyDown="OnFilterKeyDown" />
           <TextBlock Text="{Binding FilterSummary}"
                      IsVisible="{Binding FilterSummary, Converter={x:Static ObjectConverters.IsNotNull}}"
                      FontSize="11" Margin="2,0" Foreground="{StaticResource SubtleTextBrush}" />
         </StackPanel>
-        <TreeView x:Name="BlockTree" ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
+        <TreeView x:Name="BlockTree" ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+                  Classes.colorized="{Binding TreeOptions.ColorizeTags}">
           <TreeView.Styles>
+            <!-- Colour applies only while the option is on, and only to tags that have a colour. -->
+            <Style Selector="TreeView.colorized TextBlock.label.tinted" x:DataType="vm:BlockNodeViewModel">
+              <Setter Property="Foreground" Value="{Binding TagBrush}" />
+            </Style>
             <Style Selector="TreeViewItem" x:DataType="vm:BlockNodeViewModel">
               <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
               <Setter Property="MinHeight" Value="22" />
@@ -69,7 +82,8 @@
           <TreeView.ItemTemplate>
             <TreeDataTemplate DataType="vm:BlockNodeViewModel" ItemsSource="{Binding Children}">
               <Grid ColumnDefinitions="*,Auto" ToolTip.Tip="{Binding ToolTip}">
-                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" FontSize="12" />
+                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" FontSize="12"
+                           Classes="label" Classes.tinted="{Binding HasTagColor}" />
                 <TextBlock Grid.Column="1" Text="{Binding SizeText}" Margin="8,0,4,0" FontSize="11"
                            Foreground="{StaticResource SubtleTextBrush}" />
               </Grid>
