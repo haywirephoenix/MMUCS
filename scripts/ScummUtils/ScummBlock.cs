@@ -44,6 +44,7 @@ public partial class ScummBlock : RefCounted
     public void SetMetaSchema(Type type) => MetaSchema = type;
 
     public Dictionary<Variant, Variant> GetMetaDataDict() => Metadata;
+    public List<ScummScriptDecoder.DisassembledInstruction> DisassemblyLines { get; set; }
     public void SetMetaDataDict(Dictionary<Variant, Variant> newdict) => Metadata = newdict;
 
     public void SetMetaDataItem<T>(T key, Variant value, bool propagate = false) where T : Enum
