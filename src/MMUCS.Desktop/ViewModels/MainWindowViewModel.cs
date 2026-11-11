@@ -10,7 +10,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Scumm;
+using Dock.Model.Controls;
 using MMUCS.Desktop.Services;
+using MMUCS.Desktop.ViewModels.Docking;
 
 namespace MMUCS.Desktop.ViewModels;
 
@@ -56,6 +58,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public RoomViewModel Room { get; } = new();
     public AkosViewModel Costume { get; } = new();
 
+    /// <summary>Docking layout: panels are views over this view model (see Docking/DockLayout.cs).</summary>
+    public MmucsDockFactory DockFactory { get; }
+    [ObservableProperty] private IRootDock _layout;
+
+    /// <summary>Raised by Ctrl+F; the Blocks panel focuses its filter box wherever it is docked.</summary>
+    public event Action FocusFilterRequested;
+    public void RequestFilterFocus() => FocusFilterRequested?.Invoke();
+
     private static readonly HashSet<uint> ScriptTags = new()
     {
         ScummTag.SCRP, ScummTag.LSCR, ScummTag.ENCD, ScummTag.EXCD, ScummTag.VERB,
@@ -71,12 +81,39 @@ public sealed partial class MainWindowViewModel : ObservableObject
         TreeOptions.ColorizeTags = Settings.ColorizeTags;
         TreeOptions.PropertyChanged += (_, e) => OnTreeOptionChanged(e.PropertyName);
 
+        DockFactory = new MmucsDockFactory(this);
+        _layout = DockFactory.CreateLayout();
+        DockFactory.InitLayout(_layout);
+
         // Warnings stay in the debug log so parser noise doesn't overwrite useful status text.
         Log.Message += (level, msg) =>
         {
             if (level == LogLevel.Warning) return;
             Dispatcher.UIThread.Post(() => Status = level == LogLevel.Error ? $"⚠ {msg}" : msg);
         };
+    }
+
+    partial void OnSelectedViewerIndexChanged(int value) => DockFactory.Activate(
+        (ViewerTab)value switch
+        {
+            ViewerTab.Costume => MmucsDockFactory.CostumeId,
+            ViewerTab.Script => MmucsDockFactory.ScriptId,
+            _ => MmucsDockFactory.RoomId,
+        }, Layout);
+
+    /// <summary>Brings a panel (by dock id) to the front.</summary>
+    public void ShowPanel(string id) => DockFactory.Activate(id, Layout);
+
+    /// <summary>Closes floating windows and rebuilds the default arrangement.</summary>
+    public void ResetLayout()
+    {
+        if (Layout?.Windows != null)
+            foreach (var w in Layout.Windows.ToList()) w.Exit();
+
+        var layout = DockFactory.CreateLayout();
+        DockFactory.InitLayout(layout);
+        Layout = layout;
+        OnSelectedViewerIndexChanged(SelectedViewerIndex);
     }
 
     private void OnTreeOptionChanged(string property)

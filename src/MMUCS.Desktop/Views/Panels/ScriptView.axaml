@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             x:Class="MMUCS.Desktop.Views.Panels.ScriptView"
+             x:DataType="vm:MainWindowViewModel">
+  <ScrollViewer HorizontalScrollBarVisibility="Auto">
+    <SelectableTextBlock Text="{Binding ScriptText}" Classes="mono" FontFamily="{StaticResource MonoFont}"
+                         FontSize="12" Margin="10" />
+  </ScrollViewer>
+</UserControl>

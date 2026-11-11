@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             xmlns:c="using:MMUCS.Desktop.Controls"
+             x:Class="MMUCS.Desktop.Views.Panels.HexPanelView"
+             x:DataType="vm:MainWindowViewModel">
+  <DockPanel>
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding #Hex.SelectionInfo}" Classes="mono" FontSize="11" Margin="8,3"
+               TextWrapping="Wrap" Foreground="{StaticResource SubtleTextBrush}" />
+    <Grid ColumnDefinitions="*,Auto">
+      <c:HexView x:Name="Hex" FontSize="11" Data="{Binding HexData}" BaseOffset="{Binding HexBaseOffset}"
+                 TopRow="{Binding #HexScroll.Value, Mode=TwoWay}" />
+      <ScrollBar x:Name="HexScroll" Grid.Column="1" Orientation="Vertical" AllowAutoHide="False"
+                 Minimum="0" Maximum="{Binding #Hex.MaxTopRow}" ViewportSize="{Binding #Hex.VisibleRows}"
+                 SmallChange="1" LargeChange="{Binding #Hex.VisibleRows}" />
+    </Grid>
+  </DockPanel>
+</UserControl>

@@ -1,5 +1,10 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dockTheme="using:Dock.Avalonia.Themes.Fluent"
+             xmlns:dockCtl="using:Dock.Avalonia.Controls"
+             xmlns:dvm="using:MMUCS.Desktop.ViewModels.Docking"
+             xmlns:views="using:MMUCS.Desktop.Views"
+             xmlns:panels="using:MMUCS.Desktop.Views.Panels"
              x:Class="MMUCS.Desktop.App"
              RequestedThemeVariant="Dark">
   <Application.Resources>
@@ -8,8 +13,36 @@
     <SolidColorBrush x:Key="SubtleTextBrush" Color="#99FFFFFF" />
   </Application.Resources>
 
+  <!-- Panel content for each dockable. App-level so floating (host) windows resolve them too. -->
+  <Application.DataTemplates>
+    <DataTemplate DataType="dvm:BlocksTool">
+      <panels:BlockTreeView DataContext="{Binding Main}" />
+    </DataTemplate>
+    <DataTemplate DataType="dvm:MetadataTool">
+      <panels:MetadataView DataContext="{Binding Main}" />
+    </DataTemplate>
+    <DataTemplate DataType="dvm:HexTool">
+      <panels:HexPanelView DataContext="{Binding Main}" />
+    </DataTemplate>
+    <DataTemplate DataType="dvm:RoomDocument">
+      <views:RoomView DataContext="{Binding Main.Room}" />
+    </DataTemplate>
+    <DataTemplate DataType="dvm:CostumeDocument">
+      <views:AkosView DataContext="{Binding Main.Costume}" />
+    </DataTemplate>
+    <DataTemplate DataType="dvm:ScriptDocument">
+      <panels:ScriptView DataContext="{Binding Main}" />
+    </DataTemplate>
+  </Application.DataTemplates>
+
   <Application.Styles>
     <FluentTheme DensityStyle="Compact" />
+    <dockTheme:DockFluentTheme />
+
+    <!-- Floating panel windows use the app icon. -->
+    <Style Selector="dockCtl|HostWindow">
+      <Setter Property="Icon" Value="/Assets/mmucs.ico" />
+    </Style>
 
     <Style Selector="Border.panel-header">
       <Setter Property="Background" Value="{StaticResource PanelHeaderBrush}" />

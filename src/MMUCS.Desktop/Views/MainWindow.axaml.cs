@@ -1,17 +1,25 @@
+using System;
+using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using CommunityToolkit.Mvvm.Input;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Scumm;
 using MMUCS.Desktop.ViewModels;
+using MMUCS.Desktop.ViewModels.Docking;
 
 namespace MMUCS.Desktop.Views;
 
 public partial class MainWindow : Window
 {
+    private NativeMenu _recentMenu;
+    private NativeMenuItem _reopenItem, _exportItem, _exportRoomItem, _exportCelsItem;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -20,75 +28,153 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnPreviewKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
     }
 
-    protected override void OnDataContextChanged(System.EventArgs e)
+    private MainWindowViewModel Vm => (MainWindowViewModel)DataContext;
+
+    protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (DataContext is MainWindowViewModel vm)
-        {
-            vm.RecentFiles.CollectionChanged += (_, _) => RebuildRecentMenu();
-            RebuildRecentMenu();
-        }
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        BuildMenu();
+        vm.RecentFiles.CollectionChanged += (_, _) => RebuildRecentMenu();
+        vm.PropertyChanged += OnVmPropertyChanged;
+        vm.Room.PropertyChanged += (_, _) => UpdateMenuState();
+        vm.Costume.PropertyChanged += (_, _) => UpdateMenuState();
     }
 
-    /// <summary>Recent list is rebuilt in code: simpler and more predictable than templated MenuItems.</summary>
+    // ── Menu ─────────────────────────────────────────────────────────────────
+
+    /// <summary>Cmd on macOS, Ctrl elsewhere.</summary>
+    private static KeyGesture Shortcut(Key key, KeyModifiers extra = KeyModifiers.None) =>
+        new(key, (OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control) | extra);
+
+    private static NativeMenuItem Item(string header, ICommand command, KeyGesture gesture = null) =>
+        new(header) { Command = command, Gesture = gesture };
+
+    /// <summary>
+    /// One menu definition for every platform: NativeMenu shows in the macOS system menu bar and
+    /// through NativeMenuBar inside the window elsewhere.
+    /// </summary>
+    private void BuildMenu()
+    {
+        var open = new AsyncRelayCommand(OpenAsync);
+        var export = new AsyncRelayCommand(ShowExportWizardAsync);
+
+        _recentMenu = new NativeMenu();
+        _reopenItem = new NativeMenuItem("Reopen last file on startup")
+        {
+            ToggleType = MenuItemToggleType.CheckBox,
+            Command = Vm.ToggleReopenLastFileOnStartupCommand,
+        };
+        _exportItem = Item("Export…", export, Shortcut(Key.E));
+        _exportRoomItem = Item("Export room background…", new AsyncRelayCommand(ExportRoomAsync));
+        _exportCelsItem = Item("Export costume cels…", new AsyncRelayCommand(ExportCelsAsync));
+
+        var file = new NativeMenu();
+        file.Items.Add(Item("Open…", open, Shortcut(Key.O)));
+        file.Items.Add(new NativeMenuItem("Open Recent") { Menu = _recentMenu });
+        file.Items.Add(_reopenItem);
+        file.Items.Add(new NativeMenuItemSeparator());
+        file.Items.Add(_exportItem);
+        file.Items.Add(_exportRoomItem);
+        file.Items.Add(_exportCelsItem);
+        file.Items.Add(new NativeMenuItemSeparator());
+        file.Items.Add(Item("Clear decode caches", new RelayCommand(ClearCaches)));
+        if (!OperatingSystem.IsMacOS())
+        {
+            // macOS supplies Quit in the application menu.
+            file.Items.Add(new NativeMenuItemSeparator());
+            file.Items.Add(Item("Exit", new RelayCommand(Close)));
+        }
+
+        var view = new NativeMenu();
+        view.Items.Add(Item("Room", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.RoomId)), Shortcut(Key.D1)));
+        view.Items.Add(Item("Costume", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.CostumeId)), Shortcut(Key.D2)));
+        view.Items.Add(Item("Script", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.ScriptId)), Shortcut(Key.D3)));
+        view.Items.Add(new NativeMenuItemSeparator());
+        view.Items.Add(Item("Blocks", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.BlocksId))));
+        view.Items.Add(Item("Metadata", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.MetadataId))));
+        view.Items.Add(Item("Hex", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.HexId))));
+        view.Items.Add(new NativeMenuItemSeparator());
+        view.Items.Add(Item("Reset layout", new RelayCommand(Vm.ResetLayout)));
+
+        var menu = new NativeMenu();
+        menu.Items.Add(new NativeMenuItem("File") { Menu = file });
+        menu.Items.Add(new NativeMenuItem("View") { Menu = view });
+        NativeMenu.SetMenu(this, menu);
+
+        // The in-window menu bar shows gestures but doesn't bind them; register them on the window.
+        // (On macOS the system menu handles its own key equivalents.)
+        if (!OperatingSystem.IsMacOS())
+        {
+            foreach (var item in new[] { file, view }.SelectMany(m => m.Items).OfType<NativeMenuItem>())
+                if (item.Gesture != null && item.Command != null)
+                    KeyBindings.Add(new KeyBinding { Gesture = item.Gesture, Command = item.Command });
+        }
+
+        RebuildRecentMenu();
+        UpdateMenuState();
+    }
+
     private void RebuildRecentMenu()
     {
-        RecentMenu.Items.Clear();
+        if (_recentMenu == null) return;
+        _recentMenu.Items.Clear();
         var recent = Vm.RecentFiles;
         if (recent.Count == 0)
         {
-            RecentMenu.Items.Add(new MenuItem { Header = "(none)", IsEnabled = false });
+            _recentMenu.Items.Add(new NativeMenuItem("(none)") { IsEnabled = false });
             return;
         }
 
-        for (int i = 0; i < recent.Count; i++)
+        foreach (var path in recent)
         {
-            string path = recent[i];
-            var item = new MenuItem
-            {
-                // "_1" gives an access key; the folder helps tell same-named files apart.
-                // Underscores in paths are doubled so they aren't treated as access-key markers.
-                Header = $"_{(i + 1) % 10}  {System.IO.Path.GetFileName(path).Replace("_", "__")}   —   {System.IO.Path.GetDirectoryName(path)?.Replace("_", "__")}",
-            };
-            ToolTip.SetTip(item, path);
-            item.Click += async (_, _) => await Vm.OpenFileAsync(path);
-            RecentMenu.Items.Add(item);
+            string p = path;
+            _recentMenu.Items.Add(Item($"{Path.GetFileName(p)}   —   {Path.GetDirectoryName(p)}",
+                new AsyncRelayCommand(() => Vm.OpenFileAsync(p))));
         }
-        RecentMenu.Items.Add(new Separator());
-        var clear = new MenuItem { Header = "Clear recent files" };
-        clear.Click += (_, _) => Vm.ClearRecentFiles();
-        RecentMenu.Items.Add(clear);
+        _recentMenu.Items.Add(new NativeMenuItemSeparator());
+        _recentMenu.Items.Add(Item("Clear recent files", new RelayCommand(Vm.ClearRecentFiles)));
     }
+
+    private void OnVmPropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainWindowViewModel.HasProject) or nameof(MainWindowViewModel.ReopenLastFileOnStartup))
+            UpdateMenuState();
+    }
+
+    private void UpdateMenuState()
+    {
+        if (_reopenItem == null) return;
+        _reopenItem.IsChecked = Vm.ReopenLastFileOnStartup;
+        _exportItem.IsEnabled = Vm.HasProject;
+        _exportRoomItem.IsEnabled = Vm.Room.HasRoom;
+        _exportCelsItem.IsEnabled = Vm.Costume.HasCostume;
+    }
+
+    // ── Keyboard / drag-drop ─────────────────────────────────────────────────
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        bool cmd = e.KeyModifiers.HasFlag(OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control);
+        if (e.Key == Key.F && cmd)
         {
-            FilterBox.Focus();
-            FilterBox.SelectAll();
+            Vm.ShowPanel(MmucsDockFactory.BlocksId);
+            Vm.RequestFilterFocus();
             e.Handled = true;
         }
     }
 
-    private void OnFilterKeyDown(object sender, KeyEventArgs e)
+    private async void OnDrop(object sender, DragEventArgs e)
     {
-        switch (e.Key)
-        {
-            case Key.Escape:
-                Vm.ClearFilter();
-                e.Handled = true;
-                break;
-            case Key.Enter:
-                Vm.ApplyFilter(); // skip the debounce
-                BlockTree.Focus();
-                e.Handled = true;
-                break;
-        }
+        var file = e.DataTransfer.TryGetFiles()?.FirstOrDefault();
+        var path = file?.TryGetLocalPath();
+        if (path != null) await Vm.OpenFileAsync(path);
     }
 
-    private MainWindowViewModel Vm => (MainWindowViewModel)DataContext;
+    // ── Commands ─────────────────────────────────────────────────────────────
 
-    private async void OnOpenClick(object sender, RoutedEventArgs e)
+    private async Task OpenAsync()
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
@@ -105,47 +191,35 @@ public partial class MainWindow : Window
         if (path != null) await Vm.OpenFileAsync(path);
     }
 
-    private async void OnDrop(object sender, DragEventArgs e)
-    {
-        var file = e.DataTransfer.TryGetFiles()?.FirstOrDefault();
-        var path = file?.TryGetLocalPath();
-        if (path != null) await Vm.OpenFileAsync(path);
-    }
-
     private async Task<string> PickFolderAsync(string title)
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = title });
         return folders.FirstOrDefault()?.TryGetLocalPath();
     }
 
-    private async void OnExportWizardClick(object sender, RoutedEventArgs e)
+    private async Task ShowExportWizardAsync()
     {
         if (Vm.RootBlock == null) return;
         var window = new ExporterWindow { DataContext = new ExporterViewModel(Vm.RootBlock, Vm.Settings) };
         await window.ShowDialog(this);
     }
 
-    private async void OnExportRoomClick(object sender, RoutedEventArgs e)
+    private async Task ExportRoomAsync()
     {
         var folder = await PickFolderAsync("Export room background to…");
         if (folder != null) Vm.Room.ExportBackground(folder);
     }
 
-    private async void OnExportCelsClick(object sender, RoutedEventArgs e)
+    private async Task ExportCelsAsync()
     {
         var folder = await PickFolderAsync("Export costume cels to…");
         if (folder != null) await Vm.Costume.ExportCelsAsync(folder);
     }
 
-    private void OnClearCachesClick(object sender, RoutedEventArgs e)
+    private static void ClearCaches()
     {
         ScummBackgroundCache.ClearDiskCache();
         AkosCelCache.ClearDiskCache();
         Log.Info("Decode caches cleared.");
     }
-
-    private void OnExitClick(object sender, RoutedEventArgs e) => Close();
-    private void OnShowRoomTab(object sender, RoutedEventArgs e) => Vm.SelectedViewerIndex = (int)ViewerTab.Room;
-    private void OnShowCostumeTab(object sender, RoutedEventArgs e) => Vm.SelectedViewerIndex = (int)ViewerTab.Costume;
-    private void OnShowScriptTab(object sender, RoutedEventArgs e) => Vm.SelectedViewerIndex = (int)ViewerTab.Script;
 }

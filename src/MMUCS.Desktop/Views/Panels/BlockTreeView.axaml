@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             x:Class="MMUCS.Desktop.Views.Panels.BlockTreeView"
+             x:DataType="vm:MainWindowViewModel">
+  <DockPanel>
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="6,6,6,2">
+      <TextBox x:Name="FilterBox" Text="{Binding FilterText}" Classes="clearButton"
+               PlaceholderText="Filter: tag (AKOS) or name (cannon)   Ctrl+F" FontSize="12"
+               KeyDown="OnFilterKeyDown" />
+      <Button Grid.Column="1" Content="Options ▾" FontSize="11" Padding="6,2" Margin="4,0,0,0"
+              VerticalAlignment="Stretch" ToolTip.Tip="Tree display options">
+        <Button.Flyout>
+          <MenuFlyout Placement="BottomEdgeAlignedRight">
+            <MenuItem Header="Room names" ToggleType="CheckBox" StaysOpenOnClick="True"
+                      IsChecked="{Binding TreeOptions.ShowRoomNames, Mode=OneWay}" Command="{Binding TreeOptions.ToggleRoomNamesCommand}" />
+            <MenuItem Header="Object names" ToggleType="CheckBox" StaysOpenOnClick="True"
+                      IsChecked="{Binding TreeOptions.ShowObjectNames, Mode=OneWay}" Command="{Binding TreeOptions.ToggleObjectNamesCommand}" />
+            <MenuItem Header="Colour by tag" ToggleType="CheckBox" StaysOpenOnClick="True"
+                      IsChecked="{Binding TreeOptions.ColorizeTags, Mode=OneWay}" Command="{Binding TreeOptions.ToggleColorizeTagsCommand}" />
+          </MenuFlyout>
+        </Button.Flyout>
+      </Button>
+    </Grid>
+    <TextBlock DockPanel.Dock="Top" Text="{Binding FilterSummary}"
+               IsVisible="{Binding FilterSummary, Converter={x:Static ObjectConverters.IsNotNull}}"
+               FontSize="11" Margin="9,0,6,2" Foreground="{StaticResource SubtleTextBrush}" />
+
+    <TreeView x:Name="BlockTree" ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+              Classes.colorized="{Binding TreeOptions.ColorizeTags}">
+      <TreeView.Styles>
+        <!-- Colour applies only while the option is on, and only to tags that have a colour. -->
+        <Style Selector="TreeView.colorized TextBlock.label.tinted" x:DataType="vm:BlockNodeViewModel">
+          <Setter Property="Foreground" Value="{Binding TagBrush}" />
+        </Style>
+        <Style Selector="TreeViewItem" x:DataType="vm:BlockNodeViewModel">
+          <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+          <Setter Property="MinHeight" Value="22" />
+        </Style>
+      </TreeView.Styles>
+      <TreeView.ItemTemplate>
+        <TreeDataTemplate DataType="vm:BlockNodeViewModel" ItemsSource="{Binding Children}">
+          <Grid ColumnDefinitions="*,Auto" ToolTip.Tip="{Binding ToolTip}">
+            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" FontSize="12"
+                       Classes="label" Classes.tinted="{Binding HasTagColor}" />
+            <TextBlock Grid.Column="1" Text="{Binding SizeText}" Margin="8,0,4,0" FontSize="11"
+                       Foreground="{StaticResource SubtleTextBrush}" />
+          </Grid>
+        </TreeDataTemplate>
+      </TreeView.ItemTemplate>
+    </TreeView>
+  </DockPanel>
+</UserControl>
