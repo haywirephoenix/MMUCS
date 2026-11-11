@@ -17,6 +17,7 @@ public class AkosParser
     {
         var data = new AkosData();
         data.Offset = akosBlock.Offset;
+        data.SourceKey = akosBlock.SourceKey;
 
         var roomBlock = akosBlock.Parent.FindChild(ScummTag.ROOM);
         var apals = roomBlock.FindChildrenRecursive(ScummTag.APAL);

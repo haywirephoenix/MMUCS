@@ -85,11 +85,12 @@ public sealed class RoomModel
 
         int roomNo = 0;
         string name = null;
-        if ((lflf != null && ScummStatics.RoomOffsets.TryGetValue(lflf.Offset, out int no))
-            || ScummStatics.RoomOffsets.TryGetValue(room.Offset, out no))
+        // The parser stamps roomNo/roomName onto the LFLF (from LOFF + RNAM) while parsing.
+        var meta = lflf?.GetMetaDataDict();
+        if (meta != null)
         {
-            roomNo = no;
-            if (no > 0 && no < ScummStatics.RoomNames.Count) name = ScummStatics.RoomNames[no];
+            if (meta.TryGetValue(MetaValue.From(ScummMeta.LFLF.roomNo), out var no)) roomNo = (int)no;
+            if (meta.TryGetValue(MetaValue.From(ScummMeta.LFLF.roomName), out var nm)) name = (string)nm;
         }
 
         model = new RoomModel

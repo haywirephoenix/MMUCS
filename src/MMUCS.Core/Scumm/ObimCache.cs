@@ -20,7 +20,7 @@ public static class ObimCache
 
     public static long BuildObimCacheKey(ScummBlock objectBlock, int frameIndex)
     {
-        return HashCode.Combine(objectBlock.Offset, frameIndex);
+        return StableHash.Of(objectBlock.SourceKey, objectBlock.Offset, frameIndex);
     }
 
     public static async Task<ObimDecoders.ObimResult> GetCachedObimAsync(

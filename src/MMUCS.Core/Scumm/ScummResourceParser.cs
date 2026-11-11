@@ -47,6 +47,7 @@ public class ScummResourceParser
             DataOffset = 0,
             DataLength = raw.Length,
             FileData = raw,
+            SourceKey = StableHash.Of(StableHash.Of(Path.GetFileName(filePath).ToUpperInvariant()), raw.Length),
         };
 
         _ParseChildren(raw, 0, raw.Length, root);
@@ -86,6 +87,7 @@ public class ScummResourceParser
                 DataOffset = pos + 8,
                 DataLength = size - 8,
                 FileData = data,
+                SourceKey = parent.SourceKey,
                 Parent = parent,
             };
         

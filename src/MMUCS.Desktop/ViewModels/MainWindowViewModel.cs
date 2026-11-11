@@ -30,6 +30,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public ObservableCollection<BlockNodeViewModel> Roots { get; } = new();
     public ObservableCollection<MetadataRow> Metadata { get; } = new();
 
+    public TreeOptions TreeOptions { get; } = new();
+
     public RoomViewModel Room { get; } = new();
     public AkosViewModel Costume { get; } = new();
 
@@ -48,6 +50,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
         };
     }
 
+    /// <summary>
+    /// Opens a resource file. For "NAME.LAn" every sibling .LA file is loaded too, since LA0 holds
+    /// the room names that LA1/LA2 rooms refer to.
+    /// </summary>
     public async Task OpenFileAsync(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
@@ -57,22 +63,27 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
 
         IsLoading = true;
-        Status = $"Parsing {Path.GetFileName(path)}…";
         var sw = Stopwatch.StartNew();
         try
         {
-            var root = await Task.Run(() =>
-            {
-                var parser = new ScummResourceParser();
-                return parser.Parse(path);
-            });
+            var files = ScummProject.FindRelatedFiles(path);
+            var root = await Task.Run(() => ScummProject.Load(files, (i, n, f) =>
+                Dispatcher.UIThread.Post(() => Status = $"Parsing {Path.GetFileName(f)} ({i + 1}/{n})…")));
 
             Roots.Clear();
-            var rootVm = new BlockNodeViewModel(root) { IsExpanded = true };
+            var rootVm = new BlockNodeViewModel(root, TreeOptions) { IsExpanded = true };
             Roots.Add(rootVm);
-            foreach (var c in rootVm.Children) c.IsExpanded = c.Block.Tag == ScummTag.LECF;
-            Title = $"MMUCS — {Path.GetFileName(path)}";
-            Status = $"Parsed {Path.GetFileName(path)} ({root.Size:N0} bytes, {CountBlocks(root):N0} blocks) in {sw.ElapsedMilliseconds} ms";
+            // Expand down to the LFLF level so rooms are visible immediately.
+            foreach (var c in rootVm.Children)
+            {
+                c.IsExpanded = c.Block.Tag is 0 or ScummTag.LECF;
+                if (c.Block.Tag == 0)
+                    foreach (var cc in c.Children) cc.IsExpanded = cc.Block.Tag == ScummTag.LECF;
+            }
+
+            string names = string.Join(", ", files.Select(Path.GetFileName));
+            Title = $"MMUCS — {names}";
+            Status = $"Parsed {names} ({root.Size:N0} bytes, {CountBlocks(root):N0} blocks) in {sw.ElapsedMilliseconds} ms";
             SelectedNode = rootVm;
         }
         catch (Exception ex)

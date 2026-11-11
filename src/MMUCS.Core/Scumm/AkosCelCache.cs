@@ -94,10 +94,7 @@ public static class AkosCelCache
     {
         var cel = akos.CelOffsets[celIndex];
 
-        return HashCode.Combine(
-            akos.Offset,
-            celIndex,
-            cel.AkcdOffset);
+        return StableHash.Of(akos.SourceKey, akos.Offset, celIndex, cel.AkcdOffset);
     }
 
     public static void Save(string path, IndexedSurface surface)

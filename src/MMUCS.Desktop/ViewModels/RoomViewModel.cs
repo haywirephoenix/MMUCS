@@ -85,7 +85,8 @@ public sealed partial class RoomViewModel : ObservableObject
 
         try
         {
-            int cacheId = room.RoomNo > 0 ? room.RoomNo : room.Room.Offset;
+            // Rooms can appear in more than one file (e.g. per-disc copies), so key by source file too.
+            int cacheId = (int)Core.StableHash.Of(room.Room.SourceKey, room.RoomNo > 0 ? room.RoomNo : room.Room.Offset);
             var bg = await ScummBackgroundCache.GetCachedBackgroundAsync(
                 cacheId, room.Rmhd, room.Room, cacheDisabled: false, PaletteIndex, token);
             if (token.IsCancellationRequested) return;

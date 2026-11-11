@@ -41,7 +41,13 @@
 
       <!-- Block hierarchy -->
       <DockPanel Grid.Column="0">
-        <Border DockPanel.Dock="Top" Classes="panel-header"><TextBlock Text="BLOCK HIERARCHY" /></Border>
+        <Border DockPanel.Dock="Top" Classes="panel-header">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="BLOCK HIERARCHY" VerticalAlignment="Center" />
+            <CheckBox Grid.Column="1" Content="Room names" FontSize="11" MinHeight="0" Padding="4,0,0,0"
+                      IsChecked="{Binding TreeOptions.ShowRoomNames}" />
+          </Grid>
+        </Border>
         <TreeView x:Name="BlockTree" ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
           <TreeView.Styles>
             <Style Selector="TreeViewItem" x:DataType="vm:BlockNodeViewModel">

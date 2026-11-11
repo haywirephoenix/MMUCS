@@ -15,7 +15,7 @@
       <Setter Property="Background" Value="{StaticResource PanelHeaderBrush}" />
       <Setter Property="Padding" Value="8,4" />
     </Style>
-    <Style Selector="Border.panel-header > TextBlock">
+    <Style Selector="Border.panel-header > TextBlock, Border.panel-header > Grid > TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />

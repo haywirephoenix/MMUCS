@@ -13,6 +13,8 @@ namespace MMUCS.Core.Scumm;
 public class AkosData
 {
     public long Offset;
+    /// <summary><see cref="ScummBlock.SourceKey"/> of the AKOS block's file.</summary>
+    public long SourceKey;
     public bool IsPassthroughPalette =>
         !Palette.IsEmpty && Palette.Span[0] == 0xFF;
     

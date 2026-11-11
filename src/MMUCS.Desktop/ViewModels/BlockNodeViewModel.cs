@@ -1,9 +1,16 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MMUCS.Core.Scumm;
 
 namespace MMUCS.Desktop.ViewModels;
+
+/// <summary>Display options shared by every node of one tree.</summary>
+public sealed partial class TreeOptions : ObservableObject
+{
+    [ObservableProperty] private bool _showRoomNames = true;
+}
 
 /// <summary>Tree node wrapping a <see cref="ScummBlock"/>. Children are materialised lazily.</summary>
 public sealed partial class BlockNodeViewModel : ObservableObject
@@ -15,10 +22,20 @@ public sealed partial class BlockNodeViewModel : ObservableObject
 
     private ObservableCollection<BlockNodeViewModel> _children;
 
-    public BlockNodeViewModel(ScummBlock block, BlockNodeViewModel parent = null)
+    public TreeOptions Options { get; }
+
+    public BlockNodeViewModel(ScummBlock block, TreeOptions options, BlockNodeViewModel parent = null)
     {
         Block = block;
+        Options = options;
         Parent = parent;
+
+        // Only LFLF labels depend on options; keep subscriptions to those (~100 nodes per game).
+        if (block.Tag == ScummTag.LFLF && options != null)
+            options.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(TreeOptions.ShowRoomNames)) OnPropertyChanged(nameof(Label));
+            };
     }
 
     public string Tag => Block.TagName ?? ScummTag.ToString(Block.Tag);
@@ -27,10 +44,26 @@ public sealed partial class BlockNodeViewModel : ObservableObject
     {
         get
         {
+            if (Block.Tag == ScummTag.LFLF) return LflfLabel();
             string name = Block.FullName;
             if (string.IsNullOrEmpty(name) || name == Tag) return Tag;
             return $"{Tag}  {name}";
         }
+    }
+
+    private string LflfLabel()
+    {
+        var meta = Block.GetMetaDataDict();
+        bool hasNo = meta.TryGetValue(MetaValue.From(ScummMeta.LFLF.roomNo), out var no);
+        if (Options?.ShowRoomNames == true && hasNo)
+        {
+            return meta.TryGetValue(MetaValue.From(ScummMeta.LFLF.roomName), out var name)
+                ? $"{(int)no}. {(string)name}"
+                : $"{(int)no}. (room {(int)no})";
+        }
+        // The parser overwrites FullName with the room name, so use the tag's generic name here.
+        string generic = ScummTag.TryGetMeta(Block.Tag, out var tagMeta) ? tagMeta.FullName : null;
+        return string.IsNullOrEmpty(generic) ? Tag : $"{Tag}  {generic}";
     }
 
     public string SizeText => FormatSize(Block.Size);
@@ -47,7 +80,7 @@ public sealed partial class BlockNodeViewModel : ObservableObject
             {
                 _children = new ObservableCollection<BlockNodeViewModel>();
                 foreach (var c in Block.Children)
-                    _children.Add(new BlockNodeViewModel(c, this));
+                    _children.Add(new BlockNodeViewModel(c, Options, this));
             }
             return _children;
         }

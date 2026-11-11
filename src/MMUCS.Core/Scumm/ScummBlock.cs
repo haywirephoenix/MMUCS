@@ -24,6 +24,9 @@ public class ScummBlock
     public int TagSiblingIndex { get; set; } = 0;
     
     public byte[] FileData;
+
+    /// <summary>Stable identity of the source file (name + length); used to make cache keys unique across files.</summary>
+    public long SourceKey { get; set; }
     
     public int DataLength;
 
