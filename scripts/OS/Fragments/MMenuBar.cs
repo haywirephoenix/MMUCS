@@ -125,10 +125,17 @@ public partial class MMenuBar : MenuBar
     private void _OnToolsMenuPressed(long id)
     {
         // GD.Print($"Tools action: {id}");
-        FloatingPanel options = _mainCanvas.GetPanelByID(Consts.OPTS_PNL_ID);
+        
         switch (id)
         {
-            case 24: SetPanelVisible(options, !options.IsOpen); break;
+            case 21: 
+                FloatingPanel options = _mainCanvas.GetPanelByID(Consts.OPTS_PNL_ID);
+                SetPanelVisible(options, true); 
+            break;
+            case 34: 
+                FloatingPanel export = _mainCanvas.GetPanelByID(Consts.EXPORTER_PNL_ID);
+                SetPanelVisible(export, true);
+            break;
         }
     }
 

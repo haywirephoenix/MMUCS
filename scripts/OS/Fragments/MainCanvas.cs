@@ -13,13 +13,14 @@ public partial class MainCanvas : VBoxContainer
     [Export] public StatusBar _statusBar;
     
     [Export] public BlockHierarchyPanel _blockHierarchyPanel;
-    [Export] public HexPanel _hexPanel;
-    [Export] public RoomPreviewPanel _roomPanel;
-    [Export] public MetadataPanel _metadataPanel;
-    [Export] public AkosViewerPanel _akosPanel;
-    [Export] public OBIMViewerPanel _obimPanel;
-    [Export] public OptionsPanel _optionsPanel;
+    [Export] public HexPanel            _hexPanel;
+    [Export] public RoomPreviewPanel    _roomPanel;
+    [Export] public MetadataPanel       _metadataPanel;
+    [Export] public AkosViewerPanel     _akosPanel;
+    [Export] public OBIMViewerPanel     _obimPanel;
+    [Export] public OptionsPanel        _optionsPanel;
     [Export] public UnifiedPreviewPanel _unifedPreviewPanel;
+    [Export] public ExporterPanel       _exporterPanel;
 
     public static MainCanvas Instance;
     private readonly ScummResourceParser _scummResourceParser = new();
@@ -40,6 +41,7 @@ public partial class MainCanvas : VBoxContainer
         Consts.OBIM_PNL_ID => _obimPanel,
         Consts.OPTS_PNL_ID => _optionsPanel,
         Consts.PREVIEW_PNL_ID => _unifedPreviewPanel,
+        Consts.EXPORTER_PNL_ID => _exporterPanel,
         _ => null,
     };
 
