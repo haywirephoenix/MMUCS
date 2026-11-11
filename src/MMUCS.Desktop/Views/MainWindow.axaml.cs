@@ -16,6 +16,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         AddHandler(DragDrop.DropEvent, OnDrop);
+        // Tunnel so Ctrl+F works even when the tree or a text box has focus.
+        AddHandler(KeyDownEvent, OnPreviewKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
     }
 
     protected override void OnDataContextChanged(System.EventArgs e)
@@ -56,6 +58,32 @@ public partial class MainWindow : Window
         var clear = new MenuItem { Header = "Clear recent files" };
         clear.Click += (_, _) => Vm.ClearRecentFiles();
         RecentMenu.Items.Add(clear);
+    }
+
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.F && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            FilterBox.Focus();
+            FilterBox.SelectAll();
+            e.Handled = true;
+        }
+    }
+
+    private void OnFilterKeyDown(object sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Escape:
+                Vm.ClearFilter();
+                e.Handled = true;
+                break;
+            case Key.Enter:
+                Vm.ApplyFilter(); // skip the debounce
+                BlockTree.Focus();
+                e.Handled = true;
+                break;
+        }
     }
 
     private MainWindowViewModel Vm => (MainWindowViewModel)DataContext;

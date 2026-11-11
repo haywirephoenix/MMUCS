@@ -39,6 +39,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public ObservableCollection<string> RecentFiles { get; } = new();
 
     [ObservableProperty] private bool _reopenLastFileOnStartup;
+    [ObservableProperty] private string _filterText;
+    [ObservableProperty] private string _filterSummary;
+
+    private ScummBlock _rootBlock;
+    private DispatcherTimer _filterDebounce;
+
+    /// <summary>Expanding more matches than this would make the TreeView sluggish.</summary>
+    private const int MaxAutoExpandMatches = 150;
 
     public RoomViewModel Room { get; } = new();
     public AkosViewModel Costume { get; } = new();
@@ -59,6 +67,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
             if (e.PropertyName != nameof(TreeOptions.ShowRoomNames)) return;
             Settings.ShowRoomNames = TreeOptions.ShowRoomNames;
             Settings.Save();
+            // The filter matches label text, which includes room names.
+            if (!string.IsNullOrWhiteSpace(FilterText)) ApplyFilter();
         };
 
         // Warnings stay in the debug log so parser noise doesn't overwrite useful status text.
@@ -126,21 +136,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
             var root = await Task.Run(() => ScummProject.Load(files, (i, n, f) =>
                 Dispatcher.UIThread.Post(() => Status = $"Parsing {Path.GetFileName(f)} ({i + 1}/{n})…")));
 
-            Roots.Clear();
-            var rootVm = new BlockNodeViewModel(root, TreeOptions) { IsExpanded = true };
-            Roots.Add(rootVm);
-            // Expand down to the LFLF level so rooms are visible immediately.
-            foreach (var c in rootVm.Children)
-            {
-                c.IsExpanded = c.Block.Tag is 0 or ScummTag.LECF;
-                if (c.Block.Tag == 0)
-                    foreach (var cc in c.Children) cc.IsExpanded = cc.Block.Tag == ScummTag.LECF;
-            }
+            _rootBlock = root;
+            SelectedNode = null;
+            ApplyFilter();
 
             string names = string.Join(", ", files.Select(Path.GetFileName));
             Title = $"MMUCS — {names}";
             Status = $"Parsed {names} ({root.Size:N0} bytes, {CountBlocks(root):N0} blocks) in {sw.ElapsedMilliseconds} ms";
-            SelectedNode = rootVm;
+            SelectedNode ??= Roots.FirstOrDefault();
             RememberRecent(path);
         }
         catch (Exception ex)
@@ -152,6 +155,122 @@ public sealed partial class MainWindowViewModel : ObservableObject
             IsLoading = false;
         }
     }
+
+    // ── Tree filter ──────────────────────────────────────────────────────────
+
+    partial void OnFilterTextChanged(string value)
+    {
+        // Debounce so typing doesn't rebuild the tree on every keystroke.
+        if (_filterDebounce == null)
+        {
+            _filterDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _filterDebounce.Tick += (_, _) => { _filterDebounce.Stop(); ApplyFilter(); };
+        }
+        _filterDebounce.Stop();
+        _filterDebounce.Start();
+    }
+
+    /// <summary>
+    /// Rebuilds the tree for the current filter (same rules as the Godot version):
+    /// a 4-letter known tag such as "AKOS" matches that tag exactly; anything else is a
+    /// case-insensitive substring match on the tag or label. Matches keep their whole subtree,
+    /// and ancestors of matches stay visible.
+    /// </summary>
+    public void ApplyFilter()
+    {
+        _filterDebounce?.Stop();
+        if (_rootBlock == null) return;
+        var previouslySelected = SelectedNode?.Block;
+        string q = FilterText?.Trim();
+        List<ScummBlock> matches = null;
+
+        if (string.IsNullOrEmpty(q))
+        {
+            TreeOptions.VisibleBlocks = null;
+            FilterSummary = null;
+        }
+        else
+        {
+            uint? tag = null;
+            string upper = q.ToUpperInvariant();
+            if (q.Length == 4 && ScummTag.TryGetMeta(upper, out _)) tag = ScummTag.FromString(upper);
+
+            var visible = new HashSet<ScummBlock>();
+            var found = new List<ScummBlock>();
+            bool roomNames = TreeOptions.ShowRoomNames;
+
+            bool IsMatch(ScummBlock b) => tag.HasValue
+                ? b.Tag == tag.Value
+                : (b.TagName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true
+                   || BlockNodeViewModel.LabelFor(b, roomNames).Contains(q, StringComparison.OrdinalIgnoreCase));
+
+            bool Walk(ScummBlock b, bool ancestorMatched)
+            {
+                bool self = IsMatch(b);
+                if (self) found.Add(b);
+                bool shown = self || ancestorMatched;
+                bool anyChild = false;
+                foreach (var c in b.Children) anyChild |= Walk(c, shown);
+                if (shown || anyChild) visible.Add(b);
+                return shown || anyChild;
+            }
+
+            foreach (var c in _rootBlock.Children) Walk(c, false);
+            visible.Add(_rootBlock);
+            TreeOptions.VisibleBlocks = visible;
+            matches = found;
+            FilterSummary = found.Count == 0 ? "No matches"
+                : found.Count == 1 ? "1 match"
+                : found.Count > MaxAutoExpandMatches ? $"{found.Count:N0} matches (expand to browse)"
+                : $"{found.Count:N0} matches";
+        }
+
+        // Rebuild the node tree; children materialise lazily against VisibleBlocks.
+        Roots.Clear();
+        var rootVm = new BlockNodeViewModel(_rootBlock, TreeOptions) { IsExpanded = true };
+        Roots.Add(rootVm);
+
+        if (matches == null)
+        {
+            // Default view: expand down to the LFLF level so rooms are visible immediately.
+            foreach (var c in rootVm.Children)
+            {
+                c.IsExpanded = c.Block.Tag is 0 or ScummTag.LECF;
+                if (c.Block.Tag == 0)
+                    foreach (var cc in c.Children) cc.IsExpanded = cc.Block.Tag == ScummTag.LECF;
+            }
+        }
+        else if (matches.Count <= MaxAutoExpandMatches)
+        {
+            foreach (var m in matches) Reveal(m, expandTarget: false);
+        }
+
+        SelectedNode = previouslySelected != null ? Reveal(previouslySelected, expandTarget: false) : null;
+    }
+
+    /// <summary>Expands the path to <paramref name="target"/> and returns its node (null if filtered out).</summary>
+    public BlockNodeViewModel Reveal(ScummBlock target, bool expandTarget)
+    {
+        var root = Roots.FirstOrDefault();
+        if (root == null || target == null) return null;
+
+        var chain = new List<ScummBlock>();
+        for (var b = target; b != null; b = b.Parent) chain.Add(b);
+        chain.Reverse();
+        if (!ReferenceEquals(chain[0], root.Block)) return null;
+
+        var node = root;
+        for (int i = 1; i < chain.Count; i++)
+        {
+            node.IsExpanded = true;
+            node = node.Children.FirstOrDefault(c => ReferenceEquals(c.Block, chain[i]));
+            if (node == null) return null;
+        }
+        if (expandTarget) node.IsExpanded = true;
+        return node;
+    }
+
+    public void ClearFilter() => FilterText = string.Empty;
 
     private static int CountBlocks(ScummBlock b) => 1 + b.Children.Sum(CountBlocks);
 
