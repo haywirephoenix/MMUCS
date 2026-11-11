@@ -47,7 +47,6 @@ public static class DockCollapseBehavior
         public HostWindow Window;
         public double SavedWindowHeight = double.NaN;
         public double SavedWindowMinHeight;
-        public bool RestoreHeightOnNormal;
         public EventHandler<AvaloniaPropertyChangedEventArgs> WindowStateHandler;
     }
 
@@ -91,7 +90,6 @@ public static class DockCollapseBehavior
         state.Window = null;
         state.WindowStateHandler = null;
         state.SavedWindowHeight = double.NaN;
-        state.RestoreHeightOnNormal = false;
         // A fresh chrome's content presenter is visible by default, so no visuals to undo.
     }
 
@@ -171,10 +169,7 @@ public static class DockCollapseBehavior
             case Mode.FloatingWindow when state.Window != null:
             {
                 state.Window.MinHeight = state.SavedWindowMinHeight;
-                if (fromMaximize)
-                    state.RestoreHeightOnNormal = true; // apply when the window comes back to normal
-                else
-                    RestoreWindowHeight(state);
+                if (!fromMaximize) RestoreWindowHeight(state);
                 break;
             }
         }
@@ -185,30 +180,38 @@ public static class DockCollapseBehavior
     private static void OnWindowStateChanged(ToolChromeControl chrome, IDock dock, State state, AvaloniaPropertyChangedEventArgs args)
     {
         if (args.Property != Window.WindowStateProperty || state.Window == null) return;
-        var ws = state.Window.WindowState;
+        var target = state.Window.WindowState;
+        if (!state.Collapsed || target is not (WindowState.Maximized or WindowState.FullScreen)) return;
 
-        if (state.Collapsed && ws is WindowState.Maximized or WindowState.FullScreen)
+        // Maximizing a collapsed floating window expands it. The OS has already stored the collapsed
+        // size as the window's restore bounds, which every way of leaving fullscreen (button,
+        // dragging the title bar, double-click, Win+Down) would return to. So briefly drop back to
+        // normal, put the full height back, and maximize again: the OS then remembers the right size.
+        var window = state.Window;
+        double height = state.SavedWindowHeight;
+        Expand(chrome, dock, state, fromMaximize: true);
+        DetachWindow(state);
+
+        // Each step waits for the previous window-state change to settle, so the OS can't re-apply
+        // the old bounds over the new height.
+        Dispatcher.UIThread.Post(() =>
         {
-            Expand(chrome, dock, state, fromMaximize: true);
-        }
-        else if (!state.Collapsed && state.RestoreHeightOnNormal && ws == WindowState.Normal)
-        {
-            // The OS re-applies the window's restore bounds (the collapsed size) some time after this
-            // event, so keep correcting the height briefly until it settles.
-            state.RestoreHeightOnNormal = false;
-            double height = state.SavedWindowHeight;
-            var window = state.Window;
-            void Fix()
+            window.WindowState = WindowState.Normal;
+            DispatcherTimer.RunOnce(() =>
             {
-                if (window.WindowState == WindowState.Normal && double.IsFinite(height))
-                    SetWindowHeight(window, height);
-            }
-            Fix();
-            Dispatcher.UIThread.Post(Fix, DispatcherPriority.Background);
-            DispatcherTimer.RunOnce(Fix, TimeSpan.FromMilliseconds(80));
-            DispatcherTimer.RunOnce(Fix, TimeSpan.FromMilliseconds(250));
-            DispatcherTimer.RunOnce(() => { Fix(); RestoreWindowHeight(state); }, TimeSpan.FromMilliseconds(600));
-        }
+                if (double.IsFinite(height)) SetWindowHeight(window, height);
+                DispatcherTimer.RunOnce(() => window.WindowState = target, TimeSpan.FromMilliseconds(40));
+            }, TimeSpan.FromMilliseconds(40));
+        }, DispatcherPriority.Background);
+    }
+
+    private static void DetachWindow(State state)
+    {
+        if (state.Window != null && state.WindowStateHandler != null)
+            state.Window.PropertyChanged -= state.WindowStateHandler;
+        state.WindowStateHandler = null;
+        state.SavedWindowHeight = double.NaN;
+        state.Window = null;
     }
 
     /// <summary>
@@ -228,11 +231,7 @@ public static class DockCollapseBehavior
         if (window == null) return;
         if (double.IsFinite(state.SavedWindowHeight) && window.WindowState == WindowState.Normal)
             SetWindowHeight(window, state.SavedWindowHeight);
-        if (state.WindowStateHandler != null) window.PropertyChanged -= state.WindowStateHandler;
-        state.WindowStateHandler = null;
-        state.SavedWindowHeight = double.NaN;
-        state.RestoreHeightOnNormal = false;
-        state.Window = null;
+        DetachWindow(state);
     }
 
     // ── Vertical-stack sizing ────────────────────────────────────────────────
