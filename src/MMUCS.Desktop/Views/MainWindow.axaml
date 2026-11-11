@@ -1,0 +1,119 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MMUCS.Desktop.ViewModels"
+        xmlns:views="using:MMUCS.Desktop.Views"
+        xmlns:c="using:MMUCS.Desktop.Controls"
+        x:Class="MMUCS.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding Title}"
+        Width="1440" Height="900" MinWidth="900" MinHeight="560"
+        DragDrop.AllowDrop="True">
+
+  <DockPanel>
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_File">
+        <MenuItem x:Name="OpenMenuItem" Header="_Open…" InputGesture="Ctrl+O" HotKey="Ctrl+O" Click="OnOpenClick" />
+        <Separator />
+        <MenuItem Header="Export room background…" Click="OnExportRoomClick" IsEnabled="{Binding Room.HasRoom}" />
+        <MenuItem Header="Export costume cels…" Click="OnExportCelsClick" IsEnabled="{Binding Costume.HasCostume}" />
+        <Separator />
+        <MenuItem Header="Clear decode caches" Click="OnClearCachesClick" />
+        <Separator />
+        <MenuItem Header="E_xit" Click="OnExitClick" />
+      </MenuItem>
+      <MenuItem Header="_View">
+        <MenuItem Header="Room" Click="OnShowRoomTab" />
+        <MenuItem Header="Costume" Click="OnShowCostumeTab" />
+        <MenuItem Header="Script" Click="OnShowScriptTab" />
+      </MenuItem>
+    </Menu>
+
+    <!-- Status bar -->
+    <Border DockPanel.Dock="Bottom" Background="{StaticResource PanelHeaderBrush}" Padding="8,3">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="{Binding Status}" FontSize="12" TextTrimming="CharacterEllipsis" />
+        <ProgressBar Grid.Column="1" IsIndeterminate="True" Width="120" Height="4"
+                     IsVisible="{Binding IsLoading}" />
+      </Grid>
+    </Border>
+
+    <Grid ColumnDefinitions="300,4,*,4,540">
+
+      <!-- Block hierarchy -->
+      <DockPanel Grid.Column="0">
+        <Border DockPanel.Dock="Top" Classes="panel-header"><TextBlock Text="BLOCK HIERARCHY" /></Border>
+        <TreeView x:Name="BlockTree" ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
+          <TreeView.Styles>
+            <Style Selector="TreeViewItem" x:DataType="vm:BlockNodeViewModel">
+              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+              <Setter Property="MinHeight" Value="22" />
+            </Style>
+          </TreeView.Styles>
+          <TreeView.ItemTemplate>
+            <TreeDataTemplate DataType="vm:BlockNodeViewModel" ItemsSource="{Binding Children}">
+              <Grid ColumnDefinitions="*,Auto" ToolTip.Tip="{Binding ToolTip}">
+                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" FontSize="12" />
+                <TextBlock Grid.Column="1" Text="{Binding SizeText}" Margin="8,0,4,0" FontSize="11"
+                           Foreground="{StaticResource SubtleTextBrush}" />
+              </Grid>
+            </TreeDataTemplate>
+          </TreeView.ItemTemplate>
+        </TreeView>
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+
+      <!-- Viewers -->
+      <TabControl Grid.Column="2" SelectedIndex="{Binding SelectedViewerIndex, Mode=TwoWay}" Padding="0">
+        <TabItem Header="Room">
+          <views:RoomView DataContext="{Binding Room}" />
+        </TabItem>
+        <TabItem Header="Costume">
+          <views:AkosView DataContext="{Binding Costume}" />
+        </TabItem>
+        <TabItem Header="Script">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto">
+            <SelectableTextBlock Text="{Binding ScriptText}" Classes="mono" FontFamily="{StaticResource MonoFont}"
+                                 FontSize="12" Margin="10" />
+          </ScrollViewer>
+        </TabItem>
+      </TabControl>
+
+      <GridSplitter Grid.Column="3" ResizeDirection="Columns" />
+
+      <!-- Inspector -->
+      <Grid Grid.Column="4" RowDefinitions="Auto,*,4,Auto,2*,Auto">
+        <Border Classes="panel-header"><TextBlock Text="METADATA" /></Border>
+        <ListBox Grid.Row="1" ItemsSource="{Binding Metadata}" Background="Transparent">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="Padding" Value="8,2" />
+              <Setter Property="MinHeight" Value="0" />
+            </Style>
+          </ListBox.Styles>
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="vm:MetadataRow">
+              <Grid ColumnDefinitions="110,*">
+                <TextBlock Text="{Binding Key}" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+                <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12" TextWrapping="Wrap" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <GridSplitter Grid.Row="2" ResizeDirection="Rows" />
+
+        <Border Grid.Row="3" Classes="panel-header"><TextBlock Text="HEX" /></Border>
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto">
+          <c:HexView x:Name="Hex" FontSize="11" Data="{Binding HexData}" BaseOffset="{Binding HexBaseOffset}"
+                     TopRow="{Binding #HexScroll.Value, Mode=TwoWay}" />
+          <ScrollBar x:Name="HexScroll" Grid.Column="1" Orientation="Vertical" AllowAutoHide="False"
+                     Minimum="0" Maximum="{Binding #Hex.MaxTopRow}" ViewportSize="{Binding #Hex.VisibleRows}"
+                     SmallChange="1" LargeChange="{Binding #Hex.VisibleRows}" />
+        </Grid>
+        <TextBlock Grid.Row="5" Text="{Binding #Hex.SelectionInfo}" Classes="mono" FontSize="11" Margin="8,3"
+                   TextWrapping="Wrap" Foreground="{StaticResource SubtleTextBrush}" />
+      </Grid>
+    </Grid>
+  </DockPanel>
+</Window>

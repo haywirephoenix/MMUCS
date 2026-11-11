@@ -31,7 +31,7 @@
 ## Overview
 
 
-MMUCS (Modular Media Unpacker Content Studio) is a Godot-powered tool designed to deconstruct, visualize, and analyze SCUMM-based media architectures.
+MMUCS (Modular Media Unpacker Content Studio) is a native .NET desktop tool (Avalonia UI + SkiaSharp) designed to deconstruct, visualize, and analyze SCUMM-based media architectures.
 
 Why I Built This
 I originally built MMUCS to aid my own pursuit of modding The Curse of Monkey Island (COMI), with the ultimate goal of creating extended background art and higher-resolution sprites. Because I focused and tested exclusively within the context of COMI (SCUMM v8), the scope and codebase have remained slim.
@@ -61,7 +61,28 @@ As a result, it will most likely not work as expected with other SCUMM games out
 
 ## Getting Started
 
-Download the latest release here :
+### Building from source (Avalonia frontend)
+
+Requires the .NET 8 SDK (or newer).
+
+```bash
+dotnet run --project src/MMUCS.Desktop -c Release -- "path/to/COMI.LA1"
+```
+
+The file argument is optional; you can also use **File ▸ Open…** or drag a file onto the window.
+
+| Project | Purpose |
+|---|---|
+| `src/MMUCS.Core` | UI-agnostic SCUMM v8 parsing, decoding, caches and PNG export. No framework dependencies. |
+| `src/MMUCS.Desktop` | Avalonia 12 desktop host. Skia viewports (`ICustomDrawOperation`) for rooms and AKOS cels, SkSL palette shader, virtualized hex inspector. |
+
+Decode caches live in `%LocalAppData%/MMUCS/cache` (`~/.local/share/MMUCS` on Linux). Crash reports go to `crash.log` in the same folder.
+
+**Viewport controls:** mouse wheel zooms around the cursor; middle- or right-drag (or Space + left-drag) pans; double-click or `F` fits; `1` shows actual pixels.
+
+### Releases
+
+The legacy Godot build is on the `master` branch history. Download releases here:
 
 <a href="https://github.com/haywirephoenix/MMUCS/releases/latest">
   <img alt="Download Latest Release" src="https://img.shields.io/github/v/release/haywirephoenix/MMUCS?include_prereleases&label=Download&style=for-the-badge&color=brightgreen"/>
@@ -72,9 +93,8 @@ Download the latest release here :
 ## Usage
 
 ### Loading Resources
-1.  Launch the application from the Godot editor or exported binary.
-2.  The file dialog will automatically appear.
-3.  Navigate to the root of your extracted COMI directory and chose any .LA0 file.
+1.  Launch the application.
+2.  Open a COMI resource file (`COMI.LA1` / `COMI.LA2` contain rooms and costumes).
 4.  The `ScummResourceParser` will begin indexing the file, and the `BlockHierarchyPanel` will populate with detected data segments.
 
 ### Visualizing

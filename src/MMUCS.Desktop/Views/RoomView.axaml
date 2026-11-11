@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             xmlns:c="using:MMUCS.Desktop.Controls"
+             xmlns:scumm="using:MMUCS.Core.Scumm"
+             x:Class="MMUCS.Desktop.Views.RoomView"
+             x:DataType="vm:RoomViewModel">
+  <DockPanel>
+    <!-- Toolbar -->
+    <Border DockPanel.Dock="Top" Classes="panel-header" Padding="6,3">
+      <WrapPanel Orientation="Horizontal" ItemSpacing="0" LineSpacing="4">
+        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12" Margin="2,0,14,0" />
+        <ToggleButton Content="Background" IsChecked="{Binding ShowBackground}" Margin="0,0,4,0" />
+        <ToggleButton Content="Objects" IsChecked="{Binding ShowObjects}" Margin="0,0,4,0" />
+        <ToggleButton Content="Hotspots" IsChecked="{Binding ShowHotspots}" Margin="0,0,4,0" />
+        <ToggleButton Content="Walkboxes" IsChecked="{Binding ShowWalkboxes}" Margin="0,0,4,0" />
+        <ToggleButton Content="Labels" IsChecked="{Binding ShowLabels}" Margin="0,0,4,0" />
+        <ToggleButton Content="Bounds" IsChecked="{Binding ShowBounds}" Margin="0,0,12,0" />
+        <TextBlock Text="Palette" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
+        <NumericUpDown Value="{Binding PaletteIndex}" Minimum="0" Maximum="{Binding MaxPaletteIndex}"
+                       Increment="1" FormatString="0" Width="96" Margin="0,0,12,0" />
+        <Button Content="Fit" Click="OnFitClick" Margin="0,0,4,0" ToolTip.Tip="Zoom to fit (F / double-click)" />
+        <Button Content="1:1" Click="OnActualClick" ToolTip.Tip="Actual pixels (1)" />
+      </WrapPanel>
+    </Border>
+
+    <!-- Hover readout -->
+    <Border DockPanel.Dock="Bottom" Padding="8,2">
+      <TextBlock Text="{Binding #Canvas.HoverText}" FontSize="11" Classes="mono"
+                 Foreground="{StaticResource SubtleTextBrush}" />
+    </Border>
+
+    <Grid ColumnDefinitions="*,4,220">
+      <c:RoomCanvas x:Name="Canvas"
+                    BackgroundImage="{Binding BackgroundImage}"
+                    ObjectLayers="{Binding ObjectLayers}"
+                    Walkboxes="{Binding Walkboxes}"
+                    RoomSize="{Binding RoomSize}"
+                    SelectedObject="{Binding SelectedObject, Mode=TwoWay}"
+                    ShowBackground="{Binding ShowBackground}"
+                    ShowObjects="{Binding ShowObjects}"
+                    ShowHotspots="{Binding ShowHotspots}"
+                    ShowWalkboxes="{Binding ShowWalkboxes}"
+                    ShowLabels="{Binding ShowLabels}"
+                    ShowBounds="{Binding ShowBounds}" />
+
+      <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+
+      <DockPanel Grid.Column="2">
+        <Border DockPanel.Dock="Top" Classes="panel-header"><TextBlock Text="OBJECTS" /></Border>
+        <ListBox ItemsSource="{Binding Objects}" SelectedItem="{Binding SelectedObject, Mode=TwoWay}">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="scumm:RoomObject">
+              <StackPanel>
+                <TextBlock Text="{Binding}" FontSize="12" />
+                <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Grid>
+  </DockPanel>
+</UserControl>
