@@ -238,14 +238,7 @@ public class ScummResourceParser
     }
     private void DecodeAKOS(ScummBlock block)
     {
-        //handled in parser
-        // var akhd = block.FindChild(ScummTag.AKHD).DataSpan;
-        if (block.Offset == 8837319)
-        {
-            ScummStatics.akosPreviewBlock = block;
-            ScummStatics.akosPreviewBlockFound = true;
-        }
-        
+        // AKOS parsing happens on demand in AkosParser.
     }
     private void DecodeLOFF(ScummBlock block)
     {

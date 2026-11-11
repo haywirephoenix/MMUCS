@@ -43,6 +43,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _filterSummary;
 
     private ScummBlock _rootBlock;
+
+    /// <summary>Root of the loaded project (virtual root when several files are loaded), or null.</summary>
+    public ScummBlock RootBlock => _rootBlock;
+    public bool HasProject => _rootBlock != null;
     private DispatcherTimer _filterDebounce;
 
     /// <summary>Expanding more matches than this would make the TreeView sluggish.</summary>
@@ -147,6 +151,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 Dispatcher.UIThread.Post(() => Status = $"Parsing {Path.GetFileName(f)} ({i + 1}/{n})…")));
 
             _rootBlock = root;
+            OnPropertyChanged(nameof(HasProject));
             SelectedNode = null;
             ApplyFilter();
 

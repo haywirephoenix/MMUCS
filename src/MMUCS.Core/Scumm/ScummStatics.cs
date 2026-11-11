@@ -12,7 +12,5 @@ public static class ScummStatics
     public static List<string> RoomNames = new();
     public static Dictionary<int, string> RoomLookup = new(); // fast reverse lookup
 
-    public static ScummBlock akosPreviewBlock;
-    public static bool akosPreviewBlockFound = false;
 
 }

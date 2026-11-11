@@ -1,0 +1,134 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MMUCS.Desktop.ViewModels"
+        xmlns:c="using:MMUCS.Desktop.Controls"
+        x:Class="MMUCS.Desktop.Views.ExporterWindow"
+        x:DataType="vm:ExporterViewModel"
+        Title="Export"
+        Width="980" Height="660" MinWidth="760" MinHeight="520"
+        WindowStartupLocation="CenterOwner">
+
+  <Window.Styles>
+    <Style Selector="TextBlock.step">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Margin" Value="14,7" />
+      <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+    </Style>
+    <Style Selector="TextBlock.step.current">
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.h1">
+      <Setter Property="FontSize" Value="20" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,4" />
+    </Style>
+    <Style Selector="TextBlock.hint">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+  </Window.Styles>
+
+  <Grid ColumnDefinitions="190,*" RowDefinitions="*,Auto">
+
+    <!-- Step rail -->
+    <Border Grid.RowSpan="2" Background="{StaticResource PanelHeaderBrush}" Padding="0,14">
+      <ItemsControl ItemsSource="{Binding Steps}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:StepItem">
+            <TextBlock Text="{Binding Title}" Classes="step" Classes.current="{Binding IsCurrent}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Border>
+
+    <!-- Step content -->
+    <Panel Grid.Column="1" Margin="24,20,24,8">
+
+      <!-- 1. Content -->
+      <StackPanel IsVisible="{Binding IsStart}" Spacing="10">
+        <TextBlock Classes="h1" Text="What would you like to export?" />
+        <TextBlock Classes="hint" Text="{Binding SurveyText}" />
+        <CheckBox Content="Room backgrounds" IsChecked="{Binding ExportBackgrounds}" Margin="0,8,0,0" />
+        <CheckBox Content="Every palette variant (background_pal0, pal1, …)" IsChecked="{Binding AllBackgroundPalettes}"
+                  IsEnabled="{Binding ExportBackgrounds}" Margin="28,0,0,0" FontSize="12" />
+        <CheckBox Content="Room objects (every frame)" IsChecked="{Binding ExportObjects}" />
+        <CheckBox Content="Costumes (every AKOS cel)" IsChecked="{Binding ExportCostumes}" />
+        <TextBlock Classes="hint" Margin="0,12,0,0"
+                   Text="Files are written as PNG under rooms/&lt;number_name&gt;/ with objects/ and costumes/ subfolders." />
+      </StackPanel>
+
+      <!-- 2. Costume shading -->
+      <Grid IsVisible="{Binding IsCustomize}" RowDefinitions="Auto,Auto,Auto,*,Auto" ColumnDefinitions="*,240">
+        <TextBlock Classes="h1" Grid.ColumnSpan="2" Text="Costume shading" />
+        <TextBlock Classes="hint" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,10"
+                   Text="These options are baked into every exported cel. Preview any costume to check the result." />
+        <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="*,8,180" Margin="0,0,0,8">
+          <ComboBox ItemsSource="{Binding Costumes}" SelectedItem="{Binding SelectedCostume}" HorizontalAlignment="Stretch" />
+          <ComboBox Grid.Column="2" ItemsSource="{Binding Preview.Cels}" SelectedItem="{Binding Preview.SelectedCel}"
+                    HorizontalAlignment="Stretch" />
+        </Grid>
+        <Border Grid.Row="3" BorderBrush="{StaticResource PanelHeaderBrush}" BorderThickness="1">
+          <c:CelCanvas DataImage="{Binding Preview.DataImage}"
+                       RawImage="{Binding Preview.RawImage}"
+                       PaletteImage="{Binding Preview.PaletteImage}"
+                       Mode="Shader"
+                       AlphaEnabled="{Binding Preview.AlphaEnabled}"
+                       ShadowColorEnabled="{Binding Preview.ShadowColorEnabled}"
+                       ShadowAmount="{Binding Preview.ShadowAmount}"
+                       LinearFilter="{Binding Preview.LinearFilter}" />
+        </Border>
+        <StackPanel Grid.Row="3" Grid.Column="1" Margin="16,0,0,0" Spacing="10">
+          <CheckBox Content="Alpha (transparent background)" IsChecked="{Binding Preview.AlphaEnabled}" />
+          <CheckBox Content="Shadow colour" IsChecked="{Binding Preview.ShadowColorEnabled}" />
+          <StackPanel>
+            <TextBlock FontSize="12">Shadow amount  <Run Text="{Binding Preview.ShadowAmount, StringFormat={}{0:0.00}}" /></TextBlock>
+            <Slider Value="{Binding Preview.ShadowAmount}" Minimum="0" Maximum="1" />
+          </StackPanel>
+          <CheckBox Content="Linear filtering" IsChecked="{Binding Preview.LinearFilter}" />
+        </StackPanel>
+      </Grid>
+
+      <!-- 3. Destination -->
+      <StackPanel IsVisible="{Binding IsPath}" Spacing="10">
+        <TextBlock Classes="h1" Text="Where should the files go?" />
+        <Grid ColumnDefinitions="*,8,Auto" Margin="0,8,0,0">
+          <TextBox Text="{Binding OutputFolder}" PlaceholderText="Choose an output folder" />
+          <Button Grid.Column="2" Content="Browse…" Click="OnBrowseClick" />
+        </Grid>
+        <TextBlock Classes="hint" Text="Existing files with the same names are overwritten." />
+      </StackPanel>
+
+      <!-- 4. Export -->
+      <StackPanel IsVisible="{Binding IsProcess}" Spacing="10" VerticalAlignment="Center">
+        <TextBlock Classes="h1" Text="Exporting…" />
+        <ProgressBar Value="{Binding ProgressValue}" Maximum="{Binding ProgressMaximum}" Height="8" />
+        <TextBlock Text="{Binding ProgressText}" FontSize="12" />
+        <TextBlock Text="{Binding CurrentItem}" Classes="hint" TextTrimming="CharacterEllipsis" />
+        <Button Content="Cancel" Command="{Binding CancelCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+      </StackPanel>
+
+      <!-- 5. Done -->
+      <StackPanel IsVisible="{Binding IsComplete}" Spacing="10" VerticalAlignment="Center">
+        <TextBlock Classes="h1" Text="Export finished" />
+        <TextBlock Text="{Binding SummaryText}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding OutputFolder}" Classes="hint" />
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Content="Open folder" Click="OnOpenFolderClick" />
+          <Button Content="Export again" Command="{Binding RestartCommand}" />
+          <Button Content="Close" Click="OnCloseClick" />
+        </StackPanel>
+      </StackPanel>
+    </Panel>
+
+    <!-- Navigation -->
+    <Border Grid.Row="1" Grid.Column="1" Padding="24,10" BorderBrush="{StaticResource PanelHeaderBrush}" BorderThickness="0,1,0,0">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Back" Command="{Binding BackCommand}" IsVisible="{Binding ShowBack}" MinWidth="80" />
+        <Button Content="{Binding NextLabel}" Command="{Binding NextCommand}" IsVisible="{Binding ShowNext}"
+                IsEnabled="{Binding CanGoNext}" MinWidth="80" Classes="accent" />
+      </StackPanel>
+    </Border>
+  </Grid>
+</Window>

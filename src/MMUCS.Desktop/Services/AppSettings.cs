@@ -19,6 +19,17 @@ public sealed class AppSettings
     public bool ShowObjectNames { get; set; }
     public bool ColorizeTags { get; set; } = true;
 
+    // Export wizard
+    public string LastExportFolder { get; set; }
+    public bool ExportBackgrounds { get; set; } = true;
+    public bool ExportObjects { get; set; } = true;
+    public bool ExportCostumes { get; set; } = true;
+    public bool ExportAllBackgroundPalettes { get; set; }
+    public bool CelAlphaEnabled { get; set; } = true;
+    public bool CelShadowColorEnabled { get; set; } = true;
+    public double CelShadowAmount { get; set; } = 0.4;
+    public bool CelLinearFilter { get; set; }
+
     private static string FilePath => Path.Combine(CorePaths.Root, "settings.json");
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };

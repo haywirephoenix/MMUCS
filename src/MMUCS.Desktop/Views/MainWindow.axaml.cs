@@ -118,6 +118,13 @@ public partial class MainWindow : Window
         return folders.FirstOrDefault()?.TryGetLocalPath();
     }
 
+    private async void OnExportWizardClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm.RootBlock == null) return;
+        var window = new ExporterWindow { DataContext = new ExporterViewModel(Vm.RootBlock, Vm.Settings) };
+        await window.ShowDialog(this);
+    }
+
     private async void OnExportRoomClick(object sender, RoutedEventArgs e)
     {
         var folder = await PickFolderAsync("Export room background to…");

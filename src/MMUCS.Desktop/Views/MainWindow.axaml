@@ -17,6 +17,8 @@
         <MenuItem Header="Reopen last file on startup" ToggleType="CheckBox"
                   IsChecked="{Binding ReopenLastFileOnStartup}" />
         <Separator />
+        <MenuItem Header="_Export…" InputGesture="Ctrl+E" HotKey="Ctrl+E" Click="OnExportWizardClick"
+                  IsEnabled="{Binding HasProject}" />
         <MenuItem Header="Export room background…" Click="OnExportRoomClick" IsEnabled="{Binding Room.HasRoom}" />
         <MenuItem Header="Export costume cels…" Click="OnExportCelsClick" IsEnabled="{Binding Costume.HasCostume}" />
         <Separator />
