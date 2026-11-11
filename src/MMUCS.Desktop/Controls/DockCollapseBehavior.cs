@@ -8,8 +8,9 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Shapes;
 using Avalonia.Interactivity;
 using Avalonia.Media;
-using Dock.Avalonia.Controls;
 using Avalonia.VisualTree;
+using Dock.Avalonia.Controls;
+using Dock.Model.Controls;
 using Dock.Model.Core;
 
 namespace MMUCS.Desktop.Controls;
@@ -19,8 +20,10 @@ namespace MMUCS.Desktop.Controls;
 /// (the panel menu stays available on right-click of the title bar).
 ///
 ///  - In a vertical stack the panel shrinks to its title bar and neighbours take the space
-///    (via the dock's MaxHeight, which Dock's proportional panel honours).
-///  - A floating window shrinks to its title bar and restores its previous height.
+///    (via the dock's MaxHeight, which Dock's proportional panel honours). Expanding restores the
+///    proportions the panel and its neighbours had before collapsing.
+///  - A floating window shrinks to its title bar and restores its previous height; maximizing a
+///    collapsed floating window expands it.
 ///  - Otherwise (e.g. a panel filling a whole column) the content is hidden under the title bar.
 ///
 /// State is kept per dock model, so it survives the chrome being re-templated when a panel is
@@ -32,8 +35,11 @@ public static class DockCollapseBehavior
     {
         public bool Collapsed;
         public double SavedMaxHeight = double.PositiveInfinity;
+        public Dictionary<IDockable, double> SavedProportions;
         public double SavedWindowHeight = double.NaN;
         public double SavedWindowMinHeight;
+        public HostWindow Window;
+        public EventHandler<AvaloniaPropertyChangedEventArgs> WindowStateHandler;
     }
 
     private static readonly ConditionalWeakTable<IDock, State> States = new();
@@ -53,59 +59,105 @@ public static class DockCollapseBehavior
         button.Click -= OnArrowClick;
         button.Click += OnArrowClick;
 
-        // Re-apply visuals if this dock was collapsed before the chrome was re-templated.
-        if (chrome.DataContext is IDock dock && States.TryGetValue(dock, out var state) && state.Collapsed)
-            ApplyVisuals(chrome, collapsed: true);
-        else
-            ToolTip.SetTip(button, "Collapse");
+        // Re-apply visuals if this dock was collapsed before the chrome was re-templated
+        // (template parts already exist at this point).
+        bool collapsed = chrome.DataContext is IDock dock && States.TryGetValue(dock, out var state) && state.Collapsed;
+        if (collapsed) ApplyVisuals(chrome, true);
+        ToolTip.SetTip(button, collapsed ? "Expand" : "Collapse");
     }
 
     private static void OnArrowClick(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { TemplatedParent: ToolChromeControl chrome }) return;
         if (chrome.DataContext is not IDock dock) return;
-        Toggle(chrome, dock);
+        var state = States.GetOrCreateValue(dock);
+        if (state.Collapsed) Expand(chrome, dock, state, restoreWindowHeight: true);
+        else Collapse(chrome, dock, state);
         e.Handled = true;
     }
 
-    private static void Toggle(ToolChromeControl chrome, IDock dock)
+    private static void Collapse(ToolChromeControl chrome, IDock dock, State state)
     {
-        var state = States.GetOrCreateValue(dock);
         double header = HeaderHeight(chrome);
-        var window = TopLevel.GetTopLevel(chrome) as HostWindow;
+        state.Collapsed = true;
 
-        if (!state.Collapsed)
+        // Remember this panel's and its neighbours' proportions; the layout writes the squashed
+        // sizes back into them while collapsed.
+        state.SavedProportions = dock.Owner is IDock owner && owner.VisibleDockables != null
+            ? owner.VisibleDockables.Where(d => d is not IProportionalDockSplitter).ToDictionary(d => d, d => d.Proportion)
+            : null;
+
+        state.SavedMaxHeight = dock.MaxHeight;
+        dock.MaxHeight = header;
+
+        if (TopLevel.GetTopLevel(chrome) is HostWindow window)
         {
-            state.Collapsed = true;
-            state.SavedMaxHeight = dock.MaxHeight;
-            dock.MaxHeight = header;
+            // Shrink the floating window by the height the content was using.
+            state.Window = window;
+            state.SavedWindowHeight = window.Height;
+            state.SavedWindowMinHeight = window.MinHeight;
+            double contentHeight = Math.Max(0, chrome.Bounds.Height - header);
+            window.MinHeight = 0;
+            window.Height = Math.Max(header, window.Bounds.Height - contentHeight);
 
-            if (window != null)
+            // Maximize / full screen expands the panel instead of showing a big empty window.
+            state.WindowStateHandler = (_, args) =>
             {
-                // Shrink the floating window by the height the content was using.
-                state.SavedWindowHeight = window.Height;
-                state.SavedWindowMinHeight = window.MinHeight;
-                double contentHeight = Math.Max(0, chrome.Bounds.Height - header);
-                window.MinHeight = 0;
-                window.Height = Math.Max(header, window.Bounds.Height - contentHeight);
+                if (args.Property != Window.WindowStateProperty) return;
+                if (state.Collapsed && window.WindowState != WindowState.Normal)
+                    Expand(chrome, dock, state, restoreWindowHeight: false);
+                else if (!state.Collapsed && window.WindowState == WindowState.Normal)
+                    RestoreWindowHeight(state);
+            };
+            window.PropertyChanged += state.WindowStateHandler;
+        }
+
+        ApplyVisuals(chrome, true);
+    }
+
+    private static void Expand(ToolChromeControl chrome, IDock dock, State state, bool restoreWindowHeight)
+    {
+        double header = HeaderHeight(chrome);
+        state.Collapsed = false;
+
+        dock.MaxHeight = double.IsNaN(state.SavedMaxHeight) || state.SavedMaxHeight <= header
+            ? double.PositiveInfinity
+            : state.SavedMaxHeight;
+
+        // Put the shared space back the way it was. Neighbours that are themselves collapsed keep
+        // their current (title-bar) share.
+        if (state.SavedProportions != null && dock.Owner is IDock owner && owner.VisibleDockables != null)
+        {
+            foreach (var (dockable, proportion) in state.SavedProportions)
+            {
+                if (!owner.VisibleDockables.Contains(dockable) || double.IsNaN(proportion)) continue;
+                if (!ReferenceEquals(dockable, dock) && dockable is IDock other
+                    && States.TryGetValue(other, out var otherState) && otherState.Collapsed) continue;
+                dockable.Proportion = proportion;
             }
         }
-        else
-        {
-            state.Collapsed = false;
-            dock.MaxHeight = double.IsNaN(state.SavedMaxHeight) || state.SavedMaxHeight <= header
-                ? double.PositiveInfinity
-                : state.SavedMaxHeight;
+        state.SavedProportions = null;
 
-            if (window != null && !double.IsNaN(state.SavedWindowHeight))
-            {
-                window.Height = state.SavedWindowHeight;
-                window.MinHeight = state.SavedWindowMinHeight;
-                state.SavedWindowHeight = double.NaN;
-            }
+        if (state.Window != null)
+        {
+            state.Window.MinHeight = state.SavedWindowMinHeight;
+            // When expanded by maximizing, the saved height is applied once the window is restored.
+            if (restoreWindowHeight) RestoreWindowHeight(state);
         }
 
-        ApplyVisuals(chrome, state.Collapsed);
+        ApplyVisuals(chrome, false);
+    }
+
+    private static void RestoreWindowHeight(State state)
+    {
+        var window = state.Window;
+        if (window == null) return;
+        if (!double.IsNaN(state.SavedWindowHeight) && window.WindowState == WindowState.Normal)
+            window.Height = state.SavedWindowHeight;
+        state.SavedWindowHeight = double.NaN;
+        if (state.WindowStateHandler != null) window.PropertyChanged -= state.WindowStateHandler;
+        state.WindowStateHandler = null;
+        state.Window = null;
     }
 
     private static void ApplyVisuals(ToolChromeControl chrome, bool collapsed)
@@ -115,7 +167,10 @@ public static class DockCollapseBehavior
             switch (child)
             {
                 case { Name: "PART_ContentPresenter" } presenter:
-                    presenter.IsVisible = !collapsed;
+                    // Stay in the layout (so the title bar keeps its place at the top) but disappear.
+                    presenter.Opacity = collapsed ? 0 : 1;
+                    presenter.IsHitTestVisible = !collapsed;
+                    presenter.IsEnabled = !collapsed;
                     break;
                 case Path { Name: "PART_MenuPath" } path:
                     // ▾ expanded, ▸ collapsed (ImGui-style).

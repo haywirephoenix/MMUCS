@@ -114,6 +114,58 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
         base.InitLayout(layout);
     }
 
+    /// <summary>Share given to a panel docked beside the documents area (matches the default side panels).</summary>
+    public const double SideProportion = 0.22;
+
+    /// <summary>
+    /// Dock reserves half the space for every split. Docking to an edge next to the documents area
+    /// should give a side-panel-sized share instead; other splits get an equal share.
+    /// </summary>
+    public override void OnDockableDocked(IDockable dockable, DockOperation operation)
+    {
+        base.OnDockableDocked(dockable, operation);
+        if (dockable == null || operation is not (DockOperation.Left or DockOperation.Right or DockOperation.Top or DockOperation.Bottom))
+            return;
+
+        var orientation = operation is DockOperation.Left or DockOperation.Right ? Orientation.Horizontal : Orientation.Vertical;
+
+        // Walk up to the first proportional dock along the split axis that actually holds siblings.
+        IDockable split = dockable;
+        while (split.Owner is IDockable parent)
+        {
+            if (parent is IProportionalDock pd && pd.Orientation == orientation && ResizeSplit(pd, split))
+                return;
+            split = parent;
+        }
+    }
+
+    private static bool ResizeSplit(IProportionalDock parent, IDockable split)
+    {
+        var panes = parent.VisibleDockables?.Where(d => d is not IProportionalDockSplitter).ToList();
+        if (panes == null || panes.Count < 2 || !panes.Contains(split)) return false;
+
+        bool besideDocuments = panes.Any(p => !ReferenceEquals(p, split) && ContainsDocuments(p));
+        double share = besideDocuments ? SideProportion : 1.0 / panes.Count;
+
+        var others = panes.Where(p => !ReferenceEquals(p, split)).ToList();
+        double othersTotal = others.Sum(p => double.IsNaN(p.Proportion) ? 0 : p.Proportion);
+
+        split.Proportion = share;
+        foreach (var p in others)
+        {
+            double current = double.IsNaN(p.Proportion) || othersTotal <= 0 ? 1.0 / others.Count : p.Proportion / othersTotal;
+            p.Proportion = current * (1 - share);
+        }
+        return true;
+    }
+
+    private static bool ContainsDocuments(IDockable dockable) => dockable switch
+    {
+        IDocumentDock => true,
+        IDock dock when dock.VisibleDockables != null => dock.VisibleDockables.Any(ContainsDocuments),
+        _ => false,
+    };
+
     /// <summary>Brings a panel to the front, wherever it is docked or floating.</summary>
     public void Activate(string id, IRootDock layout)
     {
