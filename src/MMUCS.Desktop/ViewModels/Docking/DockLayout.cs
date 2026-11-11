@@ -114,16 +114,50 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
         base.InitLayout(layout);
     }
 
-    /// <summary>Share given to a panel docked beside the documents area (matches the default side panels).</summary>
-    public const double SideProportion = 0.22;
-
-    /// <summary>
-    /// Dock reserves half the space for every split. Docking to an edge next to the documents area
-    /// should give a side-panel-sized share instead; other splits get an equal share.
-    /// </summary>
+    /// <summary>Applies side-panel sizing to real drops (the preview factory does the same for previews).</summary>
     public override void OnDockableDocked(IDockable dockable, DockOperation operation)
     {
         base.OnDockableDocked(dockable, operation);
+        EdgeDockSizing.Apply(dockable, operation);
+    }
+
+    /// <summary>
+    /// Dock simulates a drop on a cloned layout to draw the preview rectangle. The base Factory only
+    /// supplies a preview factory for itself (not subclasses), so without this the preview falls back
+    /// to a plain half-split that doesn't match the real result.
+    /// </summary>
+    public override IFactory CreatePreviewFactory() => new PreviewFactory();
+
+    private sealed class PreviewFactory : Factory
+    {
+        public override void OnDockableDocked(IDockable dockable, DockOperation operation)
+        {
+            base.OnDockableDocked(dockable, operation);
+            EdgeDockSizing.Apply(dockable, operation);
+        }
+    }
+
+    /// <summary>Brings a panel to the front, wherever it is docked or floating.</summary>
+    public void Activate(string id, IRootDock layout)
+    {
+        if (layout == null) return;
+        var dockable = Find(d => d.Id == id).FirstOrDefault();
+        if (dockable == null) return;
+        SetActiveDockable(dockable);
+        if (dockable.Owner is IDock owner) SetFocusedDockable(owner, dockable);
+    }
+}
+
+/// <summary>
+/// Dock reserves half the space for every split. Docking beside the documents area should give a
+/// side-panel-sized share instead (matching the default side panels); other splits get an equal share.
+/// </summary>
+public static class EdgeDockSizing
+{
+    public const double SideProportion = 0.22;
+
+    public static void Apply(IDockable dockable, DockOperation operation)
+    {
         if (dockable == null || operation is not (DockOperation.Left or DockOperation.Right or DockOperation.Top or DockOperation.Bottom))
             return;
 
@@ -148,15 +182,24 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
         double share = besideDocuments ? SideProportion : 1.0 / panes.Count;
 
         var others = panes.Where(p => !ReferenceEquals(p, split)).ToList();
-        double othersTotal = others.Sum(p => double.IsNaN(p.Proportion) ? 0 : p.Proportion);
+        double othersTotal = others.Sum(p => double.IsFinite(p.Proportion) && p.Proportion > 0 ? p.Proportion : 0);
 
-        split.Proportion = share;
+        Set(split, share);
         foreach (var p in others)
         {
-            double current = double.IsNaN(p.Proportion) || othersTotal <= 0 ? 1.0 / others.Count : p.Proportion / othersTotal;
-            p.Proportion = current * (1 - share);
+            double current = !double.IsFinite(p.Proportion) || p.Proportion <= 0 || othersTotal <= 0
+                ? 1.0 / others.Count
+                : p.Proportion / othersTotal;
+            Set(p, current * (1 - share));
         }
         return true;
+    }
+
+    // Mirror Dock's own split sizing, which keeps CollapsedProportion in step with Proportion.
+    private static void Set(IDockable d, double value)
+    {
+        d.Proportion = value;
+        d.CollapsedProportion = value;
     }
 
     private static bool ContainsDocuments(IDockable dockable) => dockable switch
@@ -165,14 +208,4 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
         IDock dock when dock.VisibleDockables != null => dock.VisibleDockables.Any(ContainsDocuments),
         _ => false,
     };
-
-    /// <summary>Brings a panel to the front, wherever it is docked or floating.</summary>
-    public void Activate(string id, IRootDock layout)
-    {
-        if (layout == null) return;
-        var dockable = Find(d => d.Id == id).FirstOrDefault();
-        if (dockable == null) return;
-        SetActiveDockable(dockable);
-        if (dockable.Owner is IDock owner) SetFocusedDockable(owner, dockable);
-    }
 }
