@@ -15,8 +15,8 @@
       <MenuItem Header="_File">
         <MenuItem x:Name="OpenMenuItem" Header="_Open…" InputGesture="Ctrl+O" HotKey="Ctrl+O" Click="OnOpenClick" />
         <MenuItem x:Name="RecentMenu" Header="Open _Recent" />
-        <MenuItem Header="Reopen last file on startup" ToggleType="CheckBox"
-                  IsChecked="{Binding ReopenLastFileOnStartup}" />
+        <MenuItem Header="Reopen last file on startup" ToggleType="CheckBox" StaysOpenOnClick="True"
+                  IsChecked="{Binding ReopenLastFileOnStartup, Mode=OneWay}" Command="{Binding ToggleReopenLastFileOnStartupCommand}" />
         <Separator />
         <MenuItem Header="_Export…" InputGesture="Ctrl+E" HotKey="Ctrl+E" Click="OnExportWizardClick"
                   IsEnabled="{Binding HasProject}" />
@@ -54,9 +54,12 @@
                     Background="Transparent" ToolTip.Tip="Tree display options">
               <Button.Flyout>
                 <MenuFlyout Placement="BottomEdgeAlignedRight">
-                  <MenuItem Header="Room names" ToggleType="CheckBox" IsChecked="{Binding TreeOptions.ShowRoomNames}" />
-                  <MenuItem Header="Object names" ToggleType="CheckBox" IsChecked="{Binding TreeOptions.ShowObjectNames}" />
-                  <MenuItem Header="Colour by tag" ToggleType="CheckBox" IsChecked="{Binding TreeOptions.ColorizeTags}" />
+                  <MenuItem Header="Room names" ToggleType="CheckBox" StaysOpenOnClick="True"
+                            IsChecked="{Binding TreeOptions.ShowRoomNames, Mode=OneWay}" Command="{Binding TreeOptions.ToggleRoomNamesCommand}" />
+                  <MenuItem Header="Object names" ToggleType="CheckBox" StaysOpenOnClick="True"
+                            IsChecked="{Binding TreeOptions.ShowObjectNames, Mode=OneWay}" Command="{Binding TreeOptions.ToggleObjectNamesCommand}" />
+                  <MenuItem Header="Colour by tag" ToggleType="CheckBox" StaysOpenOnClick="True"
+                            IsChecked="{Binding TreeOptions.ColorizeTags, Mode=OneWay}" Command="{Binding TreeOptions.ToggleColorizeTagsCommand}" />
                 </MenuFlyout>
               </Button.Flyout>
             </Button>

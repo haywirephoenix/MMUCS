@@ -13,10 +13,14 @@ public sealed class AppSettings
 {
     public const int MaxRecentFiles = 10;
 
+    /// <summary>Bumped when defaults change in a way existing settings files should pick up.</summary>
+    public int SettingsVersion { get; set; }
+    private const int CurrentSettingsVersion = 1;
+
     public List<string> RecentFiles { get; set; } = new();
     public bool ReopenLastFileOnStartup { get; set; } = true;
     public bool ShowRoomNames { get; set; } = true;
-    public bool ShowObjectNames { get; set; }
+    public bool ShowObjectNames { get; set; } = true;
     public bool ColorizeTags { get; set; } = true;
 
     // Export wizard
@@ -39,13 +43,26 @@ public sealed class AppSettings
         try
         {
             if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), JsonOptions) ?? new AppSettings();
+            {
+                var s = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), JsonOptions) ?? new AppSettings();
+                s.Migrate();
+                return s;
+            }
         }
         catch (Exception ex)
         {
             Log.Warn($"Settings could not be read, using defaults: {ex.Message}");
         }
-        return new AppSettings();
+        return new AppSettings { SettingsVersion = CurrentSettingsVersion };
+    }
+
+    private void Migrate()
+    {
+        if (SettingsVersion >= CurrentSettingsVersion) return;
+        // v1: object names now default on (older files saved "false" while the options menu couldn't toggle it).
+        if (SettingsVersion < 1) ShowObjectNames = true;
+        SettingsVersion = CurrentSettingsVersion;
+        Save();
     }
 
     public void Save()

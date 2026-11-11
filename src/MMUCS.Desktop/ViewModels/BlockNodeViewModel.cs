@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MMUCS.Core.Scumm;
 
 namespace MMUCS.Desktop.ViewModels;
@@ -11,8 +12,13 @@ namespace MMUCS.Desktop.ViewModels;
 public sealed partial class TreeOptions : ObservableObject
 {
     [ObservableProperty] private bool _showRoomNames = true;
-    [ObservableProperty] private bool _showObjectNames;
+    [ObservableProperty] private bool _showObjectNames = true;
     [ObservableProperty] private bool _colorizeTags = true;
+
+    // Menu items invoke these; their IsChecked is bound one-way, so the state lives here only.
+    [RelayCommand] private void ToggleRoomNames() => ShowRoomNames = !ShowRoomNames;
+    [RelayCommand] private void ToggleObjectNames() => ShowObjectNames = !ShowObjectNames;
+    [RelayCommand] private void ToggleColorizeTags() => ColorizeTags = !ColorizeTags;
 
     /// <summary>Blocks that pass the current filter, or null when no filter is active.</summary>
     public HashSet<ScummBlock> VisibleBlocks { get; set; }

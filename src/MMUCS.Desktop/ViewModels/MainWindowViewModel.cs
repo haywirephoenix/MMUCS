@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Scumm;
 using MMUCS.Desktop.Services;
@@ -92,6 +93,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
             else foreach (var r in Roots) r.RefreshLabels();
         }
     }
+
+    [RelayCommand]
+    private void ToggleReopenLastFileOnStartup() => ReopenLastFileOnStartup = !ReopenLastFileOnStartup;
 
     partial void OnReopenLastFileOnStartupChanged(bool value)
     {
