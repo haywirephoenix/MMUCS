@@ -153,9 +153,7 @@ public partial class RoomViewerContent : Control
         _objectLayer.Connect("draw", Callable.From(_DrawObjectLayer));
         _hotspotLayer.Connect("draw", Callable.From(_DrawHotspotLayer));
         _boundsLayer.Connect("draw", Callable.From(_DrawBoundsLayer));
-        
         _optionsMenu.IdPressed += OptionsMenuOnIdPressed;
-
         // _hotspotLayer.Connect("draw", Callable.From(_DrawHotspotLayer));
     }
     private void OptionsMenuOnIdPressed(long id)
@@ -163,7 +161,8 @@ public partial class RoomViewerContent : Control
         switch (id)
         {
             case 0: OnObjectsToggled(!_showObjects);  break;
-            case 1: ShowObjectsList(!_objectNamesList.Visible); break;
+            case 1: OnActorsToggled(!_showActors);  break;
+            case 2: ShowObjectsList(!_objectNamesList.Visible); break;
         }
         UpdateOptionsMenuState();
     }
@@ -304,13 +303,20 @@ public partial class RoomViewerContent : Control
             EventBus.Instance.EmitSignal(EventBus.SignalName.AssetSelected, id, type);
         }
     }
+
+    private void ResetUIState()
+    {
+        _showObjects = false;
+        _currentSelectedObjectRect = null;
+        selectedIdx = 0;
+        UpdateOptionsMenuState();
+    }
     
     public void OnBlockSelected(ScummBlock block)
     {
         if(!ParentPanel.IsOpen) return;
 
-        _showObjects = false;
-        UpdateOptionsMenuState();
+        ResetUIState();
         
         if (block == null) { OnRoomDeselected(); return; }
 

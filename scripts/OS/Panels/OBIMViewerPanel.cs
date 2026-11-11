@@ -15,6 +15,7 @@ public partial class OBIMViewerPanel : FloatingPanel
     public override void AssignNodes()
     {
         base.AssignNodes();
+        Content.ParentPanel = this;
         Content.AssignNodes();
     }
 }

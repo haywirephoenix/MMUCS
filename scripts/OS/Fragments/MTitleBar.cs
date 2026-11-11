@@ -3,7 +3,8 @@
 [Tool]
 public partial class MTitleBar : Control
 {
-    [Export] public string Title
+    [Export] 
+    public string Title
     {
         get{ return _title; }
         set

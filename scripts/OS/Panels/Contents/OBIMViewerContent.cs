@@ -15,10 +15,14 @@ public partial class OBIMViewerContent  : Control
     [Export] public GridContainer _paletteGrid;
     [Export] public MSlider _frameSlider;
     [Export] public MSlider _paletteSlider;
-    private const float paletteSwatchSize = 10;
-
+    
     private Color[] ResolvedColors;
+    string          _currentName       = "";
+    private int     _currentImageCount = 0;
+    private bool    _bompSelected      = false;
 
+    private const float paletteSwatchSize = 10;
+    
     private const string s_ContentRootPath = "ContentRoot";
     private const string s_SplitContainerPath = s_ContentRootPath + "/ResponsiveView/SplitContainer";
     private const string s_ControlsPath = s_ContentRootPath + "/Controls/VBoxContainer";
@@ -47,9 +51,7 @@ public partial class OBIMViewerContent  : Control
         base._Notification(what);
 
         if (what == NotificationResized)
-        {
             _previewContainer?.ZoomToFitDeferred();
-        }
     }
 
     public void OnReady()
@@ -76,10 +78,6 @@ public partial class OBIMViewerContent  : Control
     {
         if (_obimBlock != null) GetObjectData(_obimBlock, newIndex);
     }
-
-    string _currentName = "";
-    private int _currentImageCount = 0;
-    private bool _bompSelected = false;
 
     public void OnBlockSelected(ScummBlock block)
     {

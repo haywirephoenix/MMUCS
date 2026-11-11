@@ -19,6 +19,7 @@ public partial class RoomPreviewPanel : FloatingPanel
     public override void AssignNodes()
     {
         base.AssignNodes();
+        Content.ParentPanel = this;
         Content.AssignNodes();
     }
 }

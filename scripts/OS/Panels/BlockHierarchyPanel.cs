@@ -27,7 +27,7 @@ public partial class BlockHierarchyPanel : FloatingPanel
     private string _currentQuery = string.Empty;
     private uint? _currentTargetTag = null;
 
-    private static readonly NodePath PathMainCanvas = "../..";
+    private static readonly NodePath PathMainCanvas = "../../../";
     private static readonly NodePath PathContainer = "Layout/MarginContainer/ContentRoot/Container";
     private static readonly NodePath PathRoomNamesToggle = "Layout/MarginContainer/ContentRoot/Container/HBoxContainer/RoomNamesToggle";
     private static readonly NodePath PathObjectNamesToggle = "Layout/MarginContainer/ContentRoot/Container/HBoxContainer/ObjectNamesToggle";

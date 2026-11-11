@@ -25,9 +25,11 @@
 [ext_resource type="FontFile" uid="uid://c84nc5gpd4rsn" path="res://fonts/Roboto/Roboto-Regular.ttf" id="12_sq7yr"]
 [ext_resource type="PackedScene" uid="uid://bpnvsigpgjsmu" path="res://prefabs/OS/fragments/title_bar.tscn" id="13_mh7w8"]
 [ext_resource type="Material" uid="uid://d0qm6uvo47dxm" path="res://materials/blur.tres" id="13_sq7yr"]
-[ext_resource type="StyleBox" uid="uid://b3qpjc2tfdmk5" path="res://themes/deafult/styleboxlineH.tres" id="15_udg8a"]
+[ext_resource type="Material" uid="uid://dg42w3bb5qow4" path="res://materials/akos_mat.tres" id="15_po8fv"]
 [ext_resource type="Script" uid="uid://b468sw2ix4guh" path="res://scripts/OS/Controls/ScrollSafeRichTextLabel.cs" id="16_24xe2"]
+[ext_resource type="Script" uid="uid://lioesdywkjoh" path="res://scripts/OS/Controls/ZoomableViewport.cs" id="17_24xe2"]
 [ext_resource type="PackedScene" uid="uid://di5k1mvd4dxf3" path="res://prefabs/OS/fragments/resize_handles.tscn" id="17_obcww"]
+[ext_resource type="StyleBox" uid="uid://duayj10sqwqj6" path="res://themes/deafult/styleboxline.tres" id="18_ans7r"]
 [ext_resource type="StyleBox" uid="uid://ciu2hp6ve5f3u" path="res://themes/deafult/styleboxlineV.tres" id="20_cr30j"]
 [ext_resource type="Script" uid="uid://dmqdghi8o7k1v" path="res://scripts/OS/Managers/FocusManager.cs" id="21_vte5o"]
 [ext_resource type="Script" uid="uid://cs8fcoa0klm7h" path="res://scripts/OS/Panels/OBIMViewerPanel.cs" id="22_tilu5"]
@@ -37,9 +39,13 @@
 [ext_resource type="Texture2D" uid="uid://e6m3xtkg1o34" path="res://wallpapers/fire-skull.png" id="27_tilu5"]
 [ext_resource type="Texture2D" uid="uid://d1q75m0hn3mg0" path="res://wallpapers/blurred/fire-skull_blurred.png" id="28_24xe2"]
 [ext_resource type="Texture2D" uid="uid://ddf5al7cvwuj2" path="res://icon.svg" id="28_qoqhg"]
+[ext_resource type="Script" uid="uid://exgygdoqg3lj" path="res://scripts/OS/Panels/ExporterPanel.cs" id="30_623xu"]
 [ext_resource type="Script" uid="uid://bkqxm11832w4i" path="res://scripts/OS/Panels/UnifiedPreviewPanel.cs" id="30_obcww"]
 [ext_resource type="PackedScene" uid="uid://caee58yppqk40" path="res://prefabs/contents/obim_viewer_content.tscn" id="31_ans7r"]
+[ext_resource type="Script" uid="uid://drywiwd6w7uat" path="res://scripts/OS/Panels/Contents/ExporterContent.cs" id="31_sbofu"]
 [ext_resource type="StyleBox" uid="uid://ci4e6yoiosvld" path="res://themes/deafult/styleboxflat_white_bootprogress.tres" id="31_xu2l0"]
+[ext_resource type="StyleBox" uid="uid://c1prq3u0k1xnc" path="res://themes/deafult/stylebox_roundedButton.tres" id="32_ans7r"]
+[ext_resource type="StyleBox" uid="uid://d0sjsop76q1w1" path="res://themes/deafult/stylebox_roundedButton_disabled.tres" id="33_7qgyb"]
 [ext_resource type="Texture2D" uid="uid://di3rohhxjh865" path="res://wallpapers/mountains-daniel-leone.png" id="38_f6va0"]
 [ext_resource type="Texture2D" uid="uid://c2x6ogp7atu6a" path="res://wallpapers/blurred/mountains-daniel-leone-blur.png" id="39_uk3k5"]
 [ext_resource type="Texture2D" uid="uid://uhgj440grpu3" path="res://wallpapers/town-sheng-l.png" id="40_0aysq"]
@@ -55,203 +61,6 @@ gradient = SubResource("Gradient_uwexw")
 height = 24
 fill_from = Vector2(0.5487421, 0)
 fill_to = Vector2(0.5363248, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_t1d33"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(0.25, 0.5, 0.95, 0.85)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5pjjr"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(0.25, 0.5, 0.95, 0.85)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rakeu"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(0.25, 0.5, 0.95, 0.85)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_a7o2r"]
-bg_color = Color(0, 0, 0, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_16l4c"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(1, 1, 1, 0)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jjsel"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(0.25, 0.5, 0.95, 0.85)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fjobo"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(1, 1, 1, 0.07)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_yq7ej"]
-bg_color = Color(0, 0, 0, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ewh5e"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(1, 1, 1, 0)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bed1y"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(0.25, 0.5, 0.95, 0.85)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ge1ra"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(1, 1, 1, 0.07)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jv2vy"]
-bg_color = Color(0, 0, 0, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_e5psx"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(1, 1, 1, 0)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ipeke"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(0.25, 0.5, 0.95, 0.85)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ftkoo"]
-content_margin_left = 6.0
-content_margin_top = 0.0
-content_margin_right = 6.0
-content_margin_bottom = 0.0
-bg_color = Color(1, 1, 1, 0.07)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_366wr"]
-bg_color = Color(0, 0, 0, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vte5o"]
-content_margin_left = 0.0
-content_margin_top = 0.0
-content_margin_right = 0.0
-content_margin_bottom = 0.0
-bg_color = Color(0.1, 0.1, 0.1, 0.6)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_blend = true
-corner_radius_top_left = 5
-corner_radius_top_right = 5
-corner_radius_bottom_right = 5
-corner_radius_bottom_left = 5
-corner_detail = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ttwx7"]
-bg_color = Color(0.15, 0.15, 0.15, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 1, 1, 0)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3dlgs"]
-content_margin_left = 6.0
-content_margin_top = 6.0
-content_margin_right = 6.0
-content_margin_bottom = 6.0
-bg_color = Color(0.1, 0.1, 0.1, 0.6)
-corner_radius_top_left = 100
-corner_radius_top_right = 100
-corner_radius_bottom_right = 100
-corner_radius_bottom_left = 100
-corner_detail = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6p5ma"]
-bg_color = Color(0.15, 0.15, 0.15, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 1, 1, 0)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_5t1pv"]
 
@@ -590,6 +399,203 @@ Tree/styles/title_button_hover = SubResource("StyleBoxFlat_7x344")
 Tree/styles/title_button_normal = SubResource("StyleBoxFlat_syh8k")
 Tree/styles/title_button_pressed = SubResource("StyleBoxFlat_wlp8g")
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_t1d33"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(0.25, 0.5, 0.95, 0.85)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5pjjr"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(0.25, 0.5, 0.95, 0.85)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rakeu"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(0.25, 0.5, 0.95, 0.85)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_a7o2r"]
+bg_color = Color(0, 0, 0, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_16l4c"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(1, 1, 1, 0)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jjsel"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(0.25, 0.5, 0.95, 0.85)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fjobo"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(1, 1, 1, 0.07)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_yq7ej"]
+bg_color = Color(0, 0, 0, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ewh5e"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(1, 1, 1, 0)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bed1y"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(0.25, 0.5, 0.95, 0.85)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ge1ra"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(1, 1, 1, 0.07)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jv2vy"]
+bg_color = Color(0, 0, 0, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_e5psx"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(1, 1, 1, 0)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ipeke"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(0.25, 0.5, 0.95, 0.85)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ftkoo"]
+content_margin_left = 6.0
+content_margin_top = 0.0
+content_margin_right = 6.0
+content_margin_bottom = 0.0
+bg_color = Color(1, 1, 1, 0.07)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_366wr"]
+bg_color = Color(0, 0, 0, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vte5o"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.1, 0.1, 0.1, 0.6)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_blend = true
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+corner_detail = 7
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ttwx7"]
+bg_color = Color(0.15, 0.15, 0.15, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 0)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3dlgs"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0.1, 0.1, 0.1, 0.6)
+corner_radius_top_left = 100
+corner_radius_top_right = 100
+corner_radius_bottom_right = 100
+corner_radius_bottom_left = 100
+corner_detail = 7
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6p5ma"]
+bg_color = Color(0.15, 0.15, 0.15, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 0)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
 [sub_resource type="Gradient" id="Gradient_vte5o"]
 colors = PackedColorArray(0, 0, 0, 0.6666667, 0, 0, 0, 0)
 
@@ -655,7 +661,7 @@ mouse_filter = 2
 texture = ExtResource("38_f6va0")
 expand_mode = 2
 
-[node name="MainCanvas" type="VBoxContainer" parent="OS" unique_id=914787960 node_paths=PackedStringArray("_canvas", "_menuBar", "_statusBar", "_blockHierarchyPanel", "_hexPanel", "_roomPanel", "_metadataPanel", "_akosPanel", "_obimPanel", "_optionsPanel", "_unifedPreviewPanel")]
+[node name="MainCanvas" type="VBoxContainer" parent="OS" unique_id=914787960 node_paths=PackedStringArray("_canvas", "_menuBar", "_statusBar", "_blockHierarchyPanel", "_hexPanel", "_roomPanel", "_metadataPanel", "_akosPanel", "_obimPanel", "_optionsPanel", "_unifedPreviewPanel", "_exporterPanel")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -666,17 +672,18 @@ size_flags_vertical = 3
 focus_behavior_recursive = 1
 mouse_behavior_recursive = 2
 script = ExtResource("5_1xb4a")
-_canvas = NodePath("Canvas")
+_canvas = NodePath("CanvasWrapper/Canvas")
 _menuBar = NodePath("MenuBarContainer/MenuBar")
 _statusBar = NodePath("StatusBarContainer/StatusBar")
-_blockHierarchyPanel = NodePath("Canvas/Block Hierarchy")
-_hexPanel = NodePath("Canvas/Hex View")
-_roomPanel = NodePath("Canvas/Room Preview")
-_metadataPanel = NodePath("Canvas/Metadata")
-_akosPanel = NodePath("Canvas/AKOS Viewer")
-_obimPanel = NodePath("Canvas/OBIM Viewer")
-_optionsPanel = NodePath("Canvas/Options")
-_unifedPreviewPanel = NodePath("Canvas/Preview")
+_blockHierarchyPanel = NodePath("CanvasWrapper/Canvas/Block Hierarchy")
+_hexPanel = NodePath("CanvasWrapper/Canvas/Hex View")
+_roomPanel = NodePath("CanvasWrapper/Canvas/Room Preview")
+_metadataPanel = NodePath("CanvasWrapper/Canvas/Metadata")
+_akosPanel = NodePath("CanvasWrapper/Canvas/AKOS Viewer")
+_obimPanel = NodePath("CanvasWrapper/Canvas/OBIM Viewer")
+_optionsPanel = NodePath("CanvasWrapper/AOTCanvas/Options")
+_unifedPreviewPanel = NodePath("CanvasWrapper/Canvas/Preview")
+_exporterPanel = NodePath("CanvasWrapper/AOTCanvas/Exporter")
 
 [node name="MenuBarContainer" type="PanelContainer" parent="OS/MainCanvas" unique_id=1400193829]
 layout_mode = 2
@@ -700,7 +707,7 @@ _fileMenu = NodePath("File")
 _toolsMenu = NodePath("Tools")
 _viewMenu = NodePath("View")
 _layoutMenu = NodePath("Layout")
-_openDialog = NodePath("../../Canvas/FileDialog")
+_openDialog = NodePath("../../CanvasWrapper/Canvas/FileDialog")
 
 [node name="Background" type="TextureRect" parent="OS/MainCanvas/MenuBarContainer/MenuBar" unique_id=718530791]
 z_index = -1
@@ -789,9 +796,11 @@ theme_override_constants/item_start_padding = 8
 theme_override_constants/item_end_padding = 8
 theme_override_font_sizes/font_size = 13
 theme_override_styles/panel = ExtResource("7_qwhpj")
-item_count = 1
+item_count = 2
 item_0/text = "Options..."
-item_0/id = 24
+item_0/id = 21
+item_1/text = "Export..."
+item_1/id = 34
 
 [node name="Layout" type="PopupMenu" parent="OS/MainCanvas/MenuBarContainer/MenuBar" unique_id=1284429021]
 gui_embed_subwindows = true
@@ -836,7 +845,7 @@ autowrap_mode = 0
 horizontal_alignment = 2
 vertical_alignment = 1
 
-[node name="Canvas" type="Control" parent="OS/MainCanvas" unique_id=1935967397]
+[node name="CanvasWrapper" type="Control" parent="OS/MainCanvas" unique_id=1212943613]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -844,7 +853,20 @@ focus_behavior_recursive = 1
 mouse_filter = 1
 mouse_behavior_recursive = 2
 
-[node name="Block Hierarchy" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=934878275]
+[node name="Canvas" type="Control" parent="OS/MainCanvas/CanvasWrapper" unique_id=1935967397]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+focus_behavior_recursive = 1
+mouse_filter = 1
+mouse_behavior_recursive = 2
+
+[node name="Block Hierarchy" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas" unique_id=934878275]
 clip_contents = true
 layout_mode = 0
 offset_top = -3.0
@@ -855,24 +877,20 @@ theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("6_qw60f")
 IsOpen = true
 
-[node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Block Hierarchy" unique_id=1655376274]
+[node name="Background" type="Panel" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy" unique_id=1655376274]
 material = ExtResource("13_sq7yr")
 layout_mode = 2
 theme_override_styles/panel = ExtResource("7_qwhpj")
 
-[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy" unique_id=1683307666]
+[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy" unique_id=1683307666]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout" unique_id=27902639 instance=ExtResource("13_mh7w8")]
+[node name="TitleBar" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout" unique_id=27902639 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
 Title = "Block Hierarchy"
 
-[node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout" unique_id=1157590658]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout" unique_id=682933772]
+[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout" unique_id=682933772]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/margin_left = 8
@@ -880,24 +898,24 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer" unique_id=367559778]
+[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout/MarginContainer" unique_id=367559778]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="Container" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot" unique_id=1673314018]
+[node name="Container" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot" unique_id=1673314018]
 clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="MenuBar" type="MenuBar" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container" unique_id=1888947813]
+[node name="MenuBar" type="MenuBar" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container" unique_id=1888947813]
 custom_minimum_size = Vector2(0, 27.915)
 layout_mode = 2
 theme_override_styles/normal = ExtResource("12_3dlgs")
 prefer_global_menu = false
 
-[node name="Options" type="PopupMenu" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/MenuBar" unique_id=251280575]
+[node name="Options" type="PopupMenu" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/MenuBar" unique_id=251280575]
 gui_embed_subwindows = true
 theme_override_styles/panel = ExtResource("7_qwhpj")
 item_count = 2
@@ -908,7 +926,7 @@ item_1/text = "Object Names"
 item_1/checkable = 1
 item_1/id = 1
 
-[node name="SearchBox" type="LineEdit" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/MenuBar" unique_id=1016981287]
+[node name="SearchBox" type="LineEdit" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/MenuBar" unique_id=1016981287]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -925,23 +943,23 @@ theme_override_styles/focus = ExtResource("12_3dlgs")
 placeholder_text = "Filter blocks..."
 select_all_on_focus = true
 
-[node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container" unique_id=1692891182]
+[node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container" unique_id=1692891182]
 visible = false
 layout_mode = 2
 
-[node name="RoomNamesToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/HBoxContainer" unique_id=395903526]
+[node name="RoomNamesToggle" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/HBoxContainer" unique_id=395903526]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 theme_override_styles/hover_pressed = ExtResource("12_3dlgs")
 text = "Room Names "
 
-[node name="ObjectNamesToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/HBoxContainer" unique_id=535569756]
+[node name="ObjectNamesToggle" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container/HBoxContainer" unique_id=535569756]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 theme_override_styles/hover_pressed = ExtResource("12_3dlgs")
 text = "Object Names"
 
-[node name="TreeView" type="Tree" parent="OS/MainCanvas/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container" unique_id=1579526488]
+[node name="TreeView" type="Tree" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy/Layout/MarginContainer/ContentRoot/Container" unique_id=1579526488]
 layout_mode = 2
 size_flags_vertical = 3
 focus_mode = 1
@@ -960,10 +978,10 @@ allow_reselect = true
 auto_tooltip = false
 script = ExtResource("9_ynlg5")
 
-[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Block Hierarchy" unique_id=932809559 instance=ExtResource("17_obcww")]
+[node name="ResizeHandles" parent="OS/MainCanvas/CanvasWrapper/Canvas/Block Hierarchy" unique_id=932809559 instance=ExtResource("17_obcww")]
 layout_mode = 2
 
-[node name="Metadata" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=1069389248]
+[node name="Metadata" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas" unique_id=1069389248]
 clip_contents = true
 layout_mode = 0
 offset_left = 334.0
@@ -974,24 +992,20 @@ theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("7_qt76e")
 IsOpen = true
 
-[node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Metadata" unique_id=1792388918]
+[node name="Background" type="Panel" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata" unique_id=1792388918]
 material = ExtResource("13_sq7yr")
 layout_mode = 2
 theme_override_styles/panel = ExtResource("7_qwhpj")
 
-[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Metadata" unique_id=1997880637]
+[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata" unique_id=1997880637]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" parent="OS/MainCanvas/Canvas/Metadata/Layout" unique_id=1563752254 instance=ExtResource("13_mh7w8")]
+[node name="TitleBar" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata/Layout" unique_id=1563752254 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
 Title = "Metadata"
 
-[node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Metadata/Layout" unique_id=1988112684]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout" unique_id=123097212]
+[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata/Layout" unique_id=123097212]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/margin_left = 8
@@ -999,26 +1013,26 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer" unique_id=1720700542]
+[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata/Layout/MarginContainer" unique_id=1720700542]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="ScrollContainer" type="ScrollContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot" unique_id=1989376774]
+[node name="ScrollContainer" type="ScrollContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata/Layout/MarginContainer/ContentRoot" unique_id=1989376774]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="VBox" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer" unique_id=845202621]
+[node name="VBox" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer" unique_id=845202621]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="MetadataDisplay" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=1272645974]
+[node name="MetadataDisplay" type="RichTextLabel" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=1272645974]
 layout_mode = 2
 
-[node name="BlockPath" type="Label" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=11573284]
+[node name="BlockPath" type="Label" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=11573284]
 custom_minimum_size = Vector2(0, 16.55)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.53333336, 0.53333336, 0.53333336, 1)
@@ -1026,7 +1040,7 @@ theme_override_font_sizes/font_size = 12
 text = "—"
 autowrap_mode = 3
 
-[node name="noPreviewLabel" type="Label" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=933485747]
+[node name="noPreviewLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=933485747]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.33333334, 0.33333334, 0.33333334, 1)
@@ -1034,16 +1048,16 @@ theme_override_font_sizes/font_size = 18
 text = "No preview available"
 horizontal_alignment = 1
 
-[node name="imagePreview" type="TextureRect" parent="OS/MainCanvas/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=1715422571]
+[node name="imagePreview" type="TextureRect" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata/Layout/MarginContainer/ContentRoot/ScrollContainer/VBox" unique_id=1715422571]
 visible = false
 layout_mode = 2
 expand_mode = 5
 stretch_mode = 4
 
-[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Metadata" unique_id=1544975199 instance=ExtResource("17_obcww")]
+[node name="ResizeHandles" parent="OS/MainCanvas/CanvasWrapper/Canvas/Metadata" unique_id=1544975199 instance=ExtResource("17_obcww")]
 layout_mode = 2
 
-[node name="Hex View" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=967761753]
+[node name="Hex View" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas" unique_id=967761753]
 clip_contents = true
 layout_mode = 0
 offset_left = 324.0
@@ -1053,24 +1067,20 @@ offset_bottom = 1010.0
 theme_override_styles/panel = ExtResource("12_3dlgs")
 script = ExtResource("5_eji0w")
 
-[node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Hex View" unique_id=1586210325]
+[node name="Background" type="Panel" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View" unique_id=1586210325]
 material = ExtResource("13_sq7yr")
 layout_mode = 2
 theme_override_styles/panel = ExtResource("7_qwhpj")
 
-[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Hex View" unique_id=2145813858]
+[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View" unique_id=2145813858]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" parent="OS/MainCanvas/Canvas/Hex View/Layout" unique_id=1822999498 instance=ExtResource("13_mh7w8")]
+[node name="TitleBar" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout" unique_id=1822999498 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
 Title = "Hex View"
 
-[node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Hex View/Layout" unique_id=2141132152]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout" unique_id=1614458420]
+[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout" unique_id=1614458420]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/margin_left = 8
@@ -1078,18 +1088,18 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer" unique_id=953631564]
+[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer" unique_id=953631564]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="MenuBar" type="MenuBar" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot" unique_id=1195182934]
+[node name="MenuBar" type="MenuBar" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot" unique_id=1195182934]
 custom_minimum_size = Vector2(0, 27.915)
 layout_mode = 2
 theme_override_styles/normal = ExtResource("12_3dlgs")
 prefer_global_menu = false
 
-[node name="Edit" type="PopupMenu" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/MenuBar" unique_id=651823440]
+[node name="Edit" type="PopupMenu" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/MenuBar" unique_id=651823440]
 gui_embed_subwindows = true
 theme_override_styles/panel = ExtResource("7_qwhpj")
 item_count = 3
@@ -1100,7 +1110,7 @@ item_1/id = 1
 item_2/text = " Copy All"
 item_2/id = 2
 
-[node name="OffsetLabel" type="Label" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/MenuBar" unique_id=832481430]
+[node name="OffsetLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/MenuBar" unique_id=832481430]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -1115,21 +1125,21 @@ vertical_alignment = 1
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="Container" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot" unique_id=658666636]
+[node name="Container" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot" unique_id=658666636]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="_HSeparator_172" type="HSeparator" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container" unique_id=597278043]
+[node name="_HSeparator_172" type="HSeparator" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container" unique_id=597278043]
 layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
+theme_override_styles/separator = ExtResource("18_ans7r")
 
-[node name="hbox" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container" unique_id=2025741558]
+[node name="hbox" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container" unique_id=2025741558]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="HSplit" type="HSplitContainer" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox" unique_id=53007762]
+[node name="HSplit" type="HSplitContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox" unique_id=53007762]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 0
@@ -1138,7 +1148,7 @@ split_offsets = PackedInt32Array(80, -100)
 dragger_visibility = 2
 split_offset = 80
 
-[node name="offsetView" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=1349973421]
+[node name="offsetView" type="RichTextLabel" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=1349973421]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -1159,7 +1169,7 @@ threaded = true
 selection_enabled = true
 script = ExtResource("16_24xe2")
 
-[node name="_VSeparator_174" type="VSeparator" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit/offsetView" unique_id=1489661566]
+[node name="_VSeparator_174" type="VSeparator" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit/offsetView" unique_id=1489661566]
 layout_mode = 1
 anchors_preset = 11
 anchor_left = 1.0
@@ -1172,7 +1182,7 @@ theme = ExtResource("8_blcw0")
 theme_override_constants/separation = 1
 theme_override_styles/separator = ExtResource("20_cr30j")
 
-[node name="hexView" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=2070395090]
+[node name="hexView" type="RichTextLabel" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=2070395090]
 custom_minimum_size = Vector2(105, 0)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -1194,7 +1204,7 @@ threaded = true
 selection_enabled = true
 script = ExtResource("16_24xe2")
 
-[node name="_VSeparator_175" type="VSeparator" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit/hexView" unique_id=743165026]
+[node name="_VSeparator_175" type="VSeparator" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit/hexView" unique_id=743165026]
 layout_mode = 1
 anchors_preset = 11
 anchor_left = 1.0
@@ -1206,7 +1216,7 @@ grow_vertical = 2
 theme_override_constants/separation = 1
 theme_override_styles/separator = ExtResource("20_cr30j")
 
-[node name="asciiView" type="RichTextLabel" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=415103921]
+[node name="asciiView" type="RichTextLabel" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox/HSplit" unique_id=415103921]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -1227,13 +1237,13 @@ threaded = true
 selection_enabled = true
 script = ExtResource("16_24xe2")
 
-[node name="vScroll" type="VScrollBar" parent="OS/MainCanvas/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox" unique_id=1858725623]
+[node name="vScroll" type="VScrollBar" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View/Layout/MarginContainer/ContentRoot/Container/hbox" unique_id=1858725623]
 layout_mode = 2
 
-[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Hex View" unique_id=1316750909 instance=ExtResource("17_obcww")]
+[node name="ResizeHandles" parent="OS/MainCanvas/CanvasWrapper/Canvas/Hex View" unique_id=1316750909 instance=ExtResource("17_obcww")]
 layout_mode = 2
 
-[node name="Room Preview" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=1324843179 node_paths=PackedStringArray("Content")]
+[node name="Room Preview" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas" unique_id=1324843179 node_paths=PackedStringArray("Content")]
 process_mode = 3
 clip_contents = true
 custom_minimum_size = Vector2(200, 100)
@@ -1247,23 +1257,23 @@ script = ExtResource("6_qwhpj")
 Content = NodePath("Layout/MarginContainer/RoomViewerContent")
 IsOpen = true
 
-[node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Room Preview" unique_id=585239474]
+[node name="Background" type="Panel" parent="OS/MainCanvas/CanvasWrapper/Canvas/Room Preview" unique_id=585239474]
 material = ExtResource("13_sq7yr")
 layout_mode = 2
 theme_override_styles/panel = ExtResource("7_qwhpj")
 
-[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Room Preview" unique_id=867488721]
+[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Room Preview" unique_id=867488721]
 layout_mode = 2
 
-[node name="TitleBar" parent="OS/MainCanvas/Canvas/Room Preview/Layout" unique_id=1012558580 instance=ExtResource("13_mh7w8")]
+[node name="TitleBar" parent="OS/MainCanvas/CanvasWrapper/Canvas/Room Preview/Layout" unique_id=1012558580 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
 Title = "Room Preview"
 
-[node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Room Preview/Layout" unique_id=507391402]
+[node name="Seperator" type="HSeparator" parent="OS/MainCanvas/CanvasWrapper/Canvas/Room Preview/Layout" unique_id=507391402]
 layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
+theme_override_styles/separator = ExtResource("18_ans7r")
 
-[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Room Preview/Layout" unique_id=1938566418]
+[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Room Preview/Layout" unique_id=1938566418]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/margin_left = 8
@@ -1271,14 +1281,14 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="RoomViewerContent" parent="OS/MainCanvas/Canvas/Room Preview/Layout/MarginContainer" unique_id=1812416459 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("23_623xu")]
+[node name="RoomViewerContent" parent="OS/MainCanvas/CanvasWrapper/Canvas/Room Preview/Layout/MarginContainer" unique_id=1812416459 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("23_623xu")]
 layout_mode = 2
 ParentPanel = NodePath("../../..")
 
-[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Room Preview" unique_id=651822108 instance=ExtResource("17_obcww")]
+[node name="ResizeHandles" parent="OS/MainCanvas/CanvasWrapper/Canvas/Room Preview" unique_id=651822108 instance=ExtResource("17_obcww")]
 layout_mode = 2
 
-[node name="AKOS Viewer" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=392982589 node_paths=PackedStringArray("Content")]
+[node name="AKOS Viewer" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas" unique_id=392982589 node_paths=PackedStringArray("Content")]
 clip_contents = true
 custom_minimum_size = Vector2(200, 100)
 layout_mode = 0
@@ -1291,24 +1301,20 @@ script = ExtResource("8_sq7yr")
 Content = NodePath("Layout/MarginContainer/AkosViewerContent")
 IsOpen = true
 
-[node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/AKOS Viewer" unique_id=830405868]
+[node name="Background" type="Panel" parent="OS/MainCanvas/CanvasWrapper/Canvas/AKOS Viewer" unique_id=830405868]
 material = ExtResource("13_sq7yr")
 layout_mode = 2
 theme_override_styles/panel = ExtResource("7_qwhpj")
 
-[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer" unique_id=938854714]
+[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/AKOS Viewer" unique_id=938854714]
 clip_contents = true
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout" unique_id=878287754 instance=ExtResource("13_mh7w8")]
+[node name="TitleBar" parent="OS/MainCanvas/CanvasWrapper/Canvas/AKOS Viewer/Layout" unique_id=878287754 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
 
-[node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout" unique_id=1199205963]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout" unique_id=1019928917]
+[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/AKOS Viewer/Layout" unique_id=1019928917]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/margin_left = 8
@@ -1316,14 +1322,14 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="AkosViewerContent" parent="OS/MainCanvas/Canvas/AKOS Viewer/Layout/MarginContainer" unique_id=56898944 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("25_sbofu")]
+[node name="AkosViewerContent" parent="OS/MainCanvas/CanvasWrapper/Canvas/AKOS Viewer/Layout/MarginContainer" unique_id=56898944 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("25_sbofu")]
 layout_mode = 2
 ParentPanel = NodePath("../../..")
 
-[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/AKOS Viewer" unique_id=1435679148 instance=ExtResource("17_obcww")]
+[node name="ResizeHandles" parent="OS/MainCanvas/CanvasWrapper/Canvas/AKOS Viewer" unique_id=1435679148 instance=ExtResource("17_obcww")]
 layout_mode = 2
 
-[node name="OBIM Viewer" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=162859358 node_paths=PackedStringArray("Content")]
+[node name="OBIM Viewer" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas" unique_id=162859358 node_paths=PackedStringArray("Content")]
 clip_contents = true
 custom_minimum_size = Vector2(200, 100)
 layout_mode = 0
@@ -1336,25 +1342,21 @@ script = ExtResource("22_tilu5")
 Content = NodePath("Layout/MarginContainer/ObimViewerContent")
 IsOpen = true
 
-[node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/OBIM Viewer" unique_id=463094902]
+[node name="Background" type="Panel" parent="OS/MainCanvas/CanvasWrapper/Canvas/OBIM Viewer" unique_id=463094902]
 material = ExtResource("13_sq7yr")
 layout_mode = 2
 theme_override_styles/panel = ExtResource("7_qwhpj")
 
-[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer" unique_id=1290943885]
+[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/OBIM Viewer" unique_id=1290943885]
 clip_contents = true
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout" unique_id=1710347355 instance=ExtResource("13_mh7w8")]
+[node name="TitleBar" parent="OS/MainCanvas/CanvasWrapper/Canvas/OBIM Viewer/Layout" unique_id=1710347355 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
 Title = "OBIM Viewer"
 
-[node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout" unique_id=934486190]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout" unique_id=1646695010]
+[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/OBIM Viewer/Layout" unique_id=1646695010]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/margin_left = 8
@@ -1362,14 +1364,14 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="ObimViewerContent" parent="OS/MainCanvas/Canvas/OBIM Viewer/Layout/MarginContainer" unique_id=1673595245 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("31_ans7r")]
+[node name="ObimViewerContent" parent="OS/MainCanvas/CanvasWrapper/Canvas/OBIM Viewer/Layout/MarginContainer" unique_id=1673595245 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("31_ans7r")]
 layout_mode = 2
 ParentPanel = NodePath("../../..")
 
-[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/OBIM Viewer" unique_id=94878266 instance=ExtResource("17_obcww")]
+[node name="ResizeHandles" parent="OS/MainCanvas/CanvasWrapper/Canvas/OBIM Viewer" unique_id=94878266 instance=ExtResource("17_obcww")]
 layout_mode = 2
 
-[node name="Preview" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=2015632589 node_paths=PackedStringArray("RoomContent", "AkosContent", "ObimContent")]
+[node name="Preview" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas" unique_id=2015632589 node_paths=PackedStringArray("RoomContent", "AkosContent", "ObimContent")]
 process_mode = 3
 clip_contents = true
 custom_minimum_size = Vector2(200, 100)
@@ -1385,23 +1387,19 @@ AkosContent = NodePath("Layout/MarginContainer/ContentRoot/AkosViewerContent")
 ObimContent = NodePath("Layout/MarginContainer/ContentRoot/ObimViewerContent")
 IsOpen = true
 
-[node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Preview" unique_id=705437176]
+[node name="Background" type="Panel" parent="OS/MainCanvas/CanvasWrapper/Canvas/Preview" unique_id=705437176]
 material = ExtResource("13_sq7yr")
 layout_mode = 2
 theme_override_styles/panel = ExtResource("7_qwhpj")
 
-[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Preview" unique_id=1479342150]
+[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Preview" unique_id=1479342150]
 layout_mode = 2
 
-[node name="TitleBar" parent="OS/MainCanvas/Canvas/Preview/Layout" unique_id=729715750 instance=ExtResource("13_mh7w8")]
+[node name="TitleBar" parent="OS/MainCanvas/CanvasWrapper/Canvas/Preview/Layout" unique_id=729715750 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
 Title = "Preview"
 
-[node name="Seperator" type="HSeparator" parent="OS/MainCanvas/Canvas/Preview/Layout" unique_id=1071922100]
-layout_mode = 2
-theme_override_styles/separator = ExtResource("15_udg8a")
-
-[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Preview/Layout" unique_id=590162362]
+[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/Canvas/Preview/Layout" unique_id=590162362]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/margin_left = 8
@@ -1409,31 +1407,68 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="ContentRoot" type="Control" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer" unique_id=1285082548]
+[node name="ContentRoot" type="Control" parent="OS/MainCanvas/CanvasWrapper/Canvas/Preview/Layout/MarginContainer" unique_id=1285082548]
 custom_minimum_size = Vector2(100, 100)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="RoomViewerContent" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=382922196 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("23_623xu")]
+[node name="RoomViewerContent" parent="OS/MainCanvas/CanvasWrapper/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=382922196 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("23_623xu")]
 visible = false
 layout_mode = 1
 ParentPanel = NodePath("../../../..")
 
-[node name="AkosViewerContent" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=1655939172 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("25_sbofu")]
+[node name="AkosViewerContent" parent="OS/MainCanvas/CanvasWrapper/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=1655939172 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("25_sbofu")]
 visible = false
 layout_mode = 1
 ParentPanel = NodePath("../../../..")
 
-[node name="ObimViewerContent" parent="OS/MainCanvas/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=680119532 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("31_ans7r")]
+[node name="ObimViewerContent" parent="OS/MainCanvas/CanvasWrapper/Canvas/Preview/Layout/MarginContainer/ContentRoot" unique_id=680119532 node_paths=PackedStringArray("ParentPanel") instance=ExtResource("31_ans7r")]
 visible = false
 layout_mode = 1
 ParentPanel = NodePath("../../../..")
 
-[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Preview" unique_id=1605187155 instance=ExtResource("17_obcww")]
+[node name="ResizeHandles" parent="OS/MainCanvas/CanvasWrapper/Canvas/Preview" unique_id=1605187155 instance=ExtResource("17_obcww")]
 layout_mode = 2
 
-[node name="Options" type="PanelContainer" parent="OS/MainCanvas/Canvas" unique_id=2063126943 node_paths=PackedStringArray("_navButtons", "_pages", "bgColorPicker", "tintColorPicker", "modeOpt", "appearanceColor", "glassToggle", "sideBarContainer", "scaleLabel", "scaleSlider", "animToggle", "wallpaperGrid", "wallpaperGridOuter", "hiDpiToggle")]
+[node name="FileDialog" type="FileDialog" parent="OS/MainCanvas/CanvasWrapper/Canvas" unique_id=957215295]
+disable_3d = true
+sdf_oversize = 0
+sdf_scale = 0
+oversampling_override = 1.0
+title = "Open a File"
+initial_position = 1
+size = Vector2i(1080, 795)
+transient = false
+exclusive = false
+borderless = true
+min_size = Vector2i(640, 360)
+max_size = Vector2i(1080, 795)
+content_scale_size = Vector2i(1080, 795)
+content_scale_mode = 1
+content_scale_aspect = 4
+theme = SubResource("Theme_3dlgs")
+file_mode = 0
+display_mode = 1
+access = 2
+filters = PackedStringArray("*.la*; SCUMM Resource File")
+use_native_dialog = true
+favorites_enabled = false
+
+[node name="AOTCanvas" type="Control" parent="OS/MainCanvas/CanvasWrapper" unique_id=638602605]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+focus_behavior_recursive = 1
+mouse_filter = 2
+mouse_behavior_recursive = 2
+
+[node name="Options" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas" unique_id=850138439 node_paths=PackedStringArray("_navButtons", "_pages", "bgColorPicker", "tintColorPicker", "modeOpt", "appearanceColor", "glassToggle", "sideBarContainer", "scaleLabel", "scaleSlider", "animToggle", "wallpaperGrid", "wallpaperGridOuter", "hiDpiToggle")]
 visible = false
 top_level = true
 visibility_layer = 3
@@ -1461,20 +1496,20 @@ wallpaperGrid = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBack
 wallpaperGridOuter = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter")
 hiDpiToggle = NodePath("Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin2/SettingsRow/_CheckButton_198")
 
-[node name="Background" type="Panel" parent="OS/MainCanvas/Canvas/Options" unique_id=8366700]
+[node name="Background" type="Panel" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options" unique_id=1224271388]
 material = ExtResource("13_sq7yr")
 layout_mode = 2
 theme_override_styles/panel = ExtResource("7_qwhpj")
 
-[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options" unique_id=1448970495]
+[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options" unique_id=600155182]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleBar" parent="OS/MainCanvas/Canvas/Options/Layout" unique_id=698973341 instance=ExtResource("13_mh7w8")]
+[node name="TitleBar" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout" unique_id=1722531577 instance=ExtResource("13_mh7w8")]
 layout_mode = 2
 Title = "Options"
 
-[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout" unique_id=1514092841]
+[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout" unique_id=449837081]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/margin_left = 0
@@ -1482,32 +1517,32 @@ theme_override_constants/margin_top = 0
 theme_override_constants/margin_right = 0
 theme_override_constants/margin_bottom = 0
 
-[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer" unique_id=32697089]
+[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer" unique_id=1924556323]
 custom_minimum_size = Vector2(100, 100)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="Options" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot" unique_id=1447039406]
+[node name="Options" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot" unique_id=343629029]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 0
 
-[node name="SidebarBackground" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options" unique_id=1342775081]
+[node name="SidebarBackground" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options" unique_id=365067991]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = ExtResource("12_3dlgs")
 
-[node name="SideBar" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground" unique_id=1888472213]
+[node name="SideBar" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground" unique_id=1621438933]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TopSpacer" type="Control" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=2102358030]
+[node name="TopSpacer" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=1420801107]
 custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
 
-[node name="AppearanceNavButton" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=1801428222]
+[node name="AppearanceNavButton" type="Button" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=130068779]
 custom_minimum_size = Vector2(144, 49.1)
 layout_mode = 2
 focus_mode = 0
@@ -1521,7 +1556,7 @@ theme_override_styles/focus = SubResource("StyleBoxFlat_a7o2r")
 flat = true
 alignment = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton" unique_id=1811553525]
+[node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton" unique_id=216915889]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.5
@@ -1532,20 +1567,20 @@ offset_right = 144.0
 offset_bottom = 20.000004
 grow_vertical = 2
 
-[node name="Icon" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton/HBoxContainer" unique_id=1764597459]
+[node name="Icon" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton/HBoxContainer" unique_id=1582376463]
 custom_minimum_size = Vector2(32, 17.59)
 layout_mode = 2
 text = "🎨"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Label" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton/HBoxContainer" unique_id=355484370]
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/AppearanceNavButton/HBoxContainer" unique_id=2024920467]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Appearance"
 horizontal_alignment = 1
 
-[node name="DisplayNavButton" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=425150216]
+[node name="DisplayNavButton" type="Button" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=2032673702]
 custom_minimum_size = Vector2(144, 49.1)
 layout_mode = 2
 focus_mode = 0
@@ -1559,7 +1594,7 @@ theme_override_styles/focus = SubResource("StyleBoxFlat_yq7ej")
 flat = true
 alignment = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton" unique_id=2005083531]
+[node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton" unique_id=75302637]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.5
@@ -1570,20 +1605,20 @@ offset_right = 144.0
 offset_bottom = 20.000004
 grow_vertical = 2
 
-[node name="Icon" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton/HBoxContainer" unique_id=1053112197]
+[node name="Icon" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton/HBoxContainer" unique_id=1353455786]
 custom_minimum_size = Vector2(32, 17.59)
 layout_mode = 2
 text = "🖥"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Label" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton/HBoxContainer" unique_id=445682917]
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/DisplayNavButton/HBoxContainer" unique_id=1138071647]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Display"
 horizontal_alignment = 1
 
-[node name="FontsNavButton" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=2080822321]
+[node name="FontsNavButton" type="Button" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=1102871545]
 custom_minimum_size = Vector2(144, 49.1)
 layout_mode = 2
 focus_mode = 0
@@ -1597,7 +1632,7 @@ theme_override_styles/focus = SubResource("StyleBoxFlat_jv2vy")
 flat = true
 alignment = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton" unique_id=889500416]
+[node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton" unique_id=2129069300]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.5
@@ -1608,20 +1643,20 @@ offset_right = 144.0
 offset_bottom = 20.000004
 grow_vertical = 2
 
-[node name="Icon" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton/HBoxContainer" unique_id=791087025]
+[node name="Icon" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton/HBoxContainer" unique_id=1711261751]
 custom_minimum_size = Vector2(32, 17.59)
 layout_mode = 2
 text = "𝐀"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Label" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton/HBoxContainer" unique_id=411720373]
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/FontsNavButton/HBoxContainer" unique_id=1979151978]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Fonts"
 horizontal_alignment = 1
 
-[node name="GeneralNavButton" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=335281146]
+[node name="GeneralNavButton" type="Button" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=271207694]
 custom_minimum_size = Vector2(144, 49.1)
 layout_mode = 2
 focus_mode = 0
@@ -1635,7 +1670,7 @@ theme_override_styles/focus = SubResource("StyleBoxFlat_366wr")
 flat = true
 alignment = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton" unique_id=745592212]
+[node name="HBoxContainer" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton" unique_id=1178826067]
 layout_mode = 1
 anchors_preset = -1
 anchor_top = 0.5
@@ -1646,40 +1681,40 @@ offset_right = 144.0
 offset_bottom = 20.000004
 grow_vertical = 2
 
-[node name="Icon" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton/HBoxContainer" unique_id=314578689]
+[node name="Icon" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton/HBoxContainer" unique_id=1017430912]
 custom_minimum_size = Vector2(32, 17.59)
 layout_mode = 2
 text = "⚙"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Label" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton/HBoxContainer" unique_id=2023740512]
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar/GeneralNavButton/HBoxContainer" unique_id=1738627473]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "General"
 horizontal_alignment = 1
 
-[node name="Spacer" type="Control" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=1299100605]
+[node name="Spacer" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/SidebarBackground/SideBar" unique_id=739058430]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Divider" type="ColorRect" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options" unique_id=1891974324]
+[node name="Divider" type="ColorRect" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options" unique_id=701445328]
 custom_minimum_size = Vector2(1, 0)
 layout_mode = 2
 size_flags_vertical = 3
 color = Color(1, 1, 1, 0.3882353)
 
-[node name="ContentBackground" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options" unique_id=347901501]
+[node name="ContentBackground" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options" unique_id=682350948]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_styles/panel = ExtResource("12_3dlgs")
 
-[node name="ContentScroll" type="ScrollContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground" unique_id=1523925632]
+[node name="ContentScroll" type="ScrollContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground" unique_id=1962429209]
 layout_mode = 2
 horizontal_scroll_mode = 0
 
-[node name="ContentPageStack" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll" unique_id=1124964252]
+[node name="ContentPageStack" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll" unique_id=1441575942]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 20
@@ -1687,46 +1722,46 @@ theme_override_constants/margin_top = 20
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 20
 
-[node name="Stack" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack" unique_id=1595413546]
+[node name="Stack" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack" unique_id=1978769162]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
-[node name="AppearancePage" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack" unique_id=1118451078]
+[node name="AppearancePage" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack" unique_id=975227703]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
 
-[node name="Appearance" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage" unique_id=8958874]
+[node name="Appearance" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage" unique_id=144821657]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
 theme_override_font_sizes/font_size = 18
 text = "Appearance"
 
-[node name="WallpaperCard" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage" unique_id=863959562]
+[node name="WallpaperCard" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage" unique_id=1857010304]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleMargin" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard" unique_id=1616988776]
+[node name="TitleMargin" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard" unique_id=1193472528]
 layout_mode = 2
 theme_override_constants/margin_bottom = 5
 
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/TitleMargin" unique_id=759853602]
+[node name="TitleLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/TitleMargin" unique_id=1069684168]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.55, 0.6, 1)
 theme_override_font_sizes/font_size = 10
 text = "WALLPAPER"
 
-[node name="SectionPanel" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard" unique_id=23979710]
+[node name="SectionPanel" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard" unique_id=1180711376]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = ExtResource("12_3dlgs")
 
-[node name="WallpaperRows" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel" unique_id=990969461]
+[node name="WallpaperRows" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel" unique_id=1759327650]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="WallpaperModeOuter" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows" unique_id=1136907727]
+[node name="WallpaperModeOuter" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows" unique_id=1535425884]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 14
@@ -1734,11 +1769,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="WallpaperModeRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpaperModeOuter" unique_id=513155780]
+[node name="WallpaperModeRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpaperModeOuter" unique_id=144105020]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpaperModeOuter/WallpaperModeRow" unique_id=333832754]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpaperModeOuter/WallpaperModeRow" unique_id=842072746]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -1746,7 +1781,7 @@ theme_override_font_sizes/font_size = 13
 text = "Mode"
 vertical_alignment = 1
 
-[node name="_OptionButton_194" type="OptionButton" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpaperModeOuter/WallpaperModeRow" unique_id=837251005]
+[node name="_OptionButton_194" type="OptionButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpaperModeOuter/WallpaperModeRow" unique_id=574142281]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 selected = 0
@@ -1756,18 +1791,18 @@ popup/item_0/id = 0
 popup/item_1/text = "Color"
 popup/item_1/id = 1
 
-[node name="_MarginContainer_196" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows" unique_id=1640585583]
+[node name="_MarginContainer_196" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows" unique_id=1585356063]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_right = 14
 
-[node name="_ColorRect_195" type="ColorRect" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/_MarginContainer_196" unique_id=1543729418]
+[node name="_ColorRect_195" type="ColorRect" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/_MarginContainer_196" unique_id=1028185234]
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 size_flags_horizontal = 3
 color = Color(1, 1, 1, 0.07)
 
-[node name="WallpapersGridOuter" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows" unique_id=2060903714]
+[node name="WallpapersGridOuter" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows" unique_id=1913945984]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 14
@@ -1775,11 +1810,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="WallpapersGridRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter" unique_id=344117477]
+[node name="WallpapersGridRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter" unique_id=1399980589]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow" unique_id=1370773381]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow" unique_id=876592814]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -1787,7 +1822,7 @@ theme_override_font_sizes/font_size = 13
 text = "Wallpapers"
 vertical_alignment = 1
 
-[node name="WallpaperScrollContainer" type="ScrollContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow" unique_id=1901194651]
+[node name="WallpaperScrollContainer" type="ScrollContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow" unique_id=2067452946]
 custom_minimum_size = Vector2(300, 90)
 layout_mode = 2
 theme_override_constants/scrollbar_v_separation = 8
@@ -1795,7 +1830,7 @@ horizontal_scroll_mode = 4
 vertical_scroll_mode = 0
 scroll_hint_mode = 1
 
-[node name="WallpaperGrid" type="GridContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer" unique_id=249292913]
+[node name="WallpaperGrid" type="GridContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer" unique_id=989352792]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -1803,22 +1838,22 @@ theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 4
 
-[node name="PanelContainer" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid" unique_id=1917411577]
+[node name="PanelContainer" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid" unique_id=377518276]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_vte5o")
 
-[node name="_PanelContainer_219" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/PanelContainer" unique_id=1695522634]
+[node name="_PanelContainer_219" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/PanelContainer" unique_id=208094492]
 clip_children = 2
 clip_contents = true
 custom_minimum_size = Vector2(92, 72)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_ttwx7")
 
-[node name="TextureRect" type="TextureRect" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/PanelContainer/_PanelContainer_219" unique_id=988656805]
+[node name="TextureRect" type="TextureRect" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/PanelContainer/_PanelContainer_219" unique_id=1731203710]
 layout_mode = 2
 expand_mode = 3
 
-[node name="_Button_218" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/PanelContainer/_PanelContainer_219" unique_id=2112106137]
+[node name="_Button_218" type="Button" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/PanelContainer/_PanelContainer_219" unique_id=2030990776]
 clip_children = 2
 clip_contents = true
 layout_mode = 2
@@ -1828,20 +1863,20 @@ clip_text = true
 icon_alignment = 1
 expand_icon = true
 
-[node name="_PanelContainer_221" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid" unique_id=1862511836]
+[node name="_PanelContainer_221" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid" unique_id=926267390]
 clip_contents = true
 custom_minimum_size = Vector2(92, 72)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_6p5ma")
 
-[node name="_Button_220" type="Button" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/_PanelContainer_221" unique_id=773664917]
+[node name="_Button_220" type="Button" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WallpapersGridOuter/WallpapersGridRow/WallpaperScrollContainer/WallpaperGrid/_PanelContainer_221" unique_id=603098400]
 clip_children = 2
 clip_contents = true
 layout_mode = 2
 flat = true
 expand_icon = true
 
-[node name="BGColorPickerOuter" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows" unique_id=718069052]
+[node name="BGColorPickerOuter" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows" unique_id=724561875]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
@@ -1850,11 +1885,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="ColorPickerRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/BGColorPickerOuter" unique_id=949079286]
+[node name="ColorPickerRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/BGColorPickerOuter" unique_id=180891608]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/BGColorPickerOuter/ColorPickerRow" unique_id=891486936]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/BGColorPickerOuter/ColorPickerRow" unique_id=1437118982]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -1862,13 +1897,13 @@ theme_override_font_sizes/font_size = 13
 text = "Background Color"
 vertical_alignment = 1
 
-[node name="_ColorPickerButton_197" type="ColorPickerButton" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/BGColorPickerOuter/ColorPickerRow" unique_id=1687146997]
+[node name="_ColorPickerButton_197" type="ColorPickerButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/BGColorPickerOuter/ColorPickerRow" unique_id=1976443783]
 custom_minimum_size = Vector2(80, 28)
 layout_mode = 2
 color = Color(0.4392157, 0.5019608, 0.5647059, 1)
 edit_intensity = false
 
-[node name="WindowTintColorPickerOuter" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows" unique_id=125366349]
+[node name="WindowTintColorPickerOuter" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows" unique_id=705102384]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 14
@@ -1876,11 +1911,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="ColorPickerRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WindowTintColorPickerOuter" unique_id=180456521]
+[node name="ColorPickerRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WindowTintColorPickerOuter" unique_id=636281502]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WindowTintColorPickerOuter/ColorPickerRow" unique_id=1735521687]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WindowTintColorPickerOuter/ColorPickerRow" unique_id=2051816875]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -1888,36 +1923,36 @@ theme_override_font_sizes/font_size = 13
 text = "Window Tint"
 vertical_alignment = 1
 
-[node name="_ColorPickerButton_197" type="ColorPickerButton" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WindowTintColorPickerOuter/ColorPickerRow" unique_id=706572195]
+[node name="_ColorPickerButton_197" type="ColorPickerButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/WallpaperCard/SectionPanel/WallpaperRows/WindowTintColorPickerOuter/ColorPickerRow" unique_id=150023096]
 custom_minimum_size = Vector2(80, 28)
 layout_mode = 2
 color = Color(0.13333334, 0.3019608, 0.38039216, 1)
 edit_alpha = false
 
-[node name="SectionCard" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage" unique_id=1524246540]
+[node name="SectionCard" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage" unique_id=73920888]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleMargin" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard" unique_id=596230682]
+[node name="TitleMargin" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard" unique_id=81505532]
 layout_mode = 2
 theme_override_constants/margin_bottom = 5
 
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/TitleMargin" unique_id=1985496442]
+[node name="TitleLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/TitleMargin" unique_id=1387892494]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.55, 0.6, 1)
 theme_override_font_sizes/font_size = 10
 text = "GLASS EFFECT"
 
-[node name="SectionPanel" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard" unique_id=103517584]
+[node name="SectionPanel" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard" unique_id=1365143672]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = ExtResource("12_3dlgs")
 
-[node name="Rows" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel" unique_id=735307493]
+[node name="Rows" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel" unique_id=498710246]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="SettingsRowMargin" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel/Rows" unique_id=1617813970]
+[node name="SettingsRowMargin" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel/Rows" unique_id=2137770702]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 14
@@ -1925,11 +1960,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel/Rows/SettingsRowMargin" unique_id=1005865453]
+[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel/Rows/SettingsRowMargin" unique_id=1697212445]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=953286390]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=663636112]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -1937,47 +1972,47 @@ theme_override_font_sizes/font_size = 13
 text = "Enable Glass"
 vertical_alignment = 1
 
-[node name="_CheckButton_198" type="CheckButton" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=988175709]
+[node name="_CheckButton_198" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/AppearancePage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=987855988]
 layout_mode = 2
 focus_mode = 0
 button_pressed = true
 
-[node name="DisplayPage" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack" unique_id=1412255690]
+[node name="DisplayPage" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack" unique_id=1860772967]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
 
-[node name="Display" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage" unique_id=692384340]
+[node name="Display" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage" unique_id=799512679]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
 theme_override_font_sizes/font_size = 18
 text = "Display"
 
-[node name="SectionCard" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage" unique_id=1443501889]
+[node name="SectionCard" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage" unique_id=1184141312]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleMargin" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard" unique_id=174483088]
+[node name="TitleMargin" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard" unique_id=649159692]
 layout_mode = 2
 theme_override_constants/margin_bottom = 5
 
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/TitleMargin" unique_id=2008843213]
+[node name="TitleLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/TitleMargin" unique_id=326253735]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.55, 0.6, 1)
 theme_override_font_sizes/font_size = 10
 text = "SCREEN"
 
-[node name="SectionPanel" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard" unique_id=1565203149]
+[node name="SectionPanel" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard" unique_id=657123436]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = ExtResource("12_3dlgs")
 
-[node name="Rows" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel" unique_id=831861374]
+[node name="Rows" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel" unique_id=1389671767]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="SettingsRowMargin" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows" unique_id=1433295698]
+[node name="SettingsRowMargin" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows" unique_id=1578887672]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 14
@@ -1985,11 +2020,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin" unique_id=815338962]
+[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin" unique_id=1714630535]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=1504476970]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=2107669131]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -1997,7 +2032,7 @@ theme_override_font_sizes/font_size = 13
 text = "Resolution"
 vertical_alignment = 1
 
-[node name="ResolutionButton" type="OptionButton" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=503780312]
+[node name="ResolutionButton" type="OptionButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=867947321]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 selected = 3
@@ -2015,18 +2050,18 @@ popup/item_4/id = 4
 popup/item_5/text = "3840 × 2160"
 popup/item_5/id = 5
 
-[node name="_MarginContainer_206" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows" unique_id=911849884]
+[node name="_MarginContainer_206" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows" unique_id=1203313557]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_right = 14
 
-[node name="_ColorRect_205" type="ColorRect" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_206" unique_id=921704945]
+[node name="_ColorRect_205" type="ColorRect" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_206" unique_id=1245575355]
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 size_flags_horizontal = 3
 color = Color(1, 1, 1, 0.07)
 
-[node name="_MarginContainer_207" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows" unique_id=475661706]
+[node name="_MarginContainer_207" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows" unique_id=234202041]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 14
@@ -2034,11 +2069,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207" unique_id=60245370]
+[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207" unique_id=677023624]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow" unique_id=2026869017]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow" unique_id=367279869]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -2046,11 +2081,11 @@ theme_override_font_sizes/font_size = 13
 text = "Interface Scale"
 vertical_alignment = 1
 
-[node name="ScaleContainer" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow" unique_id=990829270]
+[node name="ScaleContainer" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow" unique_id=7130674]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="ScaleSlider" type="HSlider" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer" unique_id=701315195]
+[node name="ScaleSlider" type="HSlider" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer" unique_id=928238894]
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -2059,7 +2094,7 @@ max_value = 2.0
 step = 0.25
 value = 1.0
 
-[node name="ScaleLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer" unique_id=857177328]
+[node name="ScaleLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/_MarginContainer_207/SettingsRow/ScaleContainer" unique_id=366100243]
 custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -2067,7 +2102,7 @@ theme_override_font_sizes/font_size = 13
 text = "1.00×"
 vertical_alignment = 1
 
-[node name="SettingsRowMargin2" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows" unique_id=746330674]
+[node name="SettingsRowMargin2" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows" unique_id=764019824]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 14
@@ -2075,11 +2110,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin2" unique_id=1173617264]
+[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin2" unique_id=282530189]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin2/SettingsRow" unique_id=1256958183]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin2/SettingsRow" unique_id=1737143005]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -2087,47 +2122,47 @@ theme_override_font_sizes/font_size = 13
 text = "Enable HiDPI"
 vertical_alignment = 1
 
-[node name="_CheckButton_198" type="CheckButton" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin2/SettingsRow" unique_id=1659508034]
+[node name="_CheckButton_198" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/DisplayPage/SectionCard/SectionPanel/Rows/SettingsRowMargin2/SettingsRow" unique_id=1032580342]
 layout_mode = 2
 focus_mode = 0
 button_pressed = true
 
-[node name="FontsPage" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack" unique_id=1749639391]
+[node name="FontsPage" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack" unique_id=1486363821]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
 
-[node name="Fonts" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage" unique_id=2126109884]
+[node name="Fonts" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage" unique_id=1494305861]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
 theme_override_font_sizes/font_size = 18
 text = "Fonts"
 
-[node name="SectionCard" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage" unique_id=2014713847]
+[node name="SectionCard" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage" unique_id=1285762722]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleMargin" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard" unique_id=2034191944]
+[node name="TitleMargin" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard" unique_id=1926107330]
 layout_mode = 2
 theme_override_constants/margin_bottom = 5
 
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/TitleMargin" unique_id=799642268]
+[node name="TitleLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/TitleMargin" unique_id=1975574898]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.55, 0.6, 1)
 theme_override_font_sizes/font_size = 10
 text = "INTERFACE FONT"
 
-[node name="SectionPanel" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard" unique_id=534468517]
+[node name="SectionPanel" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard" unique_id=55595203]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = ExtResource("12_3dlgs")
 
-[node name="Rows" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel" unique_id=158438208]
+[node name="Rows" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel" unique_id=283895731]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="SettingsRowMargin" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows" unique_id=350983227]
+[node name="SettingsRowMargin" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows" unique_id=312156454]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 14
@@ -2135,11 +2170,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/SettingsRowMargin" unique_id=1046096530]
+[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/SettingsRowMargin" unique_id=1496088447]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=1596898874]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=1090424238]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -2147,7 +2182,7 @@ theme_override_font_sizes/font_size = 13
 text = "Font Family"
 vertical_alignment = 1
 
-[node name="FontsButton" type="OptionButton" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=1888788044]
+[node name="FontsButton" type="OptionButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=1879158313]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 selected = 0
@@ -2163,18 +2198,18 @@ popup/item_3/id = 3
 popup/item_4/text = "Open Sans"
 popup/item_4/id = 4
 
-[node name="_MarginContainer_215" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows" unique_id=256370360]
+[node name="_MarginContainer_215" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows" unique_id=1626721297]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_right = 14
 
-[node name="_ColorRect_214" type="ColorRect" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/_MarginContainer_215" unique_id=1040723763]
+[node name="_ColorRect_214" type="ColorRect" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/_MarginContainer_215" unique_id=890493836]
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 size_flags_horizontal = 3
 color = Color(1, 1, 1, 0.07)
 
-[node name="_MarginContainer_216" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows" unique_id=410007339]
+[node name="_MarginContainer_216" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows" unique_id=2054784532]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 14
@@ -2182,11 +2217,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/_MarginContainer_216" unique_id=202498714]
+[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/_MarginContainer_216" unique_id=1946444889]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/_MarginContainer_216/SettingsRow" unique_id=142041360]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/_MarginContainer_216/SettingsRow" unique_id=91343618]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -2194,7 +2229,7 @@ theme_override_font_sizes/font_size = 13
 text = "Preview"
 vertical_alignment = 1
 
-[node name="The quick brown fox jumps over the lazy dog_" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/_MarginContainer_216/SettingsRow" unique_id=437297299]
+[node name="The quick brown fox jumps over the lazy dog_" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/FontsPage/SectionCard/SectionPanel/Rows/_MarginContainer_216/SettingsRow" unique_id=814820855]
 custom_minimum_size = Vector2(200, 21)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -2204,42 +2239,42 @@ text = "The quick brown fox jumps over the lazy dog."
 vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="GeneralPage" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack" unique_id=1914746438]
+[node name="GeneralPage" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack" unique_id=582049122]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
 
-[node name="General" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage" unique_id=1512623494]
+[node name="General" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage" unique_id=1343580708]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
 theme_override_font_sizes/font_size = 18
 text = "General"
 
-[node name="SectionCard" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage" unique_id=1733259258]
+[node name="SectionCard" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage" unique_id=57910638]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="TitleMargin" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard" unique_id=1380117076]
+[node name="TitleMargin" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard" unique_id=95935723]
 layout_mode = 2
 theme_override_constants/margin_bottom = 5
 
-[node name="TitleLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/TitleMargin" unique_id=888098372]
+[node name="TitleLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/TitleMargin" unique_id=1830232830]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.55, 0.6, 1)
 theme_override_font_sizes/font_size = 10
 text = "GENERAL"
 
-[node name="SectionPanel" type="PanelContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard" unique_id=27025216]
+[node name="SectionPanel" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard" unique_id=2130577401]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = ExtResource("12_3dlgs")
 
-[node name="Rows" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel" unique_id=1138536953]
+[node name="Rows" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel" unique_id=1202908897]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="SettingsRowMargin" type="MarginContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows" unique_id=7923255]
+[node name="SettingsRowMargin" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows" unique_id=1753089330]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 14
@@ -2247,11 +2282,11 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin" unique_id=2054642036]
+[node name="SettingsRow" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin" unique_id=440868655]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=2112123979]
+[node name="SettingsRowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=696949313]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
@@ -2259,19 +2294,19 @@ theme_override_font_sizes/font_size = 13
 text = " "
 vertical_alignment = 1
 
-[node name="AnimsBox" type="VBoxContainer" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=95310688]
+[node name="AnimsBox" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=656415370]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="Window Animations" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/AnimsBox" unique_id=444249895]
+[node name="Window Animations" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/AnimsBox" unique_id=1738111322]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.92, 0.94, 1)
 theme_override_font_sizes/font_size = 13
 text = "Window Animations"
 vertical_alignment = 1
 
-[node name="Animate window open, close and move transitions_" type="Label" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/AnimsBox" unique_id=949087052]
+[node name="Animate window open, close and move transitions_" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow/AnimsBox" unique_id=1539062924]
 custom_minimum_size = Vector2(200, 21)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.55, 0.6, 1)
@@ -2279,37 +2314,785 @@ theme_override_font_sizes/font_size = 11
 text = "Animate window open, close and move transitions."
 autowrap_mode = 2
 
-[node name="AnimToggle" type="CheckButton" parent="OS/MainCanvas/Canvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=1398622810]
+[node name="AnimToggle" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options/Layout/MarginContainer/ContentRoot/Options/ContentBackground/ContentScroll/ContentPageStack/Stack/GeneralPage/SectionCard/SectionPanel/Rows/SettingsRowMargin/SettingsRow" unique_id=2018981270]
 layout_mode = 2
 focus_mode = 0
 button_pressed = true
 
-[node name="ResizeHandles" parent="OS/MainCanvas/Canvas/Options" unique_id=634369761 instance=ExtResource("17_obcww")]
+[node name="ResizeHandles" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Options" unique_id=1271482617 instance=ExtResource("17_obcww")]
 layout_mode = 2
 
-[node name="FileDialog" type="FileDialog" parent="OS/MainCanvas/Canvas" unique_id=957215295]
-disable_3d = true
-sdf_oversize = 0
-sdf_scale = 0
-oversampling_override = 1.0
-title = "Open a File"
-initial_position = 1
-size = Vector2i(1080, 795)
-transient = false
-exclusive = false
-borderless = true
-min_size = Vector2i(640, 360)
-max_size = Vector2i(1080, 795)
-content_scale_size = Vector2i(1080, 795)
-content_scale_mode = 1
-content_scale_aspect = 4
-theme = SubResource("Theme_3dlgs")
-file_mode = 0
-display_mode = 1
-access = 2
-filters = PackedStringArray("*.la*; SCUMM Resource File")
-use_native_dialog = true
-favorites_enabled = false
+[node name="Exporter" type="PanelContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas" unique_id=872738052 node_paths=PackedStringArray("Content")]
+process_mode = 3
+visible = false
+clip_contents = true
+custom_minimum_size = Vector2(200, 271)
+layout_mode = 0
+offset_left = 638.0
+offset_top = 236.0
+offset_right = 1273.0
+offset_bottom = 679.0
+theme_override_styles/panel = ExtResource("12_3dlgs")
+script = ExtResource("30_623xu")
+Content = NodePath("Layout/MarginContainer/ContentRoot/ExporterContent")
+
+[node name="Background" type="Panel" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter" unique_id=228866546]
+material = ExtResource("13_sq7yr")
+layout_mode = 2
+theme_override_styles/panel = ExtResource("7_qwhpj")
+
+[node name="Layout" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter" unique_id=1610464230]
+layout_mode = 2
+
+[node name="TitleBar" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout" unique_id=1164953876 instance=ExtResource("13_mh7w8")]
+layout_mode = 2
+Title = "Export"
+
+[node name="MarginContainer" type="MarginContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout" unique_id=1739395436]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer" unique_id=772940142]
+layout_mode = 2
+
+[node name="ExporterContent" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot" unique_id=1029671628 node_paths=PackedStringArray("ParentPanel")]
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("31_sbofu")
+ParentPanel = NodePath("../../../..")
+akosShaderMaterial = ExtResource("15_po8fv")
+
+[node name="ContentRoot" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent" unique_id=1573830229]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot" unique_id=240506542]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="Steps" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer" unique_id=746667845]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Step1_Choices" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps" unique_id=1250328341]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices" unique_id=1737717221]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Title" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer" unique_id=1631048264]
+custom_minimum_size = Vector2(0, 26.73)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Title" unique_id=1424779987]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 13.0
+offset_top = -11.5
+offset_right = 146.0
+offset_bottom = 11.5
+grow_vertical = 2
+theme_override_font_sizes/font_size = 16
+text = "Welcome"
+autowrap_mode = 2
+
+[node name="Spacer" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer" unique_id=1620169486]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.4
+
+[node name="Content" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer" unique_id=610652988]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("8_blcw0")
+
+[node name="Spacer" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Content" unique_id=1269924761]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Labels" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Content" unique_id=295467319]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.0
+
+[node name="Label3" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Content/Labels" unique_id=853925271]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Export Backgrounds"
+vertical_alignment = 1
+
+[node name="Label4" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Content/Labels" unique_id=1321528672]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 12
+text = "Export Objects"
+vertical_alignment = 1
+
+[node name="Label5" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Content/Labels" unique_id=1920903712]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 12
+text = "Export Costumes"
+vertical_alignment = 1
+
+[node name="Toggles" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Content" unique_id=2033202262]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ExpBgsButton" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Content/Toggles" unique_id=1624066059]
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="ExpObjsButton" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Content/Toggles" unique_id=974413564]
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="ExpCostsButton" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Content/Toggles" unique_id=1979268698]
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Spacer2" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Content" unique_id=918236906]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Description" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer" unique_id=970004252]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step1_Choices/VBoxContainer/Description" unique_id=857997124]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.1
+anchor_right = 0.9
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 11
+text = "Welcome to MMUCS Exporter. Please select which types of assets you would like to export."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Step2_Customize" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps" unique_id=536432467]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize" unique_id=1046870952]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Title" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer" unique_id=1212523131]
+custom_minimum_size = Vector2(0, 26.73)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Title" unique_id=591798167]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 13.0
+offset_top = -11.5
+offset_right = 146.0
+offset_bottom = 11.5
+grow_vertical = 2
+theme_override_font_sizes/font_size = 16
+text = "AKOS / OBIM"
+autowrap_mode = 2
+
+[node name="Content" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer" unique_id=198665103]
+layout_mode = 2
+size_flags_horizontal = 3
+theme = ExtResource("8_blcw0")
+
+[node name="Labels" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content" unique_id=1144686720]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.37
+
+[node name="HSeparator" type="HSeparator" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Labels" unique_id=719464116]
+custom_minimum_size = Vector2(0, 14.68)
+layout_mode = 2
+theme_override_styles/separator = ExtResource("12_3dlgs")
+
+[node name="ModeLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Labels" unique_id=1116757918]
+custom_minimum_size = Vector2(0, 35.1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Mode"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="AlphaLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Labels" unique_id=1854869548]
+custom_minimum_size = Vector2(0, 35.1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Alpha"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="ShadowColorLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Labels" unique_id=1644759970]
+custom_minimum_size = Vector2(0, 35.1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Shadow Color"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="ShadowLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Labels" unique_id=2131557774]
+custom_minimum_size = Vector2(0, 35.1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Shadow Alpha"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="FilterLabel" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Labels" unique_id=1206155579]
+custom_minimum_size = Vector2(0, 35.1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Filter"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Controls" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content" unique_id=1028947741]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.16
+
+[node name="HSeparator" type="HSeparator" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Controls" unique_id=1070485749]
+custom_minimum_size = Vector2(0, 13)
+layout_mode = 2
+theme_override_styles/separator = ExtResource("12_3dlgs")
+
+[node name="ModeOptionButton" type="OptionButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Controls" unique_id=642431029]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 3
+popup/item_0/text = "Shader"
+popup/item_0/id = 0
+popup/item_1/text = "Index"
+popup/item_1/id = 1
+popup/item_2/text = "Raw"
+popup/item_2/id = 2
+
+[node name="AlphaToggle" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Controls" unique_id=498810017]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 0
+button_pressed = true
+clip_text = true
+
+[node name="ShadowColorToggle" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Controls" unique_id=1342309753]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 0
+button_pressed = true
+clip_text = true
+
+[node name="ShadowSlider" type="HSlider" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Controls" unique_id=1926395489]
+custom_minimum_size = Vector2(134.21, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.001
+value = 0.4
+
+[node name="VectorToggle" type="CheckButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Controls" unique_id=1275285256]
+visible = false
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_font_sizes/font_size = 13
+clip_text = true
+
+[node name="FilterOptionButton" type="OptionButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Controls" unique_id=1699912010]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 2
+popup/item_0/text = "Nearest"
+popup/item_0/id = 0
+popup/item_1/text = "Linear"
+popup/item_1/id = 1
+
+[node name="StretchOptionButton" type="OptionButton" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/Controls" unique_id=236884128]
+visible = false
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+selected = 0
+item_count = 2
+popup/item_0/text = "Fill"
+popup/item_0/id = 0
+popup/item_1/text = "Original"
+popup/item_1/id = 1
+
+[node name="PreviewWrapper" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content" unique_id=1972858082]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PreviewContainer" type="SubViewportContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/PreviewWrapper" unique_id=364092324 node_paths=PackedStringArray("_camera", "_celPreview")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 7.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 3.14
+stretch = true
+script = ExtResource("17_24xe2")
+_camera = NodePath("SubViewport/CelCamera")
+_celPreview = NodePath("SubViewport/Cel Preview")
+
+[node name="SubViewport" type="SubViewport" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/PreviewWrapper/PreviewContainer" unique_id=1889379341]
+transparent_bg = true
+handle_input_locally = false
+snap_2d_transforms_to_pixel = true
+canvas_item_default_texture_filter = 0
+positional_shadow_atlas_size = 0
+size = Vector2i(7, 2)
+render_target_update_mode = 0
+
+[node name="Cel Preview" type="TextureRect" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/PreviewWrapper/PreviewContainer/SubViewport" unique_id=102439499]
+texture_filter = 1
+material = ExtResource("15_po8fv")
+custom_minimum_size = Vector2(200, 0)
+offset_right = 307.0
+offset_bottom = 213.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 2.98
+texture = ExtResource("28_qoqhg")
+expand_mode = 3
+stretch_mode = 5
+
+[node name="CelCamera" type="Camera2D" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/PreviewWrapper/PreviewContainer/SubViewport" unique_id=2083693528]
+anchor_mode = 0
+zoom = Vector2(2.46, 2.46)
+
+[node name="Cel Info" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Content/PreviewWrapper" unique_id=2116521589]
+visible = false
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 0
+offset_top = 54.0
+offset_right = 245.0
+offset_bottom = 285.0
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 13
+vertical_alignment = 2
+autowrap_mode = 3
+
+[node name="Description" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer" unique_id=670576546]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step2_Customize/VBoxContainer/Description" unique_id=813613223]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.1
+anchor_right = 0.9
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 11
+text = "The settings here will affect the outcome of the final image. You may chose to set a fixed shadow amount, disable it entirely, or preserve the sentinel color for use with a shader. "
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Step3_Path" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps" unique_id=671011504]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path" unique_id=108924999]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Title" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer" unique_id=1796146021]
+custom_minimum_size = Vector2(0, 26.73)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer/Title" unique_id=1672323441]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 13.0
+offset_top = -11.5
+offset_right = 146.0
+offset_bottom = 11.5
+grow_vertical = 2
+theme_override_font_sizes/font_size = 16
+text = "Path"
+autowrap_mode = 2
+
+[node name="Spacer" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer" unique_id=1872486112]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.4
+
+[node name="Content" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer" unique_id=878928373]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("8_blcw0")
+
+[node name="Spacer" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer/Content" unique_id=375593005]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer/Content" unique_id=1534872181]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+size_flags_stretch_ratio = 2.67
+theme_override_constants/separation = 21
+
+[node name="LineEdit" type="LineEdit" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer/Content/VBoxContainer" unique_id=1539180668]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 12
+text = "C:\\MMUCS\\Export"
+placeholder_text = "C:\\MMUCS\\Export"
+editable = false
+
+[node name="NextButton" type="Button" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer/Content/VBoxContainer" unique_id=1340650083]
+custom_minimum_size = Vector2(65, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("32_ans7r")
+theme_override_styles/disabled = ExtResource("33_7qgyb")
+text = "Choose"
+
+[node name="Spacer2" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer/Content" unique_id=1778963560]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Description" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer" unique_id=448463045]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step3_Path/VBoxContainer/Description" unique_id=893231418]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.1
+anchor_right = 0.9
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 11
+text = "Select the directory you wish to export the assets to"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Step4_Process" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps" unique_id=735019661]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process" unique_id=1730236343]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Title" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer" unique_id=2097236267]
+custom_minimum_size = Vector2(0, 26.73)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer/Title" unique_id=1780205752]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 13.0
+offset_top = -11.5
+offset_right = 146.0
+offset_bottom = 11.5
+grow_vertical = 2
+theme_override_font_sizes/font_size = 16
+text = "Processing"
+autowrap_mode = 2
+
+[node name="Spacer" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer" unique_id=1646068490]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.4
+
+[node name="Content" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer" unique_id=2042959525]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("8_blcw0")
+
+[node name="Spacer" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer/Content" unique_id=257959444]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer/Content" unique_id=416809159]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+size_flags_stretch_ratio = 2.67
+theme_override_constants/separation = 21
+
+[node name="ProgressBar" type="ProgressBar" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer/Content/VBoxContainer" unique_id=2027032110]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 12
+
+[node name="NextButton" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer/Content/VBoxContainer" unique_id=1680275436]
+custom_minimum_size = Vector2(65, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Converting..."
+horizontal_alignment = 1
+
+[node name="Spacer2" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer/Content" unique_id=267276876]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Description" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer" unique_id=1015260540]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step4_Process/VBoxContainer/Description" unique_id=1981207235]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.1
+anchor_right = 0.9
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 11
+text = "Assets are being exported, please wait..."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Step5_Complete" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps" unique_id=1916438187]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete" unique_id=1385584469]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Title" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer" unique_id=1732688023]
+custom_minimum_size = Vector2(0, 26.73)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer/Title" unique_id=602414991]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 13.0
+offset_top = -11.5
+offset_right = 146.0
+offset_bottom = 11.5
+grow_vertical = 2
+theme_override_font_sizes/font_size = 16
+text = "Complete"
+autowrap_mode = 2
+
+[node name="Spacer" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer" unique_id=2068112231]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.4
+
+[node name="Content" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer" unique_id=1860896925]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("8_blcw0")
+
+[node name="Spacer" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer/Content" unique_id=1156441883]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer/Content" unique_id=913717835]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+size_flags_stretch_ratio = 2.67
+theme_override_constants/separation = 21
+
+[node name="ProgressBar" type="ProgressBar" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer/Content/VBoxContainer" unique_id=891604231]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 12
+
+[node name="NextButton" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer/Content/VBoxContainer" unique_id=440375353]
+custom_minimum_size = Vector2(65, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Converting..."
+horizontal_alignment = 1
+
+[node name="Spacer2" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer/Content" unique_id=888167727]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Description" type="Control" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer" unique_id=438363679]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Label" type="Label" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/Steps/Step5_Complete/VBoxContainer/Description" unique_id=827291268]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.1
+anchor_right = 0.9
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 11
+text = "All assets have been exported"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="NavButtons" type="HBoxContainer" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer" unique_id=656252673]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 2
+size_flags_stretch_ratio = 0.16
+theme_override_constants/separation = 34
+alignment = 1
+
+[node name="PrevButton" type="Button" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/NavButtons" unique_id=1795067791]
+custom_minimum_size = Vector2(65, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("32_ans7r")
+theme_override_styles/disabled = ExtResource("33_7qgyb")
+disabled = true
+text = "Previous"
+
+[node name="NextButton" type="Button" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/NavButtons" unique_id=698670724]
+custom_minimum_size = Vector2(65, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("32_ans7r")
+theme_override_styles/disabled = ExtResource("33_7qgyb")
+disabled = true
+text = "Continue"
+
+[node name="RestartButton" type="Button" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter/Layout/MarginContainer/ContentRoot/ExporterContent/ContentRoot/VBoxContainer/NavButtons" unique_id=796580794]
+visible = false
+custom_minimum_size = Vector2(65, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("32_ans7r")
+theme_override_styles/disabled = ExtResource("33_7qgyb")
+disabled = true
+text = "Restart"
+
+[node name="ResizeHandles" parent="OS/MainCanvas/CanvasWrapper/AOTCanvas/Exporter" unique_id=541224759 instance=ExtResource("17_obcww")]
+layout_mode = 2
 
 [node name="StatusBarContainer" type="PanelContainer" parent="OS/MainCanvas" unique_id=1315834279]
 visible = false

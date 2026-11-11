@@ -4,9 +4,11 @@
 [ext_resource type="Script" uid="uid://q1gwfrmtlh17" path="res://scripts/OS/Fragments/MTitleBar.cs" id="2_hc8br"]
 [ext_resource type="StyleBox" uid="uid://t2wm3jj75b5e" path="res://themes/deafult/styleboxEmpty.tres" id="2_uo4u0"]
 [ext_resource type="Theme" uid="uid://cw71dfiy4lc66" path="res://themes/deafult/cleardefault.tres" id="3_hc8br"]
+[ext_resource type="StyleBox" uid="uid://duayj10sqwqj6" path="res://themes/deafult/styleboxline.tres" id="5_hc8br"]
 
 [node name="TitleBar" type="Panel" unique_id=27902639 node_paths=PackedStringArray("titleLabel")]
-custom_minimum_size = Vector2(100, 28)
+custom_minimum_size = Vector2(100, 35.775)
+size_flags_horizontal = 3
 mouse_behavior_recursive = 2
 theme_override_styles/panel = ExtResource("1_ek2tv")
 script = ExtResource("2_hc8br")
@@ -14,6 +16,7 @@ Title = "Window"
 titleLabel = NodePath("TitleHBox/TitleLabel")
 
 [node name="TitleHBox" type="HBoxContainer" parent="." unique_id=1578265003]
+custom_minimum_size = Vector2(0, 34)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -21,7 +24,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
 
 [node name="VSeparator" type="VSeparator" parent="TitleHBox" unique_id=845561027]
 layout_mode = 2
@@ -52,3 +54,15 @@ text = "Window"
 vertical_alignment = 1
 clip_text = true
 text_overrun_behavior = 3
+
+[node name="Seperator" type="HSeparator" parent="." unique_id=1900968339]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -6.0
+grow_horizontal = 2
+grow_vertical = 0
+size_flags_vertical = 3
+theme_override_styles/separator = ExtResource("5_hc8br")
