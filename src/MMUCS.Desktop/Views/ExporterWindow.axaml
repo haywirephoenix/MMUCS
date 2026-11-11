@@ -5,6 +5,7 @@
         x:Class="MMUCS.Desktop.Views.ExporterWindow"
         x:DataType="vm:ExporterViewModel"
         Title="Export"
+        Icon="/Assets/mmucs.ico"
         Width="980" Height="660" MinWidth="760" MinHeight="520"
         WindowStartupLocation="CenterOwner">
 

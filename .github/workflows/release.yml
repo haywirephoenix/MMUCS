@@ -112,6 +112,15 @@ jobs:
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
           cp -R publish/. "$app/Contents/MacOS/"
           chmod +x "$app/Contents/MacOS/MMUCS"
+
+          # App icon: 1024 master -> iconset -> .icns (sips/iconutil ship with macOS).
+          src=assets/generated/icon-macos-1024.png
+          mkdir -p AppIcon.iconset
+          for s in 16 32 128 256 512; do
+            sips -z $s $s "$src" --out "AppIcon.iconset/icon_${s}x${s}.png" >/dev/null
+            sips -z $((s*2)) $((s*2)) "$src" --out "AppIcon.iconset/icon_${s}x${s}@2x.png" >/dev/null
+          done
+          iconutil -c icns AppIcon.iconset -o "$app/Contents/Resources/AppIcon.icns"
           cat > "$app/Contents/Info.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -121,6 +130,7 @@ jobs:
             <key>CFBundleDisplayName</key><string>MMUCS</string>
             <key>CFBundleIdentifier</key><string>io.github.haywirephoenix.mmucs</string>
             <key>CFBundleExecutable</key><string>MMUCS</string>
+            <key>CFBundleIconFile</key><string>AppIcon</string>
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>CFBundleVersion</key><string>${version}</string>
             <key>CFBundleShortVersionString</key><string>${version}</string>

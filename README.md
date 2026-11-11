@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/haywirephoenix/MMUCS/refs/heads/master/icon.svg" alt="MMUCS" width="200" height="auto" style="filter: drop-shadow(0px 2px 8px rgba(0, 0, 0, 0.3));" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/icon.svg" />
+    <img src="assets/generated/icon-black.svg" alt="MMUCS" width="200" height="auto" />
+  </picture>
 </p>
 
 <h1 align="center">MMUCS</h1>

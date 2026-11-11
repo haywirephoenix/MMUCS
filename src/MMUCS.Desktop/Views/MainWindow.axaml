@@ -6,6 +6,7 @@
         x:Class="MMUCS.Desktop.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding Title}"
+        Icon="/Assets/mmucs.ico"
         Width="1440" Height="900" MinWidth="900" MinHeight="560"
         DragDrop.AllowDrop="True">
 

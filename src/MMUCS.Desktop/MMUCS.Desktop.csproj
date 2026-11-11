@@ -8,6 +8,7 @@
     <AssemblyName>MMUCS</AssemblyName>
     <RootNamespace>MMUCS.Desktop</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\mmucs.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
   </PropertyGroup>
