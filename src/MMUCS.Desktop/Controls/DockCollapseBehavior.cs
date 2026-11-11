@@ -68,10 +68,31 @@ public static class DockCollapseBehavior
         button.Click -= OnArrowClick;
         button.Click += OnArrowClick;
 
-        // Re-apply visuals if this dock was collapsed before the chrome was re-templated.
-        bool collapsed = chrome.DataContext is IDock dock && States.TryGetValue(dock, out var state) && state.Collapsed;
-        if (collapsed) ApplyVisuals(chrome, true);
-        ToolTip.SetTip(button, collapsed ? "Expand" : "Collapse");
+        // The chrome is re-templated when its panel moves (floated, re-docked). A collapsed panel
+        // expands on the move: its saved sizes belonged to the old location.
+        if (chrome.DataContext is IDock dock && States.TryGetValue(dock, out var state) && state.Collapsed)
+            ResetOnMove(dock, state);
+        ToolTip.SetTip(button, "Collapse");
+    }
+
+    private static void ResetOnMove(IDock dock, State state)
+    {
+        state.Collapsed = false;
+        if (state.Mode == Mode.VerticalStack)
+        {
+            dock.MinHeight = state.SavedMinHeight;
+            dock.MaxHeight = state.SavedMaxHeight;
+        }
+        if (state.Window != null)
+        {
+            state.Window.MinHeight = state.SavedWindowMinHeight;
+            if (state.WindowStateHandler != null) state.Window.PropertyChanged -= state.WindowStateHandler;
+        }
+        state.Window = null;
+        state.WindowStateHandler = null;
+        state.SavedWindowHeight = double.NaN;
+        state.RestoreHeightOnNormal = false;
+        // A fresh chrome's content presenter is visible by default, so no visuals to undo.
     }
 
     private static void OnArrowClick(object sender, RoutedEventArgs e)
@@ -117,7 +138,7 @@ public static class DockCollapseBehavior
             {
                 var window = (HostWindow)TopLevel.GetTopLevel(chrome);
                 state.Window = window;
-                state.SavedWindowHeight = window.Height;
+                state.SavedWindowHeight = window.Bounds.Height;
                 state.SavedWindowMinHeight = window.MinHeight;
                 double contentHeight = Math.Max(0, chrome.Bounds.Height - header);
                 window.MinHeight = 0;
@@ -172,10 +193,33 @@ public static class DockCollapseBehavior
         }
         else if (!state.Collapsed && state.RestoreHeightOnNormal && ws == WindowState.Normal)
         {
-            // The OS re-applies the window's restore bounds (the collapsed size) after this event,
-            // so set the height once that has happened.
-            Dispatcher.UIThread.Post(() => RestoreWindowHeight(state), DispatcherPriority.Background);
+            // The OS re-applies the window's restore bounds (the collapsed size) some time after this
+            // event, so keep correcting the height briefly until it settles.
+            state.RestoreHeightOnNormal = false;
+            double height = state.SavedWindowHeight;
+            var window = state.Window;
+            void Fix()
+            {
+                if (window.WindowState == WindowState.Normal && double.IsFinite(height))
+                    SetWindowHeight(window, height);
+            }
+            Fix();
+            Dispatcher.UIThread.Post(Fix, DispatcherPriority.Background);
+            DispatcherTimer.RunOnce(Fix, TimeSpan.FromMilliseconds(80));
+            DispatcherTimer.RunOnce(Fix, TimeSpan.FromMilliseconds(250));
+            DispatcherTimer.RunOnce(() => { Fix(); RestoreWindowHeight(state); }, TimeSpan.FromMilliseconds(600));
         }
+    }
+
+    /// <summary>
+    /// Sets the window height even when the Height property already holds that value but the real
+    /// size differs (as after the OS restores a maximized window to stale bounds).
+    /// </summary>
+    private static void SetWindowHeight(Window window, double height)
+    {
+        if (Math.Abs(window.Bounds.Height - height) <= 1) return;
+        if (Math.Abs(window.Height - height) <= 0.5) window.Height = height + 1;
+        window.Height = height;
     }
 
     private static void RestoreWindowHeight(State state)
@@ -183,7 +227,7 @@ public static class DockCollapseBehavior
         var window = state.Window;
         if (window == null) return;
         if (double.IsFinite(state.SavedWindowHeight) && window.WindowState == WindowState.Normal)
-            window.Height = state.SavedWindowHeight;
+            SetWindowHeight(window, state.SavedWindowHeight);
         if (state.WindowStateHandler != null) window.PropertyChanged -= state.WindowStateHandler;
         state.WindowStateHandler = null;
         state.SavedWindowHeight = double.NaN;
