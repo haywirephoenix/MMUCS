@@ -1,0 +1,12 @@
+<Project>
+  <!--
+    Single source of truth for the app version. Bump <Version> before running the
+    Release workflow (Actions > Release > Run workflow); the tag and release name use it.
+  -->
+  <PropertyGroup>
+    <Version>0.7.0</Version>
+    <Product>MMUCS</Product>
+    <Description>Modular Media Unpacker Content Studio</Description>
+    <Copyright>PolyForm Noncommercial 1.0.0</Copyright>
+  </PropertyGroup>
+</Project>

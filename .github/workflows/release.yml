@@ -1,0 +1,180 @@
+# Manual release: Actions > Release > Run workflow (pick the branch to release from).
+#
+# Version comes from <Version> in Directory.Build.props — bump it first. The workflow
+#   1. builds self-contained Windows, Linux and macOS (arm64 + x64) packages,
+#   2. writes release notes as "- <hash> <subject>" for every commit since the previous tag,
+#   3. tags the commit and publishes a GitHub release with the packages attached.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Mark as pre-release
+        type: boolean
+        default: true
+      draft:
+        description: Create as draft (review before publishing)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: 8.0.x
+  PROJECT: src/MMUCS.Desktop/MMUCS.Desktop.csproj
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Read version
+        id: version
+        run: |
+          version=$(dotnet msbuild "$PROJECT" -getProperty:Version)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing $version"
+
+      - name: Refuse to overwrite an existing tag
+        run: |
+          v='${{ steps.version.outputs.version }}'
+          if git rev-parse -q --verify "refs/tags/$v" >/dev/null || git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then
+            echo "::error::Tag $v already exists. Bump <Version> in Directory.Build.props."
+            exit 1
+          fi
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            asset: MMUCS_Win_x86_64.zip
+          - rid: linux-x64
+            os: ubuntu-latest
+            asset: MMUCS_Linux_x86_64.tar.gz
+          - rid: osx-arm64
+            os: macos-latest
+            asset: MMUCS_MacOS_arm64.zip
+          - rid: osx-x64
+            os: macos-latest
+            asset: MMUCS_MacOS_x64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Publish
+        shell: bash
+        run: |
+          dotnet publish "$PROJECT" -c Release -r ${{ matrix.rid }} --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:DebugType=none \
+            -o publish
+          # Native packages ship their own .pdb files (~100 MB); they're not needed at runtime.
+          find publish -name '*.pdb' -delete
+
+      - name: Package (Windows)
+        if: startsWith(matrix.rid, 'win')
+        shell: pwsh
+        run: Compress-Archive -Path publish/* -DestinationPath "${{ matrix.asset }}"
+
+      - name: Package (Linux)
+        if: startsWith(matrix.rid, 'linux')
+        run: |
+          chmod +x publish/MMUCS
+          tar -czf "${{ matrix.asset }}" -C publish .
+
+      - name: Package (macOS .app)
+        if: startsWith(matrix.rid, 'osx')
+        run: |
+          version='${{ needs.prepare.outputs.version }}'
+          app=MMUCS.app
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp -R publish/. "$app/Contents/MacOS/"
+          chmod +x "$app/Contents/MacOS/MMUCS"
+          cat > "$app/Contents/Info.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>MMUCS</string>
+            <key>CFBundleDisplayName</key><string>MMUCS</string>
+            <key>CFBundleIdentifier</key><string>io.github.haywirephoenix.mmucs</string>
+            <key>CFBundleExecutable</key><string>MMUCS</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleVersion</key><string>${version}</string>
+            <key>CFBundleShortVersionString</key><string>${version}</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          EOF
+          # Ad-hoc signature: required for arm64 binaries to launch at all.
+          codesign --force --deep --sign - "$app"
+          ditto -c -k --keepParent "$app" "${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.rid }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Write release notes
+        run: |
+          prev=$(git describe --tags --abbrev=0 HEAD 2>/dev/null || true)
+          if [ -n "$prev" ]; then range="$prev..HEAD"; else range="HEAD"; fi
+          echo "Notes for $range"
+          git log --no-merges --pretty='- %h %s' $range > notes.md
+          cat >> notes.md <<'EOF'
+
+          *MacOS users must run the following command in Terminal after dragging MMUCS to their applications folder
+          codesign --force --deep --sign - /Applications/MMUCS.app
+          EOF
+          cat notes.md
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v='${{ needs.prepare.outputs.version }}'
+          flags=()
+          [ '${{ inputs.prerelease }}' = 'true' ] && flags+=(--prerelease)
+          [ '${{ inputs.draft }}' = 'true' ] && flags+=(--draft)
+          gh release create "$v" dist/* \
+            --target "$GITHUB_SHA" \
+            --title "MMUCS $v" \
+            --notes-file notes.md \
+            "${flags[@]}"

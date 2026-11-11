@@ -80,6 +80,13 @@ Decode caches live in `%LocalAppData%/MMUCS/cache` (`~/.local/share/MMUCS` on Li
 
 **Viewport controls:** mouse wheel zooms around the cursor; middle- or right-drag (or Space + left-drag) pans; double-click or `F` fits; `1` shows actual pixels.
 
+### Making a release
+
+1. Bump `<Version>` in `Directory.Build.props` and push.
+2. On GitHub: **Actions ▸ Release ▸ Run workflow**, choose the branch, and leave *pre-release* ticked or untick it.
+
+The workflow builds self-contained packages for Windows, Linux and macOS (arm64 + x64), tags the commit with the version, and publishes a release whose notes list every commit since the previous tag (`- <hash> <subject>`).
+
 ### Releases
 
 The legacy Godot build is on the `master` branch history. Download releases here:

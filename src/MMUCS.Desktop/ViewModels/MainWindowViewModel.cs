@@ -19,7 +19,7 @@ public enum ViewerTab { Room = 0, Costume = 1, Script = 2 }
 
 public sealed partial class MainWindowViewModel : ObservableObject
 {
-    [ObservableProperty] private string _title = "MMUCS";
+    [ObservableProperty] private string _title = $"MMUCS {AppInfo.Version}";
     [ObservableProperty] private string _status = "Open a SCUMM resource file (File ▸ Open…, or drag one onto the window).";
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private BlockNodeViewModel _selectedNode;
@@ -156,7 +156,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             ApplyFilter();
 
             string names = string.Join(", ", files.Select(Path.GetFileName));
-            Title = $"MMUCS — {names}";
+            Title = $"MMUCS {AppInfo.Version} — {names}";
             Status = $"Parsed {names} ({root.Size:N0} bytes, {CountBlocks(root):N0} blocks) in {sw.ElapsedMilliseconds} ms";
             SelectedNode ??= Roots.FirstOrDefault();
             RememberRecent(path);
