@@ -46,6 +46,8 @@ public static class DockCollapseBehavior
         public double SavedMinHeight, SavedMaxHeight = double.PositiveInfinity;
         public HostWindow Window;
         public double SavedWindowHeight = double.NaN;
+        public double CollapsedWindowHeight = double.NaN;
+        public bool RestoreOnNormal;
         public double SavedWindowMinHeight;
         public EventHandler<AvaloniaPropertyChangedEventArgs> WindowStateHandler;
     }
@@ -90,6 +92,8 @@ public static class DockCollapseBehavior
         state.Window = null;
         state.WindowStateHandler = null;
         state.SavedWindowHeight = double.NaN;
+        state.CollapsedWindowHeight = double.NaN;
+        state.RestoreOnNormal = false;
         // A fresh chrome's content presenter is visible by default, so no visuals to undo.
     }
 
@@ -140,7 +144,8 @@ public static class DockCollapseBehavior
                 state.SavedWindowMinHeight = window.MinHeight;
                 double contentHeight = Math.Max(0, chrome.Bounds.Height - header);
                 window.MinHeight = 0;
-                window.Height = Math.Max(header, window.Bounds.Height - contentHeight);
+                state.CollapsedWindowHeight = Math.Max(header, window.Bounds.Height - contentHeight);
+                window.Height = state.CollapsedWindowHeight;
 
                 // Maximize / full screen expands the panel instead of showing a big empty window.
                 state.WindowStateHandler = (_, args) => OnWindowStateChanged(chrome, dock, state, args);
@@ -180,29 +185,53 @@ public static class DockCollapseBehavior
     private static void OnWindowStateChanged(ToolChromeControl chrome, IDock dock, State state, AvaloniaPropertyChangedEventArgs args)
     {
         if (args.Property != Window.WindowStateProperty || state.Window == null) return;
-        var target = state.Window.WindowState;
-        if (!state.Collapsed || target is not (WindowState.Maximized or WindowState.FullScreen)) return;
-
-        // Maximizing a collapsed floating window expands it. The OS has already stored the collapsed
-        // size as the window's restore bounds, which every way of leaving fullscreen (button,
-        // dragging the title bar, double-click, Win+Down) would return to. So briefly drop back to
-        // normal, put the full height back, and maximize again: the OS then remembers the right size.
         var window = state.Window;
+        var ws = window.WindowState;
         double height = state.SavedWindowHeight;
-        Expand(chrome, dock, state, fromMaximize: true);
-        DetachWindow(state);
 
-        // Each step waits for the previous window-state change to settle, so the OS can't re-apply
-        // the old bounds over the new height.
-        Dispatcher.UIThread.Post(() =>
+        if (state.Collapsed && ws == WindowState.Maximized)
         {
-            window.WindowState = WindowState.Normal;
+            // Maximizing a collapsed floating window expands it. The OS has already stored the
+            // collapsed size as the restore size, which the restore button, dragging the title bar,
+            // double-click and Win+Down would all return to.
+            double grow = height - state.CollapsedWindowHeight;
+            Expand(chrome, dock, state, fromMaximize: true);
+            DetachWindow(state);
+
+            // Windows: rewrite the stored restore size in place — no visible change.
+            if (double.IsFinite(grow) && WindowRestoreBounds.TryAdjustRestoreHeight(window, grow))
+                return;
+
+            // Elsewhere: briefly drop back to normal, set the height, and maximize again. Each step
+            // waits for the previous state change to settle so the old bounds aren't re-applied.
+            Dispatcher.UIThread.Post(() =>
+            {
+                window.WindowState = WindowState.Normal;
+                DispatcherTimer.RunOnce(() =>
+                {
+                    if (double.IsFinite(height)) SetWindowHeight(window, height);
+                    DispatcherTimer.RunOnce(() => window.WindowState = WindowState.Maximized, TimeSpan.FromMilliseconds(40));
+                }, TimeSpan.FromMilliseconds(40));
+            }, DispatcherPriority.Background);
+        }
+        else if (state.Collapsed && ws == WindowState.FullScreen)
+        {
+            // Full screen restores from Avalonia's own saved bounds and has no drag-to-restore, so
+            // simply put the height back when it returns to normal.
+            Expand(chrome, dock, state, fromMaximize: true);
+            state.RestoreOnNormal = true;
+        }
+        else if (!state.Collapsed && state.RestoreOnNormal && ws == WindowState.Normal)
+        {
+            state.RestoreOnNormal = false;
+            DetachWindow(state);
+            if (!double.IsFinite(height)) return;
+            // Avalonia applies its saved (collapsed) bounds just after this event.
             DispatcherTimer.RunOnce(() =>
             {
-                if (double.IsFinite(height)) SetWindowHeight(window, height);
-                DispatcherTimer.RunOnce(() => window.WindowState = target, TimeSpan.FromMilliseconds(40));
-            }, TimeSpan.FromMilliseconds(40));
-        }, DispatcherPriority.Background);
+                if (window.WindowState == WindowState.Normal) SetWindowHeight(window, height);
+            }, TimeSpan.FromMilliseconds(50));
+        }
     }
 
     private static void DetachWindow(State state)
@@ -211,6 +240,7 @@ public static class DockCollapseBehavior
             state.Window.PropertyChanged -= state.WindowStateHandler;
         state.WindowStateHandler = null;
         state.SavedWindowHeight = double.NaN;
+        state.CollapsedWindowHeight = double.NaN;
         state.Window = null;
     }
 
