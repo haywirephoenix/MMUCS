@@ -13,6 +13,9 @@
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_File">
         <MenuItem x:Name="OpenMenuItem" Header="_Open…" InputGesture="Ctrl+O" HotKey="Ctrl+O" Click="OnOpenClick" />
+        <MenuItem x:Name="RecentMenu" Header="Open _Recent" />
+        <MenuItem Header="Reopen last file on startup" ToggleType="CheckBox"
+                  IsChecked="{Binding ReopenLastFileOnStartup}" />
         <Separator />
         <MenuItem Header="Export room background…" Click="OnExportRoomClick" IsEnabled="{Binding Room.HasRoom}" />
         <MenuItem Header="Export costume cels…" Click="OnExportCelsClick" IsEnabled="{Binding Costume.HasCostume}" />

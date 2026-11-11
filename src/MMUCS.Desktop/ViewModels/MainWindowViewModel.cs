@@ -9,6 +9,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Scumm;
+using MMUCS.Desktop.Services;
 
 namespace MMUCS.Desktop.ViewModels;
 
@@ -32,6 +33,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public TreeOptions TreeOptions { get; } = new();
 
+    public AppSettings Settings { get; }
+
+    /// <summary>Most-recent-first list of opened files (mirrors <see cref="AppSettings.RecentFiles"/>).</summary>
+    public ObservableCollection<string> RecentFiles { get; } = new();
+
+    [ObservableProperty] private bool _reopenLastFileOnStartup;
+
     public RoomViewModel Room { get; } = new();
     public AkosViewModel Costume { get; } = new();
 
@@ -42,12 +50,59 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel()
     {
+        Settings = AppSettings.Load();
+        foreach (var f in Settings.RecentFiles) RecentFiles.Add(f);
+        _reopenLastFileOnStartup = Settings.ReopenLastFileOnStartup;
+        TreeOptions.ShowRoomNames = Settings.ShowRoomNames;
+        TreeOptions.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(TreeOptions.ShowRoomNames)) return;
+            Settings.ShowRoomNames = TreeOptions.ShowRoomNames;
+            Settings.Save();
+        };
+
         // Warnings stay in the debug log so parser noise doesn't overwrite useful status text.
         Log.Message += (level, msg) =>
         {
             if (level == LogLevel.Warning) return;
             Dispatcher.UIThread.Post(() => Status = level == LogLevel.Error ? $"⚠ {msg}" : msg);
         };
+    }
+
+    partial void OnReopenLastFileOnStartupChanged(bool value)
+    {
+        Settings.ReopenLastFileOnStartup = value;
+        Settings.Save();
+    }
+
+    /// <summary>Opens the command-line file if given, otherwise the last file when that option is on.</summary>
+    public Task StartupAsync(string[] args)
+    {
+        if (args is { Length: > 0 }) return OpenFileAsync(args[0]);
+        if (ReopenLastFileOnStartup && Settings.LastFile is { } last && File.Exists(last)) return OpenFileAsync(last);
+        return Task.CompletedTask;
+    }
+
+    public void ClearRecentFiles()
+    {
+        Settings.RecentFiles.Clear();
+        Settings.Save();
+        RecentFiles.Clear();
+    }
+
+    private void RememberRecent(string path)
+    {
+        Settings.AddRecent(path);
+        Settings.Save();
+        RecentFiles.Clear();
+        foreach (var f in Settings.RecentFiles) RecentFiles.Add(f);
+    }
+
+    private void ForgetRecent(string path)
+    {
+        if (Settings.RecentFiles.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)) == 0) return;
+        Settings.Save();
+        RecentFiles.Remove(path);
     }
 
     /// <summary>
@@ -59,6 +114,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
         {
             Log.Error($"File not found: {path}");
+            ForgetRecent(path);
             return;
         }
 
@@ -85,6 +141,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             Title = $"MMUCS — {names}";
             Status = $"Parsed {names} ({root.Size:N0} bytes, {CountBlocks(root):N0} blocks) in {sw.ElapsedMilliseconds} ms";
             SelectedNode = rootVm;
+            RememberRecent(path);
         }
         catch (Exception ex)
         {

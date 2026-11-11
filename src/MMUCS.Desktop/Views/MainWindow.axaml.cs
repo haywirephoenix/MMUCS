@@ -18,6 +18,46 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
+    protected override void OnDataContextChanged(System.EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.RecentFiles.CollectionChanged += (_, _) => RebuildRecentMenu();
+            RebuildRecentMenu();
+        }
+    }
+
+    /// <summary>Recent list is rebuilt in code: simpler and more predictable than templated MenuItems.</summary>
+    private void RebuildRecentMenu()
+    {
+        RecentMenu.Items.Clear();
+        var recent = Vm.RecentFiles;
+        if (recent.Count == 0)
+        {
+            RecentMenu.Items.Add(new MenuItem { Header = "(none)", IsEnabled = false });
+            return;
+        }
+
+        for (int i = 0; i < recent.Count; i++)
+        {
+            string path = recent[i];
+            var item = new MenuItem
+            {
+                // "_1" gives an access key; the folder helps tell same-named files apart.
+                // Underscores in paths are doubled so they aren't treated as access-key markers.
+                Header = $"_{(i + 1) % 10}  {System.IO.Path.GetFileName(path).Replace("_", "__")}   —   {System.IO.Path.GetDirectoryName(path)?.Replace("_", "__")}",
+            };
+            ToolTip.SetTip(item, path);
+            item.Click += async (_, _) => await Vm.OpenFileAsync(path);
+            RecentMenu.Items.Add(item);
+        }
+        RecentMenu.Items.Add(new Separator());
+        var clear = new MenuItem { Header = "Clear recent files" };
+        clear.Click += (_, _) => Vm.ClearRecentFiles();
+        RecentMenu.Items.Add(clear);
+    }
+
     private MainWindowViewModel Vm => (MainWindowViewModel)DataContext;
 
     private async void OnOpenClick(object sender, RoutedEventArgs e)

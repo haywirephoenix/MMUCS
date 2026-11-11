@@ -17,9 +17,8 @@ public partial class App : Application
             var vm = new MainWindowViewModel();
             desktop.MainWindow = new MainWindow { DataContext = vm };
 
-            // Allow "MMUCS.exe path/to/COMI.LA1" for quick iteration.
-            if (desktop.Args is { Length: > 0 } args)
-                _ = vm.OpenFileAsync(args[0]);
+            // "MMUCS.exe path/to/COMI.LA1" opens that file; otherwise optionally reopen the last one.
+            _ = vm.StartupAsync(desktop.Args);
         }
 
         base.OnFrameworkInitializationCompleted();
