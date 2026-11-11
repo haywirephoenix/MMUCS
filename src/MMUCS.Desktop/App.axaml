@@ -39,6 +39,39 @@
     <FluentTheme DensityStyle="Compact" />
     <dockTheme:DockFluentTheme />
 
+    <!-- Drop-target overlay: colour-inverted copies of Dock's icons (dark tiles with a blue fill,
+         less glaring on the dark theme). Regenerate: magick in.png -channel RGB -negate +channel out.png -->
+    <Style Selector="DockTarget /template/ Image#PART_TopSelector">
+      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableTop.png" />
+    </Style>
+    <Style Selector="DockTarget /template/ Image#PART_BottomSelector">
+      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableBottom.png" />
+    </Style>
+    <Style Selector="DockTarget /template/ Image#PART_LeftSelector">
+      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableLeft.png" />
+    </Style>
+    <Style Selector="DockTarget /template/ Image#PART_RightSelector">
+      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableRight.png" />
+    </Style>
+    <Style Selector="DockTarget /template/ Image#PART_CenterSelector">
+      <Setter Property="Source" Value="/Assets/Dock/DockDocumentInside.png" />
+    </Style>
+    <Style Selector="GlobalDockTarget /template/ Image#PART_TopSelector">
+      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableTop.png" />
+    </Style>
+    <Style Selector="GlobalDockTarget /template/ Image#PART_BottomSelector">
+      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableBottom.png" />
+    </Style>
+    <Style Selector="GlobalDockTarget /template/ Image#PART_LeftSelector">
+      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableLeft.png" />
+    </Style>
+    <Style Selector="GlobalDockTarget /template/ Image#PART_RightSelector">
+      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableRight.png" />
+    </Style>
+    <Style Selector="GlobalDockTarget /template/ Image#PART_CenterSelector">
+      <Setter Property="Source" Value="/Assets/Dock/DockDocumentInside.png" />
+    </Style>
+
     <!-- Floating panel windows use the app icon. -->
     <Style Selector="dockCtl|HostWindow">
       <Setter Property="Icon" Value="/Assets/mmucs.ico" />
