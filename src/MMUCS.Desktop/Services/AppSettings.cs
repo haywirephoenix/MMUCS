@@ -22,6 +22,8 @@ public sealed class AppSettings
     public bool ShowRoomNames { get; set; } = true;
     public bool ShowObjectNames { get; set; } = true;
     public bool ColorizeTags { get; set; } = true;
+    /// <summary>Script viewer shows decompiled SCUMM (true) or the instruction listing.</summary>
+    public bool ScriptShowScumm { get; set; } = true;
     /// <summary>Manual object → costume links ("room/object name" → costume number, 0 = none).</summary>
     public System.Collections.Generic.Dictionary<string, int> CostumeLinks { get; set; } = new();
 

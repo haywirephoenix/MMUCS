@@ -1,10 +1,49 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             xmlns:scumm="using:MMUCS.Core.Scumm"
              x:Class="MMUCS.Desktop.Views.Panels.ScriptView"
-             x:DataType="vm:MainWindowViewModel">
-  <ScrollViewer HorizontalScrollBarVisibility="Auto">
-    <SelectableTextBlock Text="{Binding ScriptText}" Classes="mono" FontFamily="{StaticResource MonoFont}"
-                         FontSize="12" Margin="10" />
-  </ScrollViewer>
+             x:DataType="vm:ScriptViewModel">
+  <DockPanel>
+    <!-- Toolbar -->
+    <Border DockPanel.Dock="Top" Classes="panel-header" Padding="6,3">
+      <WrapPanel Orientation="Horizontal" ItemSpacing="0" LineSpacing="4">
+        <ToggleButton Content="Scripts" IsChecked="{Binding ShowScriptsPanel}" Margin="0,0,12,0"
+                      ToolTip.Tip="Show / hide the room's script list" />
+        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12" Margin="0,0,14,0" />
+        <RadioButton GroupName="ScriptMode" Content="SCUMM" IsChecked="{Binding ShowScumm}" Margin="0,0,8,0"
+                     ToolTip.Tip="Decompiled SCUMM source" />
+        <RadioButton GroupName="ScriptMode" Content="Instructions" IsChecked="{Binding ShowInstructions}" Margin="0,0,12,0"
+                     ToolTip.Tip="The bytecode, one instruction per line" />
+        <TextBlock Text="{Binding Info}" VerticalAlignment="Center" FontSize="11"
+                   Foreground="{StaticResource SubtleTextBrush}" />
+      </WrapPanel>
+    </Border>
+
+    <Grid x:Name="ContentGrid" ColumnDefinitions="220,4,*">
+      <ListBox x:Name="ScriptList" Grid.Column="0" ItemsSource="{Binding Scripts}"
+               SelectedItem="{Binding SelectedScript, Mode=TwoWay}">
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="8,3" />
+          </Style>
+        </ListBox.Styles>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="scumm:ScriptEntry">
+            <StackPanel>
+              <TextBlock Text="{Binding Title}" FontSize="12" />
+              <TextBlock Text="{Binding Detail}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <GridSplitter x:Name="ScriptsSplitter" Grid.Column="1" ResizeDirection="Columns" />
+
+      <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto">
+        <SelectableTextBlock Text="{Binding Text}" Classes="mono" FontFamily="{StaticResource MonoFont}"
+                             FontSize="12" Margin="10" />
+      </ScrollViewer>
+    </Grid>
+  </DockPanel>
 </UserControl>

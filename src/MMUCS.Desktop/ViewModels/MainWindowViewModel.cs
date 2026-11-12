@@ -29,7 +29,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private ReadOnlyMemory<byte> _hexData;
     [ObservableProperty] private long _hexBaseOffset;
     [ObservableProperty] private int _selectedViewerIndex;
-    [ObservableProperty] private string _scriptText;
 
     public ObservableCollection<BlockNodeViewModel> Roots { get; } = new();
     public ObservableCollection<MetadataRow> Metadata { get; } = new();
@@ -56,6 +55,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private const int MaxAutoExpandMatches = 150;
 
     public RoomViewModel Room { get; } = new();
+    public ScriptViewModel Script { get; } = new();
     public AkosViewModel Costume { get; } = new();
 
     /// <summary>Docking layout: panels are views over this view model (see Docking/DockLayout.cs).</summary>
@@ -94,6 +94,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
         DockFactory.InitLayout(_layout);
 
         Room.BlockFocusRequested += RevealFromViewer;
+        Script.BlockFocusRequested += RevealFromViewer;
+        Script.ShowScumm = Settings.ScriptShowScumm;
+        Script.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(ScriptViewModel.ShowScumm)) return;
+            Settings.ScriptShowScumm = Script.ShowScumm;
+            Settings.Save();
+        };
         RoomActors.Links = Settings.CostumeLinks;
         Room.LinksChanged += () =>
         {
@@ -420,10 +428,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         if (ScriptTags.Contains(b.Tag))
         {
-            ShowScript(b);
+            Script.Show(b);
             SelectedViewerIndex = (int)ViewerTab.Script;
             return;
         }
+        Script.ShowRoom(b); // the Script viewer lists the selected room's scripts
 
         if ((b.Tag == ScummTag.LFLF || b.FindParent(ScummTag.LFLF) != null) && RoomModel.TryCreate(b, out var room))
         {
@@ -434,27 +443,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 Room.SelectedObject = room.Objects.FirstOrDefault(o => ReferenceEquals(o.Block, target));
             }
             SelectedViewerIndex = (int)ViewerTab.Room;
-        }
-    }
-
-    private void ShowScript(ScummBlock b)
-    {
-        try
-        {
-            var lines = new ScummScriptDecoder().Disassemble(b);
-            var sb = new System.Text.StringBuilder();
-            foreach (var l in lines)
-            {
-                sb.Append($"{l.Address:X4}  {l.Opcode:X2}  {l.Name,-16}");
-                if (!string.IsNullOrEmpty(l.DecodedString)) sb.Append("  ").Append(l.DecodedString);
-                else if (l.Arguments is { Count: > 0 }) sb.Append("  ").Append(string.Join(", ", l.Arguments));
-                sb.AppendLine();
-            }
-            ScriptText = sb.Length > 0 ? sb.ToString() : "(empty)";
-        }
-        catch (Exception ex)
-        {
-            ScriptText = $"Disassembly failed: {ex.Message}";
         }
     }
 }

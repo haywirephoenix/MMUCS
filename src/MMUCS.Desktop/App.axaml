@@ -40,7 +40,7 @@
       <views:AkosView DataContext="{Binding Main.Costume}" />
     </DataTemplate>
     <DataTemplate DataType="dvm:ScriptDocument">
-      <panels:ScriptView DataContext="{Binding Main}" />
+      <panels:ScriptView DataContext="{Binding Main.Script}" />
     </DataTemplate>
   </Application.DataTemplates>
 

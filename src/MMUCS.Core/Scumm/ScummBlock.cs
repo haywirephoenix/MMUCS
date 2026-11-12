@@ -51,7 +51,6 @@ public class ScummBlock
     public void SetMetaSchema(Type type) => MetaSchema = type;
 
     public Dictionary<MetaValue, MetaValue> GetMetaDataDict() => Metadata;
-    public List<ScummScriptDecoder.DisassembledInstruction> DisassemblyLines { get; set; }
     public void SetMetaDataDict(Dictionary<MetaValue, MetaValue> newdict) => Metadata = newdict;
 
     public void SetMetaDataItem<T>(T key, MetaValue value, bool propagate = false) where T : Enum
