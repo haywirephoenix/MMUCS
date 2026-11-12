@@ -195,6 +195,28 @@ public class AkosParser
     /// One info entry per cel, read through the cel's AKOF offset: AKCI entries are shared between
     /// cels, so AKCI usually has fewer entries than there are cels.
     /// </summary>
+    /// <summary>
+    /// A cel info entry: width and height, then offset and move. Entries overlap, and the last ones
+    /// may be cut short by the end of AKCI: costumes that place cels explicitly (DrawMany, as the
+    /// engine then reads only the size) pack them 4 bytes apart. Missing fields read as 0.
+    /// </summary>
+    public static AkosCelInfo? ReadCelInfo(ReadOnlySpan<byte> akci, int o)
+    {
+        if (o < 0 || o + 4 > akci.Length) return null;
+        return new AkosCelInfo
+        {
+            Width = akci.U16LE(o + 0),
+            Height = akci.U16LE(o + 2),
+            RelX = S16OrZero(akci, o + 4),
+            RelY = S16OrZero(akci, o + 6),
+            MoveX = S16OrZero(akci, o + 8),
+            MoveY = S16OrZero(akci, o + 10),
+            is640Width = akci.U16LE(o + 0) == 640,
+        };
+    }
+
+    private static short S16OrZero(ReadOnlySpan<byte> s, int at) => at + 2 <= s.Length ? (short)s.U16LE(at) : (short)0;
+
     private void _ParseAKCI(AkosData data, ScummBlock block)
     {
         int count = data.CelOffsets.Length;
@@ -202,18 +224,7 @@ public class AkosParser
         var span = block.DataSpan;
         for (int i = 0; i < count; i++)
         {
-            int o = data.CelOffsets[i].AkciOffset;
-            if (o + 12 > span.Length) continue;
-            data.CelInfos[i] = new AkosCelInfo
-            {
-                Width = span.U16LE(o + 0),
-                Height = span.U16LE(o + 2),
-                RelX = (short)span.U16LE(o + 4),
-                RelY = (short)span.U16LE(o + 6),
-                MoveX = (short)span.U16LE(o + 8),
-                MoveY = (short)span.U16LE(o + 10),
-                is640Width = span.U16LE(o + 0) == 640
-            };
+            if (ReadCelInfo(span, data.CelOffsets[i].AkciOffset) is { } ci) data.CelInfos[i] = ci;
         }
     }
 }

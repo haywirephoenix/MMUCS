@@ -19,18 +19,7 @@ public static class AkosDecoders
 
         // Use AkciOffset as a raw byte offset into AKCI data — matches C++ `akci + ciOff`
         ReadOnlySpan<byte> ciSpan = _akos.CelInfoRaw.Span;
-        int ciOff = offset.AkciOffset;
-        if (ciOff + 12 > ciSpan.Length) return null;
-
-        var ci = new AkosCelInfo
-        {
-            Width = ciSpan.U16LE(ciOff + 0),
-            Height = ciSpan.U16LE(ciOff + 2),
-            RelX = (short)ciSpan.U16LE(ciOff + 4),
-            RelY = (short)ciSpan.U16LE(ciOff + 6),
-            MoveX = (short)ciSpan.U16LE(ciOff + 8),
-            MoveY = (short)ciSpan.U16LE(ciOff + 10),
-        };
+        if (AkosParser.ReadCelInfo(ciSpan, offset.AkciOffset) is not { } ci) return null;
 
         if (ci.Width == 0 || ci.Height == 0) return null;
 
