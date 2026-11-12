@@ -26,6 +26,16 @@ public sealed class RoomActor
     public RoomObject Object { get; set; }
     /// <summary>True when <see cref="Object"/> comes from a manual link rather than overlap.</summary>
     public bool IsLinked { get; set; }
+    /// <summary>
+    /// For an actor whose other costume is matched to an object: that object (the character it
+    /// plays). It names this costume too, without claiming the hotspot.
+    /// </summary>
+    public RoomObject Character { get; set; }
+    /// <summary>The player's actor (dressed in most rooms): never matched to a hotspot by overlap.</summary>
+    public bool IsPlayer { get; init; }
+
+    /// <summary>The object that names this costume: its own, or its character's.</summary>
+    public RoomObject Owner => Object ?? Character;
 
     public bool CanDraw => HasPosition && Frame is { IsEmpty: false };
 
@@ -40,7 +50,10 @@ public sealed class RoomActor
         }
     }
 
-    public string Label => Actor > 0 ? $"costume {Costume}  (actor {Actor})" : $"costume {Costume}";
+    public string Label => Actor <= 0 ? $"costume {Costume}"
+        : IsPlayer ? $"costume {Costume}  (player, actor {Actor})"
+        : Character != null && Object == null ? $"costume {Costume}  (actor {Actor}, {Character.Name})"
+        : $"costume {Costume}  (actor {Actor})";
 
     public override string ToString() => HasPosition ? $"{Label} at {X},{Y}" : Label;
 }
@@ -60,6 +73,7 @@ public static class RoomActors
     private static readonly object Sync = new();
     private static readonly ConditionalWeakTable<ScummBlock, CostumeDirectory> Directories = new();
     private static readonly ConditionalWeakTable<ScummBlock, List<RoomActor>> Analyses = new();
+    private static readonly ConditionalWeakTable<ScummBlock, StrongBox<int>> Players = new();
     /// <summary>AKOS block → name of the object it belongs to (filled as rooms are analysed).</summary>
     private static readonly ConditionalWeakTable<ScummBlock, string> AkosObjectNames = new();
 
@@ -179,6 +193,35 @@ public static class RoomActors
         lock (Sync) return Directories.GetValue(Root(b), r => new CostumeDirectory(r));
     }
 
+    private static bool IsScriptTag(uint tag) => tag is ScummTag.LSCR or ScummTag.ENCD or ScummTag.EXCD or ScummTag.SCRP or ScummTag.VERB;
+
+    /// <summary>
+    /// The player's actor: the one the scripts dress in costumes in the most rooms (Guybrush, actor 1,
+    /// in COMI). Its special-animation costumes overlap hotspots by chance, so overlap doesn't name
+    /// them. -1 when no actor stands out.
+    /// </summary>
+    public static int PlayerActor(ScummBlock any)
+    {
+        var root = Root(any);
+        lock (Sync)
+            if (Players.TryGetValue(root, out var known)) return known.Value;
+
+        var rooms = new Dictionary<int, int>();
+        foreach (var lflf in Walk(root, 3).Where(b => b.Tag == ScummTag.LFLF))
+        {
+            var actors = new HashSet<int>();
+            foreach (var script in Walk(lflf, 4))
+                if (IsScriptTag(script.Tag))
+                    foreach (var c in CostumeSets(script.DataSpan)) actors.Add(c.Actor);
+            foreach (int a in actors) rooms[a] = rooms.GetValueOrDefault(a) + 1;
+        }
+        var ranked = rooms.OrderByDescending(kv => kv.Value).ToList();
+        int player = ranked.Count > 0 && ranked[0].Value >= 5 && (ranked.Count == 1 || ranked[0].Value >= 2 * ranked[1].Value)
+            ? ranked[0].Key : -1;
+        lock (Sync) Players.AddOrUpdate(root, new StrongBox<int>(player));
+        return player;
+    }
+
     /// <summary>The costume number of an AKOS block, from the index (null without an index).</summary>
     public static int? CostumeNumber(ScummBlock akos) => akos?.Tag == ScummTag.AKOS ? DirectoryFor(akos).CostumeOf(akos) : null;
 
@@ -228,23 +271,24 @@ public static class RoomActors
         }
 
         // Script pairs (actor, costume, position) for the room's own costumes.
+        int player = PlayerActor(lflf);
         var placed = new List<RoomActor>();
         var seen = new HashSet<(int, int)>();
         foreach (var script in Walk(lflf, 4))
         {
-            if (script.Tag is not (ScummTag.LSCR or ScummTag.ENCD or ScummTag.EXCD or ScummTag.SCRP or ScummTag.VERB)) continue;
+            if (!IsScriptTag(script.Tag)) continue;
             foreach (var (actor, costume, x, y) in ScanScript(script.DataSpan, room.RoomNo))
             {
                 if (!seen.Add((actor, costume))) continue;
                 var akos = directory.Resolve(costume, lflf);
                 if (akos == null || !ReferenceEquals(akos.Parent, lflf)) continue;
                 var (d, f) = Load(akos);
-                placed.Add(new RoomActor { Actor = actor, Costume = costume, Akos = akos, X = x, Y = y, HasPosition = true, Data = d, Frame = f });
+                placed.Add(new RoomActor { Actor = actor, Costume = costume, Akos = akos, X = x, Y = y, HasPosition = true, Data = d, Frame = f, IsPlayer = actor == player });
             }
         }
 
         var candidates = room.Objects.Where(o => o.ImageCount == 0).ToList();
-        MatchObjects(placed, candidates, a => a.RoomBounds);
+        MatchObjects(placed.Where(p => !p.IsPlayer).ToList(), candidates, a => a.RoomBounds);
 
         // One entry per AKOS: its matched placements, else its first placement, else an unplaced entry.
         var result = new List<RoomActor>();
@@ -267,8 +311,9 @@ public static class RoomActors
         {
             foreach (var akos in akosBlocks)
             {
-                var owner = result.FirstOrDefault(r => ReferenceEquals(r.Akos, akos) && r.Object != null);
-                AkosObjectNames.AddOrUpdate(akos, owner?.Object.Name);
+                var owner = result.FirstOrDefault(r => ReferenceEquals(r.Akos, akos) && r.Object != null)
+                         ?? result.FirstOrDefault(r => ReferenceEquals(r.Akos, akos) && r.Character != null);
+                AkosObjectNames.AddOrUpdate(akos, owner?.Owner.Name);
             }
             Analyses.AddOrUpdate(lflf, result);
         }
@@ -319,20 +364,12 @@ public static class RoomActors
 
     private static List<(int Actor, int Costume, int X, int Y)> ScanScript(ReadOnlySpan<byte> s, int roomNo)
     {
-        var costumes = new List<(int Pos, int Actor, int Costume)>();
+        var costumes = CostumeSets(s);
         var places = new List<(int Pos, int Actor, int X, int Y)>();
-        int curActor = -1;
 
-        for (int p = 5; p + 1 < s.Length; p++)
+        for (int p = 20; p + 1 < s.Length; p++)
         {
-            if (s[p] == OpActorOps)
-            {
-                byte sub = s[p + 1];
-                if (sub == SubSetCurActor && Lit(s, p - 5, out int a)) curActor = a;
-                else if (sub == SubSetCostume && curActor > 0 && Lit(s, p - 5, out int c) && c > 0)
-                    costumes.Add((p, curActor, c));
-            }
-            else if (s[p] == OpPutActorAtXY && p >= 20)
+            if (s[p] == OpPutActorAtXY)
             {
                 bool roomOk = Lit(s, p - 5, out int r) ? r == roomNo : s[p - 5] == OpPushVar;
                 if (roomOk && Lit(s, p - 10, out int y) && Lit(s, p - 15, out int x) && Lit(s, p - 20, out int a) && a > 0 && (x != 0 || y != 0))
@@ -355,6 +392,22 @@ public static class RoomActors
             if (best is { } b) pairs.Add((c.Actor, c.Costume, b.X, b.Y));
         }
         return pairs;
+    }
+
+    /// <summary>actorOps setCurActor / setCostume pairs with literal arguments.</summary>
+    private static List<(int Pos, int Actor, int Costume)> CostumeSets(ReadOnlySpan<byte> s)
+    {
+        var costumes = new List<(int Pos, int Actor, int Costume)>();
+        int curActor = -1;
+        for (int p = 5; p + 1 < s.Length; p++)
+        {
+            if (s[p] != OpActorOps) continue;
+            byte sub = s[p + 1];
+            if (sub == SubSetCurActor && Lit(s, p - 5, out int a)) curActor = a;
+            else if (sub == SubSetCostume && curActor > 0 && Lit(s, p - 5, out int c) && c > 0)
+                costumes.Add((p, curActor, c));
+        }
+        return costumes;
     }
 
     /// <summary>
@@ -387,12 +440,21 @@ public static class RoomActors
             }
         }
 
+        // An actor is one character: its best match claims the object, and its other costumes
+        // (alternate animations of the same character) are named after it rather than taking
+        // hotspots of their own.
         var usedObjects = new HashSet<RoomObject>();
+        var characters = new Dictionary<int, RoomObject>();
         foreach (var (_, actor, obj) in scores.OrderByDescending(s => s.Score))
         {
             if (actor.Object != null || usedObjects.Contains(obj)) continue;
+            if (actor.Actor > 0 && characters.ContainsKey(actor.Actor)) continue;
             actor.Object = obj;
             usedObjects.Add(obj);
+            if (actor.Actor > 0) characters[actor.Actor] = obj;
         }
+        foreach (var actor in actors)
+            if (actor.Object == null && actor.Actor > 0 && characters.TryGetValue(actor.Actor, out var character))
+                actor.Character = character;
     }
 }
