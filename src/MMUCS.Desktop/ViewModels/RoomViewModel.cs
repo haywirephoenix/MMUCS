@@ -62,6 +62,8 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private string _backgroundLabel;
     [ObservableProperty] private RoomObject _backgroundObject;
     [ObservableProperty] private bool _isBusy;
+    /// <summary>A new room is loading: the canvas keeps the old picture until its images are ready.</summary>
+    [ObservableProperty] private bool _isSwitchingRoom;
 
     [ObservableProperty] private bool _showBackground = true;
     [ObservableProperty] private bool _showObjects = true;
@@ -78,8 +80,12 @@ public sealed partial class RoomViewModel : ObservableObject
     public ObservableCollection<RoomObjectItem> Objects { get; } = new();
 
     [ObservableProperty] private RoomObjectItem _selectedObjectItem;
-    /// <summary>Objects whose image is hidden (a new set on every change, so bindings refresh).</summary>
-    [ObservableProperty] private IReadOnlySet<RoomObject> _hiddenObjects = new HashSet<RoomObject>();
+    /// <summary>
+    /// Objects whose image is drawn (a new set on every change, so bindings refresh). Listing the
+    /// visible ones rather than the hidden ones means layers still on screen from the previous room,
+    /// or from before the costumes were re-analysed, aren't drawn while the new ones decode.
+    /// </summary>
+    [ObservableProperty] private IReadOnlySet<RoomObject> _visibleObjects = new HashSet<RoomObject>();
     private bool _batchVisibility;
 
     /// <summary>Header checkbox: true when all are visible, false when none, null (mixed) otherwise.</summary>
@@ -103,7 +109,7 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>Shows only <paramref name="obj"/> and hides every other object.</summary>
     public void ShowOnly(RoomObject obj) => SetVisibility(o => ReferenceEquals(o.Object, obj));
 
-    public bool IsVisible(RoomObject obj) => !HiddenObjects.Contains(obj);
+    public bool IsVisible(RoomObject obj) => VisibleObjects.Contains(obj);
 
     /// <summary>Applies a visibility per object (null leaves it unchanged), then refreshes once.</summary>
     private void SetVisibility(Func<RoomObjectItem, bool?> rule)
@@ -122,7 +128,7 @@ public sealed partial class RoomViewModel : ObservableObject
 
     private void RefreshVisibility()
     {
-        HiddenObjects = Objects.Where(o => !o.IsVisible).Select(o => o.Object).ToHashSet();
+        VisibleObjects = Objects.Where(o => o.IsVisible).Select(o => o.Object).ToHashSet();
         SyncToggles();
         OnPropertyChanged(nameof(AllObjectsVisible));
     }
@@ -221,6 +227,7 @@ public sealed partial class RoomViewModel : ObservableObject
     {
         if (room == null || ReferenceEquals(room.Room, Room?.Room)) return;
 
+        IsSwitchingRoom = true;
         Room = room;
         OnPropertyChanged(nameof(HasRoom));
         Title = room.RoomNo > 0
@@ -240,19 +247,51 @@ public sealed partial class RoomViewModel : ObservableObject
         SelectedObject = null;
         RefreshVisibility();
 
-        await RefreshActorsAsync(room);
-        if (!ReferenceEquals(Room, room)) return;
-
         MaxPaletteIndex = Math.Max(0, room.PaletteCount - 1);
         _suppressPaletteReload = true;
         PaletteIndex = 0;
         _suppressPaletteReload = false;
         _resetBackgroundChoice = true;
 
+        // With objects and costumes hidden nothing waits on the costume analysis: show the new
+        // background as soon as it's decoded and let the analysis finish behind it.
+        if (!ShowObjects && !ShowUnmatchedCostumes)
+        {
+            await ShowBackgroundFirstAsync(room);
+            if (!ReferenceEquals(Room, room)) return;
+        }
+
+        await RefreshActorsAsync(room);
+        if (!ReferenceEquals(Room, room)) return;
+
         await ReloadImagesAsync();
     }
 
     private bool _suppressPaletteReload;
+
+    private static int BackgroundCacheId(RoomModel room) =>
+        // Rooms can appear in more than one file (e.g. per-disc copies), so key by source file too.
+        (int)Core.StableHash.Of(room.Room.SourceKey, room.RoomNo > 0 ? room.RoomNo : room.Room.Offset);
+
+    /// <summary>Shows the room's own background (with no object layers yet) and ends the room switch.</summary>
+    private async Task ShowBackgroundFirstAsync(RoomModel room)
+    {
+        try
+        {
+            var bg = await ScummBackgroundCache.GetCachedBackgroundAsync(
+                BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, PaletteIndex, CancellationToken.None);
+            if (!ReferenceEquals(Room, room) || bg.ExecutedImage == null) return; // no image of its own: wait for the full load
+            ObjectLayers = Array.Empty<RoomObjectLayer>(); // the old room's labels and hotspots go too
+            BackgroundObject = null;
+            BackgroundImage = bg.ExecutedImage.ToSkImage();
+            BackgroundLabel = "room";
+            IsSwitchingRoom = false;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Room decode failed: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Analyses the room's costumes (scripts give costume and position, the frame decides which
@@ -352,10 +391,8 @@ public sealed partial class RoomViewModel : ObservableObject
 
         try
         {
-            // Rooms can appear in more than one file (e.g. per-disc copies), so key by source file too.
-            int cacheId = (int)Core.StableHash.Of(room.Room.SourceKey, room.RoomNo > 0 ? room.RoomNo : room.Room.Offset);
             var bg = await ScummBackgroundCache.GetCachedBackgroundAsync(
-                cacheId, room.Rmhd, room.Room, cacheDisabled: false, PaletteIndex, token);
+                BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, PaletteIndex, token);
             if (token.IsCancellationRequested) return;
 
             var roomBackground = bg.ExecutedImage;
@@ -410,6 +447,7 @@ public sealed partial class RoomViewModel : ObservableObject
             if (BackgroundIndex != index) BackgroundIndex = index; // applies via OnBackgroundIndexChanged
             else ApplyBackgroundChoice();
             _restoringBackground = false;
+            IsSwitchingRoom = false; // background, objects and overlays all show together
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -418,7 +456,11 @@ public sealed partial class RoomViewModel : ObservableObject
         }
         finally
         {
-            if (!token.IsCancellationRequested) IsBusy = false;
+            if (!token.IsCancellationRequested)
+            {
+                IsBusy = false;
+                IsSwitchingRoom = false;
+            }
         }
     }
 

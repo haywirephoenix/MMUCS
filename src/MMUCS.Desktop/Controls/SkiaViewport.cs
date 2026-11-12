@@ -235,8 +235,17 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         var bounds = new Rect(Bounds.Size);
         // Transparent fill guarantees pointer hit-testing across the whole surface.
         context.FillRectangle(Brushes.Transparent, bounds);
-        context.Custom(new SceneDrawOperation(bounds, View, ShowCheckerboard, ContentSize, CreateScene()));
+        if (!HoldFrame || _lastFrame is not { } frame)
+            _lastFrame = frame = (View, ContentSize, CreateScene());
+        context.Custom(new SceneDrawOperation(bounds, frame.View, ShowCheckerboard, frame.Size, frame.Scene));
     }
+
+    /// <summary>
+    /// While true, renders repeat the last frame as it was (framing, content size and scene), so new
+    /// content can be swapped in all at once when it's ready.
+    /// </summary>
+    protected virtual bool HoldFrame => false;
+    private (ViewTransform View, Size Size, IViewportScene Scene)? _lastFrame;
 
     private sealed class SceneDrawOperation : ICustomDrawOperation
     {

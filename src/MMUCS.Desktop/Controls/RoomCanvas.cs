@@ -47,8 +47,15 @@ public sealed class RoomCanvas : SkiaViewport
     public static readonly StyledProperty<RoomObject> BackgroundObjectProperty =
         AvaloniaProperty.Register<RoomCanvas, RoomObject>(nameof(BackgroundObject));
 
-    public static readonly StyledProperty<IReadOnlySet<RoomObject>> HiddenObjectsProperty =
-        AvaloniaProperty.Register<RoomCanvas, IReadOnlySet<RoomObject>>(nameof(HiddenObjects));
+    public static readonly StyledProperty<IReadOnlySet<RoomObject>> VisibleObjectsProperty =
+        AvaloniaProperty.Register<RoomCanvas, IReadOnlySet<RoomObject>>(nameof(VisibleObjects));
+
+    /// <summary>
+    /// While true the canvas keeps showing what it last drew, so a room switch swaps the whole picture
+    /// at once instead of showing the new room's size or overlays over the old background for a frame.
+    /// </summary>
+    public static readonly StyledProperty<bool> HoldSceneProperty =
+        AvaloniaProperty.Register<RoomCanvas, bool>(nameof(HoldScene));
 
     public static readonly StyledProperty<bool> ShowFullScreenObjectsProperty =
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(ShowFullScreenObjects));
@@ -67,8 +74,9 @@ public sealed class RoomCanvas : SkiaViewport
     public bool ShowWalkboxes { get => GetValue(ShowWalkboxesProperty); set => SetValue(ShowWalkboxesProperty, value); }
     public bool ShowLabels { get => GetValue(ShowLabelsProperty); set => SetValue(ShowLabelsProperty, value); }
     public bool ShowBounds { get => GetValue(ShowBoundsProperty); set => SetValue(ShowBoundsProperty, value); }
-    /// <summary>Objects whose image isn't drawn (their hotspot stays, so they can be found and shown again).</summary>
-    public IReadOnlySet<RoomObject> HiddenObjects { get => GetValue(HiddenObjectsProperty); set => SetValue(HiddenObjectsProperty, value); }
+    /// <summary>Objects whose image is drawn (hidden ones keep their hotspot, so they can be found and shown again).</summary>
+    public IReadOnlySet<RoomObject> VisibleObjects { get => GetValue(VisibleObjectsProperty); set => SetValue(VisibleObjectsProperty, value); }
+    public bool HoldScene { get => GetValue(HoldSceneProperty); set => SetValue(HoldSceneProperty, value); }
 
     /// <summary>Raised on a right-click (not a right-drag) with the object under the pointer, or null.</summary>
     public event Action<RoomObject> ObjectContextRequested;
@@ -85,12 +93,18 @@ public sealed class RoomCanvas : SkiaViewport
         AffectsRender<RoomCanvas>(
             BackgroundImageProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
-            ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, HiddenObjectsProperty);
+            ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if (change.Property == HoldSceneProperty)
+        {
+            if (!HoldScene) ContentChanged(); // re-fit to the new content and draw it
+            return;
+        }
+        if (HoldScene) return; // applied when the hold ends
         if (change.Property == RoomSizeProperty || change.Property == BackgroundImageProperty
             || change.Property == ObjectLayersProperty || change.Property == BackgroundObjectProperty)
             ContentChanged();
@@ -121,9 +135,11 @@ public sealed class RoomCanvas : SkiaViewport
         }
     }
 
+    protected override bool HoldFrame => HoldScene;
+
     protected override IViewportScene CreateScene() => new Scene(
         ShowBackground ? BackgroundImage : null,
-        ObjectLayers, // per-object visibility (incl. the View menu's Objects toggle) is in HiddenObjects
+        ObjectLayers, // per-object visibility (incl. the View menu's Objects toggle) is in VisibleObjects
         ObjectLayers,
         ShowWalkboxes ? Walkboxes : null,
         SelectedObject,
@@ -133,7 +149,7 @@ public sealed class RoomCanvas : SkiaViewport
         ContentSize,
         ShowFullScreenObjects,
         BackgroundObject,
-        HiddenObjects);
+        VisibleObjects);
 
     protected override void OnContentClicked(Point p, PointerPressedEventArgs e)
     {
@@ -177,14 +193,14 @@ public sealed class RoomCanvas : SkiaViewport
         private readonly RoomObject _selected;
         private readonly bool _hotspots, _labels, _bounds, _fullScreenObjects;
         private readonly RoomObject _bgObject;
-        private readonly IReadOnlySet<RoomObject> _hidden;
+        private readonly IReadOnlySet<RoomObject> _visible;
         private readonly Size _size;
 
         public Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
-            IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> hidden)
+            IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible)
         {
             _bg = bg; _drawLayers = drawLayers; _allLayers = allLayers; _boxes = boxes;
-            _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject; _hidden = hidden;
+            _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject; _visible = visible;
         }
 
         private static readonly SKPaint HotspotFill = new() { Color = new SKColor(255, 220, 0, 38), Style = SKPaintStyle.Fill };
@@ -214,7 +230,7 @@ public sealed class RoomCanvas : SkiaViewport
                 foreach (var layer in _drawLayers)
                 {
                     if (layer.Image == null || ReferenceEquals(layer.Object, _bgObject)) continue; // already the background
-                    if (_hidden != null && _hidden.Contains(layer.Object)) continue;          // toggled off in the Objects panel
+                    if (_visible == null || !_visible.Contains(layer.Object)) continue;        // toggled off, or not in the current list (stale layers)
                     // Other full-screen (640px) object images would cover the background (in the wrong
                     // palette), so they're drawn only when asked for; the Background spinbox switches to them.
                     bool isFullWidth = layer.Image.Width >= 640;
@@ -225,7 +241,7 @@ public sealed class RoomCanvas : SkiaViewport
                 // Actors are drawn over the objects.
                 foreach (var layer in _drawLayers)
                 {
-                    if (layer.CostumeImage == null || (_hidden != null && _hidden.Contains(layer.Object))) continue;
+                    if (layer.CostumeImage == null || _visible == null || !_visible.Contains(layer.Object)) continue;
                     canvas.DrawImage(layer.CostumeImage, layer.CostumeX, layer.CostumeY, sampling);
                 }
             }
