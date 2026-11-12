@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:MMUCS.Desktop.ViewModels"
              xmlns:scumm="using:MMUCS.Core.Scumm"
+             xmlns:controls="using:MMUCS.Desktop.Controls"
              x:Class="MMUCS.Desktop.Views.Panels.ScriptView"
              x:DataType="vm:ScriptViewModel">
   <DockPanel>
@@ -43,8 +44,9 @@
       <GridSplitter x:Name="ScriptsSplitter" Grid.Column="1" ResizeDirection="Columns" />
 
       <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto">
-        <SelectableTextBlock x:Name="Code" Classes="mono" FontFamily="{StaticResource MonoFont}"
-                             FontSize="12" Margin="10" />
+        <!-- Draws only the lines in view: some scripts run to tens of thousands of lines. -->
+        <controls:CodeView Tokens="{Binding Tokens}" Text="{Binding Text}" ShowOffsets="{Binding ShowOffsets}"
+                           FontFamily="{StaticResource MonoFont}" FontSize="12" Margin="10" />
       </ScrollViewer>
     </Grid>
   </DockPanel>
