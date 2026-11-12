@@ -13,6 +13,11 @@ public sealed class RoomActor
 {
     /// <summary>Actor number from the scripts, or 0 when no script sets this costume with literals.</summary>
     public int Actor { get; init; }
+    /// <summary>
+    /// Every actor this entry stands for, when one script dresses several actors in this costume on
+    /// the same spot to layer its chores (banjo's strings, one actor each); otherwise just <see cref="Actor"/>.
+    /// </summary>
+    public IReadOnlyList<int> Actors { get; init; }
     public int Costume { get; init; }
     public ScummBlock Akos { get; init; }
     /// <summary>Actor origin in the room (valid when <see cref="HasPosition"/>).</summary>
@@ -50,10 +55,12 @@ public sealed class RoomActor
         }
     }
 
+    private string ActorText => Actors is { Count: > 1 } all ? $"actors {string.Join(", ", all)}" : $"actor {Actor}";
+
     public string Label => Actor <= 0 ? $"costume {Costume}"
-        : IsPlayer ? $"costume {Costume}  (player, actor {Actor})"
-        : Character != null && Object == null ? $"costume {Costume}  (actor {Actor}, {Character.Name})"
-        : $"costume {Costume}  (actor {Actor})";
+        : IsPlayer ? $"costume {Costume}  (player, {ActorText})"
+        : Character != null && Object == null ? $"costume {Costume}  ({ActorText}, {Character.Name})"
+        : $"costume {Costume}  ({ActorText})";
 
     public override string ToString() => HasPosition ? $"{Label} at {X},{Y}" : Label;
 }
@@ -67,8 +74,8 @@ public sealed class RoomActor
 /// </summary>
 public static class RoomActors
 {
-    private const byte OpPushWord = 0x01, OpPushVar = 0x02, OpPutActorAtXY = 0xA1, OpActorOps = 0xAC;
-    private const byte SubSetCostume = 0x64, SubSetCurActor = 0x7A;
+    private const byte OpPushWord = 0x01, OpPushVar = 0x02, OpPutActorAtXY = 0xA1, OpAnimateActor = 0xA4, OpActorOps = 0xAC;
+    private const byte SubSetCostume = 0x64, SubSetCurActor = 0x7A, SubFace = 0x81;
 
     private static readonly object Sync = new();
     private static readonly ConditionalWeakTable<ScummBlock, CostumeDirectory> Directories = new();
@@ -272,20 +279,36 @@ public static class RoomActors
 
         // Script pairs (actor, costume, position) for the room's own costumes.
         int player = PlayerActor(lflf);
+        var scripts = Walk(lflf, 4).Where(b => IsScriptTag(b.Tag)).ToList();
+        var scans = scripts.Select(b => ScanScript(b.DataSpan, room.RoomNo)).ToList();
+        // Animations the room's scripts play on each actor, and which costumes each actor wears here.
+        var roomAnims = new Dictionary<int, List<int>>();
+        foreach (var b in scripts)
+            foreach (var (_, actor, anim) in Animations(b.DataSpan))
+                if (anim is >= 0 and < 1000) (roomAnims.TryGetValue(actor, out var l) ? l : roomAnims[actor] = new()).Add(anim);
+        var wears = scans.SelectMany(x => x).GroupBy(x => x.Actor).ToDictionary(g => g.Key, g => g.Select(x => x.Costume).Distinct().Count());
+
         var placed = new List<RoomActor>();
+        var scriptOf = new Dictionary<RoomActor, int>();
         var seen = new HashSet<(int, int)>();
-        foreach (var script in Walk(lflf, 4))
+        foreach (var (si, (actor, costume, x, y, anim, dir)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
         {
-            if (!IsScriptTag(script.Tag)) continue;
-            foreach (var (actor, costume, x, y) in ScanScript(script.DataSpan, room.RoomNo))
-            {
-                if (!seen.Add((actor, costume))) continue;
-                var akos = directory.Resolve(costume, lflf);
-                if (akos == null || !ReferenceEquals(akos.Parent, lflf)) continue;
-                var (d, f) = Load(akos);
-                placed.Add(new RoomActor { Actor = actor, Costume = costume, Akos = akos, X = x, Y = y, HasPosition = true, Data = d, Frame = f, IsPlayer = actor == player });
-            }
+            if (!seen.Add((actor, costume))) continue;
+            var akos = directory.Resolve(costume, lflf);
+            if (akos == null || !ReferenceEquals(akos.Parent, lflf)) continue;
+            var (d, f) = Load(akos);
+            // Show the animation the script starts (e.g. a full-screen close-up whose stand chore is
+            // empty). If that's blank and so is the default pose (the costume starts hidden), use
+            // another animation the room plays on the same actor, as long as the actor wears only this
+            // costume here (banjo's close-up appears from a loop in another script).
+            if (Animated(d, anim, dir) is { } started) f = started;
+            else if (f == null && wears.GetValueOrDefault(actor) == 1 && roomAnims.TryGetValue(actor, out var others))
+                f = others.Distinct().Select(o => Animated(d, o, dir)).FirstOrDefault(x => x != null);
+            var entry = new RoomActor { Actor = actor, Costume = costume, Akos = akos, X = x, Y = y, HasPosition = true, Data = d, Frame = f, IsPlayer = actor == player };
+            placed.Add(entry);
+            scriptOf[entry] = si;
         }
+        placed = MergeLayers(placed, scriptOf);
 
         var candidates = room.Objects.Where(o => o.ImageCount == 0).ToList();
         MatchObjects(placed.Where(p => !p.IsPlayer).ToList(), candidates, a => a.RoomBounds);
@@ -362,9 +385,23 @@ public static class RoomActors
         return true;
     }
 
-    private static List<(int Actor, int Costume, int X, int Y)> ScanScript(ReadOnlySpan<byte> s, int roomNo)
+    /// <summary>
+    /// The script's costume placements: actor, costume, position, and the animation the script
+    /// starts for it (do-animation after the costume is set; -1 for none) with the facing in degrees
+    /// (south unless a face op says otherwise) that picks its chore.
+    /// </summary>
+    private static List<(int Actor, int Costume, int X, int Y, int Anim, int Dir)> ScanScript(ReadOnlySpan<byte> s, int roomNo)
     {
         var costumes = CostumeSets(s);
+        var anims = Animations(s);
+        var faces = new List<(int Pos, int Actor, int Dir)>(); // Dir in degrees
+        int curActor = -1;
+        for (int p = 5; p + 1 < s.Length; p++)
+        {
+            if (s[p] != OpActorOps) continue;
+            if (s[p + 1] == SubSetCurActor && Lit(s, p - 5, out int ca)) curActor = ca;
+            else if (s[p + 1] == SubFace && curActor > 0 && Lit(s, p - 5, out int degrees)) faces.Add((p, curActor, degrees));
+        }
         var places = new List<(int Pos, int Actor, int X, int Y)>();
 
         for (int p = 20; p + 1 < s.Length; p++)
@@ -377,9 +414,16 @@ public static class RoomActors
             }
         }
 
-        var pairs = new List<(int, int, int, int)>();
+        var pairs = new List<(int, int, int, int, int, int)>();
         foreach (var c in costumes)
         {
+            // Until the actor's next costume change in this script.
+            int until = costumes.Where(o => o.Actor == c.Actor && o.Pos > c.Pos).Select(o => o.Pos).DefaultIfEmpty(int.MaxValue).Min();
+            // Below 1000 an animation number is a chore; 1000 and up are turn/stop commands.
+            int anim = anims.Where(a => a.Actor == c.Actor && a.Pos > c.Pos && a.Pos < until && a.Anim is >= 0 and < 1000)
+                            .Select(a => a.Anim).DefaultIfEmpty(-1).First();
+            int dir = faces.Where(f => f.Actor == c.Actor && f.Pos > c.Pos && f.Pos < until).Select(f => f.Dir).DefaultIfEmpty(180).First();
+
             // Nearest placement of the same actor, preferring one after the costume is set.
             (int Pos, int Actor, int X, int Y)? best = null;
             int bestDist = int.MaxValue;
@@ -389,9 +433,64 @@ public static class RoomActors
                 int dist = pl.Pos >= c.Pos ? pl.Pos - c.Pos : (c.Pos - pl.Pos) * 2;
                 if (dist < bestDist) { bestDist = dist; best = pl; }
             }
-            if (best is { } b) pairs.Add((c.Actor, c.Costume, b.X, b.Y));
+            if (best is { } b) pairs.Add((c.Actor, c.Costume, b.X, b.Y, anim, dir));
         }
         return pairs;
+    }
+
+    /// <summary>
+    /// Several actors that one script dresses in the same costume and puts on the same spot are one
+    /// picture built in layers, each actor playing its own chore (banjo's strings): they become one
+    /// entry whose frame holds all their cels, in the script's order.
+    /// </summary>
+    private static List<RoomActor> MergeLayers(List<RoomActor> placed, Dictionary<RoomActor, int> scriptOf)
+    {
+        var result = new List<RoomActor>();
+        var done = new HashSet<RoomActor>();
+        foreach (var p in placed)
+        {
+            if (done.Contains(p)) continue;
+            var layers = p.IsPlayer ? new List<RoomActor> { p } : placed
+                .Where(o => !o.IsPlayer && scriptOf[o] == scriptOf[p] && ReferenceEquals(o.Akos, p.Akos) && o.X == p.X && o.Y == p.Y)
+                .ToList();
+            foreach (var l in layers) done.Add(l);
+            // Only layers that show different frames build a picture together; actors showing the same
+            // frame are separate characters that happen to share a costume (hang-dia's dioramas).
+            int distinctFrames = layers.Where(l => l.Frame != null)
+                .Select(l => string.Join(";", l.Frame.Cels)).Distinct().Count();
+            if (layers.Select(l => l.Actor).Distinct().Count() < 2 || distinctFrames < 2)
+            {
+                result.AddRange(layers);
+                continue;
+            }
+            var frame = new AkosFrame();
+            foreach (var l in layers)
+                if (l.Frame != null) frame.Cels.AddRange(l.Frame.Cels);
+            result.Add(new RoomActor
+            {
+                Actor = p.Actor, Actors = layers.Select(l => l.Actor).Distinct().ToList(), Costume = p.Costume, Akos = p.Akos,
+                X = p.X, Y = p.Y, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
+            });
+        }
+        return result;
+    }
+
+    /// <summary>The first frame of animation <paramref name="anim"/> facing <paramref name="degrees"/>, or null if it draws nothing.</summary>
+    private static AkosFrame Animated(AkosData d, int anim, int degrees)
+    {
+        if (anim < 0) return null;
+        int chore = AkosFrames.ChoreIndex(d, anim, AkosFrames.DirectionOf(d, degrees));
+        return AkosFrames.HasChore(d, chore) && AkosFrames.Compose(d, chore) is { IsEmpty: false } f ? f : null;
+    }
+
+    /// <summary>do-animation ops with literal arguments: (position, actor, animation).</summary>
+    private static List<(int Pos, int Actor, int Anim)> Animations(ReadOnlySpan<byte> s)
+    {
+        var anims = new List<(int Pos, int Actor, int Anim)>();
+        for (int p = 10; p < s.Length; p++)
+            if (s[p] == OpAnimateActor && Lit(s, p - 5, out int anim) && Lit(s, p - 10, out int actor))
+                anims.Add((p, actor, anim));
+        return anims;
     }
 
     /// <summary>actorOps setCurActor / setCostume pairs with literal arguments.</summary>
