@@ -13,6 +13,9 @@ public partial class App : Application
     {
         AvaloniaXamlLoader.Load(this);
         Controls.DockCollapseBehavior.Install();
+    #if DEBUG
+        this.AttachDeveloperTools();
+    #endif
     }
 
     public override void OnFrameworkInitializationCompleted()
