@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:dockTheme="using:Dock.Avalonia.Themes.Fluent"
              xmlns:dockCtl="using:Dock.Avalonia.Controls"
+             xmlns:dockCore="using:Dock.Model.Core"
              xmlns:dvm="using:MMUCS.Desktop.ViewModels.Docking"
              xmlns:views="using:MMUCS.Desktop.Views"
              xmlns:panels="using:MMUCS.Desktop.Views.Panels"
@@ -20,6 +21,15 @@
     <SolidColorBrush x:Key="DockTabActiveIndicatorBrush" Color="#707078" />
     <SolidColorBrush x:Key="DockTabSelectedForegroundBrush" Color="#F0F0F0" />
     <SolidColorBrush x:Key="DockTabCloseHoverBackgroundBrush" Color="#5A5A62" />
+
+    <!-- No outlines around panels: the only lines are the splitters, where panels can be resized. -->
+    <SolidColorBrush x:Key="DockBorderSubtleBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="DockBorderStrongBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="DockDocumentContentBorderBrush" Color="Transparent" />
+    <Thickness x:Key="DockDocumentContentBorderThickness">0</Thickness>
+    <SolidColorBrush x:Key="DockSplitterIdleBrush" Color="#2E2E33" />
+    <SolidColorBrush x:Key="DockSeparatorBrush" Color="Transparent" />
+    <x:Boolean x:Key="DockDocumentTabStripSeparatorVisible">False</x:Boolean>
   </Application.Resources>
 
   <!-- Panel content for each dockable. App-level so floating (host) windows resolve them too. -->
@@ -47,6 +57,32 @@
   <Application.Styles>
     <FluentTheme DensityStyle="Compact" />
     <dockTheme:DockFluentTheme />
+
+    <!-- Splitters (the theme leaves them transparent) show as thin lines: the only lines between
+         panels, marking where they can be resized. -->
+    <Style Selector="ProportionalStackPanelSplitter">
+      <Setter Property="Background" Value="{DynamicResource DockSplitterIdleBrush}" />
+    </Style>
+    <Style Selector="ProportionalStackPanelSplitter:pointerover">
+      <Setter Property="Background" Value="{DynamicResource DockSplitterHoverBrush}" />
+    </Style>
+
+    <!-- A tab whose panel got new content while hidden shows a white dot (Dock's "modified"
+         indicator, a * by default); bringing the tab forward clears it. -->
+    <Style Selector="dockCtl|DocumentControl">
+      <Setter Property="ModifiedTemplate">
+        <DataTemplate DataType="dockCore:IDockable">
+          <Ellipse Width="6" Height="6" Fill="White" VerticalAlignment="Center" Margin="2,0,4,0" />
+        </DataTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="dockCtl|ToolControl">
+      <Setter Property="ModifiedTemplate">
+        <DataTemplate DataType="dockCore:IDockable">
+          <Ellipse Width="6" Height="6" Fill="White" VerticalAlignment="Center" Margin="2,0,4,0" />
+        </DataTemplate>
+      </Setter>
+    </Style>
     
     <!-- Blue text selection highlight for both dark and light modes -->
     <Style Selector="TextBox">

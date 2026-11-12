@@ -30,6 +30,10 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
     public const string RoomId = "Room", CostumeId = "Costume", ScriptId = "Script";
 
     public static readonly string[] PanelIds = { BlocksId, MetadataId, HexId, RoomId, CostumeId, ScriptId };
+    public static readonly string[] ViewerIds = { RoomId, CostumeId, ScriptId };
+
+    /// <summary>The panels of the current layout, placed or hidden (set whenever panels are created).</summary>
+    public Dictionary<string, IDockable> Panels { get; private set; } = new();
 
     /// <summary>Creates the six panels (each layout gets fresh instances).</summary>
     public Dictionary<string, IDockable> CreatePanels()
@@ -44,7 +48,8 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
             return d;
         }
 
-        return new Dictionary<string, IDockable>
+        _hiddenAt.Clear();
+        return Panels = new Dictionary<string, IDockable>
         {
             [BlocksId] = Panel(new BlocksTool(main), BlocksId, "Blocks"),
             [MetadataId] = Panel(new MetadataTool(main), MetadataId, "Metadata"),
@@ -210,14 +215,145 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
         }
     }
 
-    /// <summary>Brings a panel to the front, wherever it is docked or floating.</summary>
+    /// <summary>Brings a panel to the front, wherever it is docked or floating (no-op when hidden).</summary>
     public void Activate(string id, IRootDock layout)
     {
-        if (layout == null) return;
-        var dockable = Find(d => d.Id == id).FirstOrDefault();
-        if (dockable == null) return;
+        if (FindPanel(id, layout) is not { } dockable) return;
         SetActiveDockable(dockable);
         if (dockable.Owner is IDock owner) SetFocusedDockable(owner, dockable);
+    }
+
+    /// <summary>The panel where it is placed: in the main window or a floating one; null when hidden.</summary>
+    public IDockable FindPanel(string id, IRootDock layout)
+    {
+        if (layout == null) return null;
+        if (FindIn(layout, d => d.Id == id && d is not IDock) is { } found) return found;
+        foreach (var w in layout.Windows ?? Enumerable.Empty<IDockWindow>())
+            if (w.Layout != null && FindIn(w.Layout, d => d.Id == id && d is not IDock) is { } inWindow) return inWindow;
+        return null;
+    }
+
+    private static IDockable FindIn(IDockable node, System.Func<IDockable, bool> match)
+    {
+        if (match(node)) return node;
+        if (node is IDock dock && dock.VisibleDockables != null)
+            foreach (var child in dock.VisibleDockables)
+                if (FindIn(child, match) is { } found) return found;
+        return null;
+    }
+
+    public bool IsPanelOpen(string id, IRootDock layout) => FindPanel(id, layout) != null;
+
+    /// <summary>Removes a panel from the layout; a floating window left empty is closed.</summary>
+    public void HidePanel(string id, IRootDock layout)
+    {
+        if (FindPanel(id, layout) is not { } panel) return;
+        _hiddenAt[id] = PlacementOf(panel);
+        RemoveDockable(panel, true);
+        foreach (var w in (layout.Windows ?? Enumerable.Empty<IDockWindow>()).ToList())
+            if (w.Layout == null || FindIn(w.Layout, d => d is not IDock && d is not IProportionalDockSplitter) == null)
+                w.Exit();
+    }
+
+    /// <summary>Where a hidden panel was: its dock (if it shared one), or the neighbour its own dock was split from.</summary>
+    private sealed record Placement(IDock Dock, int Index, IDockable Neighbour, DockOperation Side, string DockId, double Proportion);
+
+    private readonly Dictionary<string, Placement> _hiddenAt = new();
+
+    private static Placement PlacementOf(IDockable panel)
+    {
+        if (panel.Owner is not IDock dock) return null;
+        var items = dock.VisibleDockables;
+        if (items != null && items.Count > 1)
+            return new Placement(dock, items.IndexOf(panel), null, default, dock.Id, 0);
+
+        // Its dock goes away with it: remember the pane next to that dock in the split.
+        if (dock.Owner is not IProportionalDock split || split.VisibleDockables is not { } siblings) return null;
+        var panes = siblings.Where(d => d is not IProportionalDockSplitter).ToList();
+        int at = panes.IndexOf(dock);
+        if (at < 0 || panes.Count < 2) return null;
+        bool horizontal = split.Orientation == Orientation.Horizontal;
+        // Prefer the pane before it (the panel goes back after it), else the one after.
+        var neighbour = at > 0 ? panes[at - 1] : panes[at + 1];
+        var side = at > 0
+            ? (horizontal ? DockOperation.Right : DockOperation.Bottom)
+            : (horizontal ? DockOperation.Left : DockOperation.Top);
+        return new Placement(null, 0, neighbour, side, dock.Id, dock.Proportion);
+    }
+
+    private static bool Contains(IRootDock layout, IDockable target)
+    {
+        if (FindIn(layout, d => ReferenceEquals(d, target)) != null) return true;
+        foreach (var w in layout.Windows ?? Enumerable.Empty<IDockWindow>())
+            if (w.Layout != null && FindIn(w.Layout, d => ReferenceEquals(d, target)) != null) return true;
+        return false;
+    }
+
+    /// <summary>Puts a hidden panel back where it was hidden from, if that place still exists.</summary>
+    private bool TryRestorePlacement(string id, IDockable panel, IRootDock layout)
+    {
+        if (!_hiddenAt.Remove(id, out var at) || at == null) return false;
+        if (at.Dock != null && Contains(layout, at.Dock))
+        {
+            InsertDockable(at.Dock, panel, System.Math.Clamp(at.Index, 0, at.Dock.VisibleDockables?.Count ?? 0));
+            return true;
+        }
+        if (at.Neighbour is IDock neighbour && Contains(layout, neighbour))
+        {
+            IDock newDock = ViewerIds.Contains(id)
+                ? NewDocumentDock(at.DockId ?? $"{id}Dock", CreateList(panel))
+                : NewToolDock(at.DockId ?? $"{id}Dock", CreateList(panel));
+            SplitToDock(neighbour, newDock, at.Side);
+            EdgeDockSizing.Apply(newDock, at.Side, at.Proportion);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Shows a panel: brings it to the front if placed, otherwise puts it back where it was hidden
+    /// from, or (e.g. after its floating window was closed) with panels of its kind (viewers with
+    /// the documents, the others with the tool panels), or beside them when none are left.
+    /// </summary>
+    public void ShowPanel(string id, IRootDock layout)
+    {
+        if (layout == null) return;
+        if (FindPanel(id, layout) == null && Panels.TryGetValue(id, out var panel) && !TryRestorePlacement(id, panel, layout))
+        {
+            bool viewer = ViewerIds.Contains(id);
+            var main = layout.DefaultDockable ?? layout.VisibleDockables?.FirstOrDefault();
+            IDock sameKind = main == null ? null : (IDock)(viewer
+                ? FindIn(main, d => d is IDocumentDock)
+                : FindIn(main, d => d is IToolDock));
+            if (sameKind != null)
+            {
+                AddDockable(sameKind, panel);
+            }
+            else
+            {
+                IDock newDock = viewer
+                    ? NewDocumentDock($"{id}Dock", CreateList(panel))
+                    : NewToolDock($"{id}Dock", CreateList(panel));
+                var anchor = main == null ? null : (IDock)FindIn(main, d => d is IToolDock or IDocumentDock);
+                if (anchor != null)
+                {
+                    var op = viewer ? DockOperation.Right : DockOperation.Left;
+                    SplitToDock(anchor, newDock, op);
+                    EdgeDockSizing.Apply(newDock, op);
+                }
+                else
+                {
+                    // Nothing left in the main window: the panel becomes its content.
+                    newDock.Proportion = double.NaN;
+                    var content = new ProportionalDock { Id = "MainDock", Orientation = Orientation.Horizontal, VisibleDockables = CreateList<IDockable>(newDock) };
+                    layout.VisibleDockables = CreateList<IDockable>(content);
+                    layout.DefaultDockable = content;
+                    layout.ActiveDockable = content;
+                    InitDockable(content, layout);
+                }
+            }
+        }
+        Activate(id, layout);
     }
 }
 
@@ -229,7 +365,8 @@ public static class EdgeDockSizing
 {
     public const double SideProportion = 0.22;
 
-    public static void Apply(IDockable dockable, DockOperation operation)
+    /// <param name="share">The new pane's share of the split; 0 picks the default (side panel or equal).</param>
+    public static void Apply(IDockable dockable, DockOperation operation, double share = 0)
     {
         if (dockable == null || operation is not (DockOperation.Left or DockOperation.Right or DockOperation.Top or DockOperation.Bottom))
             return;
@@ -240,19 +377,19 @@ public static class EdgeDockSizing
         IDockable split = dockable;
         while (split.Owner is IDockable parent)
         {
-            if (parent is IProportionalDock pd && pd.Orientation == orientation && ResizeSplit(pd, split))
+            if (parent is IProportionalDock pd && pd.Orientation == orientation && ResizeSplit(pd, split, share))
                 return;
             split = parent;
         }
     }
 
-    private static bool ResizeSplit(IProportionalDock parent, IDockable split)
+    private static bool ResizeSplit(IProportionalDock parent, IDockable split, double requested = 0)
     {
         var panes = parent.VisibleDockables?.Where(d => d is not IProportionalDockSplitter).ToList();
         if (panes == null || panes.Count < 2 || !panes.Contains(split)) return false;
 
         bool besideDocuments = panes.Any(p => !ReferenceEquals(p, split) && ContainsDocuments(p));
-        double share = besideDocuments ? SideProportion : 1.0 / panes.Count;
+        double share = requested is > 0 and < 1 ? requested : besideDocuments ? SideProportion : 1.0 / panes.Count;
 
         var others = panes.Where(p => !ReferenceEquals(p, split)).ToList();
         double othersTotal = others.Sum(p => double.IsFinite(p.Proportion) && p.Proportion > 0 ? p.Proportion : 0);

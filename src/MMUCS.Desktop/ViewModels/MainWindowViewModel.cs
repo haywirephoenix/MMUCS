@@ -93,6 +93,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _layout = DockLayoutStore.TryRestore(DockFactory, saved) ?? DockFactory.CreateLayout();
         DockFactory.InitLayout(_layout);
 
+        DockFactory.ActiveDockableChanged += (_, e) => { if (e.Dockable is { IsModified: true } d) d.IsModified = false; };
         Room.BlockFocusRequested += RevealFromViewer;
         Script.BlockFocusRequested += RevealFromViewer;
         Script.ShowScumm = Settings.ScriptShowScumm;
@@ -127,7 +128,27 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }, Layout);
 
     /// <summary>Brings a panel (by dock id) to the front.</summary>
-    public void ShowPanel(string id) => DockFactory.Activate(id, Layout);
+    /// <summary>
+    /// Brings a viewer forward. The index alone isn't enough: a tab clicked by hand doesn't change
+    /// it, so setting the same value again wouldn't switch back.
+    /// </summary>
+    private void ShowViewer(ViewerTab tab)
+    {
+        if (SelectedViewerIndex != (int)tab) SelectedViewerIndex = (int)tab; // activates via OnSelectedViewerIndexChanged
+        else OnSelectedViewerIndexChanged((int)tab);
+    }
+
+    /// <summary>Brings a panel to the front, putting it back first if it was hidden or its window closed.</summary>
+    public void ShowPanel(string id) => DockFactory.ShowPanel(id, Layout);
+
+    public bool IsPanelOpen(string id) => DockFactory.IsPanelOpen(id, Layout);
+
+    /// <summary>Hides a placed panel, or puts a hidden one back.</summary>
+    public void TogglePanel(string id)
+    {
+        if (IsPanelOpen(id)) DockFactory.HidePanel(id, Layout);
+        else ShowPanel(id);
+    }
 
     /// <summary>Closes floating windows and rebuilds the default arrangement.</summary>
     public void ResetLayout()
@@ -224,9 +245,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
             });
 
             _rootBlock = root;
+            _selectionKey = files.Count > 0 ? Path.GetFullPath(files[0]).ToLowerInvariant() : null;
             OnPropertyChanged(nameof(HasProject));
             SelectedNode = null;
             ApplyFilter();
+            RestoreSelection();
 
             string names = string.Join(", ", files.Select(Path.GetFileName));
             Title = $"MMUCS {AppInfo.Version} — {names}";
@@ -381,6 +404,72 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private static int CountBlocks(ScummBlock b) => 1 + b.Children.Sum(CountBlocks);
 
+    // ── Selection memory ──────────────────────────────────────────────────────
+
+    private string _selectionKey;
+    private ScummBlock _lastRoom;
+    private DispatcherTimer _selectionSave;
+
+    /// <summary>A block's place in the tree as child indices from the root ("2/0/14"), stable while the file is.</summary>
+    private static string PathOf(ScummBlock b)
+    {
+        var parts = new List<int>();
+        for (; b?.Parent != null; b = b.Parent) parts.Add(b.Parent.Children.IndexOf(b));
+        parts.Reverse();
+        return string.Join("/", parts);
+    }
+
+    private static ScummBlock BlockAt(ScummBlock root, string path)
+    {
+        var b = root;
+        if (string.IsNullOrEmpty(path)) return b;
+        foreach (var part in path.Split('/'))
+        {
+            if (!int.TryParse(part, out int i) || i < 0 || i >= b.Children.Count) return null;
+            b = b.Children[i];
+        }
+        return b;
+    }
+
+    /// <summary>Selects the block that was selected when this game was last open.</summary>
+    private void RestoreSelection()
+    {
+        if (_rootBlock == null || _selectionKey == null || !Settings.LastSelection.TryGetValue(_selectionKey, out var path)) return;
+        if (BlockAt(_rootBlock, path) is { } block && Reveal(block, expandTarget: false) is { } node)
+            SelectedNode = node;
+    }
+
+    /// <summary>Remembers the selection (written after a short pause so arrowing through the tree doesn't write each step).</summary>
+    private void RememberSelection(ScummBlock block)
+    {
+        if (_selectionKey == null || block == null) return;
+        Settings.LastSelection[_selectionKey] = PathOf(block);
+        if (_selectionSave == null)
+        {
+            _selectionSave = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
+            _selectionSave.Tick += (_, _) => { _selectionSave.Stop(); Settings.Save(); };
+        }
+        _selectionSave.Stop();
+        _selectionSave.Start();
+    }
+
+    // ── Tab update dots ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Marks a viewer's tab when it was given new content while another tab is in front (Dock draws
+    /// IsModified as a dot on the tab); bringing the tab forward clears it.
+    /// </summary>
+    private void MarkUpdated(string panelId)
+    {
+        // Checked after the routing finishes: the viewer may be brought to the front right after loading.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (DockFactory.FindPanel(panelId, Layout) is { } panel && panel.Owner is Dock.Model.Core.IDock owner
+                && !ReferenceEquals(owner.ActiveDockable, panel))
+                panel.IsModified = true;
+        }, DispatcherPriority.Background);
+    }
+
     partial void OnSelectedNodeChanged(BlockNodeViewModel value)
     {
         Metadata.Clear();
@@ -391,6 +480,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
 
         var b = value.Block;
+        RememberSelection(b);
         Metadata.Add(new("Tag", value.Tag));
         if (!string.IsNullOrEmpty(b.FullName)) Metadata.Add(new("Name", b.FullName));
         if (!string.IsNullOrEmpty(b.Description)) Metadata.Add(new("Description", b.Description));
@@ -421,7 +511,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (akos != null)
         {
             _ = Costume.LoadAsync(akos);
-            if (!_selectingFromViewer) SelectedViewerIndex = (int)ViewerTab.Costume;
+            MarkUpdated(MmucsDockFactory.CostumeId);
+            if (!_selectingFromViewer) ShowViewer(ViewerTab.Costume);
             return;
         }
         if (_selectingFromViewer) return; // the viewer already shows it
@@ -429,20 +520,22 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (ScriptTags.Contains(b.Tag))
         {
             Script.Show(b);
-            SelectedViewerIndex = (int)ViewerTab.Script;
+            ShowViewer(ViewerTab.Script);
             return;
         }
-        Script.ShowRoom(b); // the Script viewer lists the selected room's scripts
+        if (Script.ShowRoom(b)) MarkUpdated(MmucsDockFactory.ScriptId); // the Script viewer lists the selected room's scripts
 
         if ((b.Tag == ScummTag.LFLF || b.FindParent(ScummTag.LFLF) != null) && RoomModel.TryCreate(b, out var room))
         {
+            if (!ReferenceEquals(_lastRoom, room.Lflf)) MarkUpdated(MmucsDockFactory.RoomId);
+            _lastRoom = room.Lflf;
             _ = Room.LoadAsync(room);
             if (b.Tag == ScummTag.OBIM || b.FindParent(ScummTag.OBIM) is { } obim)
             {
                 var target = b.Tag == ScummTag.OBIM ? b : b.FindParent(ScummTag.OBIM);
                 Room.SelectedObject = room.Objects.FirstOrDefault(o => ReferenceEquals(o.Block, target));
             }
-            SelectedViewerIndex = (int)ViewerTab.Room;
+            ShowViewer(ViewerTab.Room);
         }
     }
 }

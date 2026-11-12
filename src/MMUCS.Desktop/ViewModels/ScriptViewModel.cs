@@ -43,22 +43,23 @@ public sealed partial class ScriptViewModel : ObservableObject
         Refresh();
     }
 
-    /// <summary>Lists the scripts of the room containing <paramref name="any"/> (no-op for the same room).</summary>
-    public void ShowRoom(ScummBlock any)
+    /// <summary>Lists the scripts of the room containing <paramref name="any"/>; false when it's the same room.</summary>
+    public bool ShowRoom(ScummBlock any)
     {
         var lflf = any?.Tag == ScummTag.LFLF ? any : any?.FindParent(ScummTag.LFLF);
-        if (ReferenceEquals(lflf, _lflf)) return;
+        if (ReferenceEquals(lflf, _lflf)) return false;
         _lflf = lflf;
         Scripts.Clear();
         if (lflf == null)
         {
             Title = "No room";
-            return;
+            return true;
         }
         foreach (var e in RoomScripts.List(lflf)) Scripts.Add(e);
         Title = RoomModel.TryCreate(lflf, out var room)
             ? $"Room {room.RoomNo}{(string.IsNullOrEmpty(room.Name) ? "" : $"  {room.Name}")}  —  {Scripts.Count} scripts"
             : $"{Scripts.Count} scripts";
+        return true;
     }
 
     /// <summary>Shows a script block chosen in the hierarchy, selecting it in the sidebar.</summary>

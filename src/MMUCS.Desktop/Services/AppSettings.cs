@@ -24,6 +24,8 @@ public sealed class AppSettings
     public bool ColorizeTags { get; set; } = true;
     /// <summary>Script viewer shows decompiled SCUMM (true) or the instruction listing.</summary>
     public bool ScriptShowScumm { get; set; } = true;
+    /// <summary>Per opened game (its first resource file): the selected hierarchy block, as child indices from the root.</summary>
+    public System.Collections.Generic.Dictionary<string, string> LastSelection { get; set; } = new();
     /// <summary>Manual object → costume links ("room/object name" → costume number, 0 = none).</summary>
     public System.Collections.Generic.Dictionary<string, int> CostumeLinks { get; set; } = new();
 

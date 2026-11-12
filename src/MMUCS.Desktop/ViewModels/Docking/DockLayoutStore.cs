@@ -190,8 +190,9 @@ public static class DockLayoutStore
                 root.Windows.Add(window);
             }
 
-            // Every panel must be placed exactly once, or the file doesn't match this version's panels.
-            if (!MmucsDockFactory.PanelIds.All(used.Contains)) return null;
+            // Panels the user hid stay hidden (the Window menu brings them back); a layout with
+            // none of this version's panels doesn't fit it.
+            if (used.Count == 0) return null;
             return root;
         }
         catch (Exception ex)

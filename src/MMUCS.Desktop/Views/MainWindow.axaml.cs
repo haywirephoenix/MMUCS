@@ -19,6 +19,7 @@ namespace MMUCS.Desktop.Views;
 public partial class MainWindow : Window
 {
     private NativeMenu _recentMenu;
+    private readonly System.Collections.Generic.Dictionary<string, NativeMenuItem> _panelItems = new();
     private PixelPoint _normalPosition;
     private Size _normalSize;
     private bool _placementApplied;
@@ -178,14 +179,35 @@ public partial class MainWindow : Window
             file.Items.Add(Item("Exit", new RelayCommand(Close)));
         }
 
-        var view = new NativeMenu();
-        view.Items.Add(Item("Room", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.RoomId)), Shortcut(Key.D1)));
-        view.Items.Add(Item("Costume", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.CostumeId)), Shortcut(Key.D2)));
-        view.Items.Add(Item("Script", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.ScriptId)), Shortcut(Key.D3)));
-        view.Items.Add(new NativeMenuItemSeparator());
-        view.Items.Add(Item("Blocks", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.BlocksId))));
-        view.Items.Add(Item("Metadata", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.MetadataId))));
-        view.Items.Add(Item("Hex", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.HexId))));
+        // Window: a checkbox per panel, ticked while it is placed (docked or floating). Unticking
+        // hides it; ticking brings it back, e.g. after closing a floating panel's window.
+        var window = new NativeMenu();
+        void PanelItem(string id, string title, Key? key = null)
+        {
+            var item = new NativeMenuItem(title)
+            {
+                ToggleType = MenuItemToggleType.CheckBox,
+                Gesture = key is { } k ? Shortcut(k) : null,
+            };
+            item.Command = new RelayCommand(() =>
+            {
+                Vm.TogglePanel(id);
+                item.IsChecked = Vm.IsPanelOpen(id);
+            });
+            _panelItems[id] = item;
+            window.Items.Add(item);
+            // The shortcut shows a viewer (it doesn't hide one that's already open).
+            if (key is { } gesture && !OperatingSystem.IsMacOS())
+                KeyBindings.Add(new KeyBinding { Gesture = Shortcut(gesture), Command = new RelayCommand(() => Vm.ShowPanel(id)) });
+        }
+        PanelItem(MmucsDockFactory.RoomId, "Room", Key.D1);
+        PanelItem(MmucsDockFactory.CostumeId, "Costume", Key.D2);
+        PanelItem(MmucsDockFactory.ScriptId, "Script", Key.D3);
+        window.Items.Add(new NativeMenuItemSeparator());
+        PanelItem(MmucsDockFactory.BlocksId, "Blocks");
+        PanelItem(MmucsDockFactory.MetadataId, "Metadata");
+        PanelItem(MmucsDockFactory.HexId, "Hex");
+        window.Opening += (_, _) => UpdatePanelItems();
 
         // Layout templates will join this menu later.
         var layout = new NativeMenu();
@@ -193,7 +215,7 @@ public partial class MainWindow : Window
 
         var menu = new NativeMenu();
         menu.Items.Add(new NativeMenuItem("File") { Menu = file });
-        menu.Items.Add(new NativeMenuItem("View") { Menu = view });
+        menu.Items.Add(new NativeMenuItem("Window") { Menu = window });
         menu.Items.Add(new NativeMenuItem("Layout") { Menu = layout });
         NativeMenu.SetMenu(this, menu);
 
@@ -201,13 +223,14 @@ public partial class MainWindow : Window
         // (On macOS the system menu handles its own key equivalents.)
         if (!OperatingSystem.IsMacOS())
         {
-            foreach (var item in new[] { file, view }.SelectMany(m => m.Items).OfType<NativeMenuItem>())
+            foreach (var item in file.Items.OfType<NativeMenuItem>())
                 if (item.Gesture != null && item.Command != null)
                     KeyBindings.Add(new KeyBinding { Gesture = item.Gesture, Command = item.Command });
         }
 
         RebuildRecentMenu();
         UpdateMenuState();
+        UpdatePanelItems();
     }
 
     private void RebuildRecentMenu()
@@ -235,6 +258,12 @@ public partial class MainWindow : Window
     {
         if (e.PropertyName is nameof(MainWindowViewModel.HasProject) or nameof(MainWindowViewModel.ReopenLastFileOnStartup))
             UpdateMenuState();
+    }
+
+    /// <summary>Ticks the Window menu's panels that are placed (a closed floating window unticks its panel).</summary>
+    private void UpdatePanelItems()
+    {
+        foreach (var (id, item) in _panelItems) item.IsChecked = Vm.IsPanelOpen(id);
     }
 
     private void UpdateMenuState()
