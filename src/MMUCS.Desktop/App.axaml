@@ -19,6 +19,17 @@
     <SolidColorBrush x:Key="PanelHeaderBrush" Color="#000000" />
     <SolidColorBrush x:Key="ListBackgroundBrush" Color="#000000" />
     <SolidColorBrush x:Key="SubtleTextBrush" Color="#99FFFFFF" />
+    <!-- Script viewer syntax colours. -->
+    <SolidColorBrush x:Key="ScriptOffsetBrush" Color="#5C6370" />
+    <SolidColorBrush x:Key="ScriptBytesBrush" Color="#7F848E" />
+    <SolidColorBrush x:Key="ScriptCommentBrush" Color="#6A9955" />
+    <SolidColorBrush x:Key="ScriptKeywordBrush" Color="#C586C0" />
+    <SolidColorBrush x:Key="ScriptCommandBrush" Color="#569CD6" />
+    <SolidColorBrush x:Key="ScriptFunctionBrush" Color="#DCDCAA" />
+    <SolidColorBrush x:Key="ScriptVariableBrush" Color="#9CDCFE" />
+    <SolidColorBrush x:Key="ScriptNumberBrush" Color="#B5CEA8" />
+    <SolidColorBrush x:Key="ScriptStringBrush" Color="#CE9178" />
+    <SolidColorBrush x:Key="ScriptLabelBrush" Color="#4EC9B0" />
 
     <!-- Dock tabs: neutral greys instead of the theme's blue for hovered/active tabs. App resources
          take precedence over the Dock theme's. (Drop targets and splitters keep the blue accent.) -->

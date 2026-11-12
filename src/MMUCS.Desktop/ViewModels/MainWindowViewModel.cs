@@ -98,10 +98,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Room.BlockFocusRequested += RevealFromViewer;
         Script.BlockFocusRequested += RevealFromViewer;
         Script.ShowScumm = Settings.ScriptShowScumm;
+        Script.ShowOffsets = Settings.ScriptShowOffsets;
         Script.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName != nameof(ScriptViewModel.ShowScumm)) return;
+            if (e.PropertyName is not (nameof(ScriptViewModel.ShowScumm) or nameof(ScriptViewModel.ShowOffsets))) return;
+            if (Settings.ScriptShowScumm == Script.ShowScumm && Settings.ScriptShowOffsets == Script.ShowOffsets) return;
             Settings.ScriptShowScumm = Script.ShowScumm;
+            Settings.ScriptShowOffsets = Script.ShowOffsets;
             Settings.Save();
         };
         ApplyRoomViewOptions();

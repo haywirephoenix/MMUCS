@@ -15,6 +15,8 @@
                      ToolTip.Tip="Decompiled SCUMM source" />
         <RadioButton GroupName="ScriptMode" Content="Instructions" IsChecked="{Binding ShowInstructions}" Margin="0,0,12,0"
                      ToolTip.Tip="The bytecode, one instruction per line" />
+        <CheckBox Content="Offsets" IsChecked="{Binding ShowOffsets}" Margin="0,0,12,0" FontSize="11"
+                  ToolTip.Tip="Show each line's byte offset (hex, from the start of the block's data)" />
         <TextBlock Text="{Binding Info}" VerticalAlignment="Center" FontSize="11"
                    Foreground="{StaticResource SubtleTextBrush}" />
       </WrapPanel>
@@ -41,7 +43,7 @@
       <GridSplitter x:Name="ScriptsSplitter" Grid.Column="1" ResizeDirection="Columns" />
 
       <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto">
-        <SelectableTextBlock Text="{Binding Text}" Classes="mono" FontFamily="{StaticResource MonoFont}"
+        <SelectableTextBlock x:Name="Code" Classes="mono" FontFamily="{StaticResource MonoFont}"
                              FontSize="12" Margin="10" />
       </ScrollViewer>
     </Grid>

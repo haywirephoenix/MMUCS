@@ -4,7 +4,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Collections.Generic;
 using MMUCS.Core.Scumm;
+using MMUCS.Desktop.Services;
 
 namespace MMUCS.Desktop.ViewModels;
 
@@ -23,6 +25,10 @@ public sealed partial class ScriptViewModel : ObservableObject
     /// <summary>SCUMM source (true) or the instruction listing (false).</summary>
     [ObservableProperty] private bool _showScumm = true;
     [ObservableProperty] private bool _showScriptsPanel = true;
+    /// <summary>The script as coloured runs (null while <see cref="Text"/> is a message).</summary>
+    [ObservableProperty] private IReadOnlyList<ScriptToken> _tokens;
+    /// <summary>Show each line's byte offset in the gutter.</summary>
+    [ObservableProperty] private bool _showOffsets = true;
 
     /// <summary>A script picked in the sidebar: the hierarchy follows without switching viewers.</summary>
     public event Action<ScummBlock> BlockFocusRequested;
@@ -96,6 +102,7 @@ public sealed partial class ScriptViewModel : ObservableObject
         var entry = SelectedScript;
         if (entry == null)
         {
+            Tokens = null;
             Text = Scripts.Count > 0 ? "Select a script." : "This room has no scripts.";
             Info = null;
             return;
@@ -106,17 +113,29 @@ public sealed partial class ScriptViewModel : ObservableObject
         try
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var text = await Task.Run(() => scumm
-                ? ScummDecompiler.Format(RoomScripts.Decompile(entry))
-                : RoomScripts.Disassemble(entry), cts.Token);
+            var (text, tokens) = await Task.Run(() =>
+            {
+                if (scumm)
+                {
+                    var lines = RoomScripts.Decompile(entry);
+                    return (ScummDecompiler.Format(lines), ScriptHighlighter.Scumm(lines));
+                }
+                var listing = RoomScripts.Disassemble(entry);
+                return (listing, ScriptHighlighter.Listing(listing));
+            }, cts.Token);
             if (cts.IsCancellationRequested) return;
+            Tokens = text.Length > 0 ? tokens : null;
             Text = text.Length > 0 ? text : "(empty)";
             Info = $"{entry.Detail}  ·  {text.Count(c => c == '\n'):N0} lines  ·  {sw.ElapsedMilliseconds} ms";
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            if (!cts.IsCancellationRequested) Text = $"Couldn't decode this script: {ex.Message}";
+            if (!cts.IsCancellationRequested)
+            {
+                Tokens = null;
+                Text = $"Couldn't decode this script: {ex.Message}";
+            }
         }
     }
 }

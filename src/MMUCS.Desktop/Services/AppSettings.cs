@@ -24,6 +24,8 @@ public sealed class AppSettings
     public bool ColorizeTags { get; set; } = true;
     /// <summary>Script viewer shows decompiled SCUMM (true) or the instruction listing.</summary>
     public bool ScriptShowScumm { get; set; } = true;
+    /// <summary>Script viewer shows byte offsets in the gutter.</summary>
+    public bool ScriptShowOffsets { get; set; } = true;
     /// <summary>Costume viewer: also play the chore in the Room viewer.</summary>
     public bool CostumePlayInPlace { get; set; } = true;
     /// <summary>The Room viewer's View menu and Objects panel toggle.</summary>
