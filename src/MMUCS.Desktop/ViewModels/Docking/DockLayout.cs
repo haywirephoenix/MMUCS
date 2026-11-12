@@ -248,38 +248,25 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
     public void HidePanel(string id, IRootDock layout)
     {
         if (FindPanel(id, layout) is not { } panel) return;
-        _hiddenAt[id] = PlacementOf(panel);
-        RemoveDockable(panel, true);
+        // The dock stays (empty docks collapse to nothing), so the panel can go back into it.
+        if (panel.Owner is IDock dock) _hiddenAt[id] = new Placement(dock, dock.VisibleDockables?.IndexOf(panel) ?? 0);
+        RemoveDockable(panel, false);
         foreach (var w in (layout.Windows ?? Enumerable.Empty<IDockWindow>()).ToList())
             if (w.Layout == null || FindIn(w.Layout, d => d is not IDock && d is not IProportionalDockSplitter) == null)
                 w.Exit();
     }
 
-    /// <summary>Where a hidden panel was: its dock (if it shared one), or the neighbour its own dock was split from.</summary>
-    private sealed record Placement(IDock Dock, int Index, IDockable Neighbour, DockOperation Side, string DockId, double Proportion);
+    /// <summary>Where a hidden panel was: the dock it left (kept, empty and collapsed, while it's hidden).</summary>
+    private sealed record Placement(IDock Dock, int Index);
 
     private readonly Dictionary<string, Placement> _hiddenAt = new();
 
-    private static Placement PlacementOf(IDockable panel)
-    {
-        if (panel.Owner is not IDock dock) return null;
-        var items = dock.VisibleDockables;
-        if (items != null && items.Count > 1)
-            return new Placement(dock, items.IndexOf(panel), null, default, dock.Id, 0);
+    /// <summary>The hidden panels that go back into <paramref name="dock"/> (saved with the layout).</summary>
+    public List<string> HiddenIn(IDock dock) =>
+        _hiddenAt.Where(kv => ReferenceEquals(kv.Value.Dock, dock)).OrderBy(kv => kv.Value.Index).Select(kv => kv.Key).ToList();
 
-        // Its dock goes away with it: remember the pane next to that dock in the split.
-        if (dock.Owner is not IProportionalDock split || split.VisibleDockables is not { } siblings) return null;
-        var panes = siblings.Where(d => d is not IProportionalDockSplitter).ToList();
-        int at = panes.IndexOf(dock);
-        if (at < 0 || panes.Count < 2) return null;
-        bool horizontal = split.Orientation == Orientation.Horizontal;
-        // Prefer the pane before it (the panel goes back after it), else the one after.
-        var neighbour = at > 0 ? panes[at - 1] : panes[at + 1];
-        var side = at > 0
-            ? (horizontal ? DockOperation.Right : DockOperation.Bottom)
-            : (horizontal ? DockOperation.Left : DockOperation.Top);
-        return new Placement(null, 0, neighbour, side, dock.Id, dock.Proportion);
-    }
+    /// <summary>Records a hidden panel's dock when a saved layout is restored.</summary>
+    public void RememberHidden(string id, IDock dock) => _hiddenAt[id] = new Placement(dock, int.MaxValue);
 
     private static bool Contains(IRootDock layout, IDockable target)
     {
@@ -289,25 +276,12 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
         return false;
     }
 
-    /// <summary>Puts a hidden panel back where it was hidden from, if that place still exists.</summary>
+    /// <summary>Puts a hidden panel back into the dock it was hidden from, if that dock is still in the layout.</summary>
     private bool TryRestorePlacement(string id, IDockable panel, IRootDock layout)
     {
-        if (!_hiddenAt.Remove(id, out var at) || at == null) return false;
-        if (at.Dock != null && Contains(layout, at.Dock))
-        {
-            InsertDockable(at.Dock, panel, System.Math.Clamp(at.Index, 0, at.Dock.VisibleDockables?.Count ?? 0));
-            return true;
-        }
-        if (at.Neighbour is IDock neighbour && Contains(layout, neighbour))
-        {
-            IDock newDock = ViewerIds.Contains(id)
-                ? NewDocumentDock(at.DockId ?? $"{id}Dock", CreateList(panel))
-                : NewToolDock(at.DockId ?? $"{id}Dock", CreateList(panel));
-            SplitToDock(neighbour, newDock, at.Side);
-            EdgeDockSizing.Apply(newDock, at.Side, at.Proportion);
-            return true;
-        }
-        return false;
+        if (!_hiddenAt.Remove(id, out var at) || !Contains(layout, at.Dock)) return false;
+        InsertDockable(at.Dock, panel, System.Math.Clamp(at.Index, 0, at.Dock.VisibleDockables?.Count ?? 0));
+        return true;
     }
 
     /// <summary>
@@ -365,8 +339,7 @@ public static class EdgeDockSizing
 {
     public const double SideProportion = 0.22;
 
-    /// <param name="share">The new pane's share of the split; 0 picks the default (side panel or equal).</param>
-    public static void Apply(IDockable dockable, DockOperation operation, double share = 0)
+    public static void Apply(IDockable dockable, DockOperation operation)
     {
         if (dockable == null || operation is not (DockOperation.Left or DockOperation.Right or DockOperation.Top or DockOperation.Bottom))
             return;
@@ -377,19 +350,19 @@ public static class EdgeDockSizing
         IDockable split = dockable;
         while (split.Owner is IDockable parent)
         {
-            if (parent is IProportionalDock pd && pd.Orientation == orientation && ResizeSplit(pd, split, share))
+            if (parent is IProportionalDock pd && pd.Orientation == orientation && ResizeSplit(pd, split))
                 return;
             split = parent;
         }
     }
 
-    private static bool ResizeSplit(IProportionalDock parent, IDockable split, double requested = 0)
+    private static bool ResizeSplit(IProportionalDock parent, IDockable split)
     {
         var panes = parent.VisibleDockables?.Where(d => d is not IProportionalDockSplitter).ToList();
         if (panes == null || panes.Count < 2 || !panes.Contains(split)) return false;
 
         bool besideDocuments = panes.Any(p => !ReferenceEquals(p, split) && ContainsDocuments(p));
-        double share = requested is > 0 and < 1 ? requested : besideDocuments ? SideProportion : 1.0 / panes.Count;
+        double share = besideDocuments ? SideProportion : 1.0 / panes.Count;
 
         var others = panes.Where(p => !ReferenceEquals(p, split)).ToList();
         double othersTotal = others.Sum(p => double.IsFinite(p.Proportion) && p.Proportion > 0 ? p.Proportion : 0);

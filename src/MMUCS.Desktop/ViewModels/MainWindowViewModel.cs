@@ -66,7 +66,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public WindowPlacement SavedMainWindow { get; }
 
     /// <summary>Persists the panel layout, floating windows and main window placement.</summary>
-    public void SaveLayout(WindowPlacement mainWindow) => DockLayoutStore.Save(Layout, mainWindow);
+    public void SaveLayout(WindowPlacement mainWindow) => DockLayoutStore.Save(Layout, mainWindow, DockFactory.HiddenIn);
 
     /// <summary>Raised by Ctrl+F; the Blocks panel focuses its filter box wherever it is docked.</summary>
     public event Action FocusFilterRequested;

@@ -73,13 +73,16 @@ public static class DockLayoutStore
         public double Proportion { get; set; } = double.NaN;
         public string Active { get; set; }
         public List<string> Panels { get; set; }
+        /// <summary>Hidden panels that go back into this dock (it is kept, empty, while they're hidden).</summary>
+        public List<string> Hidden { get; set; }
         public List<Node> Children { get; set; }
     }
 
     // ── Save ─────────────────────────────────────────────────────────────────
 
-    public static void Save(IRootDock layout, WindowPlacement mainWindow)
+    public static void Save(IRootDock layout, WindowPlacement mainWindow, Func<IDock, List<string>> hiddenIn = null)
     {
+        _hiddenIn = hiddenIn;
         try
         {
             if (layout?.VisibleDockables is not { Count: > 0 }) return;
@@ -115,9 +118,17 @@ public static class DockLayoutStore
         }
     }
 
+    private static Func<IDock, List<string>> _hiddenIn;
+
+    /// <summary>Hidden panels that belong in a dock; null when none (keeps the file unchanged for most docks).</summary>
+    private static List<string> Hidden(IDock dock) => _hiddenIn?.Invoke(dock) is { Count: > 0 } ids ? ids : null;
+
     private static Node Capture(IDockable d)
     {
         double proportion = DockCollapseBehavior.GetPersistedProportion(d);
+        // An emptied dock (its panels hidden) is collapsed: keep the size it had while open.
+        if (d is IDock { IsEmpty: true, IsCollapsable: true } && double.IsFinite(d.CollapsedProportion) && d.CollapsedProportion > 0)
+            proportion = d.CollapsedProportion;
         return d switch
         {
             IProportionalDock p => new Node
@@ -137,6 +148,7 @@ public static class DockLayoutStore
                 Proportion = proportion,
                 Active = t.ActiveDockable?.Id,
                 Panels = (t.VisibleDockables ?? new List<IDockable>()).Select(v => v.Id).ToList(),
+                Hidden = Hidden(t),
             },
             IDocumentDock dd => new Node
             {
@@ -145,6 +157,7 @@ public static class DockLayoutStore
                 Proportion = proportion,
                 Active = dd.ActiveDockable?.Id,
                 Panels = (dd.VisibleDockables ?? new List<IDockable>()).Select(v => v.Id).ToList(),
+                Hidden = Hidden(dd),
             },
             _ => new Node { Kind = "panel", Id = d.Id, Proportion = proportion },
         };
@@ -240,15 +253,21 @@ public static class DockLayoutStore
             case "tools":
             {
                 var list = TakePanels();
-                if (list.Count == 0) return null;
-                result = factory.NewToolDock(node.Id, list, list.FirstOrDefault(p => p.Id == node.Active));
+                var hidden = HiddenPanels(node, panels);
+                if (list.Count == 0 && hidden.Count == 0) return null;
+                var dock = factory.NewToolDock(node.Id, list, list.FirstOrDefault(p => p.Id == node.Active));
+                foreach (var id in hidden) factory.RememberHidden(id, dock);
+                result = dock;
                 break;
             }
             case "documents":
             {
                 var list = TakePanels();
-                if (list.Count == 0) return null;
-                result = factory.NewDocumentDock(node.Id, list, list.FirstOrDefault(p => p.Id == node.Active));
+                var hidden = HiddenPanels(node, panels);
+                if (list.Count == 0 && hidden.Count == 0) return null;
+                var dock = factory.NewDocumentDock(node.Id, list, list.FirstOrDefault(p => p.Id == node.Active));
+                foreach (var id in hidden) factory.RememberHidden(id, dock);
+                result = dock;
                 break;
             }
             case "panel":
@@ -264,6 +283,10 @@ public static class DockLayoutStore
         if (double.IsFinite(node.Proportion) && node.Proportion > 0) result.Proportion = node.Proportion;
         return result;
     }
+
+    /// <summary>A dock's hidden panels that this version knows (an empty dock is kept for them).</summary>
+    private static List<string> HiddenPanels(Node node, Dictionary<string, IDockable> panels) =>
+        (node.Hidden ?? new List<string>()).Where(id => id != null && panels.ContainsKey(id)).Distinct().ToList();
 
     /// <summary>Scales sibling proportions to sum to 1 (dropped panes leave gaps otherwise).</summary>
     private static void Normalize(List<IDockable> children)
