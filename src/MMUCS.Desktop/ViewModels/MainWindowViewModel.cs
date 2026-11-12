@@ -104,6 +104,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
             Settings.ScriptShowScumm = Script.ShowScumm;
             Settings.Save();
         };
+        ApplyRoomViewOptions();
+        Room.PropertyChanged += (_, e) => { if (RoomViewOptionNames.Contains(e.PropertyName)) SaveRoomViewOptions(); };
         RoomActors.Links = Settings.CostumeLinks;
         Room.LinksChanged += () =>
         {
@@ -539,5 +541,52 @@ public sealed partial class MainWindowViewModel : ObservableObject
             }
             ShowViewer(ViewerTab.Room);
         }
+    }
+
+    // ── Room viewer display choices, kept across sessions ──
+
+    private static readonly HashSet<string> RoomViewOptionNames = new()
+    {
+        nameof(RoomViewModel.ShowBackground), nameof(RoomViewModel.ShowObjects), nameof(RoomViewModel.ShowFullScreenObjects),
+        nameof(RoomViewModel.ShowUnmatchedCostumes), nameof(RoomViewModel.ShowHotspots), nameof(RoomViewModel.ShowWalkboxes),
+        nameof(RoomViewModel.ShowLabels), nameof(RoomViewModel.ShowBounds), nameof(RoomViewModel.ShowObjectsPanel),
+    };
+    private bool _applyingRoomView;
+
+    private void ApplyRoomViewOptions()
+    {
+        var o = Settings.RoomView ??= new RoomViewOptions();
+        _applyingRoomView = true;
+        Room.ShowBackground = o.ShowBackground;
+        Room.ShowObjects = o.ShowObjects;
+        Room.ShowFullScreenObjects = o.ShowFullScreenObjects;
+        Room.ShowUnmatchedCostumes = o.ShowUnmatchedCostumes;
+        Room.ShowHotspots = o.ShowHotspots;
+        Room.ShowWalkboxes = o.ShowWalkboxes;
+        Room.ShowLabels = o.ShowLabels;
+        Room.ShowBounds = o.ShowBounds;
+        Room.ShowObjectsPanel = o.ShowObjectsPanel;
+        _applyingRoomView = false;
+    }
+
+    private void SaveRoomViewOptions()
+    {
+        if (_applyingRoomView) return;
+        var next = new RoomViewOptions
+        {
+            ShowBackground = Room.ShowBackground,
+            ShowObjects = Room.ShowObjects,
+            ShowFullScreenObjects = Room.ShowFullScreenObjects,
+            ShowUnmatchedCostumes = Room.ShowUnmatchedCostumes,
+            ShowHotspots = Room.ShowHotspots,
+            ShowWalkboxes = Room.ShowWalkboxes,
+            ShowLabels = Room.ShowLabels,
+            ShowBounds = Room.ShowBounds,
+            ShowObjectsPanel = Room.ShowObjectsPanel,
+        };
+        var json = System.Text.Json.JsonSerializer.Serialize(next);
+        if (json == System.Text.Json.JsonSerializer.Serialize(Settings.RoomView)) return;
+        Settings.RoomView = next;
+        Settings.Save();
     }
 }

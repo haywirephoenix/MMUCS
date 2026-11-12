@@ -24,6 +24,8 @@ public sealed class AppSettings
     public bool ColorizeTags { get; set; } = true;
     /// <summary>Script viewer shows decompiled SCUMM (true) or the instruction listing.</summary>
     public bool ScriptShowScumm { get; set; } = true;
+    /// <summary>The Room viewer's View menu and Objects panel toggle.</summary>
+    public RoomViewOptions RoomView { get; set; } = new();
     /// <summary>Per opened game (its first resource file): the selected hierarchy block, as child indices from the root.</summary>
     public System.Collections.Generic.Dictionary<string, string> LastSelection { get; set; } = new();
     /// <summary>Manual object → costume links ("room/object name" → costume number, 0 = none).</summary>
@@ -94,4 +96,18 @@ public sealed class AppSettings
     }
 
     public string LastFile => RecentFiles.FirstOrDefault();
+}
+
+/// <summary>Room viewer display choices (defaults match a fresh viewer).</summary>
+public sealed class RoomViewOptions
+{
+    public bool ShowBackground { get; set; } = true;
+    public bool ShowObjects { get; set; } = true;
+    public bool ShowFullScreenObjects { get; set; }
+    public bool ShowUnmatchedCostumes { get; set; }
+    public bool ShowHotspots { get; set; }
+    public bool ShowWalkboxes { get; set; }
+    public bool ShowLabels { get; set; } = true;
+    public bool ShowBounds { get; set; }
+    public bool ShowObjectsPanel { get; set; } = true;
 }
