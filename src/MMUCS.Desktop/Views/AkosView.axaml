@@ -46,8 +46,10 @@
       <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
 
       <!-- Preview -->
-      <Grid Grid.Column="2" RowDefinitions="*,Auto">
-        <c:CelCanvas x:Name="Canvas"
+      <Grid Grid.Column="2" RowDefinitions="*,6,120">
+        <!-- Row 0: Canvas takes up all available remaining space -->
+        <c:CelCanvas Grid.Row="0"
+                     x:Name="Canvas"
                      DataImage="{Binding DataImage}"
                      RawImage="{Binding RawImage}"
                      PaletteImage="{Binding PaletteImage}"
@@ -56,8 +58,23 @@
                      ShadowColorEnabled="{Binding ShadowColorEnabled}"
                      ShadowAmount="{Binding ShadowAmount}"
                      LinearFilter="{Binding LinearFilter}" />
-        <TextBlock Grid.Row="1" Text="{Binding CelInfo}" Classes="mono" FontSize="11" Margin="8,4"
-                   Foreground="{StaticResource SubtleTextBrush}" />
+
+        <GridSplitter Grid.Row="1" 
+                      Background="Transparent" 
+                      VerticalAlignment="Center" 
+                      HorizontalAlignment="Stretch" 
+                      Height="6" />
+        <ScrollViewer Grid.Row="2" 
+                      x:Name="InfoScrollViewer"
+                      VerticalScrollBarVisibility="Auto" 
+                      HorizontalScrollBarVisibility="Disabled">
+          <TextBlock Text="{Binding CelInfo}" 
+                     Classes="mono" 
+                     FontSize="11" 
+                     Margin="8,4"
+                     TextWrapping="Wrap"
+                     Foreground="{StaticResource SubtleTextBrush}" />
+        </ScrollViewer>
       </Grid>
 
       <GridSplitter Grid.Column="3" ResizeDirection="Columns" />
