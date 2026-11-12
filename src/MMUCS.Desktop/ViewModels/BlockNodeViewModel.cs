@@ -49,7 +49,7 @@ public sealed partial class BlockNodeViewModel : ObservableObject
     /// </summary>
     public void RefreshLabels()
     {
-        if (Block.Tag is ScummTag.LFLF or ScummTag.OBIM) OnPropertyChanged(nameof(Label));
+        if (Block.Tag is ScummTag.LFLF or ScummTag.OBIM or ScummTag.AKOS) OnPropertyChanged(nameof(Label));
         if (_children == null) return;
         foreach (var c in _children) c.RefreshLabels();
     }
@@ -90,6 +90,12 @@ public sealed partial class BlockNodeViewModel : ObservableObject
             && block.GetMetaDataDict().TryGetValue(MetaValue.From(ScummMeta.OBIM.name), out var objName)
             && !string.IsNullOrEmpty((string)objName))
             return $"{tag}  {(string)objName}";
+        if (block.Tag == ScummTag.AKOS && options?.ShowObjectNames == true && RoomActors.CostumeNumber(block) is int costume)
+        {
+            // Costume number from the index, plus the object it belongs to (matched or linked).
+            string owner = RoomActors.ObjectNameOf(block);
+            return string.IsNullOrEmpty(owner) ? $"{tag}  #{costume}" : $"{tag}  #{costume}  {owner}";
+        }
         string name = block.FullName;
         if (string.IsNullOrEmpty(name) || name == tag) return tag;
         return $"{tag}  {name}";

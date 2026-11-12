@@ -28,10 +28,19 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
 {
     public RoomObject Object { get; } = obj;
     public string Name => Object.ToString();
-    public string Summary => Object.Summary;
+    /// <summary>A costume no object claims, listed on its own (its object is a stand-in for its frame).</summary>
+    public bool IsActorOnly { get; init; }
+    public string Summary => IsActorOnly
+        ? Costume is { HasPosition: true } a ? $"{a.X},{a.Y}   no object" : "not placed by a script"
+        : Costume != null ? $"{Object.Summary}   costume {Costume.Costume}{(Costume.IsLinked ? " (linked)" : "")}" : Object.Summary;
     [ObservableProperty] private bool _isVisible = true;
-    /// <summary>False for objects with no image (or a fully transparent one): no visibility toggle.</summary>
-    [ObservableProperty] private bool _hasImage;
+    /// <summary>False for objects with no image (or a fully transparent one).</summary>
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasToggle))] private bool _hasImage;
+    /// <summary>The costumed actor drawn in this object's hotspot (image-less objects only).</summary>
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasCostume), nameof(HasToggle), nameof(Summary))] private RoomActor _costume;
+    public bool HasCostume => Costume != null;
+    /// <summary>Whether there is anything to show or hide: an image or a costume frame.</summary>
+    public bool HasToggle => HasImage || Costume is { CanDraw: true };
 }
 
 public sealed partial class RoomViewModel : ObservableObject
@@ -61,6 +70,8 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private bool _showLabels = true;
     [ObservableProperty] private bool _showBounds;
     [ObservableProperty] private bool _showFullScreenObjects;
+    /// <summary>List (and draw) costumes no object claims, e.g. the player in a cutscene costume.</summary>
+    [ObservableProperty] private bool _showUnmatchedCostumes;
     /// <summary>Whether the Objects side panel is shown (toolbar toggle).</summary>
     [ObservableProperty] private bool _showObjectsPanel = true;
 
@@ -76,10 +87,10 @@ public sealed partial class RoomViewModel : ObservableObject
     {
         get
         {
-            // Only objects with an image have a toggle, so only they count.
-            int total = Objects.Count(o => o.HasImage);
+            // Only objects with an image or costume have a toggle, so only they count.
+            int total = Objects.Count(o => o.HasToggle);
             if (total == 0) return true;
-            int visible = Objects.Count(o => o.HasImage && o.IsVisible);
+            int visible = Objects.Count(o => o.HasToggle && o.IsVisible);
             return visible == total ? true : visible == 0 ? false : null;
         }
         set => SetAllVisible(value != false); // clicking the mixed state shows everything
@@ -87,19 +98,19 @@ public sealed partial class RoomViewModel : ObservableObject
 
     public void SetAllVisible(bool visible) => SetVisibility(_ => visible);
 
-    public void SetVisible(RoomObject obj, bool visible) => SetVisibility(o => ReferenceEquals(o, obj) ? visible : null);
+    public void SetVisible(RoomObject obj, bool visible) => SetVisibility(o => ReferenceEquals(o.Object, obj) ? visible : null);
 
     /// <summary>Shows only <paramref name="obj"/> and hides every other object.</summary>
-    public void ShowOnly(RoomObject obj) => SetVisibility(o => ReferenceEquals(o, obj));
+    public void ShowOnly(RoomObject obj) => SetVisibility(o => ReferenceEquals(o.Object, obj));
 
     public bool IsVisible(RoomObject obj) => !HiddenObjects.Contains(obj);
 
     /// <summary>Applies a visibility per object (null leaves it unchanged), then refreshes once.</summary>
-    private void SetVisibility(Func<RoomObject, bool?> rule)
+    private void SetVisibility(Func<RoomObjectItem, bool?> rule)
     {
         _batchVisibility = true;
         foreach (var item in Objects)
-            if (rule(item.Object) is bool v) item.IsVisible = v;
+            if (rule(item) is bool v) item.IsVisible = v;
         _batchVisibility = false;
         RefreshVisibility();
     }
@@ -112,6 +123,7 @@ public sealed partial class RoomViewModel : ObservableObject
     private void RefreshVisibility()
     {
         HiddenObjects = Objects.Where(o => !o.IsVisible).Select(o => o.Object).ToHashSet();
+        SyncToggles();
         OnPropertyChanged(nameof(AllObjectsVisible));
     }
 
@@ -119,7 +131,12 @@ public sealed partial class RoomViewModel : ObservableObject
     partial void OnSelectedObjectItemChanged(RoomObjectItem value)
     {
         if (!ReferenceEquals(SelectedObject, value?.Object)) SelectedObject = value?.Object;
+        // Focus the hierarchy on the object's costume (which loads it in the Costume viewer) or its OBIM.
+        if (value != null) BlockFocusRequested?.Invoke(value.Costume?.Akos ?? value.Object.Block);
     }
+
+    /// <summary>Raised when the selected object changes: the block the hierarchy should show.</summary>
+    public event Action<ScummBlock> BlockFocusRequested;
 
     partial void OnSelectedObjectChanged(RoomObject value)
     {
@@ -135,8 +152,63 @@ public sealed partial class RoomViewModel : ObservableObject
     [RelayCommand] private void ToggleLabels() => ShowLabels = !ShowLabels;
     [RelayCommand] private void ToggleBounds() => ShowBounds = !ShowBounds;
     [RelayCommand] private void ToggleFullScreenObjects() => ShowFullScreenObjects = !ShowFullScreenObjects;
+    [RelayCommand] private void ToggleUnmatchedCostumes() => ShowUnmatchedCostumes = !ShowUnmatchedCostumes;
+
+    // The View menu's Objects / Unmatched costumes toggles switch the Objects panel checkboxes of
+    // their group; the checkboxes in turn decide what is drawn, and the toggles follow them.
+    private bool _syncingToggles;
+
+    partial void OnShowObjectsChanged(bool value)
+    {
+        if (!_syncingToggles) SetVisibility(o => !o.IsActorOnly && o.HasToggle ? value : null);
+    }
+
+    partial void OnShowUnmatchedCostumesChanged(bool value)
+    {
+        if (!_syncingToggles) SetVisibility(o => o.IsActorOnly && o.HasToggle ? value : null);
+    }
+
+    /// <summary>Each toggle is on while any checkbox of its group is (unchanged when the group is empty).</summary>
+    private void SyncToggles()
+    {
+        _syncingToggles = true;
+        var objects = Objects.Where(o => !o.IsActorOnly && o.HasToggle).ToList();
+        var costumes = Objects.Where(o => o.IsActorOnly && o.HasToggle).ToList();
+        if (objects.Count > 0) ShowObjects = objects.Any(o => o.IsVisible);
+        if (costumes.Count > 0) ShowUnmatchedCostumes = costumes.Any(o => o.IsVisible);
+        _syncingToggles = false;
+    }
 
     private IReadOnlyList<BackgroundChoice> _backgroundChoices = Array.Empty<BackgroundChoice>();
+    /// <summary>The room's costumed actors (from its scripts), with their parsed costumes and default frames.</summary>
+    private List<RoomActor> _actors = new();
+    /// <summary>Where each drawable actor is shown: its object's entry, or its own stand-in entry.</summary>
+    private Dictionary<RoomActor, RoomObject> _actorTargets = new();
+    private readonly AkosParser _akosParser = new();
+
+    /// <summary>The room's costumes (one per AKOS), for the Link costume menu.</summary>
+    public IReadOnlyList<RoomActor> RoomCostumes => _actors
+        .GroupBy(a => a.Akos).Select(g => g.OrderByDescending(a => a.CanDraw).First())
+        .OrderBy(a => a.Costume).ToList();
+
+    /// <summary>Raised after a manual link changes (so it can be saved and the hierarchy relabelled).</summary>
+    public event Action LinksChanged;
+
+    /// <summary>Links <paramref name="obj"/> to a costume (0 = none) or back to automatic matching (null).</summary>
+    public async Task SetCostumeLinkAsync(RoomObject obj, int? costume)
+    {
+        var room = Room;
+        if (room == null || obj == null || obj.Index < 0) return;
+        RoomActors.SetLink(room, obj, costume);
+        await RefreshActorsAsync(room);
+        LinksChanged?.Invoke(); // after the re-analysis, so the hierarchy picks up the new names
+        await ReloadImagesAsync();
+    }
+
+    public int? GetCostumeLink(RoomObject obj) => Room != null && obj != null && obj.Index >= 0 ? RoomActors.GetLink(Room, obj) : null;
+
+    /// <summary>The entry an object belongs to (the actor whose stand-in it is, for costume-only entries).</summary>
+    public RoomObjectItem ItemFor(RoomObject obj) => Objects.FirstOrDefault(o => ReferenceEquals(o.Object, obj));
     private bool _resetBackgroundChoice = true;
     private CancellationTokenSource _cts;
 
@@ -161,12 +233,15 @@ public sealed partial class RoomViewModel : ObservableObject
         Objects.Clear();
         foreach (var o in room.Objects)
         {
-            var item = new RoomObjectItem(o);
+            var item = new RoomObjectItem(o) { IsVisible = ShowObjects };
             item.PropertyChanged += OnItemChanged;
             Objects.Add(item);
         }
         SelectedObject = null;
         RefreshVisibility();
+
+        await RefreshActorsAsync(room);
+        if (!ReferenceEquals(Room, room)) return;
 
         MaxPaletteIndex = Math.Max(0, room.PaletteCount - 1);
         _suppressPaletteReload = true;
@@ -178,6 +253,87 @@ public sealed partial class RoomViewModel : ObservableObject
     }
 
     private bool _suppressPaletteReload;
+
+    /// <summary>
+    /// Analyses the room's costumes (scripts give costume and position, the frame decides which
+    /// hotspot; manual links override) and applies them to the Objects list.
+    /// </summary>
+    private async Task RefreshActorsAsync(RoomModel room)
+    {
+        List<RoomActor> actors;
+        try
+        {
+            actors = await Task.Run(() => RoomActors.Analyze(room, _akosParser));
+        }
+        catch (Exception ex)
+        {
+            actors = new();
+            Log.Error($"Costume analysis failed: {ex.Message}");
+        }
+        if (!ReferenceEquals(Room, room)) return;
+        _actors = actors;
+        ApplyActors();
+    }
+
+    /// <summary>Gives objects their costumes and lists unclaimed costumes when asked for.</summary>
+    private void ApplyActors()
+    {
+        _batchVisibility = true;
+        foreach (var item in Objects.Where(o => o.IsActorOnly).ToList())
+        {
+            item.PropertyChanged -= OnItemChanged;
+            Objects.Remove(item);
+        }
+
+        // The analysis may be cached from another RoomModel of the same room, so match by OBIM block.
+        _actorTargets = new Dictionary<RoomActor, RoomObject>();
+        foreach (var item in Objects)
+        {
+            item.Costume = _actors.FirstOrDefault(a => a.Object != null && ReferenceEquals(a.Object.Block, item.Object.Block));
+            if (item.Costume is { CanDraw: true } a) _actorTargets[a] = item.Object;
+        }
+
+        {
+            foreach (var actor in _actors.Where(a => a.Object == null).OrderBy(a => a.Costume))
+            {
+                var b = actor.RoomBounds;
+                var standIn = new RoomObject
+                {
+                    Index = -1,
+                    Name = actor.Label,
+                    X = b?.Left ?? 0,
+                    Y = b?.Top ?? 0,
+                    Width = b is { } r1 ? r1.Right - r1.Left : 0,
+                    Height = b is { } r2 ? r2.Bottom - r2.Top : 0,
+                    Block = actor.Akos,
+                };
+                var item = new RoomObjectItem(standIn) { IsActorOnly = true, Costume = actor, IsVisible = ShowUnmatchedCostumes };
+                item.PropertyChanged += OnItemChanged;
+                Objects.Add(item);
+                if (actor.CanDraw) _actorTargets[actor] = standIn;
+            }
+        }
+        _batchVisibility = false;
+        RefreshVisibility();
+    }
+
+    /// <summary>Renders the actors' frames in palette <paramref name="palette"/>, keyed by where they're shown.</summary>
+    private Dictionary<RoomObject, (SKImage Image, int X, int Y)> RenderActors(
+        Dictionary<RoomActor, RoomObject> targets, int palette, CancellationToken token)
+    {
+        var result = new Dictionary<RoomObject, (SKImage, int, int)>();
+        foreach (var (actor, target) in targets)
+        {
+            if (token.IsCancellationRequested) break;
+            lock (actor.Data)
+            {
+                _akosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
+                var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, token);
+                if (rgba != null) result[target] = (rgba.ToSkImage(), actor.X - ox, actor.Y - oy);
+            }
+        }
+        return result;
+    }
 
     partial void OnPaletteIndexChanged(int value)
     {
@@ -204,7 +360,12 @@ public sealed partial class RoomViewModel : ObservableObject
 
             var roomBackground = bg.ExecutedImage;
 
-            var layers = new List<RoomObjectLayer>(room.Objects.Count);
+            int palette = PaletteIndex;
+            var targets = _actorTargets;
+            var costumes = await Task.Run(() => RenderActors(targets, palette, token), token);
+            if (token.IsCancellationRequested) return;
+
+            var layers = new List<RoomObjectLayer>(room.Objects.Count + targets.Count);
             var fullWidth = new List<BackgroundChoice>();
             var hasImage = new Dictionary<RoomObject, bool>();
             foreach (var obj in room.Objects)
@@ -220,10 +381,16 @@ public sealed partial class RoomViewModel : ObservableObject
                     rgba = result.ExecutedImage;
                     image = rgba?.ToSkImage();
                 }
-                layers.Add(new RoomObjectLayer(obj, image));
+                costumes.TryGetValue(obj, out var costume);
+                layers.Add(new RoomObjectLayer(obj, image, costume.Image, costume.X, costume.Y));
                 hasImage[obj] = rgba != null && !IsFullyTransparent(rgba);
                 if (image != null && image.Width >= FullWidth) fullWidth.Add(new BackgroundChoice(obj.ToString(), image, rgba, obj));
             }
+
+            // Stand-ins for costumes no object claims.
+            foreach (var item in Objects.Where(o => o.IsActorOnly))
+                if (costumes.TryGetValue(item.Object, out var c))
+                    layers.Add(new RoomObjectLayer(item.Object, null, c.Image, c.X, c.Y, IsActorOnly: true));
 
             // Background choices: the room's own image first, then every full-width object image.
             var choices = new List<BackgroundChoice>();
@@ -231,7 +398,7 @@ public sealed partial class RoomViewModel : ObservableObject
             choices.AddRange(fullWidth);
 
             ObjectLayers = layers;
-            foreach (var item in Objects) item.HasImage = hasImage.TryGetValue(item.Object, out var h) && h;
+            foreach (var item in Objects.Where(o => !o.IsActorOnly)) item.HasImage = hasImage.TryGetValue(item.Object, out var h) && h;
             OnPropertyChanged(nameof(AllObjectsVisible));
             _backgroundChoices = choices;
             MaxBackgroundIndex = Math.Max(0, choices.Count - 1);
@@ -273,7 +440,7 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>Toggles the visibility of the selected object (Space in the Objects list).</summary>
     public void ToggleSelectedVisibility()
     {
-        if (SelectedObjectItem is { HasImage: true } item) item.IsVisible = !item.IsVisible;
+        if (SelectedObjectItem is { HasToggle: true } item) item.IsVisible = !item.IsVisible;
     }
 
     partial void OnBackgroundIndexChanged(int value)

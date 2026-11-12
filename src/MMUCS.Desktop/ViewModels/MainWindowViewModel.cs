@@ -93,6 +93,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _layout = DockLayoutStore.TryRestore(DockFactory, saved) ?? DockFactory.CreateLayout();
         DockFactory.InitLayout(_layout);
 
+        Room.BlockFocusRequested += RevealFromViewer;
+        RoomActors.Links = Settings.CostumeLinks;
+        Room.LinksChanged += () =>
+        {
+            Settings.Save();
+            // The room is re-analysed on its next use; relabel its AKOS blocks in the hierarchy.
+            Dispatcher.UIThread.Post(() => { foreach (var r in Roots) r.RefreshLabels(); }, DispatcherPriority.Background);
+        };
+
         // Warnings stay in the debug log so parser noise doesn't overwrite useful status text.
         Log.Message += (level, msg) =>
         {
@@ -196,8 +205,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
         try
         {
             var files = ScummProject.FindRelatedFiles(path);
-            var root = await Task.Run(() => ScummProject.Load(files, (i, n, f) =>
-                Dispatcher.UIThread.Post(() => Status = $"Parsing {Path.GetFileName(f)} ({i + 1}/{n})…")));
+            var root = await Task.Run(() =>
+            {
+                var r = ScummProject.Load(files, (i, n, f) =>
+                    Dispatcher.UIThread.Post(() => Status = $"Parsing {Path.GetFileName(f)} ({i + 1}/{n})…"));
+                // Match every room's costumes to objects so AKOS blocks are named in the hierarchy.
+                try { RoomActors.AnalyzeAll(r); }
+                catch (Exception ex) { Log.Warn($"Costume analysis failed: {ex.Message}"); }
+                return r;
+            });
 
             _rootBlock = root;
             OnPropertyChanged(nameof(HasProject));
@@ -335,6 +351,26 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public void ClearFilter() => FilterText = string.Empty;
 
+    /// <summary>True while a tree selection is routing to a viewer, which may select in it in turn.</summary>
+    private bool _routingFromTree;
+    /// <summary>True while a viewer is selecting in the tree: load what it shows, but don't switch viewers.</summary>
+    private bool _selectingFromViewer;
+
+    /// <summary>
+    /// Selects <paramref name="block"/> in the hierarchy on behalf of a viewer (e.g. an object picked in
+    /// the Room view's Objects panel). The current viewer stays in front; a costume is loaded into the
+    /// Costume viewer in the background.
+    /// </summary>
+    public void RevealFromViewer(ScummBlock block)
+    {
+        if (_routingFromTree || block == null || ReferenceEquals(SelectedNode?.Block, block)) return;
+        var node = Reveal(block, expandTarget: false);
+        if (node == null) return;
+        _selectingFromViewer = true;
+        try { SelectedNode = node; }
+        finally { _selectingFromViewer = false; }
+    }
+
     private static int CountBlocks(ScummBlock b) => 1 + b.Children.Sum(CountBlocks);
 
     partial void OnSelectedNodeChanged(BlockNodeViewModel value)
@@ -365,7 +401,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
             HexData = new ReadOnlyMemory<byte>(b.FileData, b.Offset, b.Size);
         }
 
-        RouteToViewer(b);
+        _routingFromTree = true;
+        try { RouteToViewer(b); }
+        finally { _routingFromTree = false; }
     }
 
     /// <summary>Opens the most relevant viewer for the selected block.</summary>
@@ -375,9 +413,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (akos != null)
         {
             _ = Costume.LoadAsync(akos);
-            SelectedViewerIndex = (int)ViewerTab.Costume;
+            if (!_selectingFromViewer) SelectedViewerIndex = (int)ViewerTab.Costume;
             return;
         }
+        if (_selectingFromViewer) return; // the viewer already shows it
 
         if (ScriptTags.Contains(b.Tag))
         {

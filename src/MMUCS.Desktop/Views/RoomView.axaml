@@ -19,6 +19,9 @@
               <MenuItem Header="Full-screen objects" ToggleType="CheckBox" StaysOpenOnClick="True"
                         ToolTip.Tip="Draw all 640px-wide object images over the background (or pick one with the Background spinbox)"
                         IsChecked="{Binding ShowFullScreenObjects, Mode=OneWay}" Command="{Binding ToggleFullScreenObjectsCommand}" />
+              <MenuItem Header="Unmatched costumes" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        ToolTip.Tip="List and draw costumes no object claims (e.g. the player in a cutscene costume)"
+                        IsChecked="{Binding ShowUnmatchedCostumes, Mode=OneWay}" Command="{Binding ToggleUnmatchedCostumesCommand}" />
               <MenuItem Header="Hotspots" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowHotspots, Mode=OneWay}" Command="{Binding ToggleHotspotsCommand}" />
               <MenuItem Header="Walkboxes" ToggleType="CheckBox" StaysOpenOnClick="True"
@@ -92,15 +95,19 @@
             <Style Selector="TextBlock.objname.hasImage">
               <Setter Property="Foreground" Value="#E8C07D" />
             </Style>
+            <!-- Hotspots with a costumed actor: the hierarchy's AKOS colour. -->
+            <Style Selector="TextBlock.objname.hasCostume">
+              <Setter Property="Foreground" Value="#E8817D" />
+            </Style>
           </ListBox.Styles>
           <ListBox.ItemTemplate>
             <DataTemplate DataType="vm:RoomObjectItem">
               <!-- Fixed toggle column so names line up whether or not an object has a toggle. -->
               <Grid ColumnDefinitions="22,*">
-                <CheckBox IsChecked="{Binding IsVisible}" IsVisible="{Binding HasImage}" MinWidth="0" MinHeight="0"
+                <CheckBox IsChecked="{Binding IsVisible}" IsVisible="{Binding HasToggle}" MinWidth="0" MinHeight="0"
                           Padding="0" VerticalAlignment="Center" Focusable="False" ToolTip.Tip="Visible (Space)" />
                 <StackPanel Grid.Column="1">
-                  <TextBlock Text="{Binding Name}" FontSize="12" Classes="objname" Classes.hasImage="{Binding HasImage}" />
+                  <TextBlock Text="{Binding Name}" FontSize="12" Classes="objname" Classes.hasImage="{Binding HasImage}" Classes.hasCostume="{Binding HasCostume}" />
                   <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
                 </StackPanel>
               </Grid>

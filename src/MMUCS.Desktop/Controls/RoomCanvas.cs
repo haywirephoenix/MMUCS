@@ -7,8 +7,11 @@ using SkiaSharp;
 
 namespace MMUCS.Desktop.Controls;
 
-/// <summary>A decoded object image placed in the room.</summary>
-public sealed record RoomObjectLayer(RoomObject Object, SKImage Image);
+/// <summary>
+/// A decoded object image placed in the room, plus (for image-less hotspots) the frame of the
+/// costumed actor that stands there, with its top-left corner in room coordinates.
+/// </summary>
+public sealed record RoomObjectLayer(RoomObject Object, SKImage Image, SKImage CostumeImage = null, int CostumeX = 0, int CostumeY = 0, bool IsActorOnly = false);
 
 /// <summary>
 /// Room viewer: background, object images, object bounds (hotspots), walkbox polygons and room bounds.
@@ -120,7 +123,7 @@ public sealed class RoomCanvas : SkiaViewport
 
     protected override IViewportScene CreateScene() => new Scene(
         ShowBackground ? BackgroundImage : null,
-        ShowObjects ? ObjectLayers : null,
+        ObjectLayers, // per-object visibility (incl. the View menu's Objects toggle) is in HiddenObjects
         ObjectLayers,
         ShowWalkboxes ? Walkboxes : null,
         SelectedObject,
@@ -217,6 +220,13 @@ public sealed class RoomCanvas : SkiaViewport
                     bool isFullWidth = layer.Image.Width >= 640;
                     if (isFullWidth && !_fullScreenObjects) continue;
                     canvas.DrawImage(layer.Image, layer.Object.X, layer.Object.Y, sampling);
+                }
+
+                // Actors are drawn over the objects.
+                foreach (var layer in _drawLayers)
+                {
+                    if (layer.CostumeImage == null || (_hidden != null && _hidden.Contains(layer.Object))) continue;
+                    canvas.DrawImage(layer.CostumeImage, layer.CostumeX, layer.CostumeY, sampling);
                 }
             }
             canvas.Restore();

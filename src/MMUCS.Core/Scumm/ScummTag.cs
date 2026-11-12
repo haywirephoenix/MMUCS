@@ -70,6 +70,8 @@ public static class ScummTag
     public const uint DCOS = 0x44434F53;
     public const uint DSOU = 0x44534F55;
     public const uint DCHR = 0x44434852;
+    public const uint DOBJ = 0x444F424A;
+    public const uint DRSC = 0x44525343;
     public const uint AARY = 0x41415259;
     public const uint MAXS = 0x4D415853;
     public const uint BMAP = 0x424D4150;
@@ -148,6 +150,8 @@ public static class ScummTag
         {DCOS, new("DCOS","Directory of Costumes", "Directory for costumes.")},
         {DSOU, new("DSOU","Directory of Sounds", "Directory for sounds.")},
         {DCHR, new("DCHR","Directory of Charsets", "Directory for charsets.")},
+        {DOBJ, new("DOBJ","Directory of Objects", "Object table: per object id its name (v8), owner/state, room and class flags.")},
+        {DRSC, new("DRSC","Directory of Room Scripts", "Directory for room scripts.")},
         
         {AARY, new("AARY","Array", "Array definition parameters.")},
         {MAXS, new("MAXS","Maximums", "Game engine limit definitions.")},
