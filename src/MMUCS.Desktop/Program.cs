@@ -12,7 +12,24 @@ internal static class Program
     public static void Main(string[] args)
     {
         AppDomain.CurrentDomain.UnhandledException += (_, e) => WriteCrash(e.ExceptionObject as Exception);
-        TaskScheduler.UnobservedTaskException += (_, e) => { WriteCrash(e.Exception); e.SetObserved(); };
+        TaskScheduler.UnobservedTaskException      += (_, e) => { WriteCrash(e.Exception); e.SetObserved(); };
+        try
+        {
+            Directory.CreateDirectory(CorePaths.Root);
+        }
+        catch { /* ignore directory creation failures here */ }
+
+        string lockFilePath = Path.Combine(CorePaths.Root, "app.lock");
+        FileStream lockFile = null;
+
+        try
+        {
+            lockFile = new FileStream(lockFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        }
+        catch (IOException)
+        {
+            return;
+        }
 
         try
         {
@@ -22,6 +39,10 @@ internal static class Program
         {
             WriteCrash(ex);
             throw;
+        }
+        finally
+        {
+            lockFile?.Dispose();
         }
     }
 
