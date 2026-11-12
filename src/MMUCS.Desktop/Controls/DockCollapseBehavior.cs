@@ -54,6 +54,16 @@ public static class DockCollapseBehavior
 
     private static readonly ConditionalWeakTable<IDock, State> States = new();
 
+    /// <summary>
+    /// The share to persist for <paramref name="dockable"/>: its remembered expanded share when it is
+    /// collapsed in a stack (its live proportion is just the title bar), otherwise its proportion.
+    /// </summary>
+    public static double GetPersistedProportion(IDockable dockable) =>
+        dockable is IDock dock && States.TryGetValue(dock, out var s) && s.Collapsed
+            && s.Mode == Mode.VerticalStack && double.IsFinite(s.ExpandedShare)
+            ? s.ExpandedShare
+            : dockable.Proportion;
+
     public static void Install()
     {
         TemplatedControl.TemplateAppliedEvent.AddClassHandler<ToolChromeControl>(OnTemplateApplied);

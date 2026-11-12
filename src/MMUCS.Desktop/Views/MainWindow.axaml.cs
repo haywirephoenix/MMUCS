@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
@@ -18,6 +19,9 @@ namespace MMUCS.Desktop.Views;
 public partial class MainWindow : Window
 {
     private NativeMenu _recentMenu;
+    private PixelPoint _normalPosition;
+    private Size _normalSize;
+    private bool _placementApplied;
     private NativeMenuItem _reopenItem, _exportItem, _exportRoomItem, _exportCelsItem;
 
     public MainWindow()
@@ -26,6 +30,81 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, OnDrop);
         // Tunnel so Ctrl+F works even when the tree or a text box has focus.
         AddHandler(KeyDownEvent, OnPreviewKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+
+        // Track the normal (un-maximized) bounds so a maximized window still saves a sensible size.
+        PositionChanged += (_, _) => { if (WindowState == WindowState.Normal) _normalPosition = Position; };
+        Opened += OnOpened;
+        Closing += (_, _) => Vm?.SaveLayout(CurrentPlacement());
+    }
+
+    protected override void OnSizeChanged(SizeChangedEventArgs e)
+    {
+        base.OnSizeChanged(e);
+        if (WindowState == WindowState.Normal) _normalSize = e.NewSize;
+    }
+
+    // ── Window placement ─────────────────────────────────────────────────────
+
+    private WindowPlacement CurrentPlacement()
+    {
+        bool normal = WindowState == WindowState.Normal;
+        var pos = normal ? Position : _normalPosition;
+        var size = normal ? Bounds.Size : _normalSize;
+        return new WindowPlacement
+        {
+            X = pos.X,
+            Y = pos.Y,
+            Width = size.Width > 0 ? size.Width : Width,
+            Height = size.Height > 0 ? size.Height : Height,
+            Maximized = WindowState == WindowState.Maximized,
+        };
+    }
+
+    /// <summary>Applies the saved placement before the window is shown, if it is still on a screen.</summary>
+    private void ApplyPlacement(WindowPlacement p)
+    {
+        if (_placementApplied || p == null) return;
+        _placementApplied = true;
+
+        if (double.IsFinite(p.Width) && double.IsFinite(p.Height) && p.Width >= MinWidth && p.Height >= MinHeight)
+        {
+            Width = p.Width;
+            Height = p.Height;
+        }
+        if (double.IsFinite(p.X) && double.IsFinite(p.Y))
+        {
+            var pos = new PixelPoint((int)p.X, (int)p.Y);
+            if (IsOnScreen(pos))
+            {
+                WindowStartupLocation = WindowStartupLocation.Manual;
+                Position = pos;
+            }
+        }
+        _normalPosition = Position;
+        _normalSize = new Size(Width, Height);
+        if (p.Maximized) WindowState = WindowState.Maximized;
+    }
+
+    /// <summary>True when a point near the window's top-left lands in some screen's working area.</summary>
+    private bool IsOnScreen(PixelPoint topLeft)
+    {
+        var probe = new PixelPoint(topLeft.X + 40, topLeft.Y + 20);
+        return Screens?.All.Any(s => s.WorkingArea.Contains(probe)) ?? true;
+    }
+
+    private void OnOpened(object sender, EventArgs e)
+    {
+        // Floating panel windows restored onto a monitor that's no longer attached come back over
+        // the main window instead.
+        if (Vm?.Layout?.Windows == null) return;
+        int offset = 0;
+        foreach (var w in Vm.Layout.Windows)
+        {
+            if (w.Host is not Window host) continue;
+            if (IsOnScreen(host.Position)) continue;
+            offset += 30;
+            host.Position = new PixelPoint(Position.X + 80 + offset, Position.Y + 80 + offset);
+        }
     }
 
     private MainWindowViewModel Vm => (MainWindowViewModel)DataContext;
@@ -35,6 +114,7 @@ public partial class MainWindow : Window
         base.OnDataContextChanged(e);
         if (DataContext is not MainWindowViewModel vm) return;
 
+        ApplyPlacement(vm.SavedMainWindow);
         BuildMenu();
         vm.RecentFiles.CollectionChanged += (_, _) => RebuildRecentMenu();
         vm.PropertyChanged += OnVmPropertyChanged;
@@ -95,12 +175,15 @@ public partial class MainWindow : Window
         view.Items.Add(Item("Blocks", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.BlocksId))));
         view.Items.Add(Item("Metadata", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.MetadataId))));
         view.Items.Add(Item("Hex", new RelayCommand(() => Vm.ShowPanel(MmucsDockFactory.HexId))));
-        view.Items.Add(new NativeMenuItemSeparator());
-        view.Items.Add(Item("Reset layout", new RelayCommand(Vm.ResetLayout)));
+
+        // Layout templates will join this menu later.
+        var layout = new NativeMenu();
+        layout.Items.Add(Item("Reset to default", new RelayCommand(Vm.ResetLayout)));
 
         var menu = new NativeMenu();
         menu.Items.Add(new NativeMenuItem("File") { Menu = file });
         menu.Items.Add(new NativeMenuItem("View") { Menu = view });
+        menu.Items.Add(new NativeMenuItem("Layout") { Menu = layout });
         NativeMenu.SetMenu(this, menu);
 
         // The in-window menu bar shows gestures but doesn't bind them; register them on the window.

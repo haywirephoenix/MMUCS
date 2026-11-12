@@ -62,6 +62,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public MmucsDockFactory DockFactory { get; }
     [ObservableProperty] private IRootDock _layout;
 
+    /// <summary>Main window position/size from the last run (null on first run).</summary>
+    public WindowPlacement SavedMainWindow { get; }
+
+    /// <summary>Persists the panel layout, floating windows and main window placement.</summary>
+    public void SaveLayout(WindowPlacement mainWindow) => DockLayoutStore.Save(Layout, mainWindow);
+
     /// <summary>Raised by Ctrl+F; the Blocks panel focuses its filter box wherever it is docked.</summary>
     public event Action FocusFilterRequested;
     public void RequestFilterFocus() => FocusFilterRequested?.Invoke();
@@ -82,7 +88,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         TreeOptions.PropertyChanged += (_, e) => OnTreeOptionChanged(e.PropertyName);
 
         DockFactory = new MmucsDockFactory(this);
-        _layout = DockFactory.CreateLayout();
+        var saved = DockLayoutStore.Read();
+        SavedMainWindow = saved?.MainWindow;
+        _layout = DockLayoutStore.TryRestore(DockFactory, saved) ?? DockFactory.CreateLayout();
         DockFactory.InitLayout(_layout);
 
         // Warnings stay in the debug log so parser noise doesn't overwrite useful status text.

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
@@ -20,15 +21,18 @@ public sealed class ScriptDocument(MainWindowViewModel main) : Document { public
 
 /// <summary>
 /// Builds the default layout (Blocks | Room/Costume/Script | Metadata over Hex) and hosts floating
-/// panels in real OS windows. Panels can't be closed (yet), so nothing gets lost; View ▸ Reset
-/// layout rebuilds the default arrangement.
+/// panels in real OS windows. Panels can't be closed (yet), so nothing gets lost; Layout ▸ Reset to
+/// default rebuilds the default arrangement. Saved layouts are handled by <see cref="DockLayoutStore"/>.
 /// </summary>
 public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
 {
     public const string BlocksId = "Blocks", MetadataId = "Metadata", HexId = "Hex";
     public const string RoomId = "Room", CostumeId = "Costume", ScriptId = "Script";
 
-    public override IRootDock CreateLayout()
+    public static readonly string[] PanelIds = { BlocksId, MetadataId, HexId, RoomId, CostumeId, ScriptId };
+
+    /// <summary>Creates the six panels (each layout gets fresh instances).</summary>
+    public Dictionary<string, IDockable> CreatePanels()
     {
         T Panel<T>(T d, string id, string title) where T : DockableBase
         {
@@ -40,48 +44,85 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
             return d;
         }
 
-        var blocks = Panel(new BlocksTool(main), BlocksId, "Blocks");
-        var metadata = Panel(new MetadataTool(main), MetadataId, "Metadata");
-        var hex = Panel(new HexTool(main), HexId, "Hex");
-        var room = Panel(new RoomDocument(main), RoomId, "Room");
-        var costume = Panel(new CostumeDocument(main), CostumeId, "Costume");
-        var script = Panel(new ScriptDocument(main), ScriptId, "Script");
-
-        var left = new ToolDock
+        return new Dictionary<string, IDockable>
         {
-            Id = "LeftDock",
-            Proportion = 0.21,
-            Alignment = Alignment.Left,
-            ActiveDockable = blocks,
-            VisibleDockables = CreateList<IDockable>(blocks),
+            [BlocksId] = Panel(new BlocksTool(main), BlocksId, "Blocks"),
+            [MetadataId] = Panel(new MetadataTool(main), MetadataId, "Metadata"),
+            [HexId] = Panel(new HexTool(main), HexId, "Hex"),
+            [RoomId] = Panel(new RoomDocument(main), RoomId, "Room"),
+            [CostumeId] = Panel(new CostumeDocument(main), CostumeId, "Costume"),
+            [ScriptId] = Panel(new ScriptDocument(main), ScriptId, "Script"),
         };
+    }
 
-        var documents = new DocumentDock
-        {
-            Id = "Documents",
-            IsCollapsable = false,
-            CanCreateDocument = false,
-            CloseButtonShowMode = DocumentCloseButtonShowMode.Never,
-            ActiveDockable = room,
-            VisibleDockables = CreateList<IDockable>(room, costume, script),
-        };
+    public ToolDock NewToolDock(string id, IList<IDockable> panels, IDockable active = null) => new()
+    {
+        Id = id,
+        ActiveDockable = active ?? panels.FirstOrDefault(),
+        VisibleDockables = panels,
+    };
 
-        var metadataDock = new ToolDock
-        {
-            Id = "MetadataDock",
-            Proportion = 0.35,
-            Alignment = Alignment.Right,
-            ActiveDockable = metadata,
-            VisibleDockables = CreateList<IDockable>(metadata),
-        };
+    public DocumentDock NewDocumentDock(string id, IList<IDockable> panels, IDockable active = null) => new()
+    {
+        Id = id,
+        IsCollapsable = false,
+        CanCreateDocument = false,
+        CloseButtonShowMode = DocumentCloseButtonShowMode.Never,
+        ActiveDockable = active ?? panels.FirstOrDefault(),
+        VisibleDockables = panels,
+    };
 
-        var hexDock = new ToolDock
-        {
-            Id = "HexDock",
-            Alignment = Alignment.Right,
-            ActiveDockable = hex,
-            VisibleDockables = CreateList<IDockable>(hex),
-        };
+    /// <summary>Wraps the main dock tree in the root used by the main window.</summary>
+    public IRootDock CreateMainRoot(IDockable content)
+    {
+        var root = CreateRootDock();
+        root.Id = "Root";
+        root.ActiveDockable = content;
+        root.DefaultDockable = content;
+        root.VisibleDockables = CreateList<IDockable>(content);
+        // Torn-off panels become real OS windows (movable to other monitors), like the Godot build.
+        root.FloatingWindowHostMode = DockFloatingWindowHostMode.Native;
+        return root;
+    }
+
+    /// <summary>A floating window holding <paramref name="content"/>, shaped like the ones Dock creates.</summary>
+    public IDockWindow CreateFloatingWindow(IDockable content, double x, double y, double width, double height)
+    {
+        var root = CreateRootDock();
+        root.Title = nameof(IRootDock);
+        root.VisibleDockables = CreateList<IDockable>(content);
+        root.ActiveDockable = content;
+        root.DefaultDockable = content;
+
+        var window = CreateDockWindow();
+        window.Id = nameof(IDockWindow);
+        window.Title = "";
+        window.X = x;
+        window.Y = y;
+        window.Width = width;
+        window.Height = height;
+        window.Layout = root;
+        root.Window = window;
+        return window;
+    }
+
+    public override IRootDock CreateLayout() => CreateDefaultLayout(CreatePanels());
+
+    /// <summary>Blocks | Room/Costume/Script | Metadata over Hex.</summary>
+    public IRootDock CreateDefaultLayout(Dictionary<string, IDockable> p)
+    {
+        var left = NewToolDock("LeftDock", CreateList(p[BlocksId]));
+        left.Proportion = 0.21;
+        left.Alignment = Alignment.Left;
+
+        var documents = NewDocumentDock("Documents", CreateList(p[RoomId], p[CostumeId], p[ScriptId]));
+
+        var metadataDock = NewToolDock("MetadataDock", CreateList(p[MetadataId]));
+        metadataDock.Proportion = 0.35;
+        metadataDock.Alignment = Alignment.Right;
+
+        var hexDock = NewToolDock("HexDock", CreateList(p[HexId]));
+        hexDock.Alignment = Alignment.Right;
 
         var right = new ProportionalDock
         {
@@ -91,21 +132,14 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
             VisibleDockables = CreateList<IDockable>(metadataDock, new ProportionalDockSplitter(), hexDock),
         };
 
-        var main_ = new ProportionalDock
+        var mainDock = new ProportionalDock
         {
             Id = "MainDock",
             Orientation = Orientation.Horizontal,
             VisibleDockables = CreateList<IDockable>(left, new ProportionalDockSplitter(), documents, new ProportionalDockSplitter(), right),
         };
 
-        var root = CreateRootDock();
-        root.Id = "Root";
-        root.ActiveDockable = main_;
-        root.DefaultDockable = main_;
-        root.VisibleDockables = CreateList<IDockable>(main_);
-        // Torn-off panels become real OS windows (movable to other monitors), like the Godot build.
-        root.FloatingWindowHostMode = DockFloatingWindowHostMode.Native;
-        return root;
+        return CreateMainRoot(mainDock);
     }
 
     public override void InitLayout(IDockable layout)
