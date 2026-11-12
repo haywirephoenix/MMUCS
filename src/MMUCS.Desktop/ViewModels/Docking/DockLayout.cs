@@ -111,11 +111,14 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
         return window;
     }
 
-    public override IRootDock CreateLayout() => CreateDefaultLayout(CreatePanels());
+    /// <summary>The default layout: Layouts/layout.default.json, or the built-in one if that doesn't fit.</summary>
+    public override IRootDock CreateLayout() =>
+        DockLayoutStore.TryRestore(this, DockLayoutStore.ReadDefault(), requireAllPanels: true)
+        ?? CreateDefaultLayout(CreatePanels());
 
     /// <summary>
-    /// Default layout: one column on the left stacking Blocks, Metadata and Hex, with the viewers
-    /// (Room/Costume/Script) taking the rest.
+    /// Built-in layout, used when layout.default.json is missing or doesn't fit: one column on the
+    /// left stacking Blocks, Metadata and Hex, with the viewers (Room/Costume/Script) taking the rest.
     /// </summary>
     public IRootDock CreateDefaultLayout(Dictionary<string, IDockable> p)
     {

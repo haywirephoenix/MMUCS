@@ -87,7 +87,11 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : Factory, ILayoutBui
         return root;
     }
 
-    public override IRootDock CreateLayout()
+    /// <summary>The default arrangement: the Costume section of layout.default.json, or the built-in one.</summary>
+    public override IRootDock CreateLayout() => TryRestore(DockLayoutStore.ReadDefault()?.Costume) ?? CreateBuiltInLayout();
+
+    /// <summary>Cels | Preview | Chores and Resolved palette as tabs.</summary>
+    public IRootDock CreateBuiltInLayout()
     {
         var p = CreatePanels();
         var cels = NewToolDock("CelsDock", CreateList(p[CelsId]));

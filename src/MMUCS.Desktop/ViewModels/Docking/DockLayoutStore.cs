@@ -183,6 +183,31 @@ public static class DockLayoutStore
 
     // ── Load ─────────────────────────────────────────────────────────────────
 
+    private static LayoutFile _default;
+    private static bool _defaultRead;
+
+    /// <summary>
+    /// The default layout shipped with the app (Layouts/layout.default.json, embedded), or null if it
+    /// is missing or unreadable, in which case the factories build their built-in arrangement.
+    /// </summary>
+    public static LayoutFile ReadDefault()
+    {
+        if (_defaultRead) return _default;
+        _defaultRead = true;
+        try
+        {
+            using var stream = typeof(DockLayoutStore).Assembly.GetManifestResourceStream("layout.default.json");
+            if (stream == null) return null;
+            var file = JsonSerializer.Deserialize<LayoutFile>(stream, JsonOptions);
+            _default = file?.Version == CurrentVersion ? file : null;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Default layout ignored: {ex.Message}");
+        }
+        return _default;
+    }
+
     public static LayoutFile Read()
     {
         try
@@ -199,7 +224,7 @@ public static class DockLayoutStore
     }
 
     /// <summary>Builds the saved layout, or returns null when it can't be restored faithfully.</summary>
-    public static IRootDock TryRestore(MmucsDockFactory factory, LayoutFile file)
+    public static IRootDock TryRestore(MmucsDockFactory factory, LayoutFile file, bool requireAllPanels = false)
     {
         if (file?.Root == null) return null;
         try
@@ -224,6 +249,8 @@ public static class DockLayoutStore
             // Panels the user hid stay hidden (the Window menu brings them back); a layout with
             // none of this version's panels doesn't fit it.
             if (used.Count == 0) return null;
+            // A default must place every panel (one added since it was written would be lost otherwise).
+            if (requireAllPanels && !panels.Keys.All(used.Contains)) return null;
             return root;
         }
         catch (Exception ex)

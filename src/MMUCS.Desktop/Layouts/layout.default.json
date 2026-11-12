@@ -1,0 +1,44 @@
+{
+  "Note": "Default panel layout (used on first run and by Layout > Reset). To change it, arrange the panels in the app and copy the Root and Costume sections of %LocalAppData%/MMUCS/layout.json here. MainWindow and Windows are ignored.",
+  "Version": 1,
+  "Root": {
+    "Kind": "split",
+    "Id": "MainDock",
+    "Orientation": "Horizontal",
+    "Proportion": "NaN",
+    "Children": [
+      {
+        "Kind": "split",
+        "Id": "LeftColumn",
+        "Orientation": "Vertical",
+        "Proportion": 0.2056,
+        "Children": [
+          { "Kind": "tools", "Id": "LeftDock", "Proportion": 0.5752, "Active": "Blocks", "Panels": [ "Blocks" ] },
+          { "Kind": "tools", "Id": "MetadataDock", "Proportion": 0.2358, "Active": "Metadata", "Panels": [ "Metadata" ] },
+          { "Kind": "tools", "Id": "HexDock", "Proportion": 0.189, "Active": "Hex", "Panels": [ "Hex" ] }
+        ]
+      },
+      {
+        "Kind": "split",
+        "Id": "ViewerColumn",
+        "Orientation": "Vertical",
+        "Proportion": 0.7944,
+        "Children": [
+          { "Kind": "documents", "Id": "Documents", "Proportion": 0.6064, "Active": "Room", "Panels": [ "Room", "Script" ] },
+          { "Kind": "documents", "Id": "CostumeDocuments", "Proportion": 0.3936, "Active": "Costume", "Panels": [ "Costume" ] }
+        ]
+      }
+    ]
+  },
+  "Costume": {
+    "Kind": "split",
+    "Id": "CostumeMain",
+    "Orientation": "Horizontal",
+    "Proportion": "NaN",
+    "Children": [
+      { "Kind": "tools", "Id": "CelsDock", "Proportion": 0.1107, "Active": "Cels", "Panels": [ "Cels" ] },
+      { "Kind": "documents", "Id": "PreviewDock", "Proportion": 0.6645, "Active": "Preview", "Panels": [ "Preview" ] },
+      { "Kind": "tools", "Id": "SideDock", "Proportion": 0.2248, "Active": "Chores", "Panels": [ "Chores", "Palette" ] }
+    ]
+  }
+}
