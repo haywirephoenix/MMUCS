@@ -55,6 +55,7 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : Factory, ILayoutBui
     {
         Id = id,
         DockGroup = Group,
+        CanFloat = false,
         ActiveDockable = active ?? panels.FirstOrDefault(),
         VisibleDockables = panels,
     };
@@ -63,6 +64,7 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : Factory, ILayoutBui
     {
         Id = id,
         DockGroup = Group,
+        CanFloat = false,
         IsCollapsable = false,
         CanCreateDocument = false,
         CloseButtonShowMode = DocumentCloseButtonShowMode.Never,
@@ -78,6 +80,7 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : Factory, ILayoutBui
         var root = CreateRootDock();
         root.Id = "CostumeRoot";
         root.DockGroup = Group;
+        root.CanFloat = false;
         root.ActiveDockable = content;
         root.DefaultDockable = content;
         root.VisibleDockables = CreateList<IDockable>(content);
@@ -98,6 +101,7 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : Factory, ILayoutBui
         {
             Id = "CostumeMain",
             DockGroup = Group,
+            CanFloat = false,
             Orientation = Orientation.Horizontal,
             VisibleDockables = CreateList<IDockable>(cels, new ProportionalDockSplitter(), preview, new ProportionalDockSplitter(), side),
         };
@@ -120,6 +124,7 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : Factory, ILayoutBui
     private static void SetGroup(IDockable d)
     {
         d.DockGroup = Group;
+        d.CanFloat = false;
         if (d is IDock dock && dock.VisibleDockables != null)
             foreach (var child in dock.VisibleDockables) SetGroup(child);
     }
@@ -129,4 +134,11 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : Factory, ILayoutBui
         DefaultHostWindowLocator = () => new HostWindow();
         base.InitLayout(layout);
     }
+
+    // The panels stay inside the viewer: dropping one outside it leaves it where it was.
+    public override void FloatDockable(IDockable dockable) { }
+    public override void FloatDockable(IDockable dockable, DockWindowOptions options) { }
+    public override void SplitToWindow(IDock dock, IDockable dockable, double x, double y, double width, double height) { }
+    public override void SplitToWindow(IDock dock, IDockable dockable, double x, double y, double width, double height, DockWindowOptions options) { }
+
 }
