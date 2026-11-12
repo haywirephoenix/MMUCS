@@ -13,6 +13,7 @@ public partial class App : Application
     {
         AvaloniaXamlLoader.Load(this);
         Controls.DockCollapseBehavior.Install();
+        Controls.ToolTabPlacement.Install();
     #if DEBUG
         this.AttachDeveloperTools();
     #endif
