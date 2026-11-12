@@ -70,7 +70,11 @@ public class AkosParser
         if (akof != null) _ParseAKOF(data, akof);
         if (akci != null) _ParseAKCI(data, akci);
 
-        if (akch != null) data.ChoreOffsets = akch.DataSpan.ReadU16Table();
+        if (akch != null)
+        {
+            data.ChoreData = akch.DataMemory;
+            data.ChoreOffsets = akch.DataSpan.ReadU16Table();
+        }
         if (akfo != null) data.FrameOffsets = akfo.DataSpan.ReadU16Table();
 
         _ResolvePalette(data, globalPalette);
@@ -187,14 +191,19 @@ public class AkosParser
         }
     }
 
+    /// <summary>
+    /// One info entry per cel, read through the cel's AKOF offset: AKCI entries are shared between
+    /// cels, so AKCI usually has fewer entries than there are cels.
+    /// </summary>
     private void _ParseAKCI(AkosData data, ScummBlock block)
     {
-        int count = block.DataLength / 12;
+        int count = data.CelOffsets.Length;
         data.CelInfos = new AkosCelInfo[count];
         var span = block.DataSpan;
         for (int i = 0; i < count; i++)
         {
-            int o = i * 12;
+            int o = data.CelOffsets[i].AkciOffset;
+            if (o + 12 > span.Length) continue;
             data.CelInfos[i] = new AkosCelInfo
             {
                 Width = span.U16LE(o + 0),
@@ -207,104 +216,4 @@ public class AkosParser
             };
         }
     }
-    
-   
-    
-
-    /// <summary>
-    /// Decodes the animation choreography steps. This is called lazily.
-    /// </summary>
-    public void _DecodeChores(AkosData data)
-    {
-        if (data.CelOffsets == null || data.Sequence.IsEmpty) return;
-
-        // Note: AKCH block is actually where ChoreOffsets come from. 
-        // Ensure you have logic to populate ChoreOffsets if not done in Parse().
-
-        int dirs = data.DirectionCount;
-        int anims = data.ChoreOffsets.Length / dirs;
-        var chores = new List<AkosChore>();
-
-        for (int anim = 0; anim < anims; anim++)
-        {
-            var chore = new AkosChore
-            {
-                AnimIndex = anim,
-                DisplayName = $"Anim {anim}"
-            };
-
-            for (int dir = 0; dir < dirs; dir++)
-            {
-                int idx = anim * dirs + dir;
-                if (idx >= data.ChoreOffsets.Length) break;
-
-                ushort seqOffset = data.ChoreOffsets[idx];
-                var direction = new AkosChoreDirection
-                {
-                    DirIndex = dir,
-                    SequenceOffset = seqOffset
-                };
-
-                if (seqOffset != 0)
-                    direction.Steps = _DecodeSequence(data, seqOffset);
-
-                chore.Directions.Add(direction);
-            }
-            chores.Add(chore);
-        }
-        data.Chores = chores;
-    }
-
-    public List<AkosChoreStep> DecodeSingleSequence(AkosData data, int offset)
-    {
-        return _DecodeSequence(data, offset);
-    }
-
-    public List<AkosChoreStep> _DecodeSequence(AkosData data, int offset)
-    {
-        var steps = new List<AkosChoreStep>();
-        var seq = data.Sequence.Span;
-        int pos = offset;
-        int maxSteps = 1000;
-
-        while (pos < seq.Length && maxSteps-- > 0)
-        {
-            int stepOffset = pos;
-            ushort code = seq[pos];
-
-            // Handle multi-byte opcodes (0x80 bit)
-            if ((code & 0x80) != 0 && pos + 1 < seq.Length)
-                code = (ushort)((code << 8) | seq[pos + 1]);
-
-            var step = new AkosChoreStep
-            {
-                Offset = stepOffset,
-                RawCode = code
-            };
-
-            if ((code & 0xFF00) == 0xC000)
-            {
-                step.Kind = code == 0xC001 ? AkosStepKind.End : AkosStepKind.Control;
-                steps.Add(step);
-                if (step.Kind == AkosStepKind.End) break;
-                pos += _ControlOpcodeSize(code);
-                continue;
-            }
-
-            step.Kind = AkosStepKind.DrawSingle;
-            step.CelIndex = code & 0x0FFF;
-            steps.Add(step);
-            pos += (code & 0x8000) != 0 ? 2 : 1;
-        }
-        return steps;
-    }
-
-    private int _ControlOpcodeSize(ushort code) => code switch
-    {
-        0xC001 or 0xC002 => 2,
-        0xC010 or 0xC015 => 5,
-        0xC020 or 0xC021 or 0xC022 => 3,
-        0xC030 => 3,
-        _ => (code & 0x8000) != 0 ? 2 : 1,
-    };
 }

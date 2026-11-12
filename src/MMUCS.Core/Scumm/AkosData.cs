@@ -27,6 +27,8 @@ public class AkosData
     public ReadOnlyMemory<byte> CelData;
     public ReadOnlyMemory<byte> Sequence;
     public ReadOnlyMemory<byte> Rgbs;
+    /// <summary>Raw AKCH: chore offset table followed by each chore's limb definitions.</summary>
+    public ReadOnlyMemory<byte> ChoreData;
 
     // ── Header & Metadata ────────────────────────────────────────────────────
     public AkosHeader Header;
@@ -40,7 +42,6 @@ public class AkosData
     public ushort[] FrameOffsets = Array.Empty<ushort>(); // From AKFO
     
     // ── Lazy-loaded data ─────────────────────────────────────────────────────
-    public List<AkosChore> Chores; 
     // public readonly Dictionary<int, RgbaImage> DecodedCels = new();
     public readonly Dictionary<long, IndexedSurface> DecodedCels = new();
 
@@ -91,38 +92,6 @@ public enum AkosCodec : ushort
     MajMin   = 16,   // AKOS_RUN_MAJMIN_CODEC
     TRLE     = 32,  // AKOS_TRLE_CODEC (HE)
 }
-
-/// <summary>
-/// A single resolved chore (animation) with its per-direction sequence offsets.
-/// </summary>
-public struct AkosChore()
-{
-    public int AnimIndex = 0;
-    public string DisplayName = null;
-    public List<AkosChoreDirection> Directions = new();
-}
-
-public struct AkosChoreDirection()
-{
-    public int DirIndex = 0;           // 0-3 or 0-7
-    public ushort SequenceOffset = 0;  // into AKSQ
-    public List<AkosChoreStep> Steps = new();
-}
-
-/// <summary>
-/// A decoded step inside a chore sequence — either a draw command or a control op.
-/// </summary>
-public struct AkosChoreStep()
-{
-    public int Offset = 0;
-    public AkosStepKind Kind = AkosStepKind.DrawSingle;
-    public int CelIndex = 0;       // valid when Kind == DrawSingle / DrawMany
-    public readonly List<int> MultiCels = new();
-    public readonly string OpcodeName = null;  // for non-draw control ops
-    public ushort RawCode = 0;
-}
-
-public enum AkosStepKind { DrawSingle, DrawMany, Control, Empty, End }
 
 public struct CelExportConfig
 {

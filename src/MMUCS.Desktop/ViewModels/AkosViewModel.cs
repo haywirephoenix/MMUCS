@@ -21,26 +21,17 @@ public sealed record CelItem(int Index, int Width, int Height)
     public override string ToString() => $"Cel {Index:D3}   {Width}×{Height}";
 }
 
-public sealed class ChoreStepItem
-{
-    public AkosChoreStep Step { get; init; }
-    public string Label => Step.Kind switch
-    {
-        AkosStepKind.DrawSingle => $"0x{Step.Offset:X4}  Draw cel {Step.CelIndex}",
-        AkosStepKind.DrawMany => $"0x{Step.Offset:X4}  DrawMany ({Step.MultiCels.Count})",
-        AkosStepKind.End => $"0x{Step.Offset:X4}  End",
-        AkosStepKind.Empty => $"0x{Step.Offset:X4}  Empty",
-        _ => $"0x{Step.Offset:X4}  Control 0x{Step.RawCode:X4}",
-    };
-    public bool IsDraw => Step.Kind == AkosStepKind.DrawSingle;
-}
-
+/// <summary>
+/// A node in the chore tree: Anim → Dir (a chore: its limbs play together) → Limb → frame step.
+/// </summary>
 public sealed class ChoreNode
 {
     public string Label { get; init; }
     public ObservableCollection<ChoreNode> Children { get; } = new();
-    public IReadOnlyList<ChoreStepItem> Steps { get; init; } = Array.Empty<ChoreStepItem>();
-    public ChoreStepItem StepItem { get; init; }
+    /// <summary>The chore (AKCH index) this node belongs to, or -1.</summary>
+    public int Chore { get; init; } = -1;
+    /// <summary>For a step node: its AKSQ position (drawn on its own); otherwise -1.</summary>
+    public int StepPos { get; init; } = -1;
 }
 
 public sealed partial class AkosViewModel : ObservableObject
@@ -91,12 +82,7 @@ public sealed partial class AkosViewModel : ObservableObject
 
         try
         {
-            var data = await Task.Run(() =>
-            {
-                var d = _parser.Parse(akosBlock);
-                _parser._DecodeChores(d);
-                return d;
-            });
+            var data = await Task.Run(() => _parser.Parse(akosBlock));
             if (!ReferenceEquals(Block, akosBlock)) return;
 
             Akos = data;
@@ -122,25 +108,58 @@ public sealed partial class AkosViewModel : ObservableObject
         }
     }
 
+    private static readonly string[] AnimNames = { "", "init", "walk", "stand", "talk start", "talk stop" };
+    private static readonly string[] DirNames = { "W", "E", "S", "N" };
+
     private void BuildChoreTree(AkosData data)
     {
-        if (data.Chores == null) return;
-        foreach (var chore in data.Chores)
+        int count = AkosFrames.ChoreCount(data);
+        for (int anim = 0; anim * 4 < count; anim++)
         {
-            var node = new ChoreNode { Label = chore.DisplayName };
-            foreach (var dir in chore.Directions)
+            string name = anim < AnimNames.Length && AnimNames[anim].Length > 0 ? $"Anim {anim}  ({AnimNames[anim]})" : $"Anim {anim}";
+            var animNode = new ChoreNode { Label = name, Chore = -1 };
+            for (int dir = 0; dir < 4; dir++)
             {
-                var steps = dir.Steps?.Select(s => new ChoreStepItem { Step = s }).ToList() ?? new List<ChoreStepItem>();
-                var dirNode = new ChoreNode { Label = $"Dir {dir.DirIndex}  (seq 0x{dir.SequenceOffset:X4}, {steps.Count} steps)", Steps = steps };
-                foreach (var s in steps)
-                    dirNode.Children.Add(new ChoreNode { Label = s.Label, StepItem = s });
-                node.Children.Add(dirNode);
+                int chore = AkosFrames.ChoreIndex(anim, dir);
+                if (!AkosFrames.HasChore(data, chore)) continue;
+                var limbs = AkosFrames.GetLimbs(data, chore);
+                var dirNode = new ChoreNode
+                {
+                    Label = $"Dir {dir} {DirNames[dir]}  ({limbs.Count} limb{(limbs.Count == 1 ? "" : "s")}, {AkosFrames.CycleLength(data, chore)} frames)",
+                    Chore = chore,
+                };
+                foreach (var limb in limbs)
+                {
+                    var steps = AkosFrames.GetFrameSteps(data, limb);
+                    var limbNode = new ChoreNode { Label = $"Limb {limb.Index}  ({steps.Count} frame{(steps.Count == 1 ? "" : "s")})", Chore = chore };
+                    foreach (int pos in steps)
+                        limbNode.Children.Add(new ChoreNode { Label = StepLabel(data, pos), Chore = chore, StepPos = pos });
+                    dirNode.Children.Add(limbNode);
+                }
+                animNode.Children.Add(dirNode);
             }
-            Chores.Add(node);
+            if (animNode.Children.Count > 0) Chores.Add(animNode);
         }
     }
 
-    partial void OnSelectedCelChanged(CelItem value) => _ = RefreshCelAsync();
+    private static string StepLabel(AkosData data, int pos)
+    {
+        var frame = new AkosFrame();
+        int xm = 0, ym = 0;
+        AkosFrames.AddStep(data, pos, frame, ref xm, ref ym);
+        return frame.Cels.Count switch
+        {
+            0 => $"0x{pos:X4}  empty",
+            1 => $"0x{pos:X4}  cel {frame.Cels[0].Cel}",
+            _ => $"0x{pos:X4}  cels {string.Join(", ", frame.Cels.Select(c => c.Cel))}",
+        };
+    }
+
+    partial void OnSelectedCelChanged(CelItem value)
+    {
+        _frameChore = -1;
+        _ = RefreshCelAsync();
+    }
 
     private bool _suppressPaletteReload;
 
@@ -150,13 +169,56 @@ public sealed partial class AkosViewModel : ObservableObject
         _parser.UpdatePaletteOnly(Akos, Block, value);
         UpdatePalette();
         // The shader path resolves colours on the GPU; only the CPU "Raw" image needs a refresh.
-        _ = RefreshCelAsync();
+        if (_frameChore >= 0) ShowChoreFrame(_playPos);
+        else _ = RefreshCelAsync();
     }
 
     partial void OnSelectedChoreNodeChanged(ChoreNode value)
     {
-        if (value?.StepItem is { IsDraw: true } step) SelectCel(step.Step.CelIndex);
-        else if (value?.Steps.FirstOrDefault(s => s.IsDraw) is { } first) SelectCel(first.Step.CelIndex);
+        if (value == null || Akos == null) return;
+        Stop();
+        if (value.StepPos >= 0)
+        {
+            // One step of one limb: its cels, at their offsets.
+            var frame = new AkosFrame();
+            int xm = 0, ym = 0;
+            AkosFrames.AddStep(Akos, value.StepPos, frame, ref xm, ref ym);
+            ShowFrame(frame, null, $"Step 0x{value.StepPos:X4}");
+        }
+        else if (ChoreOf(value) is int chore and >= 0)
+        {
+            _frameChore = chore;
+            _frameBounds = AkosFrames.CycleBounds(Akos, chore, AkosFrames.CycleLength(Akos, chore));
+            ShowChoreFrame(0);
+        }
+    }
+
+    /// <summary>The chore a node plays: its own, or (for an Anim node) its first direction's.</summary>
+    private static int ChoreOf(ChoreNode node) => node.Chore >= 0 ? node.Chore : node.Children.FirstOrDefault()?.Chore ?? -1;
+
+    private int _frameChore = -1;
+    private (int, int, int, int) _frameBounds;
+
+    private void ShowChoreFrame(int step)
+    {
+        if (Akos == null || _frameChore < 0) return;
+        var frame = AkosFrames.Compose(Akos, _frameChore, step);
+        int cycle = AkosFrames.CycleLength(Akos, _frameChore);
+        ShowFrame(frame, _frameBounds, $"Chore {_frameChore}  frame {step % cycle + 1}/{cycle}");
+    }
+
+    /// <summary>Shows a composed frame in place of a single cel.</summary>
+    private void ShowFrame(AkosFrame frame, (int, int, int, int)? bounds, string label)
+    {
+        var akos = Akos;
+        _cts?.Cancel();
+        if (akos == null || frame == null) return;
+        var surface = AkosFrames.ComposeSurface(akos, frame, bounds);
+        if (surface == null) { DataImage = RawImage = null; CelInfo = $"{label}\n(nothing drawn)"; return; }
+        DataImage = IndexedRenderer.CreateDataImage(surface, akos)?.ToSkImage();
+        RawImage = IndexedRenderer.CreateImage(surface, akos)?.ToSkImage();
+        CelInfo = $"{label}  —  {surface.Width} × {surface.Height} px\n" +
+                  string.Join("\n", frame.Cels.Select(c => $"cel {c.Cel}  at {c.X},{c.Y}  {c.Width}×{c.Height}"));
     }
 
     private void SelectCel(int index)
@@ -203,32 +265,29 @@ public sealed partial class AkosViewModel : ObservableObject
     private void TogglePlay()
     {
         if (IsPlaying) { Stop(); return; }
-
-        var dirNode = SelectedChoreNode?.Steps.Count > 0
-            ? SelectedChoreNode
-            : SelectedChoreNode?.Children.FirstOrDefault(c => c.Steps.Count > 0);
-        var frames = dirNode?.Steps.Where(s => s.IsDraw).Select(s => s.Step.CelIndex).ToList();
-        if (frames == null || frames.Count == 0)
+        if (Akos == null || SelectedChoreNode == null || ChoreOf(SelectedChoreNode) is not (int chore and >= 0))
         {
-            Log.Info("Select an animation or direction with draw steps to play.");
+            Log.Info("Select an animation or direction to play.");
             return;
         }
 
+        _frameChore = chore;
+        _frameBounds = AkosFrames.CycleBounds(Akos, chore, AkosFrames.CycleLength(Akos, chore));
         _playPos = 0;
         _timer ??= new DispatcherTimer();
         _timer.Interval = TimeSpan.FromSeconds(1.0 / Math.Clamp(Fps, 1, 60));
         _timer.Tick -= OnTick;
-        _timer.Tag = frames;
         _timer.Tick += OnTick;
         _timer.Start();
         IsPlaying = true;
+        ShowChoreFrame(0);
     }
 
     private void OnTick(object sender, EventArgs e)
     {
-        if (_timer?.Tag is not List<int> frames || frames.Count == 0) { Stop(); return; }
-        SelectCel(frames[_playPos % frames.Count]);
+        if (_frameChore < 0) { Stop(); return; }
         _playPos++;
+        ShowChoreFrame(_playPos);
     }
 
     partial void OnFpsChanged(double value)
