@@ -14,10 +14,10 @@ public partial class CostumePreviewView : UserControl
     public CostumePreviewView()
     {
         InitializeComponent();
-        DataContextChanged += (_, _) => Subscribe();
+        // DataContextChanged += (_, _) => Subscribe();
         // Docking the panel elsewhere unloads and reloads the view with the same DataContext.
-        Loaded += (_, _) => Subscribe();
-        Unloaded += (_, _) => Unsubscribe();
+        // Loaded += (_, _) => Subscribe();
+        // Unloaded += (_, _) => Unsubscribe();
     }
 
     public CelCanvas CelCanvas => Canvas;
@@ -40,7 +40,7 @@ public partial class CostumePreviewView : UserControl
     /// <summary>New cel / frame info starts at the top, where its title line is.</summary>
     private void OnViewModelPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(AkosViewModel.CelInfo))
-            Dispatcher.UIThread.Post(() => InfoScrollViewer?.ScrollToHome());
+        // if (e.PropertyName == nameof(AkosViewModel.CelInfo))
+        //     Dispatcher.UIThread.Post(() => InfoScrollViewer?.ScrollToHome());
     }
 }
