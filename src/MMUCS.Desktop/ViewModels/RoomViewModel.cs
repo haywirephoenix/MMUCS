@@ -35,6 +35,7 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private bool _showWalkboxes;
     [ObservableProperty] private bool _showLabels = true;
     [ObservableProperty] private bool _showBounds;
+    [ObservableProperty] private bool _showFullScreenObjects;
 
     public ObservableCollection<RoomObject> Objects { get; } = new();
 
@@ -45,6 +46,7 @@ public sealed partial class RoomViewModel : ObservableObject
     [RelayCommand] private void ToggleWalkboxes() => ShowWalkboxes = !ShowWalkboxes;
     [RelayCommand] private void ToggleLabels() => ShowLabels = !ShowLabels;
     [RelayCommand] private void ToggleBounds() => ShowBounds = !ShowBounds;
+    [RelayCommand] private void ToggleFullScreenObjects() => ShowFullScreenObjects = !ShowFullScreenObjects;
 
     private RgbaImage _backgroundRgba;
     private CancellationTokenSource _cts;

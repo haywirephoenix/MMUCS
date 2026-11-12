@@ -17,6 +17,9 @@
                         IsChecked="{Binding ShowBackground, Mode=OneWay}" Command="{Binding ToggleBackgroundCommand}" />
               <MenuItem Header="Objects" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowObjects, Mode=OneWay}" Command="{Binding ToggleObjectsCommand}" />
+              <MenuItem Header="Full-screen objects" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        ToolTip.Tip="Draw 640px-wide object images over the background (rooms without a background always show them)"
+                        IsChecked="{Binding ShowFullScreenObjects, Mode=OneWay}" Command="{Binding ToggleFullScreenObjectsCommand}" />
               <MenuItem Header="Hotspots" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowHotspots, Mode=OneWay}" Command="{Binding ToggleHotspotsCommand}" />
               <MenuItem Header="Walkboxes" ToggleType="CheckBox" StaysOpenOnClick="True"
@@ -54,7 +57,8 @@
                     ShowHotspots="{Binding ShowHotspots}"
                     ShowWalkboxes="{Binding ShowWalkboxes}"
                     ShowLabels="{Binding ShowLabels}"
-                    ShowBounds="{Binding ShowBounds}" />
+                    ShowBounds="{Binding ShowBounds}"
+                    ShowFullScreenObjects="{Binding ShowFullScreenObjects}" />
 
       <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
 
