@@ -4,7 +4,7 @@
     Release workflow (Actions > Release > Run workflow); the tag and release name use it.
   -->
   <PropertyGroup>
-    <Version>0.11.0</Version>
+    <Version>0.11.1</Version>
     <Product>MMUCS</Product>
     <Description>Modular Media Unpacker Content Studio</Description>
     <Copyright>PolyForm Noncommercial 1.0.0</Copyright>
