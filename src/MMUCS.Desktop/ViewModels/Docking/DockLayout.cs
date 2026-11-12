@@ -20,7 +20,7 @@ public sealed class CostumeDocument(MainWindowViewModel main) : Document { publi
 public sealed class ScriptDocument(MainWindowViewModel main) : Document { public MainWindowViewModel Main { get; } = main; }
 
 /// <summary>
-/// Builds the default layout (Blocks | Room/Costume/Script | Metadata over Hex) and hosts floating
+/// Builds the default layout (Blocks, Metadata and Hex stacked on the left, viewers on the right) and hosts floating
 /// panels in real OS windows. Panels can't be closed (yet), so nothing gets lost; Layout ▸ Reset to
 /// default rebuilds the default arrangement. Saved layouts are handled by <see cref="DockLayoutStore"/>.
 /// </summary>
@@ -108,8 +108,47 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
 
     public override IRootDock CreateLayout() => CreateDefaultLayout(CreatePanels());
 
-    /// <summary>Blocks | Room/Costume/Script | Metadata over Hex.</summary>
+    /// <summary>
+    /// Default layout: one column on the left stacking Blocks, Metadata and Hex, with the viewers
+    /// (Room/Costume/Script) taking the rest.
+    /// </summary>
     public IRootDock CreateDefaultLayout(Dictionary<string, IDockable> p)
+    {
+        var blocksDock = NewToolDock("LeftDock", CreateList(p[BlocksId]));
+        blocksDock.Proportion = 0.60;
+
+        var metadataDock = NewToolDock("MetadataDock", CreateList(p[MetadataId]));
+        metadataDock.Proportion = 0.26;
+
+        var hexDock = NewToolDock("HexDock", CreateList(p[HexId]));
+        hexDock.Proportion = 0.14;
+
+        var left = new ProportionalDock
+        {
+            Id = "LeftColumn",
+            Proportion = 0.31,
+            Orientation = Orientation.Vertical,
+            VisibleDockables = CreateList<IDockable>(blocksDock, new ProportionalDockSplitter(), metadataDock, new ProportionalDockSplitter(), hexDock),
+        };
+
+        var documents = NewDocumentDock("Documents", CreateList(p[RoomId], p[CostumeId], p[ScriptId]));
+        documents.Proportion = 0.69;
+
+        var mainDock = new ProportionalDock
+        {
+            Id = "MainDock",
+            Orientation = Orientation.Horizontal,
+            VisibleDockables = CreateList<IDockable>(left, new ProportionalDockSplitter(), documents),
+        };
+
+        return CreateMainRoot(mainDock);
+    }
+
+    /// <summary>
+    /// The original arrangement — Blocks | Room/Costume/Script | Metadata over Hex. Kept for the
+    /// upcoming layout templates.
+    /// </summary>
+    public IRootDock CreateClassicLayout(Dictionary<string, IDockable> p)
     {
         var left = NewToolDock("LeftDock", CreateList(p[BlocksId]));
         left.Proportion = 0.21;
