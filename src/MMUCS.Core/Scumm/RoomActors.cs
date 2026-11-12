@@ -310,7 +310,9 @@ public static class RoomActors
         }
         placed = MergeLayers(placed, scriptOf);
 
-        var candidates = room.Objects.Where(o => o.ImageCount == 0).ToList();
+        // Image-less hotspots, except exits: a room's doors are walk-through areas, never a costume
+        // (full-room overlays such as waterlines overlap them by chance).
+        var candidates = room.Objects.Where(o => o.ImageCount == 0 && !IsExit(o)).ToList();
         MatchObjects(placed.Where(p => !p.IsPlayer).ToList(), candidates, a => a.RoomBounds);
 
         // One entry per AKOS: its matched placements, else its first placement, else an unplaced entry.
@@ -409,7 +411,9 @@ public static class RoomActors
             if (s[p] == OpPutActorAtXY)
             {
                 bool roomOk = Lit(s, p - 5, out int r) ? r == roomNo : s[p - 5] == OpPushVar;
-                if (roomOk && Lit(s, p - 10, out int y) && Lit(s, p - 15, out int x) && Lit(s, p - 20, out int a) && a > 0 && (x != 0 || y != 0))
+                // 0,0 counts too: full-room overlays (waterlines) sit at the room's origin. Parking an
+                // actor out of the way is done with room 0, which roomOk already rejects.
+                if (roomOk && Lit(s, p - 10, out int y) && Lit(s, p - 15, out int x) && Lit(s, p - 20, out int a) && a > 0)
                     places.Add((p, a, x, y));
             }
         }
@@ -424,15 +428,19 @@ public static class RoomActors
                             .Select(a => a.Anim).DefaultIfEmpty(-1).First();
             int dir = faces.Where(f => f.Actor == c.Actor && f.Pos > c.Pos && f.Pos < until).Select(f => f.Dir).DefaultIfEmpty(180).First();
 
-            // Nearest placement of the same actor, preferring one after the costume is set.
-            (int Pos, int Actor, int X, int Y)? best = null;
+            // The first placement of the actor while it wears this costume (after the costume is set,
+            // before its next change); otherwise the nearest one, preferring those after.
+            (int Pos, int Actor, int X, int Y)? best = places
+                .Where(pl => pl.Actor == c.Actor && pl.Pos > c.Pos && pl.Pos < until)
+                .Select(pl => ((int, int, int, int)?)pl).FirstOrDefault();
             int bestDist = int.MaxValue;
-            foreach (var pl in places)
-            {
-                if (pl.Actor != c.Actor) continue;
-                int dist = pl.Pos >= c.Pos ? pl.Pos - c.Pos : (c.Pos - pl.Pos) * 2;
-                if (dist < bestDist) { bestDist = dist; best = pl; }
-            }
+            if (best == null)
+                foreach (var pl in places)
+                {
+                    if (pl.Actor != c.Actor) continue;
+                    int dist = pl.Pos >= c.Pos ? pl.Pos - c.Pos : (c.Pos - pl.Pos) * 2;
+                    if (dist < bestDist) { bestDist = dist; best = pl; }
+                }
             if (best is { } b) pairs.Add((c.Actor, c.Costume, b.X, b.Y, anim, dir));
         }
         return pairs;
@@ -474,6 +482,10 @@ public static class RoomActors
         }
         return result;
     }
+
+    /// <summary>An exit hotspot: COMI names them "…-door" (optionally numbered: "town-plndrmap-door-1", "town-door-1a").</summary>
+    private static bool IsExit(RoomObject o) =>
+        o.Name != null && System.Text.RegularExpressions.Regex.IsMatch(o.Name, @"(^|-)door(-\d+[a-z]?)?$");
 
     /// <summary>The first frame of animation <paramref name="anim"/> facing <paramref name="degrees"/>, or null if it draws nothing.</summary>
     private static AkosFrame Animated(AkosData d, int anim, int degrees)
