@@ -254,10 +254,16 @@ public sealed partial class RoomViewModel : ObservableObject
     /// </summary>
     partial void OnBackgroundIndexChanged(int value)
     {
-        ApplyBackgroundChoice();
-        if (_restoringBackground) return;
         int palette = Math.Clamp(value, 0, MaxPaletteIndex);
-        if (palette != PaletteIndex) PaletteIndex = palette; // reloads the background and objects
+        if (!_restoringBackground && palette != PaletteIndex)
+        {
+            // Keep showing the current background until the reload has decoded the new one with its
+            // palette; showing it now would flash it in the old palette for a frame. The reload
+            // restores this index and applies background and objects together.
+            PaletteIndex = palette;
+            return;
+        }
+        ApplyBackgroundChoice();
     }
 
     private void ApplyBackgroundChoice()
