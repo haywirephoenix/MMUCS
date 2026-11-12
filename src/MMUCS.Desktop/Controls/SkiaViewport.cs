@@ -57,6 +57,7 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
 
     private Vector _offset;
     private Point? _panStart;
+    private bool _panIsRightButton, _panMoved;
     private Vector _panStartOffset;
     private bool _spaceHeld;
     private Size _lastContentSize;
@@ -165,6 +166,8 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         {
             _panStart = e.GetPosition(this);
             _panStartOffset = _offset;
+            _panIsRightButton = props.IsRightButtonPressed;
+            _panMoved = false;
             e.Pointer.Capture(this);
             Cursor = new Cursor(StandardCursorType.SizeAll);
             e.Handled = true;
@@ -181,6 +184,7 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         if (_panStart is { } start)
         {
             var p = e.GetPosition(this);
+            if (Math.Abs(p.X - start.X) > 3 || Math.Abs(p.Y - start.Y) > 3) _panMoved = true;
             _offset = _panStartOffset + (p - start);
             InvalidateVisual();
         }
@@ -192,9 +196,12 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         base.OnPointerReleased(e);
         if (_panStart != null)
         {
+            bool contextClick = _panIsRightButton && !_panMoved;
             _panStart = null;
             e.Pointer.Capture(null);
             Cursor = Cursor.Default;
+            // A right-click that didn't drag is a context-menu request, not a pan.
+            if (contextClick) OnContentContextRequested(View.Unmap(e.GetPosition(this)));
         }
     }
 
@@ -219,6 +226,7 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
 
     protected virtual void OnContentClicked(Point contentPoint, PointerPressedEventArgs e) { }
     protected virtual void OnContentHover(Point contentPoint) { }
+    protected virtual void OnContentContextRequested(Point contentPoint) { }
 
     // ── Rendering ────────────────────────────────────────────────────────────
 

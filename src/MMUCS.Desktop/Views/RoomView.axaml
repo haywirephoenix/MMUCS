@@ -2,7 +2,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:MMUCS.Desktop.ViewModels"
              xmlns:c="using:MMUCS.Desktop.Controls"
-             xmlns:scumm="using:MMUCS.Core.Scumm"
              x:Class="MMUCS.Desktop.Views.RoomView"
              x:DataType="vm:RoomViewModel">
   <DockPanel>
@@ -65,19 +64,36 @@
                     ShowLabels="{Binding ShowLabels}"
                     ShowBounds="{Binding ShowBounds}"
                     ShowFullScreenObjects="{Binding ShowFullScreenObjects}"
-                    BackgroundObject="{Binding BackgroundObject}" />
+                    BackgroundObject="{Binding BackgroundObject}"
+                    HiddenObjects="{Binding HiddenObjects}" />
 
       <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
 
       <DockPanel Grid.Column="2">
-        <Border DockPanel.Dock="Top" Classes="panel-header"><TextBlock Text="OBJECTS" /></Border>
-        <ListBox ItemsSource="{Binding Objects}" SelectedItem="{Binding SelectedObject, Mode=TwoWay}">
+        <Border DockPanel.Dock="Top" Classes="panel-header">
+          <Grid ColumnDefinitions="Auto,*">
+            <!-- Toggle all: shows a mixed state when only some objects are visible. -->
+            <CheckBox IsChecked="{Binding AllObjectsVisible}" MinWidth="0" MinHeight="0" Padding="0"
+                      Margin="0,0,6,0" VerticalAlignment="Center" ToolTip.Tip="Show / hide all objects" />
+            <TextBlock Grid.Column="1" Text="OBJECTS" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+        <ListBox ItemsSource="{Binding Objects}" SelectedItem="{Binding SelectedObjectItem, Mode=TwoWay}">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="Padding" Value="8,3" />
+            </Style>
+          </ListBox.Styles>
           <ListBox.ItemTemplate>
-            <DataTemplate DataType="scumm:RoomObject">
-              <StackPanel>
-                <TextBlock Text="{Binding}" FontSize="12" />
-                <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
-              </StackPanel>
+            <DataTemplate DataType="vm:RoomObjectItem">
+              <Grid ColumnDefinitions="Auto,*">
+                <CheckBox IsChecked="{Binding IsVisible}" MinWidth="0" MinHeight="0" Padding="0"
+                          Margin="0,0,6,0" VerticalAlignment="Center" ToolTip.Tip="Visible" />
+                <StackPanel Grid.Column="1">
+                  <TextBlock Text="{Binding Name}" FontSize="12" />
+                  <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
+                </StackPanel>
+              </Grid>
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>

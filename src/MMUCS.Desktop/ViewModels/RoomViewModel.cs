@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -21,6 +22,15 @@ namespace MMUCS.Desktop.ViewModels;
 /// such as an alternate state of the scene or the inventory backdrop.
 /// </summary>
 public sealed record BackgroundChoice(string Label, SKImage Image, RgbaImage Rgba, RoomObject Object);
+
+/// <summary>An entry in the Objects panel: the object plus its (UI-only) visibility.</summary>
+public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
+{
+    public RoomObject Object { get; } = obj;
+    public string Name => Object.ToString();
+    public string Summary => Object.Summary;
+    [ObservableProperty] private bool _isVisible = true;
+}
 
 public sealed partial class RoomViewModel : ObservableObject
 {
@@ -50,7 +60,66 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private bool _showBounds;
     [ObservableProperty] private bool _showFullScreenObjects;
 
-    public ObservableCollection<RoomObject> Objects { get; } = new();
+    public ObservableCollection<RoomObjectItem> Objects { get; } = new();
+
+    [ObservableProperty] private RoomObjectItem _selectedObjectItem;
+    /// <summary>Objects whose image is hidden (a new set on every change, so bindings refresh).</summary>
+    [ObservableProperty] private IReadOnlySet<RoomObject> _hiddenObjects = new HashSet<RoomObject>();
+    private bool _batchVisibility;
+
+    /// <summary>Header checkbox: true when all are visible, false when none, null (mixed) otherwise.</summary>
+    public bool? AllObjectsVisible
+    {
+        get
+        {
+            if (Objects.Count == 0) return true;
+            int visible = Objects.Count(o => o.IsVisible);
+            return visible == Objects.Count ? true : visible == 0 ? false : null;
+        }
+        set => SetAllVisible(value != false); // clicking the mixed state shows everything
+    }
+
+    public void SetAllVisible(bool visible) => SetVisibility(_ => visible);
+
+    public void SetVisible(RoomObject obj, bool visible) => SetVisibility(o => ReferenceEquals(o, obj) ? visible : null);
+
+    /// <summary>Shows only <paramref name="obj"/> and hides every other object.</summary>
+    public void ShowOnly(RoomObject obj) => SetVisibility(o => ReferenceEquals(o, obj));
+
+    public bool IsVisible(RoomObject obj) => !HiddenObjects.Contains(obj);
+
+    /// <summary>Applies a visibility per object (null leaves it unchanged), then refreshes once.</summary>
+    private void SetVisibility(Func<RoomObject, bool?> rule)
+    {
+        _batchVisibility = true;
+        foreach (var item in Objects)
+            if (rule(item.Object) is bool v) item.IsVisible = v;
+        _batchVisibility = false;
+        RefreshVisibility();
+    }
+
+    private void OnItemChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(RoomObjectItem.IsVisible) && !_batchVisibility) RefreshVisibility();
+    }
+
+    private void RefreshVisibility()
+    {
+        HiddenObjects = Objects.Where(o => !o.IsVisible).Select(o => o.Object).ToHashSet();
+        OnPropertyChanged(nameof(AllObjectsVisible));
+    }
+
+    // Keep the list selection and the canvas selection (a RoomObject) in step.
+    partial void OnSelectedObjectItemChanged(RoomObjectItem value)
+    {
+        if (!ReferenceEquals(SelectedObject, value?.Object)) SelectedObject = value?.Object;
+    }
+
+    partial void OnSelectedObjectChanged(RoomObject value)
+    {
+        if (!ReferenceEquals(SelectedObjectItem?.Object, value))
+            SelectedObjectItem = Objects.FirstOrDefault(o => ReferenceEquals(o.Object, value));
+    }
 
     // View menu items invoke these; their IsChecked is bound one-way, so the state lives here only.
     [RelayCommand] private void ToggleBackground() => ShowBackground = !ShowBackground;
@@ -82,9 +151,16 @@ public sealed partial class RoomViewModel : ObservableObject
 
         RoomSize = new Size(room.Width, room.Height);
         Walkboxes = room.Walkboxes;
+        foreach (var item in Objects) item.PropertyChanged -= OnItemChanged;
         Objects.Clear();
-        foreach (var o in room.Objects) Objects.Add(o);
+        foreach (var o in room.Objects)
+        {
+            var item = new RoomObjectItem(o);
+            item.PropertyChanged += OnItemChanged;
+            Objects.Add(item);
+        }
         SelectedObject = null;
+        RefreshVisibility();
 
         MaxPaletteIndex = Math.Max(0, room.PaletteCount - 1);
         _suppressPaletteReload = true;
