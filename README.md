@@ -8,7 +8,7 @@
 <h1 align="center">MMUCS</h1>
 <h3 align="center">Modular Media Unpacker Content Studio</h3>
 
-<p align="center"> A modular environment for the analysis, extraction, and visualization of legacy media formats and SCUMM engine assets. </p>
+<p align="center"> A modular environment for the analysis, extraction, and visualization of SCUMM V8 titles. </p>
 
 <p align="center">  
   <a href="https://github.com/haywirephoenix/MMUCS/releases"> 
@@ -20,19 +20,7 @@
 </a>
 </p>
 
-## Table of Contents
-
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Getting Started](#-getting-started)
-- [Usage](#-usage)
-- [Contributing](#-contributing)
-- [License](#-license)
-
----
-
 ## Overview
-
 
 MMUCS (Modular Media Unpacker Content Studio) is a native .NET desktop tool (Avalonia UI + SkiaSharp) designed to deconstruct, visualize, and analyze SCUMM-based media architectures.
 
@@ -43,26 +31,16 @@ As a result, it will most likely not work as expected with other SCUMM games out
 
 ---
 
-## Key Features
+### Releases
 
-### Inspect
-*   **Block Hierarchy Visualization:** Navigate the internal structural tree of media files using the `BlockHierarchyPanel`, allowing you to see how data segments are nested and organized.
-*   **Metadata Analysis:** Instantly access embedded headers, tags, and descriptive data via the `MetadataPanel`, providing context to the raw binary streams.
-*   **Raw Data Transparency:** Use the integrated `HexPanel` for low-level binary inspection when precision is required at the byte level.
+Download releases here:
 
-### Visualize
-*   **AKOS Viewer:** A dedicated `AkosViewerPanel` for inspecting and playing back legacy AKOS animation data, complete with specialized caching (`AkosCelCache`) for smooth performance.
-*   **Room & Background Preview:** Visualize spatial assets and environments through the `RoomPreviewPanel`, utilizing a `ScummBackgroundCache` to ensure rapid asset switching and high responsiveness.
-*   **Indexed Rendering Pipeline:** Specialized `IndexedRenderer` and `IndexedSurface` utilities facilitate the accurate representation of palette-indexed legacy graphics on modern displays.
+<a href="https://github.com/haywirephoenix/MMUCS/releases/latest">
+  <img alt="Download Latest Release" src="https://img.shields.io/github/v/release/haywirephoenix/MMUCS?include_prereleases&label=Download&style=for-the-badge&color=brightgreen"/>
+</a>
 
-### Flow
-*   **Floating UI System:** A flexible interface utilizing `FloatingPanel` and `WindowManager` that allows users to customize their layout, docking or undocking tools as needed for their specific workflow.
-*   **Dynamic Theming:** Switch between aesthetics with the `Options Window`, supported by custom styleboxes and shaders.
-*   **Zoomable Viewports:** High-precision inspection of visual assets is made possible through `ZoomableViewport` utilities, ensuring every pixel can be scrutinized.
+The legacy Godot build is on the `godot` branch (previously `master`). 
 
-
-
-## Getting Started
 
 ### Building from source (Avalonia frontend)
 
@@ -90,33 +68,19 @@ Decode caches live in `%LocalAppData%/MMUCS/cache` (`~/.local/share/MMUCS` on Li
 
 The workflow builds self-contained packages for Windows, Linux and macOS (arm64 + x64), tags the commit with the version, and publishes a release whose notes list every commit since the previous tag (`- <hash> <subject>`).
 
-### Releases
-
-The legacy Godot build is on the `master` branch history. Download releases here:
-
-<a href="https://github.com/haywirephoenix/MMUCS/releases/latest">
-  <img alt="Download Latest Release" src="https://img.shields.io/github/v/release/haywirephoenix/MMUCS?include_prereleases&label=Download&style=for-the-badge&color=brightgreen"/>
-</a>
-
 ---
 
 ## Usage
 
 ### Loading Resources
 1.  Launch the application.
-2.  Open a COMI resource file (`COMI.LA1` / `COMI.LA2` contain rooms and costumes).
+2.  Open a resource file (eg: `COMI.LA0`) from your game directory. MMUCS will automatically find the other `.LA` files. 
 4.  The `ScummResourceParser` will begin indexing the file, and the `BlockHierarchyPanel` will populate with detected data segments.
 
 ### Visualizing
 1.  Within the `BlockHierarchyPanel`, browse through the tree. You can navigate with the keyboard or mouse.
 2.  When an `LFLF` or `ROOM` block is selected, the `RoomPreviewPanel` will automatically populate.
 3. Inside an `LFLF` block, you will often find `AKOS` blocks. Selecting one of those will automatically populate the `AkosViewerPanel` where you can cycle through the cels.
-
-
-### Customizing the UI
-*   **Rearrange Windows:** Click and drag any `FloatingPanel` to rearrange your workspace. Grab its edges to resize.
-*   **Adjust Appearance:** Navigate to the `OptionsPanel` to modify theme settings via the `ThemeManager`.
-*   **Inspect Raw Data:** Select any block to see its byte-level representation in the `HexPanel` or its metadata in the `MetadataPanel`.
 
 ---
 
@@ -131,37 +95,6 @@ Please let me know if I missed any decoding formats in Scumm V8 - feel free to a
 
 ---
 
-## Todo/Ideas
-
-- Add export functionality - decoding is done.
-- ~~Add OBIM decoding and display in Room panel~~
-- Add hotspots etc to Room panel  
-- ~~Update UI config - not all settings persist yet~~
-- ~~Improve UI flow and reliability~~ 
-- ~~Window size and position can be stored~~
-- Unify base window into own scene, and make each window type a variant
-- Maybe make Akos animations playable - instructions are decoded  
-- ~~Add more wallpapers~~
-- Script decoder
-- SCUMM Runner
-
----
-
 ## License
 
 This project is licensed under the **PolyForm Noncommercial License 1.0.0** - see the [LICENSE.md](LICENSE.md) file for complete details.
-
-### What this means:
-
-- ❌ **Commercial use:** You cannot use this project or its code for commercial purposes or financial gain.
-- ✅ **Modification:** You can modify the code to suit your specific unpacking and SCUMM data-exploration needs.
-- ✅ **Distribution:** You can distribute this software freely for non-commercial purposes.
-- ✅ **Hobby & Personal use:** You can use this project privately for hobby projects, amateur pursuits, research, or gaming preservation.
-- ⚠️ **Liability:** The software is provided "as is", without warranty of any kind.
-- ⚠️ **Patent Defense:** If you make a patent infringement claim against this software, your license ends immediately.
----
-
-
-<p align="center">
-  <a href="#">⬆️ Back to Top</a>
-</p>
