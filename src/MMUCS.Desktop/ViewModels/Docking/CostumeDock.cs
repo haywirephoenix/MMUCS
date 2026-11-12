@@ -141,4 +141,42 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : Factory, ILayoutBui
     public override void SplitToWindow(IDock dock, IDockable dockable, double x, double y, double width, double height) { }
     public override void SplitToWindow(IDock dock, IDockable dockable, double x, double y, double width, double height, DockWindowOptions options) { }
 
+    /// <summary>Panels dropped beside another take the size they had.</summary>
+    public override void OnDockableDocked(IDockable dockable, DockOperation operation)
+    {
+        base.OnDockableDocked(dockable, operation);
+        EdgeDockSizing.Apply(dockable, operation);
+    }
+
+    public override IFactory CreatePreviewFactory() => new SizedPreviewFactory(this);
+
+    /// <summary>A dock left empty hands its space to one neighbour (see <see cref="EdgeDockSizing.GiveSpaceToNeighbour"/>).</summary>
+    public override void CollapseDock(IDock dock)
+    {
+        EdgeDockSizing.GiveSpaceToNeighbour(dock, emptied: true);
+        base.CollapseDock(dock);
+    }
+
+    /// <summary>Notes the proportions around the target first, so the split can be sized from them.</summary>
+    public override void SplitToDock(IDock dock, IDockable dockable, DockOperation operation)
+    {
+        EdgeDockSizing.BeforeSplit(dock);
+        base.SplitToDock(dock, dockable, operation);
+    }
+
+    /// <summary>A panel leaving a dock it had to itself: remember that pane's size for when it gets one again.</summary>
+    public override void MoveDockable(IDock sourceDock, IDock targetDock, IDockable sourceDockable, IDockable targetDockable)
+    {
+        EdgeDockSizing.RememberPaneSize(sourceDockable, sourceDock);
+        base.MoveDockable(sourceDock, targetDock, sourceDockable, targetDockable);
+    }
+
+    /// <summary>A whole dock dragged away (by its title bar) hands its space to one neighbour too.</summary>
+    public override void RemoveDockable(IDockable dockable, bool collapse)
+    {
+        // Only panel docks: Dock also removes split containers when it flattens the tree, and those keep their share.
+        if (dockable is IToolDock or IDocumentDock) EdgeDockSizing.GiveSpaceToNeighbour((IDock)dockable, emptied: false);
+        base.RemoveDockable(dockable, collapse);
+    }
+
 }

@@ -204,16 +204,37 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
     /// supplies a preview factory for itself (not subclasses), so without this the preview falls back
     /// to a plain half-split that doesn't match the real result.
     /// </summary>
-    public override IFactory CreatePreviewFactory() => new PreviewFactory();
+    public override IFactory CreatePreviewFactory() => new SizedPreviewFactory(this);
 
-    private sealed class PreviewFactory : Factory
+    /// <summary>A dock left empty hands its space to one neighbour (see <see cref="EdgeDockSizing.GiveSpaceToNeighbour"/>).</summary>
+    public override void CollapseDock(IDock dock)
     {
-        public override void OnDockableDocked(IDockable dockable, DockOperation operation)
-        {
-            base.OnDockableDocked(dockable, operation);
-            EdgeDockSizing.Apply(dockable, operation);
-        }
+        EdgeDockSizing.GiveSpaceToNeighbour(dock, emptied: true);
+        base.CollapseDock(dock);
     }
+
+    /// <summary>Notes the proportions around the target first, so the split can be sized from them.</summary>
+    public override void SplitToDock(IDock dock, IDockable dockable, DockOperation operation)
+    {
+        EdgeDockSizing.BeforeSplit(dock);
+        base.SplitToDock(dock, dockable, operation);
+    }
+
+    /// <summary>A panel leaving a dock it had to itself: remember that pane's size for when it gets one again.</summary>
+    public override void MoveDockable(IDock sourceDock, IDock targetDock, IDockable sourceDockable, IDockable targetDockable)
+    {
+        EdgeDockSizing.RememberPaneSize(sourceDockable, sourceDock);
+        base.MoveDockable(sourceDock, targetDock, sourceDockable, targetDockable);
+    }
+
+    /// <summary>A whole dock dragged away (by its title bar) hands its space to one neighbour too.</summary>
+    public override void RemoveDockable(IDockable dockable, bool collapse)
+    {
+        // Only panel docks: Dock also removes split containers when it flattens the tree, and those keep their share.
+        if (dockable is IToolDock or IDocumentDock) EdgeDockSizing.GiveSpaceToNeighbour((IDock)dockable, emptied: false);
+        base.RemoveDockable(dockable, collapse);
+    }
+
 
     /// <summary>Brings a panel to the front, wherever it is docked or floating (no-op when hidden).</summary>
     public void Activate(string id, IRootDock layout)
@@ -332,14 +353,92 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
 }
 
 /// <summary>
-/// Dock reserves half the space for every split. Docking beside the documents area should give a
-/// side-panel-sized share instead (matching the default side panels); other splits get an equal share.
+/// The factory Dock uses to simulate a drop for its preview rectangle, sizing the result the same
+/// way as a real drop. The simulation runs on copies that keep their ids but not their on-screen
+/// sizes, so sizes are looked up on the live panels with the same ids.
+/// </summary>
+public sealed class SizedPreviewFactory(IFactory live) : Factory
+{
+    /// <summary>A dock left empty hands its space to one neighbour (see <see cref="EdgeDockSizing.GiveSpaceToNeighbour"/>).</summary>
+    public override void CollapseDock(IDock dock)
+    {
+        EdgeDockSizing.GiveSpaceToNeighbour(dock, emptied: true);
+        base.CollapseDock(dock);
+    }
+
+    /// <summary>Notes the proportions around the target first, so the split can be sized from them.</summary>
+    public override void SplitToDock(IDock dock, IDockable dockable, DockOperation operation)
+    {
+        EdgeDockSizing.BeforeSplit(dock);
+        base.SplitToDock(dock, dockable, operation);
+    }
+
+    /// <summary>A panel leaving a dock it had to itself: remember that pane's size for when it gets one again.</summary>
+    public override void MoveDockable(IDock sourceDock, IDock targetDock, IDockable sourceDockable, IDockable targetDockable)
+    {
+        EdgeDockSizing.RememberPaneSize(sourceDockable, sourceDock);
+        base.MoveDockable(sourceDock, targetDock, sourceDockable, targetDockable);
+    }
+
+    /// <summary>A whole dock dragged away (by its title bar) hands its space to one neighbour too.</summary>
+    public override void RemoveDockable(IDockable dockable, bool collapse)
+    {
+        // Only panel docks: Dock also removes split containers when it flattens the tree, and those keep their share.
+        if (dockable is IToolDock or IDocumentDock) EdgeDockSizing.GiveSpaceToNeighbour((IDock)dockable, emptied: false);
+        base.RemoveDockable(dockable, collapse);
+    }
+
+    public override void OnDockableDocked(IDockable dockable, DockOperation operation)
+    {
+        base.OnDockableDocked(dockable, operation);
+        EdgeDockSizing.Apply(dockable, operation, copy => Live(live, copy));
+    }
+
+    private static IDockable Live(IFactory factory, IDockable copy)
+    {
+        if (copy?.Id == null || factory?.DockControls == null) return null;
+        int kind = Kind(copy);
+        foreach (var control in factory.DockControls)
+            if (control.Layout is { } layout && Find(layout, d => d.Id == copy.Id && Kind(d) == kind) is { } found)
+                return found;
+        return null;
+    }
+
+    private static int Kind(IDockable d) => d switch
+    {
+        IProportionalDock => 1, IToolDock => 2, IDocumentDock => 3, IRootDock => 4, IDock => 5, _ => 0,
+    };
+
+    private static IDockable Find(IDockable node, System.Func<IDockable, bool> match)
+    {
+        if (match(node)) return node;
+        if (node is IDock dock && dock.VisibleDockables != null)
+            foreach (var child in dock.VisibleDockables)
+                if (Find(child, match) is { } found) return found;
+        return null;
+    }
+}
+
+/// <summary>
+/// Dock reserves half the space for every split. Instead the new pane takes the size the dragged
+/// panel had (its width when docked beside, its height when above or below), so a panel keeps its
+/// size when it's moved or re-docked. When that size isn't known: a side-panel share beside the
+/// documents area, an equal share elsewhere.
 /// </summary>
 public static class EdgeDockSizing
 {
     public const double SideProportion = 0.22;
+    private const double MinShare = 0.05;
 
-    public static void Apply(IDockable dockable, DockOperation operation)
+    /// <summary>
+    /// The share the preview last showed for a drop. By the time the real drop is reported the
+    /// dragged panel has been moved into a new dock and its on-screen size is gone, so the drop
+    /// reuses what the preview worked out for the same panel and side.
+    /// </summary>
+    private static (string Id, DockOperation Operation, double Share, long Ticks)? _previewed;
+
+    /// <param name="live">Set for the preview: maps its copies to the live panels that have on-screen sizes.</param>
+    public static void Apply(IDockable dockable, DockOperation operation, System.Func<IDockable, IDockable> live = null)
     {
         if (dockable == null || operation is not (DockOperation.Left or DockOperation.Right or DockOperation.Top or DockOperation.Bottom))
             return;
@@ -350,32 +449,222 @@ public static class EdgeDockSizing
         IDockable split = dockable;
         while (split.Owner is IDockable parent)
         {
-            if (parent is IProportionalDock pd && pd.Orientation == orientation && ResizeSplit(pd, split))
+            if (parent is IProportionalDock pd && pd.Orientation == orientation && ResizeSplit(pd, split, dockable, operation, live))
                 return;
             split = parent;
         }
     }
 
-    private static bool ResizeSplit(IProportionalDock parent, IDockable split)
+    private static bool ResizeSplit(IProportionalDock parent, IDockable split, IDockable dragged, DockOperation operation, System.Func<IDockable, IDockable> live)
     {
         var panes = parent.VisibleDockables?.Where(d => d is not IProportionalDockSplitter).ToList();
         if (panes == null || panes.Count < 2 || !panes.Contains(split)) return false;
-
-        bool besideDocuments = panes.Any(p => !ReferenceEquals(p, split) && ContainsDocuments(p));
-        double share = besideDocuments ? SideProportion : 1.0 / panes.Count;
-
         var others = panes.Where(p => !ReferenceEquals(p, split)).ToList();
-        double othersTotal = others.Sum(p => double.IsFinite(p.Proportion) && p.Proportion > 0 ? p.Proportion : 0);
 
-        Set(split, share);
+        // The documents area (the viewers) gives up the space, so side panels keep their size; in a
+        // split without one, the pane the new one was dropped beside does.
+        int at = panes.IndexOf(split);
+        bool before = operation is DockOperation.Left or DockOperation.Top; // new pane sits before its neighbour
+        var neighbour = others.FirstOrDefault(ContainsDocuments)
+            ?? (before
+                ? (at + 1 < panes.Count ? panes[at + 1] : panes[at - 1])
+                : (at > 0 ? panes[at - 1] : panes[at + 1]));
+
+        bool horizontal = parent.Orientation == Orientation.Horizontal;
+        double? share;
+        if (live != null)
+        {
+            share = DraggedShare(panes, split, dragged, horizontal, live);
+            _previewed = share is double v ? (PanelOf(dragged).Id, operation, v, System.DateTime.UtcNow.Ticks) : null;
+        }
+        else
+        {
+            share = _previewed is { } last && last.Id == PanelOf(dragged).Id && last.Operation == operation
+                    && System.TimeSpan.FromTicks(System.DateTime.UtcNow.Ticks - last.Ticks).TotalSeconds < 30
+                ? last.Share
+                : DraggedShare(panes, split, dragged, horizontal, d => d);
+            _previewed = null;
+        }
+        bool besideDocuments = others.Any(ContainsDocuments);
+        double wanted = share ?? (besideDocuments ? SideProportion : 1.0 / panes.Count);
+
+        // The existing panes' shares from before the split (Dock has already halved the target, or
+        // scaled everything, to make room), summing to 1.
+        var prior = others.ToDictionary(p => p, p => _beforeSplit != null && _beforeSplit.TryGetValue(p, out var v) ? v : p.Proportion);
+        _beforeSplit = null;
+        double total = prior.Values.Sum(v => double.IsFinite(v) && v > 0 ? v : 0);
+        bool known = prior.Values.All(v => double.IsFinite(v) && v > 0) && total > 0;
+        var current = others.ToDictionary(p => p, p => known ? prior[p] / total : 1.0 / others.Count);
+
+        // Take it from the neighbour only, leaving it at least a sliver.
+        double available = System.Math.Max(0, current[neighbour] - MinShare);
+        double taken = System.Math.Clamp(wanted, MinShare, System.Math.Max(MinShare, available));
+        Set(split, taken);
         foreach (var p in others)
         {
-            double current = !double.IsFinite(p.Proportion) || p.Proportion <= 0 || othersTotal <= 0
-                ? 1.0 / others.Count
-                : p.Proportion / othersTotal;
-            Set(p, current * (1 - share));
+            if (!ReferenceEquals(p, neighbour)) { Set(p, current[p]); continue; }
+            // The neighbour's side facing the new pane: its end if it comes before it.
+            bool facesAtEnd = panes.IndexOf(p) < at;
+            ResizeKeepingInner(p, current[p], System.Math.Max(MinShare, current[p] - taken), facesAtEnd, parent.Orientation);
         }
         return true;
+    }
+
+    /// <summary>
+    /// Changes a pane's share. When the pane is itself a split along the same axis (e.g. the whole
+    /// layout after docking at a window edge), its children keep their on-screen size except the one
+    /// on the edge facing the change, which grows or shrinks by the difference.
+    /// </summary>
+    private static void ResizeKeepingInner(IDockable pane, double oldShare, double newShare, bool edgeAtEnd, Orientation orientation)
+    {
+        Set(pane, newShare);
+        if (pane is not IProportionalDock inner || inner.Orientation != orientation || oldShare <= 0 || newShare <= 0) return;
+        var kids = inner.VisibleDockables?.Where(d => d is not IProportionalDockSplitter).ToList();
+        if (kids == null || kids.Count < 2) return;
+        double total = kids.Sum(k => double.IsFinite(k.Proportion) && k.Proportion > 0 ? k.Proportion : 0);
+        if (total <= 0 || !kids.All(k => double.IsFinite(k.Proportion) && k.Proportion > 0)) return;
+
+        var edge = edgeAtEnd ? kids[^1] : kids[0];
+        double scale = oldShare / newShare, sum = 0;
+        foreach (var k in kids)
+        {
+            if (ReferenceEquals(k, edge)) continue;
+            double v = k.Proportion / total * scale;
+            Set(k, v);
+            sum += v;
+        }
+        Set(edge, System.Math.Max(MinShare, 1 - sum));
+    }
+
+    /// <summary>
+    /// The dragged panel's size along the split axis as a share of the space the new pane is cut
+    /// from (the other panes' sizes), or null when a size isn't known.
+    /// </summary>
+    private static double? DraggedShare(List<IDockable> panes, IDockable split, IDockable dragged, bool horizontal, System.Func<IDockable, IDockable> live)
+    {
+        double? SizeOf(IDockable d)
+        {
+            if (live(d) is not { } model) return null;
+            model.GetVisibleBounds(out _, out _, out double w, out double h);
+            double v = horizontal ? w : h;
+            return double.IsFinite(v) && v > 1 ? v : null;
+        }
+
+        if (DraggedSize(dragged, horizontal, live) is not double size) return null;
+        // The split's own size: the other panes' last sizes can be stale (one of them may just have
+        // left), the container's isn't. A split Dock has just created has none yet; use its panes then.
+        double total = split.Owner is { } container && SizeOf(container) is double whole ? whole : 0;
+        if (total <= 0)
+            foreach (var p in panes)
+            {
+                if (ReferenceEquals(p, split)) continue;
+                if (SizeOf(p) is not double s) return null;
+                total += s;
+            }
+        if (total <= 0) return null;
+        return System.Math.Clamp(size / total, 0.08, 0.85);
+    }
+
+    /// <summary>
+    /// The size a dragged panel should get: its own pane's size while it has one (it's alone in its
+    /// dock), otherwise the size its pane had when it last left one (e.g. before it was tabbed in with
+    /// other panels), otherwise its current size.
+    /// </summary>
+    private static double? DraggedSize(IDockable dragged, bool horizontal, System.Func<IDockable, IDockable> live)
+    {
+        var panel = PanelOf(dragged);
+        static double? Axis(double w, double h, bool horizontal)
+        {
+            double v = horizontal ? w : h;
+            return double.IsFinite(v) && v > 1 ? v : null;
+        }
+
+        if (live(panel) is { } model)
+        {
+            if (model.Owner is IDock own && own.VisibleDockables is { Count: 1 })
+            {
+                own.GetVisibleBounds(out _, out _, out var ow, out var oh);
+                if (Axis(ow, oh, horizontal) is double alone) return alone;
+            }
+            if (panel.Id != null && PaneSizes.TryGetValue(panel.Id, out var remembered) && Axis(remembered.W, remembered.H, horizontal) is double kept)
+                return kept;
+            model.GetVisibleBounds(out _, out _, out var w, out var h);
+            if (Axis(w, h, horizontal) is double now) return now;
+        }
+        else if (panel.Id != null && PaneSizes.TryGetValue(panel.Id, out var remembered) && Axis(remembered.W, remembered.H, horizontal) is double kept)
+        {
+            return kept;
+        }
+        return null;
+    }
+
+    /// <summary>Proportions of the panes around a split target, taken just before Dock splits it.</summary>
+    private static Dictionary<IDockable, double> _beforeSplit;
+
+    /// <summary>Called before a split: keeps the target's and its siblings' proportions as they were.</summary>
+    public static void BeforeSplit(IDock target)
+    {
+        _beforeSplit = new Dictionary<IDockable, double>(ReferenceEqualityComparer.Instance);
+        if (target == null) return;
+        _beforeSplit[target] = target.Proportion;
+        if (target.Owner is IDock owner && owner.VisibleDockables != null)
+            foreach (var d in owner.VisibleDockables)
+                if (d is not IProportionalDockSplitter) _beforeSplit[d] = d.Proportion;
+    }
+
+    /// <summary>Last size of each panel's own pane, recorded as it leaves it.</summary>
+    private static readonly Dictionary<string, (double W, double H)> PaneSizes = new();
+
+    /// <summary>Called before a panel moves out of <paramref name="dock"/>: if it was alone there, keep that pane's size.</summary>
+    public static void RememberPaneSize(IDockable panel, IDock dock)
+    {
+        if (panel is IDock || panel?.Id == null || dock?.VisibleDockables is not { Count: 1 } || !dock.VisibleDockables.Contains(panel)) return;
+        dock.GetVisibleBounds(out _, out _, out var w, out var h);
+        if (double.IsFinite(w) && double.IsFinite(h) && w > 1 && h > 1) PaneSizes[panel.Id] = (w, h);
+    }
+
+    /// <summary>The panel a drag carries: the dragged panel, or the only panel of a dragged dock.</summary>
+    private static IDockable PanelOf(IDockable dragged) =>
+        dragged is IDock dock && dock.VisibleDockables is { Count: 1 } && dock.VisibleDockables[0] is not IDock
+            ? dock.VisibleDockables[0]
+            : dragged;
+
+    /// <summary>
+    /// Before an empty dock is removed from its split, its share goes to the documents area (the
+    /// viewers) if the split has one, else to the next pane, else the previous, so side panels keep
+    /// their size. Dock would otherwise leave a gap that the layout spreads over every pane.
+    /// </summary>
+    /// <param name="emptied">True for a dock collapsing because it's empty; false for one being moved away.</param>
+    public static void GiveSpaceToNeighbour(IDock dock, bool emptied)
+    {
+        if (dock == null) return;
+        if (emptied && (dock is not { IsCollapsable: true } || dock.VisibleDockables is not { Count: 0 })) return;
+        if (dock.Owner is not IProportionalDock parent || parent.VisibleDockables is not { } items) return;
+        var panes = items.Where(d => d is not IProportionalDockSplitter).ToList();
+        int at = panes.IndexOf(dock);
+        if (at < 0 || panes.Count < 2) return;
+
+        // The documents area takes the space (side panels keep their size); otherwise the next pane, else the previous.
+        var previous = at > 0 ? panes[at - 1] : null;
+        var next = at + 1 < panes.Count ? panes[at + 1] : null;
+        var neighbour = panes.FirstOrDefault(p => !ReferenceEquals(p, dock) && ContainsDocuments(p)) ?? next ?? previous;
+
+        double total = panes.Sum(p => double.IsFinite(p.Proportion) && p.Proportion > 0 ? p.Proportion : 0);
+        bool known = panes.All(p => double.IsFinite(p.Proportion) && p.Proportion > 0) && total > 0;
+        if (!known) return; // nothing reliable to redistribute
+        foreach (var p in panes)
+        {
+            if (ReferenceEquals(p, dock)) continue;
+            double share = p.Proportion / total;
+            if (!ReferenceEquals(p, neighbour)) { Set(p, share); continue; }
+            // The neighbour's side facing the leaving dock: its end if it comes before it.
+            bool facesAtEnd = panes.IndexOf(p) < at;
+            ResizeKeepingInner(p, share, share + dock.Proportion / total, facesAtEnd, parent.Orientation);
+        }
+        // Handed over: the removal that follows (Dock removes the dock right after) mustn't hand it again.
+        // A moved dock gets a fresh share where it lands.
+        dock.Proportion = double.NaN;
+        dock.CollapsedProportion = double.NaN;
     }
 
     // Mirror Dock's own split sizing, which keeps CollapsedProportion in step with Proportion.
