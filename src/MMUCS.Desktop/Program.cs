@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Avalonia;
 using MMUCS.Core;
+using MMUCS.Desktop.Services;
 
 namespace MMUCS.Desktop;
 
@@ -13,21 +14,10 @@ internal static class Program
     {
         AppDomain.CurrentDomain.UnhandledException += (_, e) => WriteCrash(e.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException      += (_, e) => { WriteCrash(e.Exception); e.SetObserved(); };
-        try
+        // One instance per user: a second launch hands its file to the running one and exits.
+        if (!SingleInstance.TryAcquire())
         {
-            Directory.CreateDirectory(CorePaths.Root);
-        }
-        catch { /* ignore directory creation failures here */ }
-
-        string lockFilePath = Path.Combine(CorePaths.Root, "app.lock");
-        FileStream lockFile = null;
-
-        try
-        {
-            lockFile = new FileStream(lockFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-        }
-        catch (IOException)
-        {
+            SingleInstance.SendToRunning(args);
             return;
         }
 
@@ -42,7 +32,7 @@ internal static class Program
         }
         finally
         {
-            lockFile?.Dispose();
+            SingleInstance.Release();
         }
     }
 
