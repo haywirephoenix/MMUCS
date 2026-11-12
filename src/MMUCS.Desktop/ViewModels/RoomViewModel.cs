@@ -206,7 +206,9 @@ public sealed partial class RoomViewModel : ObservableObject
                 RgbaImage rgba = null;
                 if (obj.ImageCount > 0 && ObimDecoders.TryGetObimInfo(obj.Block, out var info))
                 {
-                    var result = await ObimCache.GetCachedObimAsync(obj.Block, 0, info.DefaultPaletteIndex, bakeImage: true, token);
+                    // Objects use the room's current palette: SCUMM v8 has no per-object palette, the
+                    // game switches the room palette from scripts.
+                    var result = await ObimCache.GetCachedObimAsync(obj.Block, 0, PaletteIndex, bakeImage: true, token);
                     if (token.IsCancellationRequested) return;
                     rgba = result.ExecutedImage;
                     image = rgba?.ToSkImage();
@@ -227,8 +229,10 @@ public sealed partial class RoomViewModel : ObservableObject
             // a palette change keeps the current choice.
             int index = _resetBackgroundChoice ? 0 : Math.Clamp(BackgroundIndex, 0, MaxBackgroundIndex);
             _resetBackgroundChoice = false;
+            _restoringBackground = true;
             if (BackgroundIndex != index) BackgroundIndex = index; // applies via OnBackgroundIndexChanged
             else ApplyBackgroundChoice();
+            _restoringBackground = false;
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -241,7 +245,20 @@ public sealed partial class RoomViewModel : ObservableObject
         }
     }
 
-    partial void OnBackgroundIndexChanged(int value) => ApplyBackgroundChoice();
+    private bool _restoringBackground;
+
+    /// <summary>
+    /// Choosing background k switches to palette k (clamped to the room's palettes). In COMI each
+    /// alternate background is drawn for the matching palette (e.g. stancrpt's office and palette 1,
+    /// the credits pages and palettes 1–5). The Palette spinbox can still override it.
+    /// </summary>
+    partial void OnBackgroundIndexChanged(int value)
+    {
+        ApplyBackgroundChoice();
+        if (_restoringBackground) return;
+        int palette = Math.Clamp(value, 0, MaxPaletteIndex);
+        if (palette != PaletteIndex) PaletteIndex = palette; // reloads the background and objects
+    }
 
     private void ApplyBackgroundChoice()
     {
