@@ -10,12 +10,24 @@
     <Border DockPanel.Dock="Top" Classes="panel-header" Padding="6,3">
       <WrapPanel Orientation="Horizontal" ItemSpacing="0" LineSpacing="4">
         <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12" Margin="2,0,14,0" />
-        <ToggleButton Content="Background" IsChecked="{Binding ShowBackground}" Margin="0,0,4,0" />
-        <ToggleButton Content="Objects" IsChecked="{Binding ShowObjects}" Margin="0,0,4,0" />
-        <ToggleButton Content="Hotspots" IsChecked="{Binding ShowHotspots}" Margin="0,0,4,0" />
-        <ToggleButton Content="Walkboxes" IsChecked="{Binding ShowWalkboxes}" Margin="0,0,4,0" />
-        <ToggleButton Content="Labels" IsChecked="{Binding ShowLabels}" Margin="0,0,4,0" />
-        <ToggleButton Content="Bounds" IsChecked="{Binding ShowBounds}" Margin="0,0,12,0" />
+        <Button Content="View ▾" Margin="0,0,12,0" ToolTip.Tip="Room layers and overlays">
+          <Button.Flyout>
+            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+              <MenuItem Header="Background" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowBackground, Mode=OneWay}" Command="{Binding ToggleBackgroundCommand}" />
+              <MenuItem Header="Objects" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowObjects, Mode=OneWay}" Command="{Binding ToggleObjectsCommand}" />
+              <MenuItem Header="Hotspots" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowHotspots, Mode=OneWay}" Command="{Binding ToggleHotspotsCommand}" />
+              <MenuItem Header="Walkboxes" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowWalkboxes, Mode=OneWay}" Command="{Binding ToggleWalkboxesCommand}" />
+              <MenuItem Header="Labels" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowLabels, Mode=OneWay}" Command="{Binding ToggleLabelsCommand}" />
+              <MenuItem Header="Room bounds" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowBounds, Mode=OneWay}" Command="{Binding ToggleBoundsCommand}" />
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
         <TextBlock Text="Palette" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
         <NumericUpDown Value="{Binding PaletteIndex}" Minimum="0" Maximum="{Binding MaxPaletteIndex}"
                        Increment="1" FormatString="0" Width="96" Margin="0,0,12,0" />

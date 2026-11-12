@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Imaging;
 using MMUCS.Core.Scumm;
@@ -36,6 +37,14 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private bool _showBounds;
 
     public ObservableCollection<RoomObject> Objects { get; } = new();
+
+    // View menu items invoke these; their IsChecked is bound one-way, so the state lives here only.
+    [RelayCommand] private void ToggleBackground() => ShowBackground = !ShowBackground;
+    [RelayCommand] private void ToggleObjects() => ShowObjects = !ShowObjects;
+    [RelayCommand] private void ToggleHotspots() => ShowHotspots = !ShowHotspots;
+    [RelayCommand] private void ToggleWalkboxes() => ShowWalkboxes = !ShowWalkboxes;
+    [RelayCommand] private void ToggleLabels() => ShowLabels = !ShowLabels;
+    [RelayCommand] private void ToggleBounds() => ShowBounds = !ShowBounds;
 
     private RgbaImage _backgroundRgba;
     private CancellationTokenSource _cts;

@@ -3,7 +3,7 @@
              xmlns:vm="using:MMUCS.Desktop.ViewModels"
              x:Class="MMUCS.Desktop.Views.Panels.MetadataView"
              x:DataType="vm:MainWindowViewModel">
-  <ListBox ItemsSource="{Binding Metadata}" Background="Transparent">
+  <ListBox ItemsSource="{Binding Metadata}">
     <ListBox.Styles>
       <Style Selector="ListBoxItem">
         <Setter Property="Padding" Value="8,2" />

@@ -9,8 +9,17 @@
              RequestedThemeVariant="Dark">
   <Application.Resources>
     <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace</FontFamily>
-    <SolidColorBrush x:Key="PanelHeaderBrush" Color="#1FFFFFFF" />
+    <SolidColorBrush x:Key="PanelHeaderBrush" Color="#000000" />
+    <SolidColorBrush x:Key="ListBackgroundBrush" Color="#000000" />
     <SolidColorBrush x:Key="SubtleTextBrush" Color="#99FFFFFF" />
+
+    <!-- Dock tabs: neutral greys instead of the theme's blue for hovered/active tabs. App resources
+         take precedence over the Dock theme's. (Drop targets and splitters keep the blue accent.) -->
+    <SolidColorBrush x:Key="DockTabHoverBackgroundBrush" Color="#3A3A3F" />
+    <SolidColorBrush x:Key="DockTabActiveBackgroundBrush" Color="#4A4A50" />
+    <SolidColorBrush x:Key="DockTabActiveIndicatorBrush" Color="#707078" />
+    <SolidColorBrush x:Key="DockTabSelectedForegroundBrush" Color="#F0F0F0" />
+    <SolidColorBrush x:Key="DockTabCloseHoverBackgroundBrush" Color="#5A5A62" />
   </Application.Resources>
 
   <!-- Panel content for each dockable. App-level so floating (host) windows resolve them too. -->
@@ -86,6 +95,11 @@
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
     </Style>
+    <!-- One list background everywhere, so no list shows Fluent's default grey. -->
+    <Style Selector="ListBox">
+      <Setter Property="Background" Value="{StaticResource ListBackgroundBrush}" />
+    </Style>
+
     <Style Selector="TextBlock.mono">
       <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
     </Style>
