@@ -18,7 +18,7 @@
               <MenuItem Header="Objects" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowObjects, Mode=OneWay}" Command="{Binding ToggleObjectsCommand}" />
               <MenuItem Header="Full-screen objects" ToggleType="CheckBox" StaysOpenOnClick="True"
-                        ToolTip.Tip="Draw 640px-wide object images over the background (rooms without a background always show them)"
+                        ToolTip.Tip="Draw all 640px-wide object images over the background (or pick one with the Background spinbox)"
                         IsChecked="{Binding ShowFullScreenObjects, Mode=OneWay}" Command="{Binding ToggleFullScreenObjectsCommand}" />
               <MenuItem Header="Hotspots" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowHotspots, Mode=OneWay}" Command="{Binding ToggleHotspotsCommand}" />
@@ -31,9 +31,15 @@
             </MenuFlyout>
           </Button.Flyout>
         </Button>
+        <TextBlock Text="Background" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
+        <NumericUpDown Value="{Binding BackgroundIndex}" Minimum="0" Maximum="{Binding MaxBackgroundIndex}"
+                       IsEnabled="{Binding HasBackgroundChoices}" Increment="1" FormatString="0" Width="96" Margin="0,0,4,0"
+                       ToolTip.Tip="The room's own background, then each full-width (640px) object image" />
+        <TextBlock Text="{Binding BackgroundLabel}" VerticalAlignment="Center" FontSize="11" MaxWidth="160"
+                   TextTrimming="CharacterEllipsis" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,12,0" />
         <TextBlock Text="Palette" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
         <NumericUpDown Value="{Binding PaletteIndex}" Minimum="0" Maximum="{Binding MaxPaletteIndex}"
-                       Increment="1" FormatString="0" Width="96" Margin="0,0,12,0" />
+                       IsEnabled="{Binding HasPaletteChoices}" Increment="1" FormatString="0" Width="96" Margin="0,0,12,0" />
         <Button Content="Fit" Click="OnFitClick" Margin="0,0,4,0" ToolTip.Tip="Zoom to fit (F / double-click)" />
         <Button Content="1:1" Click="OnActualClick" ToolTip.Tip="Actual pixels (1)" />
       </WrapPanel>
@@ -58,7 +64,8 @@
                     ShowWalkboxes="{Binding ShowWalkboxes}"
                     ShowLabels="{Binding ShowLabels}"
                     ShowBounds="{Binding ShowBounds}"
-                    ShowFullScreenObjects="{Binding ShowFullScreenObjects}" />
+                    ShowFullScreenObjects="{Binding ShowFullScreenObjects}"
+                    BackgroundObject="{Binding BackgroundObject}" />
 
       <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
 

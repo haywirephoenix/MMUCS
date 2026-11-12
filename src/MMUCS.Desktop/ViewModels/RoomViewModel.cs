@@ -16,8 +16,17 @@ using SkiaSharp;
 
 namespace MMUCS.Desktop.ViewModels;
 
+/// <summary>
+/// A background the room can show: the room's own image, or a full-width (640px) object image
+/// such as an alternate state of the scene or the inventory backdrop.
+/// </summary>
+public sealed record BackgroundChoice(string Label, SKImage Image, RgbaImage Rgba, RoomObject Object);
+
 public sealed partial class RoomViewModel : ObservableObject
 {
+    /// <summary>Object images at least this wide are treated as alternative backgrounds.</summary>
+    public const int FullWidth = 640;
+
     [ObservableProperty] private RoomModel _room;
     [ObservableProperty] private string _title = "No room selected";
     [ObservableProperty] private SKImage _backgroundImage;
@@ -26,7 +35,11 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private Size _roomSize;
     [ObservableProperty] private RoomObject _selectedObject;
     [ObservableProperty] private int _paletteIndex;
-    [ObservableProperty] private int _maxPaletteIndex;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasPaletteChoices))] private int _maxPaletteIndex;
+    [ObservableProperty] private int _backgroundIndex;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasBackgroundChoices))] private int _maxBackgroundIndex;
+    [ObservableProperty] private string _backgroundLabel;
+    [ObservableProperty] private RoomObject _backgroundObject;
     [ObservableProperty] private bool _isBusy;
 
     [ObservableProperty] private bool _showBackground = true;
@@ -48,10 +61,14 @@ public sealed partial class RoomViewModel : ObservableObject
     [RelayCommand] private void ToggleBounds() => ShowBounds = !ShowBounds;
     [RelayCommand] private void ToggleFullScreenObjects() => ShowFullScreenObjects = !ShowFullScreenObjects;
 
-    private RgbaImage _backgroundRgba;
+    private IReadOnlyList<BackgroundChoice> _backgroundChoices = Array.Empty<BackgroundChoice>();
+    private bool _resetBackgroundChoice = true;
     private CancellationTokenSource _cts;
 
     public bool HasRoom => Room != null;
+    /// <summary>Spinboxes are only active when there is something to switch between.</summary>
+    public bool HasPaletteChoices => MaxPaletteIndex > 0;
+    public bool HasBackgroundChoices => MaxBackgroundIndex > 0;
 
     public async Task LoadAsync(RoomModel room)
     {
@@ -73,6 +90,7 @@ public sealed partial class RoomViewModel : ObservableObject
         _suppressPaletteReload = true;
         PaletteIndex = 0;
         _suppressPaletteReload = false;
+        _resetBackgroundChoice = true;
 
         await ReloadImagesAsync();
     }
@@ -102,22 +120,39 @@ public sealed partial class RoomViewModel : ObservableObject
                 cacheId, room.Rmhd, room.Room, cacheDisabled: false, PaletteIndex, token);
             if (token.IsCancellationRequested) return;
 
-            _backgroundRgba = bg.ExecutedImage;
-            BackgroundImage = bg.ExecutedImage?.ToSkImage();
+            var roomBackground = bg.ExecutedImage;
 
             var layers = new List<RoomObjectLayer>(room.Objects.Count);
+            var fullWidth = new List<BackgroundChoice>();
             foreach (var obj in room.Objects)
             {
                 SKImage image = null;
+                RgbaImage rgba = null;
                 if (obj.ImageCount > 0 && ObimDecoders.TryGetObimInfo(obj.Block, out var info))
                 {
                     var result = await ObimCache.GetCachedObimAsync(obj.Block, 0, info.DefaultPaletteIndex, bakeImage: true, token);
                     if (token.IsCancellationRequested) return;
-                    image = result.ExecutedImage?.ToSkImage();
+                    rgba = result.ExecutedImage;
+                    image = rgba?.ToSkImage();
                 }
                 layers.Add(new RoomObjectLayer(obj, image));
+                if (image != null && image.Width >= FullWidth) fullWidth.Add(new BackgroundChoice(obj.ToString(), image, rgba, obj));
             }
+
+            // Background choices: the room's own image first, then every full-width object image.
+            var choices = new List<BackgroundChoice>();
+            if (roomBackground != null) choices.Add(new BackgroundChoice("room", roomBackground.ToSkImage(), roomBackground, null));
+            choices.AddRange(fullWidth);
+
             ObjectLayers = layers;
+            _backgroundChoices = choices;
+            MaxBackgroundIndex = Math.Max(0, choices.Count - 1);
+            // A new room starts on its first choice (its own image, or e.g. the inventory backdrop);
+            // a palette change keeps the current choice.
+            int index = _resetBackgroundChoice ? 0 : Math.Clamp(BackgroundIndex, 0, MaxBackgroundIndex);
+            _resetBackgroundChoice = false;
+            if (BackgroundIndex != index) BackgroundIndex = index; // applies via OnBackgroundIndexChanged
+            else ApplyBackgroundChoice();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -130,11 +165,25 @@ public sealed partial class RoomViewModel : ObservableObject
         }
     }
 
+    partial void OnBackgroundIndexChanged(int value) => ApplyBackgroundChoice();
+
+    private void ApplyBackgroundChoice()
+    {
+        var choice = BackgroundIndex >= 0 && BackgroundIndex < _backgroundChoices.Count ? _backgroundChoices[BackgroundIndex] : null;
+        BackgroundObject = choice?.Object;
+        BackgroundImage = choice?.Image;
+        BackgroundLabel = choice == null ? "none" : choice.Label;
+    }
+
+    /// <summary>Exports the background currently shown (the room's image or the chosen full-width one).</summary>
     public void ExportBackground(string folder)
     {
-        if (_backgroundRgba == null || Room == null) return;
-        string path = Path.Combine(folder, $"room_{(Room.RoomNo > 0 ? Room.RoomNo.ToString("D3") : Room.Room.Offset.ToString("X8"))}_pal{PaletteIndex}.png");
-        _backgroundRgba.SavePng(path);
+        var choice = BackgroundIndex >= 0 && BackgroundIndex < _backgroundChoices.Count ? _backgroundChoices[BackgroundIndex] : null;
+        if (choice?.Rgba == null || Room == null) return;
+        string room = Room.RoomNo > 0 ? Room.RoomNo.ToString("D3") : Room.Room.Offset.ToString("X8");
+        string suffix = choice.Object == null ? $"pal{PaletteIndex}" : string.Join("_", choice.Label.Split(Path.GetInvalidFileNameChars()));
+        string path = Path.Combine(folder, $"room_{room}_{suffix}.png");
+        choice.Rgba.SavePng(path);
         Log.Info($"Exported {path}");
     }
 }

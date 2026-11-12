@@ -40,6 +40,10 @@ public sealed class RoomCanvas : SkiaViewport
     public static readonly StyledProperty<bool> ShowBoundsProperty =
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(ShowBounds));
 
+    /// <summary>When the background is a full-width object image, that object (gives its position).</summary>
+    public static readonly StyledProperty<RoomObject> BackgroundObjectProperty =
+        AvaloniaProperty.Register<RoomCanvas, RoomObject>(nameof(BackgroundObject));
+
     public static readonly StyledProperty<bool> ShowFullScreenObjectsProperty =
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(ShowFullScreenObjects));
 
@@ -57,6 +61,7 @@ public sealed class RoomCanvas : SkiaViewport
     public bool ShowWalkboxes { get => GetValue(ShowWalkboxesProperty); set => SetValue(ShowWalkboxesProperty, value); }
     public bool ShowLabels { get => GetValue(ShowLabelsProperty); set => SetValue(ShowLabelsProperty, value); }
     public bool ShowBounds { get => GetValue(ShowBoundsProperty); set => SetValue(ShowBoundsProperty, value); }
+    public RoomObject BackgroundObject { get => GetValue(BackgroundObjectProperty); set => SetValue(BackgroundObjectProperty, value); }
     /// <summary>Draw full-width (640px) object images even over a background; otherwise only when selected.</summary>
     public bool ShowFullScreenObjects { get => GetValue(ShowFullScreenObjectsProperty); set => SetValue(ShowFullScreenObjectsProperty, value); }
 
@@ -68,14 +73,14 @@ public sealed class RoomCanvas : SkiaViewport
         AffectsRender<RoomCanvas>(
             BackgroundImageProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
-            ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty);
+            ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
         if (change.Property == RoomSizeProperty || change.Property == BackgroundImageProperty
-            || change.Property == ObjectLayersProperty)
+            || change.Property == ObjectLayersProperty || change.Property == BackgroundObjectProperty)
             ContentChanged();
     }
 
@@ -86,7 +91,11 @@ public sealed class RoomCanvas : SkiaViewport
             var s = RoomSize;
             if (s.Width > 0 && s.Height > 0) return s;
             var bg = BackgroundImage;
-            if (bg != null) return new Size(bg.Width, bg.Height);
+            if (bg != null)
+            {
+                var o = BackgroundObject;
+                return new Size((o?.X ?? 0) + bg.Width, (o?.Y ?? 0) + bg.Height);
+            }
 
             // Background-less rooms (e.g. the icons/inventory library): fit to the objects' extent.
             double w = 0, h = 0;
@@ -110,7 +119,8 @@ public sealed class RoomCanvas : SkiaViewport
         ShowLabels,
         ShowBounds,
         ContentSize,
-        ShowFullScreenObjects || BackgroundImage == null);
+        ShowFullScreenObjects,
+        BackgroundObject);
 
     protected override void OnContentClicked(Point p, PointerPressedEventArgs e)
     {
@@ -151,13 +161,14 @@ public sealed class RoomCanvas : SkiaViewport
         private readonly IReadOnlyList<Walkbox> _boxes;
         private readonly RoomObject _selected;
         private readonly bool _hotspots, _labels, _bounds, _fullScreenObjects;
+        private readonly RoomObject _bgObject;
         private readonly Size _size;
 
         public Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
-            IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects)
+            IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject)
         {
             _bg = bg; _drawLayers = drawLayers; _allLayers = allLayers; _boxes = boxes;
-            _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects;
+            _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject;
         }
 
         private static readonly SKPaint HotspotFill = new() { Color = new SKColor(255, 220, 0, 38), Style = SKPaintStyle.Fill };
@@ -178,16 +189,17 @@ public sealed class RoomCanvas : SkiaViewport
             canvas.Concat(view.Matrix);
             var sampling = PickSampling(canvas);
 
+            // The chosen background: the room's own image, or a full-width object image at its position.
             if (_bg != null)
-                canvas.DrawImage(_bg, 0, 0, sampling);
+                canvas.DrawImage(_bg, _bgObject?.X ?? 0, _bgObject?.Y ?? 0, sampling);
 
             if (_drawLayers != null)
             {
                 foreach (var layer in _drawLayers)
                 {
-                    if (layer.Image == null) continue;
-                    // Full-screen (640px) object images would cover the background, so they're drawn only
-                    // when selected, when asked for, or in rooms that have no background to cover.
+                    if (layer.Image == null || ReferenceEquals(layer.Object, _bgObject)) continue; // already the background
+                    // Other full-screen (640px) object images would cover the background, so they're drawn
+                    // only when selected or when asked for (switch to them with the Background spinbox).
                     bool isFullWidth = layer.Image.Width >= 640;
                     if (isFullWidth && !_fullScreenObjects && !ReferenceEquals(layer.Object, _selected)) continue;
                     canvas.DrawImage(layer.Image, layer.Object.X, layer.Object.Y, sampling);
