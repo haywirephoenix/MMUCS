@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using MMUCS.Desktop.ViewModels;
@@ -20,6 +21,9 @@ public partial class App : Application
         {
             var vm = new MainWindowViewModel();
             desktop.MainWindow = new MainWindow { DataContext = vm };
+            // Without this, open floating panel windows would keep the process alive after the
+            // main window closes.
+            desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
             // "MMUCS.exe path/to/COMI.LA1" opens that file; otherwise optionally reopen the last one.
             _ = vm.StartupAsync(desktop.Args);

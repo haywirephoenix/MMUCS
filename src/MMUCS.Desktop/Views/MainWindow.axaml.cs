@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private PixelPoint _normalPosition;
     private Size _normalSize;
     private bool _placementApplied;
+    private Avalonia.Threading.DispatcherTimer _autosave;
     private NativeMenuItem _reopenItem, _exportItem, _exportRoomItem, _exportCelsItem;
 
     public MainWindow()
@@ -34,7 +35,11 @@ public partial class MainWindow : Window
         // Track the normal (un-maximized) bounds so a maximized window still saves a sensible size.
         PositionChanged += (_, _) => { if (WindowState == WindowState.Normal) _normalPosition = Position; };
         Opened += OnOpened;
-        Closing += (_, _) => Vm?.SaveLayout(CurrentPlacement());
+        Closing += (_, _) =>
+        {
+            _autosave?.Stop();
+            Vm?.SaveLayout(CurrentPlacement());
+        };
     }
 
     protected override void OnSizeChanged(SizeChangedEventArgs e)
@@ -94,6 +99,12 @@ public partial class MainWindow : Window
 
     private void OnOpened(object sender, EventArgs e)
     {
+        // Autosave: the layout is written whenever it changes (checked every few seconds), so it
+        // survives the app being killed or stopped from a debugger, not just a normal close.
+        _autosave = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _autosave.Tick += (_, _) => Vm?.SaveLayout(CurrentPlacement());
+        _autosave.Start();
+
         // Floating panel windows restored onto a monitor that's no longer attached come back over
         // the main window instead.
         if (Vm?.Layout?.Windows == null) return;

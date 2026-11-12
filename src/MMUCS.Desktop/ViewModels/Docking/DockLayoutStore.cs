@@ -36,6 +36,7 @@ public static class DockLayoutStore
 {
     private const int CurrentVersion = 1;
     private static string FilePath => Path.Combine(CorePaths.Root, "layout.json");
+    private static string _lastWritten;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -101,12 +102,16 @@ public static class DockLayoutStore
                 });
             }
 
+            string json = JsonSerializer.Serialize(file, JsonOptions);
+            if (json == _lastWritten && File.Exists(FilePath)) return; // unchanged since the last write
             Directory.CreateDirectory(CorePaths.Root);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(file, JsonOptions));
+            File.WriteAllText(FilePath, json);
+            _lastWritten = json;
         }
         catch (Exception ex)
         {
             Log.Warn($"Layout could not be saved: {ex.Message}");
+            try { File.AppendAllText(Path.Combine(CorePaths.Root, "layout-errors.log"), $"[{DateTime.Now:O}] save failed{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}"); } catch { }
         }
     }
 
