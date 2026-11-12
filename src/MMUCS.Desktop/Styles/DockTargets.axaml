@@ -1,0 +1,260 @@
+<!--
+  Drop targets without icons. Dock decides where a dragged panel lands by testing which selector
+  rectangle the pointer is in, so the selectors here are invisible zones instead of icons:
+
+  - DockTarget (the panel under the pointer): bands along its top, bottom, left and right edges
+    split the panel on that side; the middle adds the panel as a tab.
+  - GlobalDockTarget (the whole window): thin bands right at the window edges dock across the
+    entire layout. In Dock's default global docking mode these win over the panel underneath.
+
+  The translucent preview (indicators / PART_PreviewIndicator) is unchanged and is all that shows.
+  Based on Dock.Avalonia.Themes.Fluent 12.1.5 (Controls/DockTarget.axaml, GlobalDockTarget.axaml).
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    x:CompileBindings="True">
+
+  <!-- Width of the window-edge bands for docking across the whole layout. -->
+  <x:Double x:Key="DockWindowEdgeBand">28</x:Double>
+
+  <ControlTheme x:Key="{x:Type DockTarget}" TargetType="DockTarget">
+    <Setter Property="ClipToBounds" Value="False" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Panel>
+          <Grid x:Name="PART_IndicatorGrid" RowDefinitions="*,*" ColumnDefinitions="*,*">
+            <Panel x:Name="PART_TopIndicator"
+                   Grid.Row="0" Grid.ColumnSpan="2" Grid.Column="0"
+                   IsVisible="{TemplateBinding ShowVerticalTargets}"
+                   DockProperties.IndicatorDockOperation="Top" />
+            <Panel x:Name="PART_BottomIndicator"
+                   Grid.Row="1" Grid.ColumnSpan="2" Grid.Column="0"
+                   IsVisible="{TemplateBinding ShowVerticalTargets}"
+                   DockProperties.IndicatorDockOperation="Bottom" />
+            <Panel x:Name="PART_LeftIndicator"
+                   Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                   IsVisible="{TemplateBinding ShowHorizontalTargets}"
+                   DockProperties.IndicatorDockOperation="Left" />
+            <Panel x:Name="PART_RightIndicator"
+                   Grid.Column="1" Grid.Row="0" Grid.RowSpan="2"
+                   IsVisible="{TemplateBinding ShowHorizontalTargets}"
+                   DockProperties.IndicatorDockOperation="Right" />
+            <Panel x:Name="PART_CenterIndicator"
+                   Grid.ColumnSpan="2" Grid.Column="0" Grid.Row="0" Grid.RowSpan="2"
+                   DockProperties.IndicatorDockOperation="Fill" />
+
+            <!-- Zones: top and bottom bands span the full width (corners included); left and right
+                 bands sit between them; the centre is the tab zone. -->
+            <Panel x:Name="PART_SelectorPanel" Grid.Row="0" Grid.RowSpan="2" Grid.ColumnSpan="2" Grid.Column="0">
+              <!-- Each edge band is a quarter of the panel's height / width. -->
+              <Grid x:Name="PART_SelectorGrid" RowDefinitions="*,2*,*" ColumnDefinitions="*,2*,*">
+                <Panel x:Name="PART_TopSelector" Classes="zone"
+                       Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
+                       IsVisible="{TemplateBinding ShowVerticalTargets}"
+                       DockProperties.IndicatorDockOperation="Top" />
+                <Panel x:Name="PART_BottomSelector" Classes="zone"
+                       Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
+                       IsVisible="{TemplateBinding ShowVerticalTargets}"
+                       DockProperties.IndicatorDockOperation="Bottom" />
+                <Panel x:Name="PART_LeftSelector" Classes="zone"
+                       Grid.Row="1" Grid.Column="0"
+                       IsVisible="{TemplateBinding ShowHorizontalTargets}"
+                       DockProperties.IndicatorDockOperation="Left" />
+                <Panel x:Name="PART_RightSelector" Classes="zone"
+                       Grid.Row="1" Grid.Column="2"
+                       IsVisible="{TemplateBinding ShowHorizontalTargets}"
+                       DockProperties.IndicatorDockOperation="Right" />
+                <Panel x:Name="PART_CenterSelector" Classes="zone"
+                       Grid.Row="1" Grid.Column="1"
+                       DockProperties.IndicatorDockOperation="Fill" />
+              </Grid>
+            </Panel>
+          </Grid>
+          <Canvas IsHitTestVisible="False">
+            <Border x:Name="PART_PreviewIndicator" Opacity="0.5"
+                    Canvas.Left="{TemplateBinding PreviewX}" Canvas.Top="{TemplateBinding PreviewY}"
+                    Width="{TemplateBinding PreviewWidth}" Height="{TemplateBinding PreviewHeight}"
+                    Background="{DynamicResource DockTargetIndicatorBrush}" />
+          </Canvas>
+        </Panel>
+      </ControlTemplate>
+    </Setter>
+
+    <!-- Zones are hit-tested as rectangles; they draw nothing. -->
+    <Style Selector="^/template/ Panel.zone">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="^/template/ Panel#PART_TopIndicator">
+      <Setter Property="Background" Value="{DynamicResource DockTargetIndicatorBrush}" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="^/template/ Panel#PART_BottomIndicator">
+      <Setter Property="Background" Value="{DynamicResource DockTargetIndicatorBrush}" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="^/template/ Panel#PART_LeftIndicator">
+      <Setter Property="Background" Value="{DynamicResource DockTargetIndicatorBrush}" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="^/template/ Panel#PART_RightIndicator">
+      <Setter Property="Background" Value="{DynamicResource DockTargetIndicatorBrush}" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="^/template/ Panel#PART_CenterIndicator">
+      <Setter Property="Background" Value="{DynamicResource DockTargetIndicatorBrush}" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+
+    <Style Selector="^/template/ Panel#PART_SelectorPanel">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="^[ShowIndicatorsOnly=True] /template/ Panel#PART_SelectorPanel">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+
+    <Style Selector="^/template/ Border#PART_PreviewIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="^:preview /template/ Border#PART_PreviewIndicator">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="^:preview /template/ Panel#PART_TopIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="^:preview /template/ Panel#PART_BottomIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="^:preview /template/ Panel#PART_LeftIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="^:preview /template/ Panel#PART_RightIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="^:preview /template/ Panel#PART_CenterIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+  </ControlTheme>
+
+  <ControlTheme x:Key="{x:Type GlobalDockTarget}" TargetType="GlobalDockTarget">
+    <Setter Property="ClipToBounds" Value="False" />
+    <!-- Dock only accepts a side when the pointer is this close to that window edge. -->
+    <Setter Property="EdgeHitTestThickness" Value="{DynamicResource DockWindowEdgeBand}" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Panel>
+          <Panel>
+            <ProportionalStackPanel Orientation="Horizontal">
+              <Panel x:Name="PART_LeftIndicator"
+                     ProportionalStackPanel.Proportion="{x:Static DockSettings.GlobalDockingProportion}"
+                     DockProperties.IndicatorDockOperation="Left" />
+              <Border />
+              <Panel x:Name="PART_RightIndicator"
+                     ProportionalStackPanel.Proportion="{x:Static DockSettings.GlobalDockingProportion}"
+                     DockProperties.IndicatorDockOperation="Right" />
+            </ProportionalStackPanel>
+            <ProportionalStackPanel Orientation="Vertical">
+              <Panel x:Name="PART_TopIndicator"
+                     ProportionalStackPanel.Proportion="{x:Static DockSettings.GlobalDockingProportion}"
+                     DockProperties.IndicatorDockOperation="Top" />
+              <Border />
+              <Panel x:Name="PART_BottomIndicator"
+                     ProportionalStackPanel.Proportion="{x:Static DockSettings.GlobalDockingProportion}"
+                     DockProperties.IndicatorDockOperation="Bottom" />
+            </ProportionalStackPanel>
+
+            <!-- Edge bands along each side of the window. -->
+            <Grid x:Name="PART_IndicatorGrid">
+              <Panel x:Name="PART_SelectorPanel">
+                <Panel x:Name="PART_TopSelector" Classes="selector"
+                       HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="{DynamicResource DockWindowEdgeBand}"
+                       DockProperties.IndicatorDockOperation="Top" />
+                <Panel x:Name="PART_BottomSelector" Classes="selector"
+                       HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Height="{DynamicResource DockWindowEdgeBand}"
+                       DockProperties.IndicatorDockOperation="Bottom" />
+                <Panel x:Name="PART_LeftSelector" Classes="selector"
+                       HorizontalAlignment="Left" VerticalAlignment="Stretch" Width="{DynamicResource DockWindowEdgeBand}"
+                       DockProperties.IndicatorDockOperation="Left" />
+                <Panel x:Name="PART_RightSelector" Classes="selector"
+                       HorizontalAlignment="Right" VerticalAlignment="Stretch" Width="{DynamicResource DockWindowEdgeBand}"
+                       DockProperties.IndicatorDockOperation="Right" />
+              </Panel>
+            </Grid>
+          </Panel>
+
+          <Canvas IsHitTestVisible="False">
+            <Border x:Name="PART_PreviewIndicator" Opacity="0.5"
+                    Canvas.Left="{TemplateBinding PreviewX}" Canvas.Top="{TemplateBinding PreviewY}"
+                    Width="{TemplateBinding PreviewWidth}" Height="{TemplateBinding PreviewHeight}"
+                    Background="{DynamicResource DockTargetIndicatorBrush}" />
+          </Canvas>
+        </Panel>
+      </ControlTemplate>
+    </Setter>
+
+    <Style Selector="^/template/ Panel.selector">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <!-- Dock sets :vertical / :horizontal when docking along that axis is possible. -->
+    <Style Selector="^:vertical /template/ Panel">
+      <Style Selector="^#PART_TopSelector.selector">
+        <Setter Property="IsVisible" Value="True" />
+      </Style>
+      <Style Selector="^#PART_BottomSelector.selector">
+        <Setter Property="IsVisible" Value="True" />
+      </Style>
+    </Style>
+    <Style Selector="^:horizontal /template/ Panel">
+      <Style Selector="^#PART_LeftSelector.selector">
+        <Setter Property="IsVisible" Value="True" />
+      </Style>
+      <Style Selector="^#PART_RightSelector.selector">
+        <Setter Property="IsVisible" Value="True" />
+      </Style>
+    </Style>
+
+    <Style Selector="^/template/ Panel#PART_TopIndicator">
+      <Setter Property="Background" Value="{DynamicResource DockTargetIndicatorBrush}" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="^/template/ Panel#PART_BottomIndicator">
+      <Setter Property="Background" Value="{DynamicResource DockTargetIndicatorBrush}" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="^/template/ Panel#PART_LeftIndicator">
+      <Setter Property="Background" Value="{DynamicResource DockTargetIndicatorBrush}" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="^/template/ Panel#PART_RightIndicator">
+      <Setter Property="Background" Value="{DynamicResource DockTargetIndicatorBrush}" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+
+    <Style Selector="^/template/ Panel#PART_SelectorPanel">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="^[ShowIndicatorsOnly=True] /template/ Panel#PART_SelectorPanel">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+
+    <Style Selector="^/template/ Border#PART_PreviewIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="^:preview /template/ Border#PART_PreviewIndicator">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="^:preview /template/ Panel#PART_TopIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="^:preview /template/ Panel#PART_BottomIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="^:preview /template/ Panel#PART_LeftIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="^:preview /template/ Panel#PART_RightIndicator">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+  </ControlTheme>
+</ResourceDictionary>

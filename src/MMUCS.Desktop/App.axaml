@@ -9,6 +9,11 @@
              x:Class="MMUCS.Desktop.App"
              RequestedThemeVariant="Dark">
   <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <!-- Drop targets as invisible edge zones instead of icons. -->
+        <ResourceInclude Source="/Styles/DockTargets.axaml" />
+      </ResourceDictionary.MergedDictionaries>
     <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace</FontFamily>
     <SolidColorBrush x:Key="PanelHeaderBrush" Color="#000000" />
     <SolidColorBrush x:Key="ListBackgroundBrush" Color="#000000" />
@@ -30,6 +35,7 @@
     <SolidColorBrush x:Key="DockSplitterIdleBrush" Color="#2E2E33" />
     <SolidColorBrush x:Key="DockSeparatorBrush" Color="Transparent" />
     <x:Boolean x:Key="DockDocumentTabStripSeparatorVisible">False</x:Boolean>
+    </ResourceDictionary>
   </Application.Resources>
 
   <!-- Panel content for each dockable. App-level so floating (host) windows resolve them too. -->
@@ -81,6 +87,11 @@
     <Style Selector="ProportionalStackPanelSplitter:pointerover">
       <Setter Property="Background" Value="{DynamicResource DockSplitterHoverBrush}" />
     </Style>
+    <!-- Held for the whole drag: the pointer slips off the thin handle while it catches up, which
+         would otherwise flicker the hover colour. -->
+    <Style Selector="ProportionalStackPanelSplitter:pressed">
+      <Setter Property="Background" Value="{DynamicResource DockSplitterHoverBrush}" />
+    </Style>
 
     <!-- A tab whose panel got new content while hidden shows a white dot (Dock's "modified"
          indicator, a * by default); bringing the tab forward clears it. -->
@@ -107,39 +118,6 @@
     <Style Selector="SelectableTextBlock">
       <Setter Property="SelectionBrush" Value="#2563EB" />
       <Setter Property="SelectionForegroundBrush" Value="White" />
-    </Style>
-
-    <!-- Drop-target overlay: colour-inverted copies of Dock's icons (dark tiles with a blue fill,
-         less glaring on the dark theme). Regenerate: magick in.png -channel RGB -negate +channel out.png -->
-    <Style Selector="DockTarget /template/ Image#PART_TopSelector">
-      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableTop.png" />
-    </Style>
-    <Style Selector="DockTarget /template/ Image#PART_BottomSelector">
-      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableBottom.png" />
-    </Style>
-    <Style Selector="DockTarget /template/ Image#PART_LeftSelector">
-      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableLeft.png" />
-    </Style>
-    <Style Selector="DockTarget /template/ Image#PART_RightSelector">
-      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableRight.png" />
-    </Style>
-    <Style Selector="DockTarget /template/ Image#PART_CenterSelector">
-      <Setter Property="Source" Value="/Assets/Dock/DockDocumentInside.png" />
-    </Style>
-    <Style Selector="GlobalDockTarget /template/ Image#PART_TopSelector">
-      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableTop.png" />
-    </Style>
-    <Style Selector="GlobalDockTarget /template/ Image#PART_BottomSelector">
-      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableBottom.png" />
-    </Style>
-    <Style Selector="GlobalDockTarget /template/ Image#PART_LeftSelector">
-      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableLeft.png" />
-    </Style>
-    <Style Selector="GlobalDockTarget /template/ Image#PART_RightSelector">
-      <Setter Property="Source" Value="/Assets/Dock/DockAnchorableRight.png" />
-    </Style>
-    <Style Selector="GlobalDockTarget /template/ Image#PART_CenterSelector">
-      <Setter Property="Source" Value="/Assets/Dock/DockDocumentInside.png" />
     </Style>
 
     <!-- Floating panel windows use the app icon. -->
