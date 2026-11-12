@@ -57,6 +57,21 @@
   <Application.Styles>
     <FluentTheme DensityStyle="Compact" />
     <dockTheme:DockFluentTheme />
+    
+    <Style Selector="NumericUpDown">
+      <Setter Property="MaxHeight" Value="24" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="MaxHeight" Value="24" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Slider">
+      <Setter Property="MaxHeight" Value="24" />
+    </Style>
+    <Style Selector="Slider /template/ Track">
+      <Setter Property="Margin" Value="0,-10,0,0" />
+    </Style>
 
     <!-- Splitters (the theme leaves them transparent) show as thin lines: the only lines between
          panels, marking where they can be resized. -->
