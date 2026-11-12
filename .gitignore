@@ -5,28 +5,11 @@ TODO.MD
 layout.user.json
 
 # ==========================================
-# Godot 4 Specific
-# ==========================================
-.godot/
-.import/
-export.cfg
-export_credentials.cfg
-*.tmp
-*.translation
-
-# Godot temporary files
-*.depren
-*.uidpren
-
-# Android/Mobile
-/android/
-.nomedia
-
-# ==========================================
 # C# / .NET / Mono Specific
 # ==========================================
 bin/
 obj/
+publish/
 
 # Debug symbol files from native code/libraries
 *.pdb
