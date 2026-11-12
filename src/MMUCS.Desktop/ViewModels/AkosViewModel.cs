@@ -32,6 +32,8 @@ public sealed class ChoreNode
     public int Chore { get; init; } = -1;
     /// <summary>For a step node: its AKSQ position (drawn on its own); otherwise -1.</summary>
     public int StepPos { get; init; } = -1;
+    /// <summary>Kept on the node so the tree reopens as it was when its tab is shown again.</summary>
+    public bool IsExpanded { get; set; }
 }
 
 public sealed partial class AkosViewModel : ObservableObject
@@ -64,6 +66,27 @@ public sealed partial class AkosViewModel : ObservableObject
     [ObservableProperty] private double _fps = 10;
 
     public ObservableCollection<CelItem> Cels { get; } = new();
+
+    /// <summary>The viewer's own panels (Cels, Preview, Chores, Resolved palette).</summary>
+    public Docking.CostumeDockFactory DockFactory { get; }
+    [ObservableProperty] private Dock.Model.Controls.IRootDock _layout;
+
+    public AkosViewModel()
+    {
+        DockFactory = new Docking.CostumeDockFactory(this);
+        UseLayout(DockFactory.CreateLayout());
+    }
+
+    /// <summary>Applies a saved arrangement of the viewer's panels (the default if it doesn't fit).</summary>
+    public void RestoreLayout(Docking.DockLayoutStore.Node saved) => UseLayout(DockFactory.TryRestore(saved) ?? DockFactory.CreateLayout());
+
+    public void ResetLayout() => UseLayout(DockFactory.CreateLayout());
+
+    private void UseLayout(Dock.Model.Controls.IRootDock layout)
+    {
+        DockFactory.InitLayout(layout);
+        Layout = layout;
+    }
     public ObservableCollection<ChoreNode> Chores { get; } = new();
     public IReadOnlyList<CelViewMode> Modes { get; } = Enum.GetValues<CelViewMode>();
 

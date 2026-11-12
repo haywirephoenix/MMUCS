@@ -23,6 +23,16 @@ public sealed class WindowPlacement
     public bool Maximized { get; set; }
 }
 
+/// <summary>What <see cref="DockLayoutStore.Build"/> needs to recreate a saved dock tree.</summary>
+public interface ILayoutBuilder
+{
+    IList<T> CreateList<T>(params T[] items);
+    Dock.Model.Mvvm.Controls.ToolDock NewToolDock(string id, IList<IDockable> panels, IDockable active = null);
+    Dock.Model.Mvvm.Controls.DocumentDock NewDocumentDock(string id, IList<IDockable> panels, IDockable active = null);
+    /// <summary>A hidden panel that goes back into <paramref name="dock"/>.</summary>
+    void RememberHidden(string id, IDock dock);
+}
+
 /// <summary>
 /// Saves and restores the dock layout (panel arrangement, sizes, active tabs, floating windows) and
 /// the main window placement in %LocalAppData%/MMUCS/layout.json.
@@ -53,6 +63,8 @@ public static class DockLayoutStore
         public WindowPlacement MainWindow { get; set; }
         public Node Root { get; set; }
         public List<FloatingWindow> Windows { get; set; } = new();
+        /// <summary>The Costume viewer's own panel arrangement.</summary>
+        public Node Costume { get; set; }
     }
 
     public sealed class FloatingWindow
@@ -80,7 +92,7 @@ public static class DockLayoutStore
 
     // ── Save ─────────────────────────────────────────────────────────────────
 
-    public static void Save(IRootDock layout, WindowPlacement mainWindow, Func<IDock, List<string>> hiddenIn = null)
+    public static void Save(IRootDock layout, WindowPlacement mainWindow, Func<IDock, List<string>> hiddenIn = null, IRootDock costume = null)
     {
         _hiddenIn = hiddenIn;
         try
@@ -92,6 +104,12 @@ public static class DockLayoutStore
                 MainWindow = mainWindow,
                 Root = Capture(layout.DefaultDockable ?? layout.VisibleDockables[0]),
             };
+            if ((costume?.DefaultDockable ?? costume?.VisibleDockables?.FirstOrDefault()) is { } costumeContent)
+            {
+                _hiddenIn = null;
+                file.Costume = Capture(costumeContent);
+                _hiddenIn = hiddenIn;
+            }
 
             foreach (var window in layout.Windows ?? Enumerable.Empty<IDockWindow>())
             {
@@ -215,7 +233,8 @@ public static class DockLayoutStore
         }
     }
 
-    private static IDockable Build(MmucsDockFactory factory, Node node, Dictionary<string, IDockable> panels, HashSet<string> used)
+    /// <summary>Builds a saved dock tree from <paramref name="panels"/>, marking each one placed in <paramref name="used"/>.</summary>
+    public static IDockable Build(ILayoutBuilder factory, Node node, Dictionary<string, IDockable> panels, HashSet<string> used)
     {
         if (node == null) return null;
 

@@ -24,7 +24,7 @@ public sealed class ScriptDocument(MainWindowViewModel main) : Document { public
 /// panels in real OS windows. Panels can't be closed (yet), so nothing gets lost; Layout ▸ Reset to
 /// default rebuilds the default arrangement. Saved layouts are handled by <see cref="DockLayoutStore"/>.
 /// </summary>
-public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory
+public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayoutBuilder
 {
     public const string BlocksId = "Blocks", MetadataId = "Metadata", HexId = "Hex";
     public const string RoomId = "Room", CostumeId = "Costume", ScriptId = "Script";

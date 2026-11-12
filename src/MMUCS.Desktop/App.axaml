@@ -6,6 +6,7 @@
              xmlns:dvm="using:MMUCS.Desktop.ViewModels.Docking"
              xmlns:views="using:MMUCS.Desktop.Views"
              xmlns:panels="using:MMUCS.Desktop.Views.Panels"
+             xmlns:costume="using:MMUCS.Desktop.Views.Costume"
              x:Class="MMUCS.Desktop.App"
              RequestedThemeVariant="Dark">
   <Application.Resources>
@@ -52,8 +53,20 @@
     <DataTemplate DataType="dvm:RoomDocument">
       <views:RoomView DataContext="{Binding Main.Room}" />
     </DataTemplate>
-    <DataTemplate DataType="dvm:CostumeDocument">
-      <views:AkosView DataContext="{Binding Main.Costume}" />
+    <!-- One long-lived Costume viewer: it hosts its own docking area (see CostumeViewTemplate). -->
+    <views:CostumeViewTemplate />
+    <!-- The Costume viewer's own panels. -->
+    <DataTemplate DataType="dvm:CostumeCelsTool">
+      <costume:CostumeCelsView DataContext="{Binding Akos}" />
+    </DataTemplate>
+    <DataTemplate DataType="dvm:CostumePreviewDocument">
+      <costume:CostumePreviewView DataContext="{Binding Akos}" />
+    </DataTemplate>
+    <DataTemplate DataType="dvm:CostumeChoresTool">
+      <costume:CostumeChoresView DataContext="{Binding Akos}" />
+    </DataTemplate>
+    <DataTemplate DataType="dvm:CostumePaletteTool">
+      <costume:CostumePaletteView DataContext="{Binding Akos}" />
     </DataTemplate>
     <DataTemplate DataType="dvm:ScriptDocument">
       <panels:ScriptView DataContext="{Binding Main.Script}" />

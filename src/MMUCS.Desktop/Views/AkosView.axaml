@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:MMUCS.Desktop.ViewModels"
-             xmlns:c="using:MMUCS.Desktop.Controls"
+             xmlns:dock="using:Dock.Avalonia.Controls"
              x:Class="MMUCS.Desktop.Views.AkosView"
              x:DataType="vm:AkosViewModel">
   <DockPanel>
@@ -24,87 +24,7 @@
       </WrapPanel>
     </Border>
 
-    <Grid ColumnDefinitions="200,4,*,4,260">
-      <!-- Cels -->
-      <DockPanel>
-        <Border DockPanel.Dock="Top" Classes="panel-header"><TextBlock Text="CELS" /></Border>
-        <ListBox ItemsSource="{Binding Cels}" SelectedItem="{Binding SelectedCel, Mode=TwoWay}">
-          <ListBox.Styles>
-            <Style Selector="ListBoxItem">
-              <Setter Property="Padding" Value="8,2" />
-              <Setter Property="MinHeight" Value="0" />
-            </Style>
-          </ListBox.Styles>
-          <ListBox.ItemTemplate>
-            <DataTemplate DataType="vm:CelItem">
-              <TextBlock Text="{Binding}" FontSize="12" Classes="mono" />
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-      </DockPanel>
-
-      <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
-
-      <!-- Preview -->
-      <Grid Grid.Column="2" RowDefinitions="*,6,120">
-        <!-- Row 0: Canvas takes up all available remaining space -->
-        <c:CelCanvas Grid.Row="0"
-                     x:Name="Canvas"
-                     DataImage="{Binding DataImage}"
-                     RawImage="{Binding RawImage}"
-                     PaletteImage="{Binding PaletteImage}"
-                     Mode="{Binding Mode}"
-                     AlphaEnabled="{Binding AlphaEnabled}"
-                     ShadowColorEnabled="{Binding ShadowColorEnabled}"
-                     ShadowAmount="{Binding ShadowAmount}"
-                     LinearFilter="{Binding LinearFilter}" />
-
-        <GridSplitter Grid.Row="1" 
-                      Background="Transparent" 
-                      VerticalAlignment="Center" 
-                      HorizontalAlignment="Stretch" 
-                      Height="6" />
-        <ScrollViewer Grid.Row="2" 
-                      x:Name="InfoScrollViewer"
-                      VerticalScrollBarVisibility="Auto" 
-                      HorizontalScrollBarVisibility="Disabled">
-          <TextBlock Text="{Binding CelInfo}" 
-                     Classes="mono" 
-                     FontSize="11" 
-                     Margin="8,4"
-                     TextWrapping="Wrap"
-                     Foreground="{StaticResource SubtleTextBrush}" />
-        </ScrollViewer>
-      </Grid>
-
-      <GridSplitter Grid.Column="3" ResizeDirection="Columns" />
-
-      <!-- Chores + palette -->
-      <Grid Grid.Column="4" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto">
-        <Border Classes="panel-header"><TextBlock Text="CHORES" /></Border>
-        <StackPanel Grid.Row="1" Classes="toolbar">
-          <Button Command="{Binding TogglePlayCommand}" Width="64">
-            <Panel>
-              <TextBlock Text="▶ Play" IsVisible="{Binding !IsPlaying}" />
-              <TextBlock Text="■ Stop" IsVisible="{Binding IsPlaying}" />
-            </Panel>
-          </Button>
-          <Slider Value="{Binding Fps}" Minimum="1" Maximum="30" Width="100" VerticalAlignment="Center" />
-          <TextBlock VerticalAlignment="Center" FontSize="11"><Run Text="{Binding Fps, StringFormat={}{0:0}}" /> fps</TextBlock>
-        </StackPanel>
-        <TreeView Grid.Row="2" ItemsSource="{Binding Chores}" SelectedItem="{Binding SelectedChoreNode, Mode=TwoWay}">
-          <TreeView.ItemTemplate>
-            <TreeDataTemplate DataType="vm:ChoreNode" ItemsSource="{Binding Children}">
-              <TextBlock Text="{Binding Label}" FontSize="12" />
-            </TreeDataTemplate>
-          </TreeView.ItemTemplate>
-        </TreeView>
-
-        <Border Grid.Row="3" Classes="panel-header"><TextBlock Text="RESOLVED PALETTE" /></Border>
-        <c:PaletteGrid x:Name="Palette" Grid.Row="4" Colors="{Binding PaletteColors}" Margin="6" />
-        <TextBlock Grid.Row="5" Text="{Binding #Palette.HoverText}" Classes="mono" FontSize="11" Margin="8,0,8,6"
-                   Foreground="{StaticResource SubtleTextBrush}" />
-      </Grid>
-    </Grid>
+    <!-- The viewer's own panels: Cels, Preview, Chores and Resolved palette (see CostumeDock.cs). -->
+    <dock:DockControl Layout="{Binding Layout}" />
   </DockPanel>
 </UserControl>

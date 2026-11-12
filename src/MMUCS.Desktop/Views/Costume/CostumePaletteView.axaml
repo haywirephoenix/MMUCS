@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             xmlns:c="using:MMUCS.Desktop.Controls"
+             x:Class="MMUCS.Desktop.Views.Costume.CostumePaletteView"
+             x:DataType="vm:AkosViewModel">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel>
+      <c:PaletteGrid x:Name="Palette" Colors="{Binding PaletteColors}" Margin="6" />
+      <TextBlock Text="{Binding #Palette.HoverText}" Classes="mono" FontSize="11" Margin="8,0,8,6"
+                 Foreground="{StaticResource SubtleTextBrush}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

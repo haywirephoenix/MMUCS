@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             x:Class="MMUCS.Desktop.Views.Costume.CostumeChoresView"
+             x:DataType="vm:AkosViewModel">
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Classes="toolbar">
+      <Button Command="{Binding TogglePlayCommand}" Width="64">
+        <Panel>
+          <TextBlock Text="▶ Play" IsVisible="{Binding !IsPlaying}" />
+          <TextBlock Text="■ Stop" IsVisible="{Binding IsPlaying}" />
+        </Panel>
+      </Button>
+      <Slider Value="{Binding Fps}" Minimum="1" Maximum="30" Width="100" VerticalAlignment="Center" />
+      <TextBlock VerticalAlignment="Center" FontSize="11"><Run Text="{Binding Fps, StringFormat={}{0:0}}" /> fps</TextBlock>
+    </StackPanel>
+    <TreeView ItemsSource="{Binding Chores}" SelectedItem="{Binding SelectedChoreNode, Mode=TwoWay}">
+      <TreeView.Styles>
+        <!-- The view is rebuilt when its tab comes back; the nodes remember what was open. -->
+        <Style Selector="TreeViewItem" x:DataType="vm:ChoreNode">
+          <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+        </Style>
+      </TreeView.Styles>
+      <TreeView.ItemTemplate>
+        <TreeDataTemplate DataType="vm:ChoreNode" ItemsSource="{Binding Children}">
+          <TextBlock Text="{Binding Label}" FontSize="12" />
+        </TreeDataTemplate>
+      </TreeView.ItemTemplate>
+    </TreeView>
+  </DockPanel>
+</UserControl>

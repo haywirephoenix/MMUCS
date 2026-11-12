@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             xmlns:c="using:MMUCS.Desktop.Controls"
+             x:Class="MMUCS.Desktop.Views.Costume.CostumePreviewView"
+             x:DataType="vm:AkosViewModel">
+  <Grid RowDefinitions="*,6,120">
+    <c:CelCanvas Grid.Row="0"
+                 x:Name="Canvas"
+                 DataImage="{Binding DataImage}"
+                 RawImage="{Binding RawImage}"
+                 PaletteImage="{Binding PaletteImage}"
+                 Mode="{Binding Mode}"
+                 AlphaEnabled="{Binding AlphaEnabled}"
+                 ShadowColorEnabled="{Binding ShadowColorEnabled}"
+                 ShadowAmount="{Binding ShadowAmount}"
+                 LinearFilter="{Binding LinearFilter}" />
+
+    <GridSplitter Grid.Row="1"
+                  Background="Transparent"
+                  VerticalAlignment="Center"
+                  HorizontalAlignment="Stretch"
+                  Height="6" />
+    <ScrollViewer Grid.Row="2"
+                  x:Name="InfoScrollViewer"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <TextBlock Text="{Binding CelInfo}"
+                 Classes="mono"
+                 FontSize="11"
+                 Margin="8,4"
+                 TextWrapping="Wrap"
+                 Foreground="{StaticResource SubtleTextBrush}" />
+    </ScrollViewer>
+  </Grid>
+</UserControl>
