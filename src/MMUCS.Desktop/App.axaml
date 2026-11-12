@@ -47,6 +47,16 @@
   <Application.Styles>
     <FluentTheme DensityStyle="Compact" />
     <dockTheme:DockFluentTheme />
+    
+    <!-- Blue text selection highlight for both dark and light modes -->
+    <Style Selector="TextBox">
+      <Setter Property="SelectionBrush" Value="#2563EB" />
+      <Setter Property="SelectionForegroundBrush" Value="White" />
+    </Style>
+    <Style Selector="SelectableTextBlock">
+      <Setter Property="SelectionBrush" Value="#2563EB" />
+      <Setter Property="SelectionForegroundBrush" Value="White" />
+    </Style>
 
     <!-- Drop-target overlay: colour-inverted copies of Dock's icons (dark tiles with a blue fill,
          less glaring on the dark theme). Regenerate: magick in.png -channel RGB -negate +channel out.png -->
