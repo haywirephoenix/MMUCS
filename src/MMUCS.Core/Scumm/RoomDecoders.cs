@@ -66,7 +66,9 @@ public static class RoomDecoders
         int width = (int)rmhdSpan.U32LE(4);
         int height = (int)rmhdSpan.U32LE(8);
 
-        if (!ScummDecoders.TryDecodeSmapBlock(smap, width, height, token, out byte[] flatBuffer, out int pitch))
+        // Transparent strips leave the room's transparent colour unpainted, as the engine does.
+        int transparentIndex = (int)rmhdSpan.U32LE(20);
+        if (!ScummDecoders.TryDecodeSmapBlock(smap, width, height, token, out byte[] flatBuffer, out int pitch, transparentIndex))
             return false;
     
         outPitch = pitch;

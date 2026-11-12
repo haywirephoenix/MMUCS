@@ -57,7 +57,8 @@ public static class ScummDecoders
     int height,
     CancellationToken token,
     out byte[] indexedPixels,
-    out int outPitch)
+    out int outPitch,
+    int skipColor = -1)
     {
         indexedPixels = null;
         outPitch = 0;
@@ -137,7 +138,7 @@ public static class ScummDecoders
 
             Span<byte> destSpan = flatBuffer.AsSpan(destX, flatBuffer.Length - destX);
             
-            DecodeStrip(compressedPayload, destSpan, codec, pitch, height);
+            DecodeStrip(compressedPayload, destSpan, codec, pitch, height, skipColor);
         }
 
         outPitch = pitch;
@@ -152,16 +153,12 @@ public static class ScummDecoders
         int pitch,
         int height,
         byte codec,
-        bool transpCheck)
+        bool transpCheck,
+        int skipColor)
     {
         if (src.Length < 3) return;
         
-        int shift = codec - ScummCodecs.BMCOMP_RMAJMIN_H0;
-        
-        if(transpCheck) shift = codec - ScummCodecs.BMCOMP_RMAJMIN_HT0;
-        
-        if (shift < 0 || shift > 32) 
-            return;
+        int shift = codec % 10;
 
         byte color = src[0];
 
@@ -174,9 +171,10 @@ public static class ScummDecoders
         {
             for (int x = 0; x < 8; x++)
             {
-                dst[(y * pitch) + x] = color;
+                if (!transpCheck || color != skipColor)
+                    dst[(y * pitch) + x] = color;
 
-                    if (!repeatMode)
+                if (!repeatMode)
                 {
                     if (br.ReadBit() != 0)
                     {
@@ -220,12 +218,13 @@ public static class ScummDecoders
         int pitch,
         int height,
         byte codec,
-        bool transpCheck)
+        bool transpCheck,
+        int skipColor)
     {
         if (src.Length < 1)
             return;
      
-        int bitsPerPixel = codec - ScummCodecs.BMCOMP_PIX32;
+        int bitsPerPixel = codec % 10;
 
         byte color = src[0];
 
@@ -237,7 +236,8 @@ public static class ScummDecoders
         {
             for (int y = 0; y < height; y++)
             {
-                dst[(y * pitch) + x] = color;
+                if (!transpCheck || color != skipColor)
+                    dst[(y * pitch) + x] = color;
 
                 if (br.ReadBit() == 0)
                 {
@@ -270,17 +270,13 @@ public static class ScummDecoders
         int pitch,
         int height,
         byte codec,
-        bool transpCheck)
+        bool transpCheck,
+        int skipColor)
     {
         if (src.Length < 1)
             return;
 
-        int bitsPerPixel = codec - ScummCodecs.BMCOMP_ZIGZAG_H0;
-
-        // if (bitsPerPixel < 0)
-        //     bitsPerPixel = codec - ScummCodecs.BMCOMP_ZIGZAG_HT4;
-        
-        if(transpCheck) bitsPerPixel -= ScummCodecs.BMCOMP_ZIGZAG_H0;;
+        int bitsPerPixel = codec % 10;
 
         byte color = src[0];
 
@@ -292,7 +288,8 @@ public static class ScummDecoders
         {
             for (int x = 0; x < 8; x++)
             {
-                dst[(y * pitch) + x] = color;
+                if (!transpCheck || color != skipColor)
+                    dst[(y * pitch) + x] = color;
 
                 if (br.ReadBit() == 0)
                 {
@@ -325,8 +322,8 @@ public static class ScummDecoders
         Span<byte> dst,
         int pitch,
         int height,
-        byte transparentColor = 0,
-        bool transpCheck = false)
+        int skipColor,
+        bool transpCheck)
     {
         int srcIdx = 0;
 
@@ -338,7 +335,7 @@ public static class ScummDecoders
 
                 byte color = src[srcIdx++];
 
-                if (!transpCheck || color != transparentColor)
+                if (!transpCheck || color != skipColor)
                 {
                     // write the index directly to the buffer
                     dst[(y * pitch) + x] = color;
@@ -391,21 +388,26 @@ public static class ScummDecoders
 
 
 
-    static void DecodeStrip(ReadOnlySpan<byte> src, Span<byte> dst, byte codec, int pitch, int height)
+    /// <summary>
+    /// Decodes one 8-pixel strip. Transparent codecs leave pixels of <paramref name="skipColor"/>
+    /// unwritten, like the engine, so whatever is under them shows (black on a fresh room buffer);
+    /// -1 writes every pixel, for images that are made see-through when drawn (object images).
+    /// </summary>
+    static void DecodeStrip(ReadOnlySpan<byte> src, Span<byte> dst, byte codec, int pitch, int height, int skipColor)
     {
         ScummCodecs.ECodec eCodec = codec.ByteToECodec();
         // Log.Info($"Decoding strip as {codec.ByteToCodecName()}");
 
         switch (eCodec)
         {
-            case ScummCodecs.ECodec.Raw: DecodeRaw(src, dst, pitch, height, codec, false); break;
-            case ScummCodecs.ECodec.RawT: DecodeRaw(src, dst, pitch, height, codec, true); break;
-            case ScummCodecs.ECodec.ZigZagV: DecodeZigZagV(src, dst, pitch, height, codec, false); break;
-            case ScummCodecs.ECodec.ZigZagVT: DecodeZigZagV(src, dst, pitch, height, codec, true); break;
-            case ScummCodecs.ECodec.ZigZagH: DecodeZigZagH(src, dst, pitch, height, codec, false); break;
-            case ScummCodecs.ECodec.ZigZagHT: DecodeZigZagH(src, dst, pitch, height, codec, true); break;
-            case ScummCodecs.ECodec.MajMin: DecodeMajMin(src, dst, pitch, height, codec, false); break;
-            case ScummCodecs.ECodec.MajMinT: DecodeMajMin(src, dst, pitch, height, codec, true); break;
+            case ScummCodecs.ECodec.Raw: DecodeRaw(src, dst, pitch, height, skipColor, false); break;
+            case ScummCodecs.ECodec.RawT: DecodeRaw(src, dst, pitch, height, skipColor, true); break;
+            case ScummCodecs.ECodec.ZigZagV: DecodeZigZagV(src, dst, pitch, height, codec, false, skipColor); break;
+            case ScummCodecs.ECodec.ZigZagVT: DecodeZigZagV(src, dst, pitch, height, codec, true, skipColor); break;
+            case ScummCodecs.ECodec.ZigZagH: DecodeZigZagH(src, dst, pitch, height, codec, false, skipColor); break;
+            case ScummCodecs.ECodec.ZigZagHT: DecodeZigZagH(src, dst, pitch, height, codec, true, skipColor); break;
+            case ScummCodecs.ECodec.MajMin: DecodeMajMin(src, dst, pitch, height, codec, false, skipColor); break;
+            case ScummCodecs.ECodec.MajMinT: DecodeMajMin(src, dst, pitch, height, codec, true, skipColor); break;
             // case ScummCodecs.ECodec.MajMinHE: DecodeMajMinHE(src, dst, pitch, height, codec, false); break;
             // case ScummCodecs.ECodec.MajMinHET: DecodeMajMinHE(src, dst, pitch, height, codec, true); break;
             case ScummCodecs.ECodec.UNKNOWN:
