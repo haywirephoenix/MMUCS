@@ -50,8 +50,36 @@ public static class AkosFrames
 
     private const int OpEmptyCel = 0xC001, OpDrawMany = 0xC020, OpDrawCondA = 0xC021, OpDrawCondB = 0xC022;
 
-    /// <summary>Old-style direction (0 W, 1 E, 2 S, 3 N) for an animation: index = dir + anim × 4.</summary>
-    public static int ChoreIndex(int anim, int oldDir) => anim * 4 + oldDir;
+    /// <summary>
+    /// The chore of an animation in one of the costume's directions: anim × 4 + dir for four-direction
+    /// costumes (0 W, 1 E, 2 S, 3 N), anim × 8 + dir for eight-direction ones (0 N, then clockwise),
+    /// as the engine indexes them (ScummVM akosDecodeData).
+    /// </summary>
+    public static int ChoreIndex(AkosData d, int anim, int dir) => anim * d.DirectionCount + dir;
+
+    /// <summary>The costume direction for a facing in degrees (0 north, 90 east, 180 south).</summary>
+    public static int DirectionOf(AkosData d, int degrees)
+    {
+        degrees = ((degrees % 360) + 360) % 360;
+        if (d.DirectionCount == 8)
+        {
+            // ScummVM toSimpleDir: sectors around N, NE, E, SE, S, SW, W, NW.
+            ReadOnlySpan<int> bounds = [22, 72, 107, 157, 202, 252, 287, 337];
+            for (int i = 1; i < 8; i++)
+                if (degrees >= bounds[i - 1] && degrees <= bounds[i]) return i;
+            return 0;
+        }
+        // ScummVM newDirToOldDir.
+        if (degrees >= 71 && degrees <= 109) return 1;
+        if (degrees >= 109 && degrees <= 251) return 2;
+        if (degrees >= 251 && degrees <= 289) return 0;
+        return 3;
+    }
+
+    /// <summary>Names of the costume's directions, by direction index.</summary>
+    public static IReadOnlyList<string> DirectionNames(AkosData d) => d.DirectionCount == 8
+        ? ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        : ["W", "E", "S", "N"];
 
     public static int ChoreCount(AkosData d) => Math.Min(d.Header.ChoreCount, d.ChoreData.Length / 2);
 
@@ -84,14 +112,18 @@ public static class AkosFrames
         return list;
     }
 
-    /// <summary>The default chore an actor shows when placed: stand, then init, then the first that exists.</summary>
-    public static int FindDefaultChore(AkosData d, int oldDir = 2)
+    /// <summary>
+    /// The default chore an actor shows when placed: stand, then init (facing <paramref name="degrees"/>
+    /// if it has that direction, else another), then the first that exists.
+    /// </summary>
+    public static int FindDefaultChore(AkosData d, int degrees = 180)
     {
+        int n = d.DirectionCount, facing = DirectionOf(d, degrees);
         foreach (int anim in new[] { StandFrame, InitFrame })
-            for (int k = 0; k < 4; k++)
+            for (int k = 0; k < n; k++)
             {
-                int dir = k == 0 ? oldDir : (oldDir + k) % 4;
-                if (HasChore(d, ChoreIndex(anim, dir))) return ChoreIndex(anim, dir);
+                int chore = ChoreIndex(d, anim, (facing + k) % n);
+                if (HasChore(d, chore)) return chore;
             }
         for (int i = 0; i < ChoreCount(d); i++)
             if (HasChore(d, i)) return i;

@@ -132,23 +132,23 @@ public sealed partial class AkosViewModel : ObservableObject
     }
 
     private static readonly string[] AnimNames = { "", "init", "walk", "stand", "talk start", "talk stop" };
-    private static readonly string[] DirNames = { "W", "E", "S", "N" };
 
     private void BuildChoreTree(AkosData data)
     {
         int count = AkosFrames.ChoreCount(data);
-        for (int anim = 0; anim * 4 < count; anim++)
+        var dirNames = AkosFrames.DirectionNames(data);
+        for (int anim = 0; anim * data.DirectionCount < count; anim++)
         {
             string name = anim < AnimNames.Length && AnimNames[anim].Length > 0 ? $"Anim {anim}  ({AnimNames[anim]})" : $"Anim {anim}";
             var animNode = new ChoreNode { Label = name, Chore = -1 };
-            for (int dir = 0; dir < 4; dir++)
+            for (int dir = 0; dir < data.DirectionCount; dir++)
             {
-                int chore = AkosFrames.ChoreIndex(anim, dir);
+                int chore = AkosFrames.ChoreIndex(data, anim, dir);
                 if (!AkosFrames.HasChore(data, chore)) continue;
                 var limbs = AkosFrames.GetLimbs(data, chore);
                 var dirNode = new ChoreNode
                 {
-                    Label = $"Dir {dir} {DirNames[dir]}  ({limbs.Count} limb{(limbs.Count == 1 ? "" : "s")}, {AkosFrames.CycleLength(data, chore)} frames)",
+                    Label = $"Dir {dir} {dirNames[dir]}  ({limbs.Count} limb{(limbs.Count == 1 ? "" : "s")}, {AkosFrames.CycleLength(data, chore)} frames)",
                     Chore = chore,
                 };
                 foreach (var limb in limbs)
