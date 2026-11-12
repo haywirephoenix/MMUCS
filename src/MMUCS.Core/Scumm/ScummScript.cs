@@ -509,9 +509,9 @@ public static class ScummScript
     public static string VarName(int v)
     {
         uint u = (uint)v;
-        if ((u & 0x80000000) != 0) return $"bit{u & 0x7FFFFFFF}";
+        if ((u & 0x80000000) != 0) { int b = (int)(u & 0x7FFFFFFF); return VariableNames.Bit(b) ?? $"bit{b}"; }
         if ((u & 0x40000000) != 0) return $"local{u & 0x0FFFFFFF}";
-        return $"var{u}";
+        return VariableNames.Global((int)u) ?? $"var{u}";
     }
 
     /// <summary>A plain listing: offset, bytes, name and operand per line.</summary>

@@ -1,0 +1,129 @@
+{
+  "Globals": {
+    "200": {
+      "Name": "",
+      "Note": "Not named yet. 179 refs in 113 scripts."
+    },
+    "201": {
+      "Name": "",
+      "Note": "Not named yet. 697 refs in 121 scripts."
+    },
+    "208": {
+      "Name": "",
+      "Note": "Not named yet. 4752 refs in 54 scripts."
+    },
+    "234": {
+      "Name": "",
+      "Note": "Not named yet. 285 refs in 52 scripts."
+    },
+    "254": {
+      "Name": "",
+      "Note": "Not named yet. 1029 refs in 51 scripts."
+    },
+    "255": {
+      "Name": "",
+      "Note": "Not named yet. 714 refs in 50 scripts."
+    },
+    "256": {
+      "Name": "",
+      "Note": "Not named yet. 2849 refs in 51 scripts."
+    },
+    "261": {
+      "Name": "",
+      "Note": "Unconfirmed: incremented only in global script 6 and decremented in 7; global script 111's idle loop waits on it. Possibly a busy/don't-interrupt counter."
+    },
+    "266": {
+      "Name": "cursor-object",
+      "Note": "The inventory object on the cursor: 'cursor image var266 frame 1', 'load-object var266', 'class-of var266' (2812 refs in 252 scripts)."
+    },
+    "268": {
+      "Name": "",
+      "Note": "Not named yet. 1945 refs in 51 scripts."
+    },
+    "290": {
+      "Name": "",
+      "Note": "Not named yet. 704 refs in 144 scripts."
+    },
+    "291": {
+      "Name": "",
+      "Note": "Not named yet. 540 refs in 139 scripts."
+    },
+    "292": {
+      "Name": "",
+      "Note": "Not named yet. 260 refs in 137 scripts."
+    },
+    "300": {
+      "Name": "",
+      "Note": "Not named yet. 382 refs in 173 scripts."
+    },
+    "301": {
+      "Name": "",
+      "Note": "Not named yet. 147 refs in 130 scripts."
+    },
+    "312": {
+      "Name": "",
+      "Note": "Not named yet. 159 refs in 67 scripts."
+    },
+    "315": {
+      "Name": "",
+      "Note": "Not named yet. 345 refs in 83 scripts."
+    },
+    "329": {
+      "Name": "",
+      "Note": "Not named yet. 151 refs in 51 scripts."
+    },
+    "594": {
+      "Name": "",
+      "Note": "Not named yet. 1822 refs in 50 scripts."
+    },
+    "596": {
+      "Name": "",
+      "Note": "Not named yet. 914 refs in 50 scripts."
+    },
+    "602": {
+      "Name": "",
+      "Note": "Not named yet. 2849 refs in 51 scripts."
+    },
+    "603": {
+      "Name": "",
+      "Note": "Not named yet. 3164 refs in 55 scripts."
+    },
+    "604": {
+      "Name": "",
+      "Note": "Not named yet. 2859 refs in 53 scripts."
+    },
+    "605": {
+      "Name": "",
+      "Note": "Not named yet. 2849 refs in 51 scripts."
+    },
+    "607": {
+      "Name": "",
+      "Note": "Not named yet. 1150 refs in 52 scripts."
+    },
+    "609": {
+      "Name": "",
+      "Note": "Not named yet. 1874 refs in 51 scripts."
+    },
+    "611": {
+      "Name": "",
+      "Note": "Not named yet. 419 refs in 208 scripts."
+    },
+    "624": {
+      "Name": "",
+      "Note": "Not named yet. 201 refs in 51 scripts."
+    },
+    "625": {
+      "Name": "",
+      "Note": "Not named yet. 806 refs in 51 scripts."
+    },
+    "630": {
+      "Name": "",
+      "Note": "Not named yet. 395 refs in 298 scripts."
+    },
+    "643": {
+      "Name": "",
+      "Note": "Not named yet. 427 refs in 209 scripts."
+    }
+  },
+  "Bits": {}
+}

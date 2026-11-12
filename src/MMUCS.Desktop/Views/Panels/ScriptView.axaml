@@ -46,7 +46,8 @@
       <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto">
         <!-- Draws only the lines in view: some scripts run to tens of thousands of lines. -->
         <controls:CodeView Tokens="{Binding Tokens}" Text="{Binding Text}" ShowOffsets="{Binding ShowOffsets}"
-                           FontFamily="{StaticResource MonoFont}" FontSize="12" Margin="10" />
+                           FontFamily="{StaticResource MonoFont}" FontSize="{Binding FontSize, Mode=TwoWay}" Margin="10"
+                           ToolTip.Tip="Ctrl+wheel or Ctrl +/− to change the font size, Ctrl+0 to reset" />
       </ScrollViewer>
     </Grid>
   </DockPanel>

@@ -26,6 +26,8 @@ public sealed class AppSettings
     public bool ScriptShowScumm { get; set; } = true;
     /// <summary>Script viewer shows byte offsets in the gutter.</summary>
     public bool ScriptShowOffsets { get; set; } = true;
+    /// <summary>Script viewer code font size.</summary>
+    public double ScriptFontSize { get; set; } = 12;
     /// <summary>Costume viewer: also play the chore in the Room viewer.</summary>
     public bool CostumePlayInPlace { get; set; } = true;
     /// <summary>The Room viewer's View menu and Objects panel toggle.</summary>
@@ -43,6 +45,8 @@ public sealed class AppSettings
     public bool ExportObjects { get; set; } = true;
     public bool ExportCostumes { get; set; } = true;
     public bool ExportAllBackgroundPalettes { get; set; }
+    public bool ExportScripts { get; set; }
+    public bool ExportScriptOffsets { get; set; }
     public bool CelAlphaEnabled { get; set; } = true;
     public bool CelShadowColorEnabled { get; set; } = true;
     public double CelShadowAmount { get; set; } = 0.4;

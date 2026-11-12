@@ -109,6 +109,7 @@ public static class ScriptHighlighter
                     : IsLabel(w) ? ScriptTokenKind.Label
                     : next == '(' ? ScriptTokenKind.Function
                     : head && next != '=' && next != '[' ? ScriptTokenKind.Command
+                    : VariableNames.IsName(w) ? ScriptTokenKind.Variable
                     : ScriptTokenKind.Plain;
                 o.Add(kind, w);
                 i = j; head = false; continue;

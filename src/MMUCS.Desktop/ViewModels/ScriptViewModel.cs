@@ -29,6 +29,8 @@ public sealed partial class ScriptViewModel : ObservableObject
     [ObservableProperty] private IReadOnlyList<ScriptToken> _tokens;
     /// <summary>Show each line's byte offset in the gutter.</summary>
     [ObservableProperty] private bool _showOffsets = true;
+    /// <summary>Code font size (Ctrl+wheel, Ctrl +/-).</summary>
+    [ObservableProperty] private double _fontSize = 12;
 
     /// <summary>A script picked in the sidebar: the hierarchy follows without switching viewers.</summary>
     public event Action<ScummBlock> BlockFocusRequested;

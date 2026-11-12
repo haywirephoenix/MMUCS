@@ -40,6 +40,8 @@ public sealed partial class ExporterViewModel : ObservableObject
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportObjects;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportCostumes;
     [ObservableProperty] private bool _allBackgroundPalettes;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportScripts;
+    [ObservableProperty] private bool _scriptOffsets;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private string _outputFolder;
 
     [ObservableProperty] private CostumeChoice _selectedCostume;
@@ -73,6 +75,8 @@ public sealed partial class ExporterViewModel : ObservableObject
         _exportObjects = settings.ExportObjects;
         _exportCostumes = settings.ExportCostumes;
         _allBackgroundPalettes = settings.ExportAllBackgroundPalettes;
+        _exportScripts = settings.ExportScripts;
+        _scriptOffsets = settings.ExportScriptOffsets;
         _outputFolder = settings.LastExportFolder;
 
         Preview.AlphaEnabled = settings.CelAlphaEnabled;
@@ -80,8 +84,8 @@ public sealed partial class ExporterViewModel : ObservableObject
         Preview.ShadowAmount = settings.CelShadowAmount;
         Preview.LinearFilter = settings.CelLinearFilter;
 
-        var (rooms, objects, costumes) = ScummExporters.Survey(root);
-        SurveyText = $"{rooms} rooms · {objects} objects · {costumes} costumes in the loaded project";
+        var (rooms, objects, costumes, scripts) = ScummExporters.Survey(root);
+        SurveyText = $"{rooms} rooms · {objects} objects · {costumes} costumes · {scripts:N0} scripts in the loaded project";
 
         foreach (var lflf in root.FindChildrenRecursive(ScummTag.LFLF))
         {
@@ -104,7 +108,7 @@ public sealed partial class ExporterViewModel : ObservableObject
 
     public bool CanGoNext => Step switch
     {
-        ExportStep.Start => ExportBackgrounds || ExportObjects || ExportCostumes,
+        ExportStep.Start => ExportBackgrounds || ExportObjects || ExportCostumes || ExportScripts,
         ExportStep.Customize => true,
         ExportStep.Path => !string.IsNullOrWhiteSpace(OutputFolder),
         _ => false,
@@ -180,6 +184,8 @@ public sealed partial class ExporterViewModel : ObservableObject
             Objects = ExportObjects,
             Costumes = ExportCostumes,
             AllBackgroundPalettes = AllBackgroundPalettes,
+            Scripts = ExportScripts,
+            ScriptOffsets = ScriptOffsets,
             CelConfig = new CelExportConfig
             {
                 AlphaEnabled = Preview.AlphaEnabled,
@@ -204,7 +210,7 @@ public sealed partial class ExporterViewModel : ObservableObject
 
         HasFailures = summary.Failures > 0;
         string verb = summary.Cancelled ? "Cancelled after writing" : "Wrote";
-        SummaryText = $"{verb} {summary.FilesWritten:N0} PNG files in {summary.Elapsed.TotalSeconds:0.0} s." +
+        SummaryText = $"{verb} {summary.FilesWritten:N0} files in {summary.Elapsed.TotalSeconds:0.0} s." +
                       (summary.Failures > 0 ? $"\n{summary.Failures:N0} items failed (see the debug log)." : "");
         Step = ExportStep.Complete;
     }
@@ -215,6 +221,8 @@ public sealed partial class ExporterViewModel : ObservableObject
         _settings.ExportObjects = ExportObjects;
         _settings.ExportCostumes = ExportCostumes;
         _settings.ExportAllBackgroundPalettes = AllBackgroundPalettes;
+        _settings.ExportScripts = ExportScripts;
+        _settings.ExportScriptOffsets = ScriptOffsets;
         _settings.LastExportFolder = OutputFolder;
         _settings.CelAlphaEnabled = Preview.AlphaEnabled;
         _settings.CelShadowColorEnabled = Preview.ShadowColorEnabled;

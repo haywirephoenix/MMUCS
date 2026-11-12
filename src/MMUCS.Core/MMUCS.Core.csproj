@@ -9,4 +9,8 @@
     <!-- Ported legacy code: keep the build readable while it is cleaned up incrementally. -->
     <NoWarn>$(NoWarn);CS1998;CS0168;CS0219;CS0414;CS0649;CS0169</NoWarn>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Names for the game's script variables (contributed over time; see the README). -->
+    <EmbeddedResource Include="Names\variables.json" LogicalName="variables.json" />
+  </ItemGroup>
 </Project>

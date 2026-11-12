@@ -56,8 +56,11 @@
                   IsEnabled="{Binding ExportBackgrounds}" Margin="28,0,0,0" FontSize="12" />
         <CheckBox Content="Room objects (every frame)" IsChecked="{Binding ExportObjects}" />
         <CheckBox Content="Costumes (every AKOS cel)" IsChecked="{Binding ExportCostumes}" />
+        <CheckBox Content="Scripts (decompiled SCUMM source)" IsChecked="{Binding ExportScripts}" />
+        <CheckBox Content="Byte offsets in the left margin" IsChecked="{Binding ScriptOffsets}"
+                  IsEnabled="{Binding ExportScripts}" Margin="28,0,0,0" FontSize="12" />
         <TextBlock Classes="hint" Margin="0,12,0,0"
-                   Text="Files are written as PNG under rooms/&lt;number_name&gt;/ with objects/ and costumes/ subfolders." />
+                   Text="Images are written as PNG under rooms/&lt;number_name&gt;/ with objects/ and costumes/ subfolders. Scripts are written as .scumm files under scripts/global/ and scripts/rooms/&lt;number_name&gt;/, using the variable names MMUCS knows." />
       </StackPanel>
 
       <!-- 2. Costume shading -->

@@ -341,7 +341,48 @@ public sealed class CodeView : Control
     {
         base.OnKeyDown(e);
         bool ctrl = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
-        if (ctrl && e.Key == Key.C) { Copy(); e.Handled = true; }
-        else if (ctrl && e.Key == Key.A) { SelectAll(); e.Handled = true; }
+        if (!ctrl) return;
+        switch (e.Key)
+        {
+            case Key.C: Copy(); break;
+            case Key.A: SelectAll(); break;
+            case Key.OemPlus or Key.Add: Zoom(+1); break;
+            case Key.OemMinus or Key.Subtract: Zoom(-1); break;
+            case Key.D0 or Key.NumPad0: Zoom(0); break;
+            default: return;
+        }
+        e.Handled = true;
+    }
+
+    // ── Font size ──
+
+    public const double DefaultFontSize = 12, MinFontSize = 6, MaxFontSize = 48;
+
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        if ((e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0 && e.Delta.Y != 0)
+        {
+            Zoom(Math.Sign(e.Delta.Y));
+            e.Handled = true; // don't scroll as well
+            return;
+        }
+        base.OnPointerWheelChanged(e);
+    }
+
+    /// <summary>Steps the font size (0 resets it), keeping the top line in view.</summary>
+    private void Zoom(int step)
+    {
+        double size = step == 0 ? DefaultFontSize : Math.Clamp(Math.Round(FontSize) + step, MinFontSize, MaxFontSize);
+        if (size == FontSize) return;
+        double topLine = _scroll != null && _lineHeight > 0 ? _scroll.Offset.Y / _lineHeight : 0;
+        double left = _scroll != null && _charWidth > 0 ? _scroll.Offset.X / _charWidth : 0;
+        SetCurrentValue(FontSizeProperty, size); // TwoWay-bound: the setting follows
+        EnsureMetrics();
+        if (_scroll != null)
+        {
+            InvalidateMeasure();
+            _scroll.UpdateLayout();
+            _scroll.Offset = new Vector(left * _charWidth, topLine * _lineHeight);
+        }
     }
 }

@@ -99,8 +99,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Script.BlockFocusRequested += RevealFromViewer;
         Script.ShowScumm = Settings.ScriptShowScumm;
         Script.ShowOffsets = Settings.ScriptShowOffsets;
+        Script.FontSize = Math.Clamp(Settings.ScriptFontSize, Controls.CodeView.MinFontSize, Controls.CodeView.MaxFontSize);
         Script.PropertyChanged += (_, e) =>
         {
+            if (e.PropertyName == nameof(ScriptViewModel.FontSize))
+            {
+                if (Settings.ScriptFontSize == Script.FontSize) return;
+                Settings.ScriptFontSize = Script.FontSize;
+                ScheduleSettingsSave(); // wheel steps come in bursts
+                return;
+            }
             if (e.PropertyName is not (nameof(ScriptViewModel.ShowScumm) or nameof(ScriptViewModel.ShowOffsets))) return;
             if (Settings.ScriptShowScumm == Script.ShowScumm && Settings.ScriptShowOffsets == Script.ShowOffsets) return;
             Settings.ScriptShowScumm = Script.ShowScumm;

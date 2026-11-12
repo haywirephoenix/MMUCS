@@ -93,6 +93,18 @@ Also see [ScummMeta](scripts/OS/ScummUtils/ScummMeta.cs) as the new type-safe fo
 
 Please let me know if I missed any decoding formats in Scumm V8 - feel free to add more decoders.
 
+### Naming script variables
+
+SCUMM compiles variable names away, so the Script viewer shows most of the game's globals as `var261`, `var600` and so on. The engine's own variables (`ego`, `current-room`, `have-msg`, ...) are named from ScummVM; the rest are collected in [variables.json](src/MMUCS.Core/Names/variables.json) as people work out what they do.
+
+To name one, add it under `Globals` (or `Bits` for `bitN`) with a `Note` saying how you know:
+
+```json
+"266": { "Name": "cursor-object", "Note": "cursor image var266, load-object var266 in 250+ scripts" }
+```
+
+Names are lower-case kebab-case, each part starting with a letter, and must be unique. To try names before opening a pull request, put the same format in `%LocalAppData%/MMUCS/variables.json` (`~/.local/share/MMUCS` on Linux); it adds to and overrides the built-in file when MMUCS starts. Entries that don't fit are skipped and reported in the log.
+
 ---
 
 ## License
