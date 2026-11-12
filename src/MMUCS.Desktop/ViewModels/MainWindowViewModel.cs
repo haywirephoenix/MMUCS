@@ -443,12 +443,36 @@ public sealed partial class MainWindowViewModel : ObservableObject
         return b;
     }
 
-    /// <summary>Selects the block that was selected when this game was last open.</summary>
+    /// <summary>
+    /// Reopens the room the Room viewer showed and selects the block that was selected when this game
+    /// was last open. The room comes first and separately: the selection may be a costume, which
+    /// doesn't open a room, or belong to another room (then that one opens, as clicking it would).
+    /// </summary>
     private void RestoreSelection()
     {
-        if (_rootBlock == null || _selectionKey == null || !Settings.LastSelection.TryGetValue(_selectionKey, out var path)) return;
-        if (BlockAt(_rootBlock, path) is { } block && Reveal(block, expandTarget: false) is { } node)
+        if (_rootBlock == null || _selectionKey == null) return;
+        Settings.LastRoom ??= new();
+        if (Settings.LastRoom.TryGetValue(_selectionKey, out var roomPath)
+            && BlockAt(_rootBlock, roomPath) is { Tag: ScummTag.LFLF } lflf && RoomModel.TryCreate(lflf, out var room))
+        {
+            _lastRoom = room.Lflf;
+            Script.ShowRoom(lflf);
+            _ = Room.LoadAsync(room);
+        }
+        if (Settings.LastSelection.TryGetValue(_selectionKey, out var path)
+            && BlockAt(_rootBlock, path) is { } block && Reveal(block, expandTarget: false) is { } node)
             SelectedNode = node;
+    }
+
+    /// <summary>Remembers the room the Room viewer shows, for the next time this game is opened.</summary>
+    private void RememberRoom(ScummBlock lflf)
+    {
+        if (_selectionKey == null || lflf == null) return;
+        Settings.LastRoom ??= new();
+        string path = PathOf(lflf);
+        if (Settings.LastRoom.TryGetValue(_selectionKey, out var old) && old == path) return;
+        Settings.LastRoom[_selectionKey] = path;
+        ScheduleSettingsSave();
     }
 
     /// <summary>Remembers the selection (written after a short pause so arrowing through the tree doesn't write each step).</summary>
@@ -456,6 +480,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         if (_selectionKey == null || block == null) return;
         Settings.LastSelection[_selectionKey] = PathOf(block);
+        ScheduleSettingsSave();
+    }
+
+    private void ScheduleSettingsSave()
+    {
         if (_selectionSave == null)
         {
             _selectionSave = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
@@ -541,6 +570,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             if (!ReferenceEquals(_lastRoom, room.Lflf)) MarkUpdated(MmucsDockFactory.RoomId);
             _lastRoom = room.Lflf;
+            RememberRoom(room.Lflf);
             _ = Room.LoadAsync(room);
             if (b.Tag == ScummTag.OBIM || b.FindParent(ScummTag.OBIM) is { } obim)
             {

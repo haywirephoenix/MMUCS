@@ -30,6 +30,8 @@ public sealed class AppSettings
     public RoomViewOptions RoomView { get; set; } = new();
     /// <summary>Per opened game (its first resource file): the selected hierarchy block, as child indices from the root.</summary>
     public System.Collections.Generic.Dictionary<string, string> LastSelection { get; set; } = new();
+    /// <summary>Per opened game: the room the Room viewer showed (its LFLF, as child indices from the root).</summary>
+    public System.Collections.Generic.Dictionary<string, string> LastRoom { get; set; } = new();
     /// <summary>Manual object → costume links ("room/object name" → costume number, 0 = none).</summary>
     public System.Collections.Generic.Dictionary<string, int> CostumeLinks { get; set; } = new();
 
