@@ -183,29 +183,29 @@ public static class DockLayoutStore
 
     // ── Load ─────────────────────────────────────────────────────────────────
 
-    private static LayoutFile _default;
-    private static bool _defaultRead;
+    // Read once, thread-safely (layouts are built from more than one place, and tests run in parallel).
+    private static readonly Lazy<LayoutFile> Default = new(LoadDefault);
 
     /// <summary>
     /// The default layout shipped with the app (Layouts/layout.default.json, embedded), or null if it
     /// is missing or unreadable, in which case the factories build their built-in arrangement.
     /// </summary>
-    public static LayoutFile ReadDefault()
+    public static LayoutFile ReadDefault() => Default.Value;
+
+    private static LayoutFile LoadDefault()
     {
-        if (_defaultRead) return _default;
-        _defaultRead = true;
         try
         {
             using var stream = typeof(DockLayoutStore).Assembly.GetManifestResourceStream("layout.default.json");
             if (stream == null) return null;
             var file = JsonSerializer.Deserialize<LayoutFile>(stream, JsonOptions);
-            _default = file?.Version == CurrentVersion ? file : null;
+            return file?.Version == CurrentVersion ? file : null;
         }
         catch (Exception ex)
         {
             Log.Warn($"Default layout ignored: {ex.Message}");
+            return null;
         }
-        return _default;
     }
 
     public static LayoutFile Read()
