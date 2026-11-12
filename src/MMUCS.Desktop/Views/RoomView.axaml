@@ -40,7 +40,8 @@
         <NumericUpDown Value="{Binding PaletteIndex}" Minimum="0" Maximum="{Binding MaxPaletteIndex}"
                        IsEnabled="{Binding HasPaletteChoices}" Increment="1" FormatString="0" Width="96" Margin="0,0,12,0" />
         <Button Content="Fit" Click="OnFitClick" Margin="0,0,4,0" ToolTip.Tip="Zoom to fit (F / double-click)" />
-        <Button Content="1:1" Click="OnActualClick" ToolTip.Tip="Actual pixels (1)" />
+        <Button Content="1:1" Click="OnActualClick" ToolTip.Tip="Actual pixels (1)" Margin="0,0,12,0" />
+        <ToggleButton Content="Objects" IsChecked="{Binding ShowObjectsPanel}" ToolTip.Tip="Show / hide the Objects panel" />
       </WrapPanel>
     </Border>
 
@@ -50,7 +51,7 @@
                  Foreground="{StaticResource SubtleTextBrush}" />
     </Border>
 
-    <Grid ColumnDefinitions="*,4,220">
+    <Grid x:Name="ContentGrid" ColumnDefinitions="*,4,220">
       <c:RoomCanvas x:Name="Canvas"
                     BackgroundImage="{Binding BackgroundImage}"
                     ObjectLayers="{Binding ObjectLayers}"
@@ -67,9 +68,9 @@
                     BackgroundObject="{Binding BackgroundObject}"
                     HiddenObjects="{Binding HiddenObjects}" />
 
-      <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+      <GridSplitter x:Name="ObjectsSplitter" Grid.Column="1" ResizeDirection="Columns" />
 
-      <DockPanel Grid.Column="2">
+      <DockPanel x:Name="ObjectsPanel" Grid.Column="2">
         <Border DockPanel.Dock="Top" Classes="panel-header">
           <Grid ColumnDefinitions="Auto,*">
             <!-- Toggle all: shows a mixed state when only some objects are visible. -->
@@ -78,19 +79,28 @@
             <TextBlock Grid.Column="1" Text="OBJECTS" VerticalAlignment="Center" />
           </Grid>
         </Border>
-        <ListBox ItemsSource="{Binding Objects}" SelectedItem="{Binding SelectedObjectItem, Mode=TwoWay}">
+        <ListBox x:Name="ObjectList" ItemsSource="{Binding Objects}" SelectedItem="{Binding SelectedObjectItem, Mode=TwoWay}">
           <ListBox.Styles>
             <Style Selector="ListBoxItem">
               <Setter Property="Padding" Value="8,3" />
             </Style>
+            <!-- Objects without an image read as plain entries; ones with an image use the
+                 hierarchy's room (LFLF) colour. -->
+            <Style Selector="TextBlock.objname">
+              <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+            </Style>
+            <Style Selector="TextBlock.objname.hasImage">
+              <Setter Property="Foreground" Value="#E8C07D" />
+            </Style>
           </ListBox.Styles>
           <ListBox.ItemTemplate>
             <DataTemplate DataType="vm:RoomObjectItem">
-              <Grid ColumnDefinitions="Auto,*">
-                <CheckBox IsChecked="{Binding IsVisible}" MinWidth="0" MinHeight="0" Padding="0"
-                          Margin="0,0,6,0" VerticalAlignment="Center" ToolTip.Tip="Visible" />
+              <!-- Fixed toggle column so names line up whether or not an object has a toggle. -->
+              <Grid ColumnDefinitions="22,*">
+                <CheckBox IsChecked="{Binding IsVisible}" IsVisible="{Binding HasImage}" MinWidth="0" MinHeight="0"
+                          Padding="0" VerticalAlignment="Center" Focusable="False" ToolTip.Tip="Visible (Space)" />
                 <StackPanel Grid.Column="1">
-                  <TextBlock Text="{Binding Name}" FontSize="12" />
+                  <TextBlock Text="{Binding Name}" FontSize="12" Classes="objname" Classes.hasImage="{Binding HasImage}" />
                   <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
                 </StackPanel>
               </Grid>

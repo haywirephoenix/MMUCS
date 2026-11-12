@@ -30,6 +30,8 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
     public string Name => Object.ToString();
     public string Summary => Object.Summary;
     [ObservableProperty] private bool _isVisible = true;
+    /// <summary>False for objects with no image (or a fully transparent one): no visibility toggle.</summary>
+    [ObservableProperty] private bool _hasImage;
 }
 
 public sealed partial class RoomViewModel : ObservableObject
@@ -59,6 +61,8 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private bool _showLabels = true;
     [ObservableProperty] private bool _showBounds;
     [ObservableProperty] private bool _showFullScreenObjects;
+    /// <summary>Whether the Objects side panel is shown (toolbar toggle).</summary>
+    [ObservableProperty] private bool _showObjectsPanel = true;
 
     public ObservableCollection<RoomObjectItem> Objects { get; } = new();
 
@@ -72,9 +76,11 @@ public sealed partial class RoomViewModel : ObservableObject
     {
         get
         {
-            if (Objects.Count == 0) return true;
-            int visible = Objects.Count(o => o.IsVisible);
-            return visible == Objects.Count ? true : visible == 0 ? false : null;
+            // Only objects with an image have a toggle, so only they count.
+            int total = Objects.Count(o => o.HasImage);
+            if (total == 0) return true;
+            int visible = Objects.Count(o => o.HasImage && o.IsVisible);
+            return visible == total ? true : visible == 0 ? false : null;
         }
         set => SetAllVisible(value != false); // clicking the mixed state shows everything
     }
@@ -200,6 +206,7 @@ public sealed partial class RoomViewModel : ObservableObject
 
             var layers = new List<RoomObjectLayer>(room.Objects.Count);
             var fullWidth = new List<BackgroundChoice>();
+            var hasImage = new Dictionary<RoomObject, bool>();
             foreach (var obj in room.Objects)
             {
                 SKImage image = null;
@@ -214,6 +221,7 @@ public sealed partial class RoomViewModel : ObservableObject
                     image = rgba?.ToSkImage();
                 }
                 layers.Add(new RoomObjectLayer(obj, image));
+                hasImage[obj] = rgba != null && !IsFullyTransparent(rgba);
                 if (image != null && image.Width >= FullWidth) fullWidth.Add(new BackgroundChoice(obj.ToString(), image, rgba, obj));
             }
 
@@ -223,6 +231,8 @@ public sealed partial class RoomViewModel : ObservableObject
             choices.AddRange(fullWidth);
 
             ObjectLayers = layers;
+            foreach (var item in Objects) item.HasImage = hasImage.TryGetValue(item.Object, out var h) && h;
+            OnPropertyChanged(nameof(AllObjectsVisible));
             _backgroundChoices = choices;
             MaxBackgroundIndex = Math.Max(0, choices.Count - 1);
             // A new room starts on its first choice (its own image, or e.g. the inventory backdrop);
@@ -252,6 +262,20 @@ public sealed partial class RoomViewModel : ObservableObject
     /// alternate background is drawn for the matching palette (e.g. stancrpt's office and palette 1,
     /// the credits pages and palettes 1–5). The Palette spinbox can still override it.
     /// </summary>
+    private static bool IsFullyTransparent(RgbaImage image)
+    {
+        var data = image.Data;
+        for (int i = 3; i < data.Length; i += 4)
+            if (data[i] != 0) return false;
+        return true;
+    }
+
+    /// <summary>Toggles the visibility of the selected object (Space in the Objects list).</summary>
+    public void ToggleSelectedVisibility()
+    {
+        if (SelectedObjectItem is { HasImage: true } item) item.IsVisible = !item.IsVisible;
+    }
+
     partial void OnBackgroundIndexChanged(int value)
     {
         int palette = Math.Clamp(value, 0, MaxPaletteIndex);

@@ -11,6 +11,44 @@ public partial class RoomView : UserControl
     {
         InitializeComponent();
         Canvas.ObjectContextRequested += OnObjectContextRequested;
+        // Space toggles the focused object's visibility. Tunnel, so the ListBox doesn't take it first.
+        ObjectList.AddHandler(KeyDownEvent, OnObjectListKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    private RoomViewModel _vm;
+    private GridLength _objectsWidth = new(220);
+
+    protected override void OnDataContextChanged(System.EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (_vm != null) _vm.PropertyChanged -= OnVmPropertyChanged;
+        _vm = DataContext as RoomViewModel;
+        if (_vm != null) _vm.PropertyChanged += OnVmPropertyChanged;
+        ApplyObjectsPanel();
+    }
+
+    private void OnVmPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(RoomViewModel.ShowObjectsPanel)) ApplyObjectsPanel();
+    }
+
+    /// <summary>Collapses or restores the Objects panel column (keeping the width it had).</summary>
+    private void ApplyObjectsPanel()
+    {
+        bool show = _vm?.ShowObjectsPanel ?? true;
+        var column = ContentGrid.ColumnDefinitions[2];
+        if (!show && column.Width.Value > 0) _objectsWidth = column.Width;
+        column.Width = show ? _objectsWidth : new GridLength(0);
+        ContentGrid.ColumnDefinitions[1].Width = new GridLength(show ? 4 : 0);
+        ObjectsSplitter.IsVisible = show;
+        ObjectsPanel.IsVisible = show;
+    }
+
+    private void OnObjectListKeyDown(object sender, Avalonia.Input.KeyEventArgs e)
+    {
+        if (e.Key != Avalonia.Input.Key.Space || _vm == null) return;
+        _vm.ToggleSelectedVisibility();
+        e.Handled = true;
     }
 
     private RoomViewModel Vm => DataContext as RoomViewModel;

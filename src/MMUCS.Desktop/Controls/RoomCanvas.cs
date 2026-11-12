@@ -212,10 +212,10 @@ public sealed class RoomCanvas : SkiaViewport
                 {
                     if (layer.Image == null || ReferenceEquals(layer.Object, _bgObject)) continue; // already the background
                     if (_hidden != null && _hidden.Contains(layer.Object)) continue;          // toggled off in the Objects panel
-                    // Other full-screen (640px) object images would cover the background, so they're drawn
-                    // only when selected or when asked for (switch to them with the Background spinbox).
+                    // Other full-screen (640px) object images would cover the background (in the wrong
+                    // palette), so they're drawn only when asked for; the Background spinbox switches to them.
                     bool isFullWidth = layer.Image.Width >= 640;
-                    if (isFullWidth && !_fullScreenObjects && !ReferenceEquals(layer.Object, _selected)) continue;
+                    if (isFullWidth && !_fullScreenObjects) continue;
                     canvas.DrawImage(layer.Image, layer.Object.X, layer.Object.Y, sampling);
                 }
             }
