@@ -105,6 +105,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
             Settings.Save();
         };
         ApplyRoomViewOptions();
+        Costume.PlayInPlace = Settings.CostumePlayInPlace;
+        Costume.LiveFrameChanged += Room.ShowLiveFrame;
+        Costume.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(AkosViewModel.PlayInPlace) || Settings.CostumePlayInPlace == Costume.PlayInPlace) return;
+            Settings.CostumePlayInPlace = Costume.PlayInPlace;
+            Settings.Save();
+        };
         Room.PropertyChanged += (_, e) => { if (RoomViewOptionNames.Contains(e.PropertyName)) SaveRoomViewOptions(); };
         RoomActors.Links = Settings.CostumeLinks;
         Room.LinksChanged += () =>

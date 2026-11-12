@@ -11,6 +11,9 @@ namespace MMUCS.Desktop.Controls;
 /// A decoded object image placed in the room, plus (for image-less hotspots) the frame of the
 /// costumed actor that stands there, with its top-left corner in room coordinates.
 /// </summary>
+/// <summary>A costume frame being played elsewhere (the Costume viewer), drawn in place of <paramref name="Target"/>'s costume.</summary>
+public sealed record LiveCostume(RoomObject Target, SKImage Image, int X, int Y);
+
 public sealed record RoomObjectLayer(RoomObject Object, SKImage Image, SKImage CostumeImage = null, int CostumeX = 0, int CostumeY = 0, bool IsActorOnly = false);
 
 /// <summary>
@@ -57,6 +60,9 @@ public sealed class RoomCanvas : SkiaViewport
     public static readonly StyledProperty<bool> HoldSceneProperty =
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(HoldScene));
 
+    public static readonly StyledProperty<LiveCostume> LiveCostumeProperty =
+        AvaloniaProperty.Register<RoomCanvas, LiveCostume>(nameof(LiveCostume));
+
     public static readonly StyledProperty<bool> ShowFullScreenObjectsProperty =
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(ShowFullScreenObjects));
 
@@ -77,6 +83,8 @@ public sealed class RoomCanvas : SkiaViewport
     /// <summary>Objects whose image is drawn (hidden ones keep their hotspot, so they can be found and shown again).</summary>
     public IReadOnlySet<RoomObject> VisibleObjects { get => GetValue(VisibleObjectsProperty); set => SetValue(VisibleObjectsProperty, value); }
     public bool HoldScene { get => GetValue(HoldSceneProperty); set => SetValue(HoldSceneProperty, value); }
+    /// <summary>The Costume viewer's playing frame, shown in place of that costume (Play in place).</summary>
+    public LiveCostume LiveCostume { get => GetValue(LiveCostumeProperty); set => SetValue(LiveCostumeProperty, value); }
 
     /// <summary>Raised on a right-click (not a right-drag) with the object under the pointer, or null.</summary>
     public event Action<RoomObject> ObjectContextRequested;
@@ -93,7 +101,7 @@ public sealed class RoomCanvas : SkiaViewport
         AffectsRender<RoomCanvas>(
             BackgroundImageProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
-            ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty);
+            ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty, LiveCostumeProperty);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -149,7 +157,8 @@ public sealed class RoomCanvas : SkiaViewport
         ContentSize,
         ShowFullScreenObjects,
         BackgroundObject,
-        VisibleObjects);
+        VisibleObjects,
+        LiveCostume);
 
     protected override void OnContentClicked(Point p, PointerPressedEventArgs e)
     {
@@ -194,13 +203,14 @@ public sealed class RoomCanvas : SkiaViewport
         private readonly bool _hotspots, _labels, _bounds, _fullScreenObjects;
         private readonly RoomObject _bgObject;
         private readonly IReadOnlySet<RoomObject> _visible;
+        private readonly LiveCostume _live;
         private readonly Size _size;
 
         public Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
-            IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible)
+            IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live)
         {
             _bg = bg; _drawLayers = drawLayers; _allLayers = allLayers; _boxes = boxes;
-            _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject; _visible = visible;
+            _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject; _visible = visible; _live = live;
         }
 
         private static readonly SKPaint HotspotFill = new() { Color = new SKColor(255, 220, 0, 38), Style = SKPaintStyle.Fill };
@@ -242,8 +252,11 @@ public sealed class RoomCanvas : SkiaViewport
                 foreach (var layer in _drawLayers)
                 {
                     if (layer.CostumeImage == null || _visible == null || !_visible.Contains(layer.Object)) continue;
+                    if (_live != null && ReferenceEquals(layer.Object, _live.Target)) continue; // replaced by the playing frame
                     canvas.DrawImage(layer.CostumeImage, layer.CostumeX, layer.CostumeY, sampling);
                 }
+                // Played in place even when its entry is hidden: it was asked for from the Costume viewer.
+                if (_live?.Image != null) canvas.DrawImage(_live.Image, _live.X, _live.Y, sampling);
             }
             canvas.Restore();
 

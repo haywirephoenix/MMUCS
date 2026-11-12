@@ -62,6 +62,8 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private string _backgroundLabel;
     [ObservableProperty] private RoomObject _backgroundObject;
     [ObservableProperty] private bool _isBusy;
+    /// <summary>The Costume viewer's playing frame at its costume's place in this room (Play in place), or null.</summary>
+    [ObservableProperty] private LiveCostume _liveCostume;
     /// <summary>A new room is loading: the canvas keeps the old picture until its images are ready.</summary>
     [ObservableProperty] private bool _isSwitchingRoom;
 
@@ -228,6 +230,7 @@ public sealed partial class RoomViewModel : ObservableObject
         if (room == null || ReferenceEquals(room.Room, Room?.Room)) return;
 
         IsSwitchingRoom = true;
+        LiveCostume = null;
         Room = room;
         OnPropertyChanged(nameof(HasRoom));
         Title = room.RoomNo > 0
@@ -268,6 +271,34 @@ public sealed partial class RoomViewModel : ObservableObject
     }
 
     private bool _suppressPaletteReload;
+
+    /// <summary>
+    /// Shows <paramref name="frame"/> of costume <paramref name="akos"/> where this room places that
+    /// costume, in place of its usual frame; null (or a costume this room doesn't place) clears it.
+    /// </summary>
+    public void ShowLiveFrame(ScummBlock akos, AkosFrame frame)
+    {
+        var placed = frame == null || akos == null ? default
+            : _actorTargets.FirstOrDefault(kv => ReferenceEquals(kv.Key.Akos, akos) && kv.Key.HasPosition);
+        if (placed.Key is not { } actor)
+        {
+            LiveCostume = null;
+            return;
+        }
+        try
+        {
+            RgbaImage rgba;
+            int ox, oy;
+            // The room's own parse of the costume, in the room's current palette.
+            lock (actor.Data) rgba = AkosFrames.Render(actor.Data, frame, out ox, out oy);
+            LiveCostume = new LiveCostume(placed.Value, rgba?.ToSkImage(), actor.X - ox, actor.Y - oy);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Play in place failed: {ex.Message}");
+            LiveCostume = null;
+        }
+    }
 
     private static int BackgroundCacheId(RoomModel room) =>
         // Rooms can appear in more than one file (e.g. per-disc copies), so key by source file too.

@@ -13,6 +13,8 @@
       </Button>
       <Slider Value="{Binding Fps}" Minimum="1" Maximum="30" Width="100" VerticalAlignment="Center" />
       <TextBlock VerticalAlignment="Center" FontSize="11"><Run Text="{Binding Fps, StringFormat={}{0:0}}" /> fps</TextBlock>
+      <CheckBox Content="Play in place" IsChecked="{Binding PlayInPlace}" Margin="8,0,0,0" FontSize="11"
+                ToolTip.Tip="While playing, also show the animation in the Room viewer, where the open room places this costume" />
     </StackPanel>
     <TreeView ItemsSource="{Binding Chores}" SelectedItem="{Binding SelectedChoreNode, Mode=TwoWay}">
       <TreeView.Styles>

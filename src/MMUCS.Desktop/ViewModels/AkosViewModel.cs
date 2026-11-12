@@ -64,6 +64,25 @@ public sealed partial class AkosViewModel : ObservableObject
     [ObservableProperty] private ChoreNode _selectedChoreNode;
     [ObservableProperty] private bool _isPlaying;
     [ObservableProperty] private double _fps = 10;
+    /// <summary>While playing, also show the animation in the Room viewer where the room places this costume.</summary>
+    [ObservableProperty] private bool _playInPlace = true;
+
+    /// <summary>A frame played in place (null when playback in place ends).</summary>
+    public event Action<ScummBlock, AkosFrame> LiveFrameChanged;
+    private bool _liveShown;
+
+    private void SendLiveFrame(AkosFrame frame)
+    {
+        if (frame == null && !_liveShown) return;
+        _liveShown = frame != null;
+        LiveFrameChanged?.Invoke(Block, frame);
+    }
+
+    partial void OnPlayInPlaceChanged(bool value)
+    {
+        if (!value) SendLiveFrame(null);
+        else if (IsPlaying && Akos != null && _frameChore >= 0) SendLiveFrame(AkosFrames.Compose(Akos, _frameChore, _playPos));
+    }
 
     public ObservableCollection<CelItem> Cels { get; } = new();
 
@@ -226,6 +245,7 @@ public sealed partial class AkosViewModel : ObservableObject
     {
         if (Akos == null || _frameChore < 0) return;
         var frame = AkosFrames.Compose(Akos, _frameChore, step);
+        if (IsPlaying && PlayInPlace) SendLiveFrame(frame);
         int cycle = AkosFrames.CycleLength(Akos, _frameChore);
         ShowFrame(frame, _frameBounds, $"Chore {_frameChore}  frame {step % cycle + 1}/{cycle}");
     }
@@ -322,6 +342,7 @@ public sealed partial class AkosViewModel : ObservableObject
     {
         _timer?.Stop();
         IsPlaying = false;
+        SendLiveFrame(null);
     }
 
     public async Task ExportCelsAsync(string folder)

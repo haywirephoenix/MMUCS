@@ -15,7 +15,7 @@ public sealed class AppSettings
 
     /// <summary>Bumped when defaults change in a way existing settings files should pick up.</summary>
     public int SettingsVersion { get; set; }
-    private const int CurrentSettingsVersion = 1;
+    private const int CurrentSettingsVersion = 2;
 
     public List<string> RecentFiles { get; set; } = new();
     public bool ReopenLastFileOnStartup { get; set; } = true;
@@ -24,6 +24,8 @@ public sealed class AppSettings
     public bool ColorizeTags { get; set; } = true;
     /// <summary>Script viewer shows decompiled SCUMM (true) or the instruction listing.</summary>
     public bool ScriptShowScumm { get; set; } = true;
+    /// <summary>Costume viewer: also play the chore in the Room viewer.</summary>
+    public bool CostumePlayInPlace { get; set; } = true;
     /// <summary>The Room viewer's View menu and Objects panel toggle.</summary>
     public RoomViewOptions RoomView { get; set; } = new();
     /// <summary>Per opened game (its first resource file): the selected hierarchy block, as child indices from the root.</summary>
@@ -69,6 +71,8 @@ public sealed class AppSettings
         if (SettingsVersion >= CurrentSettingsVersion) return;
         // v1: object names now default on (older files saved "false" while the options menu couldn't toggle it).
         if (SettingsVersion < 1) ShowObjectNames = true;
+        // v2: Play in place became on by default (earlier files saved it off before it was ever offered on).
+        if (SettingsVersion < 2) CostumePlayInPlace = true;
         SettingsVersion = CurrentSettingsVersion;
         Save();
     }

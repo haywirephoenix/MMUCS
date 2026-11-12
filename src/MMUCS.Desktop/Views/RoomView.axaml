@@ -70,7 +70,8 @@
                     ShowFullScreenObjects="{Binding ShowFullScreenObjects}"
                     BackgroundObject="{Binding BackgroundObject}"
                     VisibleObjects="{Binding VisibleObjects}"
-                    HoldScene="{Binding IsSwitchingRoom}" />
+                    HoldScene="{Binding IsSwitchingRoom}"
+                    LiveCostume="{Binding LiveCostume}" />
 
       <GridSplitter x:Name="ObjectsSplitter" Grid.Column="1" ResizeDirection="Columns" />
 
