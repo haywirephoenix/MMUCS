@@ -36,6 +36,7 @@ It reads the export that `mscripts use` saved. `mroom use DIR` saves it too (for
 | `actor A` | The rooms an actor appears in, its costumes there, its line counts and a few lines |
 | `costume N` | Where a costume is stored, where MMUCS places it, each script that dresses an actor in it with the elevations and placements that follow, and the other scripts in its room that place the same actors. `--limit N` |
 | `find TEXT` | Rooms, objects, hover names and lines that contain the text |
+| `start ROOM` | What the room viewer starts with: the costumes shown as the room opens, and those hidden with the reason (the player, in a cutscene, later, another costume of the same actor starts), each with the script line that places it (the first `put-actor` of that actor at that spot); costumes MMUCS can't place; object images hidden on entry |
 | `review [N]` | The costumes and objects marked in MMUCS's room viewer (see below). `--changed`, `--tag T`, `--done N` |
 | `compare OTHER [ROOM]` | Every costume placement that differs between another export (one made before a change to MMUCS) and this one: position, elevation, scale, z-plane, sort y, and whether the picture moved or only its depth ("same picture"). `--all` lists unchanged rooms too |
 
@@ -79,9 +80,9 @@ Variables: 52 used here: 29 unnamed, 14 named, 7 engine, 2 tracked
 
 ### Reviewing what looks wrong
 
-In MMUCS's room viewer, right-click a costume or object (in the room or the Objects panel) and pick **Mark for review…**. Tick what looks wrong if you know (position, scale, draw order, z-plane, wrong object, frame, not placed) and add a note, such as "should be behind the fence". Marked entries get a ⚑ in the Objects panel.
+In MMUCS's room viewer, right-click a costume or object (in the room or the Objects panel) and pick **Mark for review…**. Tick what looks wrong if you know (position, scale, draw order, z-plane, wrong object, frame, visibility on room start, not placed) and add a note, such as "should be behind the fence". Marked entries get a ⚑ in the Objects panel.
 
-To mark several things together, such as a pair drawn in the wrong order where either could be the one that's wrong, Ctrl- or Shift-click them in the Objects panel and right-click the selection: **Mark N together for review…** makes one mark for all of them. (The selection also shows or hides them all at once, with Space or the menu.) `review N` then shows each one, and a "Between them" section with their draw order when marked and now: y, actor and z-plane, and whether the order changed. The mark keeps what MMUCS worked out at the time: position, elevation, scale, z-plane, owner object, or an object's box and state on entry.
+To mark several things together, such as a pair drawn in the wrong order where either could be the one that's wrong, Ctrl- or Shift-click them in the Objects panel and right-click the selection: **Mark N together for review…** makes one mark for all of them. (The selection also shows or hides them all at once, with Space or the menu.) `review N` then shows each one, and a "Between them" section with their draw order when marked and now: y, actor and z-plane, and whether the order changed. The mark keeps what MMUCS worked out at the time: position, elevation, scale, z-plane, owner object, when it's placed and whether it starts shown, or an object's box and state on entry. A mark tagged visibility also gets an "As the room opens" section in `review N`.
 
 ```bash
 mroom review                 # every mark: same, or what MMUCS now works out differently

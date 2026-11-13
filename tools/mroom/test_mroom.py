@@ -57,8 +57,8 @@ TOWN = {
     ],
     "boxes": [{"index": 1, "corners": [[0, 0], [1, 0], [1, 1], [0, 1]], "mask": 0, "flags": 0, "scale": 255, "scale_slot": 0}],
     "costumes": [
-        {"costume": 75, "akos": "0x0192B7D8", "object": "kenny-object", "placed": [{"actor": 4, "x": 552, "y": 268}]},
-        {"costume": 79, "akos": "0x01AD8505", "placed": [{"actor": 1, "x": 0, "y": 0, "player": True}]},
+        {"costume": 75, "akos": "0x0192B7D8", "object": "kenny-object", "placed": [{"actor": 4, "x": 552, "y": 268, "when": "entry-if", "starts_shown": True}]},
+        {"costume": 79, "akos": "0x01AD8505", "placed": [{"actor": 1, "x": 0, "y": 0, "player": True, "when": "cutscene"}]},
         {"costume": 35, "akos": "0x01125269", "placed": [{"actor": 3, "x": 320, "y": 792, "elevation": 300}]},
         {"costume": 36, "akos": "0x01184801", "worn_by": [4], "placed": []},
         {"costume": 67, "akos": "0x0172562C", "placed": [{"dressed_by": 88, "x": 36, "y": 155, "scale": 150, "when": "entry-if"}]},
@@ -240,6 +240,24 @@ class MroomTests(unittest.TestCase):
         self.assertRegex(text, r"now: +costume 67 \(y 155.*→  costume 35 \(y 792, actor 3, z-plane 0\)   \(order changed\)")
         self.assertIn("Costume 35: stored in room 15 town", text)
         self.assertIn("Costume 67: stored in room 15 town", text)
+
+    def test_start_lists_what_the_room_opens_with(self):
+        text = self.mroom("start", "town")
+        self.assertIn("Room 15 town as it opens: 1 costumes shown", text)
+        self.assertRegex(text, r"Shown \(1\):\n  costume   75  actor 4 +at 552,268  on entry \(conditional\)  \(kenny-object\)\n +rooms/015_town/local_2001.scumm:5")
+        self.assertRegex(text, r"costume   79  actor 1 +at 0,0  in a cutscene  hidden: the player")
+        self.assertIn("Not placed where MMUCS can read it (1): 36 (worn by 4)", text)
+
+    def test_a_visibility_mark_shows_the_start_state_then_and_now(self):
+        path = self.write_marks([{"id": 7, "room": 15, "tags": ["visibility"], "note": "shouldn't be there on entry", "targets": [
+            {"kind": "costume", "costume": 75, "akos": "0x0192B7D8",
+             "snapshot": {"placed": True, "actor": 4, "x": 552, "y": 268, "owner": "kenny-object", "when": "entry", "starts_shown": False}}]}])
+        listing = self.mroom("review", "--marks", str(path))
+        self.assertIn("changed: when placed, shown on start", listing)
+        text = self.mroom("review", "7", "--marks", str(path))
+        self.assertRegex(text, r"shown on start\s+False\s+→ True")
+        self.assertIn("As the room opens:", text)
+        self.assertRegex(text, r"shown   costume   75  actor 4")
 
     def test_review_done_clears_a_mark(self):
         path = self.write_marks([{"id": 4, "room": 15, "kind": "object", "object": "town-chicken-door", "tags": [], "snapshot": {}}])

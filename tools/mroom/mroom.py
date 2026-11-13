@@ -38,6 +38,8 @@ USAGE = """usage: mroom COMMAND [options]
   lines [ROOM] [--actor A]      Dialogue in script order. --grep TEXT, --choices, --limit N
   actor A                       Where an actor appears, its costumes and lines
   costume N                     Where a costume is stored, which actors wear it and how they're placed
+  start ROOM                    What the room viewer starts with: costumes shown and hidden as the room
+                                opens (the player, cutscene, later, another costume), with their lines
   review [N] [--changed]        Costumes and objects marked in MMUCS (Mark for review…): what changed
                                 since marking, and everything about one. --tag T, --done N clears one
   compare OTHER [ROOM]          Every costume placement that differs between another export (OTHER, e.g.
@@ -850,9 +852,11 @@ def cmd_find(args, game: Game):
 
 SNAPSHOT_FIELDS = [("placed", "placed"), ("actor", "actor"), ("x", "x"), ("y", "y"), ("width", "width"), ("height", "height"),
                    ("elevation", "elevation"), ("scale", "scale"), ("zplane", "z-plane"), ("dressed_by", "dressed by"),
-                   ("owner", "object"), ("entry_state", "state on entry")]
+                   ("owner", "object"), ("entry_state", "state on entry"), ("when", "when placed"),
+                   ("starts_shown", "shown on start")]
 OBJECT_ONLY = ("width", "height", "entry_state")
-DEFAULTS = {"elevation": 0, "zplane": 0, "scale": 255}  # the export leaves these out
+COSTUME_ONLY = ("when", "starts_shown")
+DEFAULTS = {"elevation": 0, "zplane": 0, "scale": 255, "starts_shown": False}  # the export leaves these out
 
 
 def live_marks_path() -> Path:
@@ -904,14 +908,15 @@ def current_of(game: "Game", room_no: int, target: dict) -> Tuple[Optional[dict]
         return None, "the costume isn't in the room data"
     placed = entry.get("placed", [])
     if not placed:
-        cur = {"placed": False, "owner": entry.get("object")}
+        cur = {"placed": False, "owner": entry.get("object"), "starts_shown": False}
         if entry.get("dressed_by") is not None:
             cur["dressed_by"] = entry["dressed_by"]
         return cur, "costume"
     # The placement at the marked spot, else the nearest (one costume can stand in several places).
     sx, sy = snap.get("x"), snap.get("y")
     p = min(placed, key=lambda q: 0 if sx is None else abs(q.get("x", 0) - sx) + abs(q.get("y", 0) - (sy or 0)))
-    return {"placed": True, "actor": p.get("actor"), "x": p.get("x"), "y": p.get("y"), "elevation": p.get("elevation"),
+    return {"placed": True, "when": p.get("when"), "starts_shown": bool(p.get("starts_shown")),
+            "actor": p.get("actor"), "x": p.get("x"), "y": p.get("y"), "elevation": p.get("elevation"),
             "scale": p.get("scale", 255), "zplane": p.get("zplane", 0), "dressed_by": p.get("dressed_by"),
             "owner": entry.get("object"), **({"sort_y": p["sort_y"]} if "sort_y" in p else {})}, "costume"
 
@@ -919,7 +924,8 @@ def current_of(game: "Game", room_no: int, target: dict) -> Tuple[Optional[dict]
 def fields_of(target: dict, cur: Optional[dict]) -> List[str]:
     snap = target.get("snapshot") or {}
     return [k for k, _ in SNAPSHOT_FIELDS if (k in snap or (cur and k in cur))
-            and not (k in OBJECT_ONLY and target.get("kind") != "object")]
+            and not (k in OBJECT_ONLY and target.get("kind") != "object")
+            and not (k in COSTUME_ONLY and (target.get("kind") == "object" or k not in snap))]  # marks made before these were recorded
 
 
 def target_changes(target: dict, cur: Optional[dict]) -> List[Tuple[str, object, object]]:
@@ -1189,9 +1195,101 @@ def review_one(game: "Game", mark: dict):
             out(f"\nScripts that set its state ({len(sets)}):")
             for rel, n, text in sets[:12]:
                 out(f"  {rel}:{n}  {text}")
+    if "visibility" in mark.get("tags", []) and room:
+        start_section(game, room, [t for t in targets if t.get("kind") == "costume"])
     if any(t.get("kind") == "costume" for t in targets):
         draw_order(game, room, mark)
     return 0
+
+# ── What a room starts with (the room viewer's starting state) ────────────────────────────────────
+
+WHEN_TEXT = {"entry": "on entry", "entry-if": "on entry (conditional)", "cutscene": "in a cutscene", "later": "later"}
+
+
+def start_rows(game: "Game", room: "Room") -> List[dict]:
+    """Every placed costume in the room with whether it starts shown, why not, and the line that places it."""
+    d = game.room_data(room) or {}
+    puts = [(rel, put) for rel in room.scripts for put in game.scripts[rel].get("put", [])]
+    rows = []
+    for c in d.get("costumes", []):
+        for p in c.get("placed", []):
+            actor = p.get("actor")
+            if p.get("starts_shown"):
+                why = "shown"
+            elif p.get("player"):
+                why = "the player"
+            elif p.get("when") in ("cutscene", "later"):
+                why = WHEN_TEXT[p["when"]]
+            elif p.get("when") in ("entry", "entry-if"):
+                why = f"another costume of actor {actor} starts" if actor else "another costume starts here"
+            else:
+                why = "not worked out"
+            # The script line that places it: a put-actor of the same actor at the same spot (by
+            # position when the actor is in a variable). Several can match; the first is shown.
+            x, y = str(p.get("x")), str(p.get("y"))
+            line = next((f"{rel}:{put[0]}" for rel, put in puts
+                         if (actor is None or put[1] == str(actor)) and put[2] == x and put[3] == y), None)
+            if line is None and actor is not None:
+                line = next((f"{rel}:{put[0]}" for rel, put in puts if put[1] == str(actor)), None)
+            rows.append({"costume": c.get("costume"), "akos": c.get("akos"), "object": c.get("object"), "p": p,
+                         "shown": bool(p.get("starts_shown")), "why": why, "line": line})
+    return rows
+
+
+def start_row_text(r: dict) -> str:
+    p = r["p"]
+    who = f"actor {p['actor']}" if p.get("actor") else (f"dressed by {p['dressed_by']}" if "dressed_by" in p else "actor ?")
+    when = WHEN_TEXT.get(p.get("when"), "?")
+    owner = f"  ({r['object']})" if r.get("object") else ""
+    reason = "" if r["shown"] else f"  hidden: {r['why']}"
+    return f"costume {r['costume']!s:>4}  {who:<18} at {p.get('x')},{p.get('y')}  {when}{reason}{owner}" + \
+        (f"\n           {r['line']}" if r.get("line") else "")
+
+
+def start_section(game: "Game", room: "Room", targets: List[dict]):
+    """For a visibility mark: each marked costume's start state, and why."""
+    rows = start_rows(game, room)
+    out("\nAs the room opens:")
+    for t in targets:
+        snap = t.get("snapshot") or {}
+        mine = [r for r in rows if r["akos"] == t.get("akos")
+                and (snap.get("x") is None or (r["p"].get("x"), r["p"].get("y")) == (snap.get("x"), snap.get("y")))]
+        if not mine:
+            out(f"  costume {t.get('costume')}: not placed, so never shown on start")
+        for r in mine:
+            out("  " + ("shown   " if r["shown"] else "hidden  ") + start_row_text(r))
+    out("  (shown: placed on entry, not the player, one costume per actor; mroom start ROOM lists the whole room)")
+
+
+def cmd_start(args, game: "Game"):
+    room = game.find_room(args.room)
+    d = game.room_data(room)
+    if not d:
+        raise SystemExit("mroom: start needs the room data (export with Room data, or mprobe export)")
+    rows = start_rows(game, room)
+    shown = [r for r in rows if r["shown"]]
+    hidden = [r for r in rows if not r["shown"]]
+    out(f"Room {room.label} as it opens: {len(shown)} costumes shown, {len(hidden)} hidden")
+    out(f"\nShown ({len(shown)}):")
+    for r in sorted(shown, key=lambda r: (r["p"].get("y", 0), r["p"].get("actor") or 0)):
+        out("  " + start_row_text(r))
+    out(f"\nHidden ({len(hidden)}):")
+    order = {"the player": 0, "in a cutscene": 1, "later": 2}
+    for r in sorted(hidden, key=lambda r: (order.get(r["why"], 3), r["costume"] or 0)):
+        out("  " + start_row_text(r))
+    unplaced = [c for c in d.get("costumes", []) if not c.get("placed")]
+    if unplaced:
+        out(f"\nNot placed where MMUCS can read it ({len(unplaced)}): " + ", ".join(
+            f"{c.get('costume')}" + (f" (worn by {', '.join(map(str, c['worn_by']))})" if c.get("worn_by") else
+                                    f" (dressed by {c['dressed_by']})" if c.get("dressed_by") is not None else "")
+            for c in unplaced))
+    imgs = [o for o in d.get("objects", []) if o.get("image") and o["image"].get("states")]
+    if imgs:
+        hid = [o["name"] for o in imgs if o.get("entry_state") == 0]
+        out(f"\nObject images: {len(imgs) - len(hid)} shown, {len(hid)} hidden (state 0 on entry)"
+            + (f": {', '.join(hid[:args.limit])}" + (" …" if len(hid) > args.limit else "") if hid else ""))
+    return 0
+
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1231,6 +1329,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--tag", help="only marks with this tag (position, scale, order, zplane, object, frame, missing)")
     s.add_argument("--done", type=int, metavar="N", help="clear mark N")
     s.add_argument("--marks", help="the review file (default: MMUCS's, else the export's copy)")
+    s = sub.add_parser("start")
+    s.add_argument("room")
+    s.add_argument("--limit", type=int, default=20, help="hidden object names to list")
     s = sub.add_parser("compare")
     s.add_argument("other", help="the export to compare with (made before the change)")
     s.add_argument("room", nargs="?")
@@ -1255,7 +1356,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     scripts_root = ms.find_scripts_root(args.root)
     game = Game(ms.Export(scripts_root, ms.REPO_MAP if ms.REPO_MAP.exists() else None))
     handler = {"rooms": cmd_rooms, "room": cmd_room, "object": cmd_object, "exits": cmd_exits,
-               "lines": cmd_lines, "actor": cmd_actor, "costume": cmd_costume, "review": cmd_review, "compare": cmd_compare,
+               "lines": cmd_lines, "actor": cmd_actor, "costume": cmd_costume, "review": cmd_review, "start": cmd_start, "compare": cmd_compare,
                "find": cmd_find}[args.command]
     try:
         return handler(args, game)

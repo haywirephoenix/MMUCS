@@ -578,6 +578,8 @@ public sealed partial class RoomViewModel : ObservableObject
                     ZPlane = a.HasPosition ? a.ZPlane : null,
                     DressedBy = a.DressedBy >= 0 ? a.DressedBy : null,
                     Owner = a.Owner?.Name,
+                    StartsShown = a.StartsShown,
+                    When = RoomDataExport.WhenText(a.When),
                 },
             };
         if (item.IsActorOnly) return null;

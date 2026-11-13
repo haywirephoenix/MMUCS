@@ -27,6 +27,10 @@ public sealed class ReviewSnapshot
     [JsonPropertyName("owner")] public string Owner { get; set; }
     /// <summary>An object image's state on entering the room (0 = hidden).</summary>
     [JsonPropertyName("entry_state")] public int? EntryState { get; set; }
+    /// <summary>Whether a costume is shown as the room opens (the room viewer's starting state).</summary>
+    [JsonPropertyName("starts_shown")] public bool? StartsShown { get; set; }
+    /// <summary>When a costume is placed: "entry", "entry-if", "cutscene" or "later".</summary>
+    [JsonPropertyName("when")] public string When { get; set; }
 }
 
 /// <summary>
@@ -96,6 +100,7 @@ public static class ReviewMarks
         ("zplane", "Z-plane (cut by the wrong foreground)"),
         ("object", "Wrong object / owner"),
         ("frame", "Wrong frame or animation"),
+        ("visibility", "Visibility on room start (shown but shouldn't be, or hidden but should be)"),
         ("missing", "Not placed / not shown"),
     };
 
