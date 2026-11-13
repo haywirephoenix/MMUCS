@@ -16,6 +16,22 @@
       "Name": "sentence-with-object",
       "Note": "Second ('with') object of the sentence being run, 0 when there is none. Written only in global/script_0040.scumm:119 and :126 (= local2) next to sentence-object. Object verb scripts test it (323x, e.g. rooms/016_chkn-int/objects/0452_pie-pan-object.scumm:7 'if (var201)'), check its class (151/157, e.g. rooms/031_snake/objects/0721_reservation-slip.scumm:9) and chain on it (161 do-sentence uses)."
     },
+    "204": {
+      "Name": "click-x",
+      "Note": "Room x of the click (virt-mouse-x), taken when the verb-script runs: global/script_0032.scumm:30. Walk-to-point sentences use it with click-y: global/script_0034.scumm:12 do-sentence 10 var204 with var205. Also set by room click scripts: rooms/062_recipes/local_2004.scumm:9, rooms/092_saveload/local_2007.scumm:134."
+    },
+    "205": {
+      "Name": "click-y",
+      "Note": "Room y of the click (virt-mouse-y): global/script_0032.scumm:31, rooms/062_recipes/local_2004.scumm:10, rooms/092_saveload/local_2007.scumm:135. Paired with click-x (var204) in global/script_0034.scumm:12 do-sentence 10 var204 with var205."
+    },
+    "206": {
+      "Name": "click-screen-x",
+      "Note": "Screen x of the click (mouse-x, not virt-mouse-x): global/script_0032.scumm:32, rooms/062_recipes/local_2004.scumm:11, rooms/092_saveload/local_2007.scumm:136. Used to find what's under it: actor-at(var206, var207) at global/script_0032.scumm:35 and kernel-get(216, var206, var207) at :41."
+    },
+    "207": {
+      "Name": "click-screen-y",
+      "Note": "Screen y of the click (mouse-y): global/script_0032.scumm:33, rooms/062_recipes/local_2004.scumm:12, rooms/092_saveload/local_2007.scumm:137. Paired with click-screen-x (var206) at global/script_0032.scumm:35 and :41."
+    },
     "208": {
       "Name": "dialog-choice-verb",
       "Note": "Verb id of the dialogue choice being laid out. Each choice in a dialogue script sets it to 500 + n - 1 and builds that verb: 'verb var208 at var594,var256', 'verb var208 name \"...\"', 'verb var208 on', then records it in var254 (global/script_0142.scumm:113-117, :399-403). Dialogue verbs are 500-539 (global/script_0005.scumm:13-19). Also used as a plain loop counter over 500-539 to turn them off (global/script_0005.scumm:5-8, global/script_0013.scumm:13-16)."
@@ -38,7 +54,7 @@
     },
     "234": {
       "Name": "room-var234",
-      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:10), so it never carries state between rooms. It's used in 15 rooms with a different meaning in each: a flag in rooms/021_brbr-int/local_2009.scumm:51, a counter in rooms/039_shipmap/local_2006.scumm:18, a saved verb-script in rooms/017_cu-elpol/local_2003.scumm:4, a palette-intensity value in rooms/080_smglcave/local_2019.scumm:10, and hover state in rooms/092_saveload/local_2005.scumm:7. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there.\nroom 80: cave-glow-red — red intensity for palette slots 230-255: starts at 260 (rooms/080_smglcave/local_2019.scumm:5), is dimmed by local0 / 2 and by the room's light level, and is applied with 'room palette-intensity var234,var235,var236 slots 230 to 255' (rooms/080_smglcave/local_2019.scumm:41)"
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:10), so it never carries state between rooms. It's used in 15 rooms with a different meaning in each: a flag in rooms/021_brbr-int/local_2009.scumm:51, a counter in rooms/039_shipmap/local_2006.scumm:18, a saved verb-script in rooms/017_cu-elpol/local_2003.scumm:4, a palette-intensity value in rooms/080_smglcave/local_2019.scumm:10, and hover state in rooms/092_saveload/local_2005.scumm:7. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there.\nroom 80: cave-glow-red — red intensity for palette slots 230-255: starts at 260 (rooms/080_smglcave/local_2019.scumm:5), is dimmed by local0 / 2 and by the room's light level, and is applied with 'room palette-intensity var234,var235,var236 slots 230 to 255' (rooms/080_smglcave/local_2019.scumm:41)\nroom 39: shipmap-ships-sailing — enemy ships on the map: +1 for each one launched with start-script rec 2006 while var234 < local3 (rooms/039_shipmap/local_2005.scumm:47-61), -1 when one leaves (rooms/039_shipmap/local_2006.scumm:18/36/50)"
     },
     "235": {
       "Name": "room-var235",
@@ -168,9 +184,25 @@
       "Name": "exit-cursor-icon",
       "Note": "The arrow icon the cursor turns into over an exit. Door objects set it in verb 94, e.g. rooms/009_cannon/objects/0278_cannon-waterline-door.scumm:10 = 106 (west-arrow-icon); values are 106-113 (the eight direction arrows in room 3) and 245/246 (page arrows). global/script_0039.scumm:52-55 sets it for class 156 objects (falling back to 109 south-arrow) and :96-100 makes it the cursor-image."
     },
+    "305": {
+      "Name": "double-click-time",
+      "Note": "The longest gap between two clicks that still makes a double click: set to 26 at boot (global/script_0001.scumm:30) and only read at global/script_0032.scumm:85 if (var335 < var305) var337 = 1."
+    },
+    "306": {
+      "Name": "last-click-time",
+      "Note": "timer1 of the previous click: global/script_0032.scumm:95 var306 = var336, started at boot by global/script_0001.scumm:31 var306 = timer1. global/script_0032.scumm:84 var335 = var336 - var306."
+    },
+    "307": {
+      "Name": "last-click-object",
+      "Note": "The object of the previous click, for double-click detection. global/script_0032.scumm:82 tests var333 == var307 and :93 stores var307 = var333; the click handlers also set it to clicked-object (global/script_0034.scumm:15, global/script_0035.scumm:26, global/script_0038.scumm:32). Room 39 (ship map) has its own click script that does the same with object-at: rooms/039_shipmap/local_2011.scumm:7-10 (verb-script = 2011 at rooms/039_shipmap/local_2002.scumm:7)."
+    },
     "312": {
       "Name": "interface-mode",
       "Note": "Which input mode the interface is in; the click handlers branch on it (global/script_0033.scumm:4-32, global/script_0034.scumm:5/58/124/127, global/script_0035.scumm:4-22). 1 = normal room play (global/script_0001.scumm:195, global/script_0045.scumm:10); 2 = action popup over the room (global/script_0042.scumm:32, started from a room click at global/script_0034.scumm:46); 3 = inventory open (global/script_0046.scumm:11 with bit9); 4 = action popup over the inventory (global/script_0043.scumm:30, started at global/script_0034.scumm:108); 5 = a dialogue menu (rooms/070_famcrypt/local_2003.scumm:68, rooms/081_gondola/local_2005.scumm:33)."
+    },
+    "313": {
+      "Name": "last-click-kind",
+      "Note": "click-kind (var332) of the previous click, kept for the double-click test: global/script_0032.scumm:83 compares var332 == var313 and :94 stores var313 = var332."
     },
     "315": {
       "Name": "inventory-page-start",
@@ -188,9 +220,61 @@
       "Name": "dialog-choice-gesture",
       "Note": "Array with a gesture for each dialogue choice: when that choice is picked, global/script_0013.scumm:25-26 runs script 106 with it after the pose. Its values (9, 10, 11, 30, 31, 34, 35, 38, 39) are not in script 106's first list, so they go to script 108, which plays 'do-animation 1 N' and waits. Context, not mentioning var331: global/script_0106.scumm:11-17 and global/script_0108.scumm:4-17 get the value as local0. It is set per choice, e.g. global/script_0243.scumm:243 var331[4] = 11, and cleared per menu (global/script_0142.scumm:80-85)."
     },
+    "332": {
+      "Name": "click-kind",
+      "Note": "Which kind of input the verb-script (global/script_0032.scumm) is handling, and so which script handles it: 5 for a key (local0 == 4, global/script_0032.scumm:57-58), 2 for local3 == 2 (:61-62), 1 for local2 == 1 and 3 for local2 == 2 (:72-76). global/script_0032.scumm:103-113 then starts 34 for 1, 35 for 2, 33 for 3, 37 for 4 and 38(local1) for 5. No script in the export sets 4."
+    },
+    "333": {
+      "Name": "clicked-object",
+      "Note": "What the player clicked on. The verb-script (global/script_0032.scumm, set by global/script_0001.scumm:89) sets it on every click to the actor at the mouse (global/script_0032.scumm:35), else in inventory mode the inventory item under it via kernel-get 216 and icon-item (global/script_0032.scumm:41-48), else object-at the click point (global/script_0032.scumm:53). The click handlers act on it: global/script_0034.scumm:9 do-sentence 5 cursor-item with var333, global/script_0034.scumm:21/26 do-sentence 12 or 9 on it, global/script_0035.scumm:26-29 start-object rec var333 verb 93."
+    },
+    "335": {
+      "Name": "click-interval",
+      "Note": "Time since the previous click: global/script_0032.scumm:84 var335 = var336 - var306; under double-click-time (var305) it's a double click (global/script_0032.scumm:85-86)."
+    },
+    "336": {
+      "Name": "click-time",
+      "Note": "timer1 when the verb-script handles a click: global/script_0032.scumm:4 var336 = timer1. Used for the double-click interval (global/script_0032.scumm:84) and stored as last-click-time (:95)."
+    },
+    "337": {
+      "Name": "double-click",
+      "Note": "Set when this click is a double click: global/script_0032.scumm:81-86 clears it, then sets it to 1 when the same object (var333 == var307) gets the same kind of click (var332 == var313) within double-click-time (var335 < var305). global/script_0034.scumm:17-26 then runs verb 12 instead of 9 on an object of class 156 (do-sentence 12 var333 with 0). Room 39's click script sets it when the same object is clicked twice: rooms/039_shipmap/local_2011.scumm:6-9, read at rooms/039_shipmap/local_2011.scumm:26 and :35."
+    },
+    "338": {
+      "Name": "room-entry-time",
+      "Note": "timer1 when a room was last entered: entry-script2 (global 11, set at global/script_0001.scumm:85) ends with var338 = timer1 (global/script_0011.scumm:35), also set at boot (global/script_0001.scumm:32). The verb-script ignores clicks less than 24 ticks after it: global/script_0032.scumm:90-91 if (var336 < var338 + 24) stop-script 0."
+    },
     "339": {
       "Name": "carnival-dinghy-dog-hits",
       "Note": "How many times Guybrush has hit Dinghy Dog (actor 12, CLDD lines) while he still has his hair: rooms/086_carnival/local_2010.scumm:4-5 adds 1. Each count gets a warning, from \"(Hyuk!) Now that's not very nice, little boy.\" at 1 (rooms/086_carnival/local_2010.scumm:41-43) to \"You're really starting to bug me, kid.\" at 5 (rooms/086_carnival/local_2010.scumm:56-58). After 5 (context, not mentioning var339: the line tests whether the hair is gone), \"All right, (hyuk!), that does it.\" (rooms/086_carnival/local_2010.scumm:62-64). Starts at 0 (global/script_0001.scumm:134)."
+    },
+    "391": {
+      "Name": "enemy-ship",
+      "Note": "Room 39 (ship map) and the ship-combat scripts: which enemy ship (slot 1-8) Guybrush is fighting. Set when his ship (actor 2) comes within 50 of an enemy (rooms/039_shipmap/local_2007.scumm:9-19, var391 = local2, or 7 for actor 9) or when one is double-clicked (rooms/039_shipmap/local_2011.scumm:35-60). It indexes enemy-ship-stats: rooms/039_shipmap/local_2011.scumm:65 if (var395[var391][1] == 99), and global/script_0271.scumm:116 var395[var391][1] = 99 after \"The Tourists have been defeated!\" (global/script_0271.scumm:110). Cited for context and not mentioning var391: the defeat message at global/script_0271.scumm:110."
+    },
+    "392": {
+      "Name": "ship-battle-scene",
+      "Note": "Room 39 (ship map): which ship-combat room a fight happens in, from the map box the ship is in. global/script_0256.scumm:4-22 sets 1-4 for boxes 5, 6, 7 or another, and global/script_0256.scumm:33-45 goes to current-room 40, 41, 42 or 43 (040_shipcom1 to 043_shipcom4). Also var392 = actor-box(2) at rooms/039_shipmap/local_2007.scumm:12, tested != 5 at :13."
+    },
+    "395": {
+      "Name": "enemy-ship-stats",
+      "Note": "Room 39 (ship map) and ship combat: a table of the enemy ships, var395[slot][field], slots 1-8. Filled at global/script_0259.scumm:33-42 (dim int var395[8][5]; e.g. [0, 5, 4, 8, 4, 20]) and by the debug jump at global/script_0071.scumm:2844-2852 (\"502 -- ship combat\" just before). Field 1 becomes 99 when the ship is beaten: global/script_0271.scumm:116 and global/script_0284.scumm:8 var395[var391][1] = 99; rooms/039_shipmap/local_2007.scumm:20 and rooms/039_shipmap/local_2011.scumm:65 check it before a fight. Field 2 (4 to 10) is compared with Guybrush's ship's rating var390[1] at global/script_0321.scumm:6. The other fields aren't worked out."
+    },
+    "397": {
+      "Name": "shipmap-enemy-ship-actors",
+      "Note": "Room 39 (ship map): the actor for each enemy ship slot, var397[0] = [0, 3, 4, 5, 6, 7, 8, 9, 10] (rooms/039_shipmap/local_2005.scumm:4). The room launches them with start-script rec 2006(var397[local2]) when actor-room(...) != 39 (rooms/039_shipmap/local_2005.scumm:48-61), and checks each one's distance from Guybrush's ship (rooms/039_shipmap/local_2007.scumm:8-9)."
+    },
+    "398": {
+      "Name": "shipmap-ship-x",
+      "Note": "Room 39 (ship map): the x where Guybrush's ship (actor 2) goes on the map, put-actor 2 at var398,var399 in-room 39 (rooms/039_shipmap/local_2001.scumm:52). Saved from x-of(ego) at rooms/039_shipmap/local_2004.scumm:13, set to 218 by the arms dealer's door (rooms/039_shipmap/local_2011.scumm:27), and reset to 56 at boot (global/script_0001.scumm:124) and by the debug jumps (global/script_0071.scumm:2336)."
+    },
+    "399": {
+      "Name": "shipmap-ship-y",
+      "Note": "Room 39 (ship map): the y for Guybrush's ship, paired with shipmap-ship-x (var398): rooms/039_shipmap/local_2001.scumm:52 put-actor 2 at var398,var399. Saved from y-of(ego) at rooms/039_shipmap/local_2004.scumm:14, 106 at the arms dealer (rooms/039_shipmap/local_2011.scumm:28), 94 at boot (global/script_0001.scumm:125)."
+    },
+    "408": {
+      "Name": "shipmap-ships-met",
+      "Note": "Room 39 (ship map): var408[slot] = 1 once Guybrush has encountered that enemy ship, set at rooms/039_shipmap/local_2007.scumm:19 (sailing close) and rooms/039_shipmap/local_2011.scumm:37-59 (clicking it). The map's hover labels check it: rooms/039_shipmap/local_2004.scumm:53 if (var408[1]) before showing a name such as \"Really Not Fearsome Pirates\" (rooms/039_shipmap/local_2004.scumm:63). Cited for context and not mentioning var408: the label text at rooms/039_shipmap/local_2004.scumm:63."
     },
     "428": {
       "Name": "banjo-tune-length",
@@ -240,6 +324,14 @@
       "Name": "hotelbar-tarot-cards-dealt",
       "Note": "Tarot cards Madame Xima has laid on the table in this reading: each reading adds 1, or sets 5 when bit65 is set (rooms/061_hotelbar/local_2024.scumm:902-906). It names hotel-bar-cards-on-table \"tarot card\" or \"tarot cards\" (rooms/061_hotelbar/local_2024.scumm:907-910), and the table cards' look-at branches on 1-4 (rooms/061_hotelbar/objects/0985_hotel-bar-cards-on-table.scumm:11). When Guybrush takes the cards, it is added to var458 and cleared (rooms/061_hotelbar/local_2008.scumm:77-79)."
     },
+    "461": {
+      "Name": "stans-crypt-offers-made",
+      "Note": "Room 69 (Stan's crypt): var461[offer] is set once that offer has been made to Stan, so it isn't offered again. Set at rooms/069_stancrpt/local_2006.scumm:950 var461[var462[local1]] = 1; tested before each menu line, e.g. :326 if (!var461[0] && owner-of(cave-goodsoup-diamond) != 1) and :365 if (!var461[1] && owner-of(shipwreck-beach-bottle) == 1 ...)."
+    },
+    "462": {
+      "Name": "stans-crypt-offer-menu",
+      "Note": "Room 69 (Stan's crypt): which offer each line of the dialogue menu holds. rooms/069_stancrpt/local_2006.scumm:326-527 fills var462[local0] with offer 0-5 for each item Guybrush has and hasn't offered yet (e.g. 1 for the shipwreck-beach-bottle at :365-366, shown as \"This antique bottle... \" at :372). When a line is picked (var255 500-505 gives local1, :940-947), :950 marks it offered and :951-1034 plays it by var462[local1], e.g. 1 \"This antique, hand-crafted bottle of rich, creamy shaving soap.\" (:953-955). Cited for context and not mentioning var462: the menu text at rooms/069_stancrpt/local_2006.scumm:372."
+    },
     "466": {
       "Name": "cave-poker-hands",
       "Note": "Room 80 (smugglers' cave). How many poker hands Guybrush has played with King Andre (actor 3, KA lines), 0-6: rooms/080_smglcave/local_2004.scumm:153-154 adds 1 after each hand. It picks what is said: at 0 \"You will have to pay to enter the game.\" (rooms/080_smglcave/local_2004.scumm:14-15) and \"Have you ever played poker before, Mister Threepwood?\" (rooms/080_smglcave/local_2005.scumm:10-11). Guybrush's look at his hand changes from \"I've got a whole lot of nothing.\" to \"Oh, shoot. I got aces and eights.\" (rooms/080_smglcave/local_2006.scumm:6-65), and so does the showdown (rooms/080_smglcave/local_2007.scumm:11-67)."
@@ -252,9 +344,21 @@
       "Name": "",
       "Note": "Unconfirmed: a table of 13 walk-box numbers for room 10: rooms/010_cannon-v/local_2002.scumm:4-15 sets var468[0-12] to 1, 4, 2, 3, 5-8 and 9-12 (index 8 is never set). rooms/010_cannon-v/local_2008.scumm:115-122 looks for the first one that actor 4 is in ('actor-in-box(4, var468[local12])') and remaps 9 and 10 to other values. Actor 4 seems to be the cannonball, so the box may decide where the shot lands, but I didn't trace what local13 is used for."
     },
+    "471": {
+      "Name": "recipe-book-page",
+      "Note": "Room 62 (recipe book): the page the book is open at, 0 to 11. rooms/062_recipes/local_2006.scumm:5-28 turns back while above 0 (var471 - 1) and :32-55 turns forward while below 11 (var471 + 1), each then starting local_2005, which hides recipe-book-prev-page at 0 and recipe-book-next-page at 11 (rooms/062_recipes/local_2005.scumm:4-10). local_2007 draws the page by it (rooms/062_recipes/local_2007.scumm:5, :127)."
+    },
     "474": {
       "Name": "",
       "Note": "Unconfirmed: room 80 (smugglers' cave). A frame number for the card players' hands: every write (7 or 11) is followed by 'set-actor-chore-limb-frame 4, 4, 1, var474' or 'set-actor-chore-limb-frame 3, 4, 1, var474' (e.g. rooms/080_smglcave/local_2000.scumm:539-541, rooms/080_smglcave/local_2000.scumm:1001-1003). It sets limb 1 of chore 4 on actors 3 (King Andre) and 4, so it is probably a cards-in-hand frame, but I couldn't confirm what 7 and 11 show."
+    },
+    "476": {
+      "Name": "lc-quarters-fossey-line",
+      "Note": "Room 36 (LeChuck's quarters): which line Guybrush squeaks next when he uses verb 65 on Fossey (rooms/036_lc-qurtr/objects/0794_lc-qurtr-fossey.scumm:21-23, while var476 <= 5): 0 \"Testing... testing... check... one... two... three...\" (rooms/036_lc-qurtr/local_2001.scumm:19-20), 1 \"Captain LeChimp! I'm the REAL brains behind this crew!\" (:26-27), 5 \"Permission to speak freely, sir. You're a big, dumb monkey!\" (:57-58), then var476 + 1 (:85)."
+    },
+    "487": {
+      "Name": "torture-hot-flask-line",
+      "Note": "Room 85 (torture diorama): which line Guybrush says on burning his hand on the oil flask. The flask (rooms/085_tort-dia/objects/1326_torture-diorama-oil-flask.scumm:24) starts local_2005, which says \"Ouch! That's really hot!\" for 0, \"Geez, that stings.\" for 1, \"It's too hot to pick up!\" for 2 and \"Pappapisshu!\" (with bit598) for 3 (rooms/085_tort-dia/local_2005.scumm:11-20), then var487 = var487 + 1 (:29). Cited for context and not mentioning var487: the flask's start-script 2005."
     },
     "488": {
       "Name": "carnival-snowcone-ingredients",
@@ -296,6 +400,10 @@
       "Name": "cannon-wally-battle-line",
       "Note": "Room 9 (cannon deck). Which battle cry Wally (actor 2) shouts next while firing at the fort, 0-10: rooms/009_cannon/local_2006.scumm:18-38 goes from \"Blast ye scurvy dogs!\" at 0 to \"Somehow, I find all this violence desensitizing.\" at 9, and adds 1 after each, up to 10 (rooms/009_cannon/local_2006.scumm:43-44). Context, not mentioning var498: started from rooms/009_cannon/local_2002.scumm:93."
     },
+    "499": {
+      "Name": "waterline-murray-line",
+      "Note": "Room 11 (waterline): which of Murray the talking skull's idle lines comes next. rooms/011_waterln/local_2006.scumm:4 loops while var499 <= 7, picking \"Well, they've messed with the wrong skull this time!\" for 0 (rooms/011_waterln/local_2006.scumm:15-30), \"At least I've lost some weight.\" for 3 (:63-64), \"This is just SO unfair!\" for 6 (:83-98), then var499 = var499 + 1 (:120-121)."
+    },
     "500": {
       "Name": "barber-jawbreaker-step",
       "Note": "How far Guybrush has got with asking about the barber's jawbreaker (local_2040, BDSO lines), 0-6. It picks the choice offered: 0 \"Say, what are you eating there?\" (rooms/021_brbr-int/local_2040.scumm:533-539), 1 \"That's a really good jawbreaker there, huh?\", 2 \"Boy, I sure could go for a jawbreaker right about now.\", 3 \"You going to finish that jawbreaker?\" (rooms/021_brbr-int/local_2040.scumm:647-653), 4 \"Nothing I love more than a good jawbreaker!\" (rooms/021_brbr-int/local_2040.scumm:686-690). Picking it adds 1 (up to 6, rooms/021_brbr-int/local_2040.scumm:1982-1983) and picks the reply (rooms/021_brbr-int/local_2040.scumm:1998-2030)."
@@ -312,9 +420,33 @@
       "Name": "cannon-v-fort-wall-hits",
       "Note": "How many times Guybrush's cannon shot has hit a fort wall piece, 0-6. Context, not mentioning var512: rooms/010_cannon-v/local_2013.scumm:6-20 blows up a still-intact (class 150) fort-wall object at the shot's point and starts rooms/010_cannon-v/local_2014.scumm, which adds 1 (up to 6, rooms/010_cannon-v/local_2014.scumm:6-7) and has Guybrush apologise: \"Whoops!\", \"That was me. Sorry.\", \"Sorry about that!\", \"Oops! My fault!\", \"Ouch.\" (rooms/010_cannon-v/local_2014.scumm:9-19)."
     },
+    "513": {
+      "Name": "",
+      "Note": "Unconfirmed: room 21 (barber shop), a y the chewed-gum bubble is mirrored around. Set to 200 at rooms/021_brbr-int/local_2014.scumm:13 and cleared on exit (rooms/021_brbr-int/exit.scumm:7). Global 182, the bubble-gum script started from rooms/021_brbr-int/objects/0554_chewed-gum-object.scumm:26 and rooms/030_voodoo-i/objects/0717_bubblegum-object.scumm:26, works out local5 = var513 - (y-of(1) - var513) when it's above 0 (global/script_0182.scumm:57-58). Cited for context and not mentioning var513: the two gum objects' start-script 182."
+    },
     "515": {
       "Name": "barber-scissors-step",
       "Note": "How far Guybrush has got with asking Haggis about his scissors (local_2020, HGSO lines), 0-5. It picks the choice offered: 0 \"Those sure are nice scissors.\" (rooms/021_brbr-int/local_2020.scumm:715-722), 1 \"Could I borrow those scissors for a minute?\" (rooms/021_brbr-int/local_2020.scumm:789-796), 2 \"When I think of all I could do with those scissors...\" (rooms/021_brbr-int/local_2020.scumm:863-870), 3 \"Did I mention how nice those scissors are?\" (rooms/021_brbr-int/local_2020.scumm:938-945). Picking it adds 1 (up to 5, rooms/021_brbr-int/local_2020.scumm:2936-2937) and picks the reply (rooms/021_brbr-int/local_2020.scumm:2939-2974)."
+    },
+    "516": {
+      "Name": "voodoo-question-step",
+      "Note": "Room 30 (Voodoo Lady): which \"I want to know...\" question the dialogue menu offers next. rooms/030_voodoo-i/local_2006.scumm:467-654 shows \"I want to know what voodoo spell you're working on.\" for 0 (:473), \"...safe hair replacement systems.\" for 1 (:509) and so on to \"...the Aztec god, Quetzalcoatl.\" for 5 (:654). After the question it goes up by 1 (:4166) and the answer is picked by it, e.g. 1 \"Voodoo spell?\" (:4170-4174). Cited for context and not mentioning var516: the menu text lines (:473, :509, :654)."
+    },
+    "518": {
+      "Name": "chicken-bucket-menu-item",
+      "Note": "Room 16 (Blondebeard's Chicken Shoppe): which bucket on the menu board Guybrush reads next. Looking at the menu-bucket object starts local_2020 (rooms/016_chkn-int/objects/0457_chkn-int-menu-bucket.scumm:6), which reads entry 1-4 (\"Bucket-O-Booty:\" at rooms/016_chkn-int/local_2020.scumm:9-10, \"The Skinless Chicken Bucket:\" at :27-28), then var518 = var518 + 1 (:44) and wraps above 4 (:4-5). Set to 1 at rooms/016_chkn-int/local_2002.scumm:5. Cited for context and not mentioning var518: the menu-bucket object's start-script 2020."
+    },
+    "519": {
+      "Name": "chicken-grog-menu-item",
+      "Note": "Room 16 (Blondebeard's Chicken Shoppe): which grog on the menu board is read next, the same way as chicken-bucket-menu-item. The menu-grog object starts local_2021 (rooms/016_chkn-int/objects/0458_chkn-int-menu-grog.scumm:6), which reads \"Traditional Grog:\" for 1 (rooms/016_chkn-int/local_2021.scumm:9-10) and so on, wraps above 4 (:4-5) and adds 1 (:46). Set to 1 at rooms/016_chkn-int/local_2002.scumm:6. Cited for context and not mentioning var519: the menu-grog object's start-script 2021."
+    },
+    "520": {
+      "Name": "chicken-sides-menu-item",
+      "Note": "Room 16 (Blondebeard's Chicken Shoppe): which side dish on the menu board is read next. The menu-sides object starts local_2022 (rooms/016_chkn-int/objects/0459_chkn-int-menu-sides.scumm:6), which reads \"Blondebeard's Super Slaw:\" for 1 (rooms/016_chkn-int/local_2022.scumm:9-10) and so on, wraps above 4 (:4-5) and adds 1 (:59). Set to 1 at rooms/016_chkn-int/local_2002.scumm:7. Cited for context and not mentioning var520: the menu-sides object's start-script 2022."
+    },
+    "522": {
+      "Name": "caber-tower-door-trips",
+      "Note": "Room 22 (caber ring): how many times Guybrush has gone through the tower door, up to 4. The door (rooms/022_clring-a/objects/0591_clring-a-tower-door.scumm:20) starts local_2006, which plays a different trip out on the balcony for 0-3 (rooms/022_clring-a/local_2006.scumm:26-40 for 0, :58, :85, :115) and at 4 just \"I've had quite enough of that nonsense.\" (:154-158), then adds 1 and caps at 4 (:188-190). Cited for context and not mentioning var522: the tower door's start-script 2006."
     },
     "523": {
       "Name": "cave-door-openings",
@@ -327,6 +459,34 @@
     "529": {
       "Name": "cave-lechuckie-mean-lines-said",
       "Note": "Room 80 (smugglers' cave). Array of 11 flags, one per nasty line the LeChuckie doll (actor 16) has said, used once it has been squeezed more than 3 times: global/script_0411.scumm:119-122 picks a random line not yet said and sets its flag, starting (context, not mentioning var529: the lines go by its index local7) with \"I'll rip out your lungs, ya swab!\" (global/script_0411.scumm:123-124). Once all 11 are set it clears them (global/script_0411.scumm:104-118). Also cleared by rooms/080_smglcave/local_2023.scumm:7."
+    },
+    "530": {
+      "Name": "treasure-pile-line",
+      "Note": "Room 12 (treasure): which of Guybrush's speeches about the treasure pile comes next. The pile-o-treasure object starts local_2006 (rooms/012_treasure/objects/0346_pile-o-treasure.scumm:6), which plays 0 \"It's the biggest pile of treasure I've ever seen!\" (rooms/012_treasure/local_2006.scumm:6-9), 3 \"Gold!\" ... \"I would give it all up for the love of Elaine.\" (:27-70), 6 (:81) and so on, then var530 = var530 + 1 while below 7 (:107-108). Cited for context and not mentioning var530: the pile's start-script 2006."
+    },
+    "531": {
+      "Name": "stage-name-line",
+      "Note": "Room 19 (stage): the last of the 35 names actor 2 mutters in local_2005, kept so the same one isn't picked twice running: rooms/019_stage/local_2005.scumm:4-7 picks random-between(1, 35) until it differs from var531, then says it, e.g. \"...Hamlet...\" for 1 (rooms/019_stage/local_2005.scumm:22-23), \"...a great big bear-pig...\" for 35 (:91-92). Cited for context and not mentioning var531: the lines picked by local0 (:22-23, :91-92)."
+    },
+    "532": {
+      "Name": "stage-phrase-line",
+      "Note": "Room 19 (stage): the last of the 33 phrases in local_2006, the same no-repeat pick as stage-name-line: rooms/019_stage/local_2006.scumm:4-7 random-between(1, 33) until it differs from var532; 1 is \"...water sealed the drawbridge for...\" (rooms/019_stage/local_2006.scumm:22-23). Cited for context and not mentioning var532: the line picked by local0 (:22-23)."
+    },
+    "542": {
+      "Name": "brimbeach-pale-taunt-step",
+      "Note": "Room 28 (Brimstone Beach): how many of Guybrush's pale-skin taunts Palido has heard. It picks the taunt the dialogue menu offers: 1 \"You've got the SAVAGE pale!\" (rooms/028_brimbch/local_2005.scumm:368-374), 2 \"Hey! I can see my reflection in your chest!\" (:406-412), 3 \"You're so pale, you make snow look tan!\" (:444-450), 4 the bleached chalk (:483-489). Palido answers by it, 0 \"My complexion is a little on the light side\" (:961-962), 3 \"Be quiet now.\" (:983-985), then it goes up by 1 to at most 10 (:1023-1024)."
+    },
+    "543": {
+      "Name": "brimbeach-crew-asks",
+      "Note": "Room 28 (Brimstone Beach): how many times Guybrush has asked Palido to join his crew, up to 2. The menu offers \"Would you like to join my crew?\" at 0 (rooms/028_brimbch/local_2005.scumm:526-532) and \"Are you sure you won't join my crew?\" below 2 (:564-570); at 0 Palido says \"Oh no, babe. I'm not a sailor.\" (:1048-1051); then var543 = var543 + 1 while below 2 (:1070-1071)."
+    },
+    "546": {
+      "Name": "caber-pile-line",
+      "Note": "Rooms 22 and 23 (caber ring): which of Guybrush's three lines about the cabers comes next. The caber piles start global 200 (rooms/022_clring-a/objects/0604_clring-a-caber-pile.scumm:11, rooms/023_clring-b/objects/0632_clring-b-caber-pile.scumm:9), which adds 1 and wraps after 3 (global/script_0200.scumm:4-6) and says \"Curious pile of logs there...\" for 1 (:9-10) or, once bit322 or bit521 is set, \"These are cabers...\" for 1 (:22-23). Room 21 resets it to 1 when bit322 is set (rooms/021_brbr-int/local_2020.scumm:2892-2893). Cited for context and not mentioning var546: the caber piles' start-script 200."
+    },
+    "547": {
+      "Name": "brimbeach-palido-state",
+      "Note": "Room 28 (Brimstone Beach): how far Palido Domingo's tanning has got, which sets his pose. rooms/028_brimbch/local_2009.scumm:22-37 picks his stand and talk animations for 0-4 (4 also sets state-of palido-head-object is 1) and skips putting him in the room at 5 and above (:4). Starts at 0 (global/script_0001.scumm:129), 1 at rooms/028_brimbch/local_2006.scumm:98, 4 after \"Look, Palido! You're burning!\" and \"I'd better turn over.\" (global/script_0220.scumm:60-76), 5 when state-of brimbeach-burnt-palido is 1 (rooms/028_brimbch/local_2007.scumm:74-75), 6 at rooms/028_brimbch/local_2008.scumm:30. The map guy's lines check it too (rooms/028_brimbch/objects/0684_map-guy-object.scumm:8)."
     },
     "549": {
       "Name": "cannon-v-volley-points",
@@ -348,9 +508,17 @@
       "Name": "carnival-murray-sulk-line",
       "Note": "Which line Murray shouts next after Guybrush picks the anchor instead of him, 0-10: rooms/086_carnival/local_2008.scumm:9-31 goes from \"I can't believe you picked that stupid anchor instead of me.\" at 0 to \"Bwahahahahahahahahaha!\" at 10, then adds 1 (rooms/086_carnival/local_2008.scumm:37) and stops past 10 (rooms/086_carnival/local_2008.scumm:38-39). global/script_0452.scumm:9-27 runs the same count for lines 6 and up."
     },
+    "555": {
+      "Name": "chicken-blondebeard-line",
+      "Note": "Room 16 (Blondebeard's Chicken Shoppe): which of Blondebeard's lines comes next after one dialogue choice, counting up to 5 (rooms/016_chkn-int/local_2019.scumm:998-999). 1 \"We're out o' potatoes, but we still be havin' some eyes left!\" (:1001-1002), 2 the glob of lard (:1003-1004), 3 peat moss and tree bark (:1005-1006), 4 \"One word fer ya...\" (:1007-1008), 5 \"No more.\" (:1013-1014). I didn't find the wording of the choice itself (bit445 at :942)."
+    },
     "556": {
       "Name": "hotelbar-portrait-state",
       "Note": "Which picture the hotel bar portrait shows, 1-6. The room's entry script (rooms/061_hotelbar/local_2013.scumm; context, not mentioning var556: it is started from rooms/061_hotelbar/entry.scumm:6) sets it to 1 on the first visit (rooms/061_hotelbar/local_2013.scumm:12-13). After that it adds 1 (up to 6) each time Guybrush comes in from room 64 (var212 == 64), and sets 'state-of hotel-bar-portrait is var556' (rooms/061_hotelbar/local_2013.scumm:14-18)."
+    },
+    "557": {
+      "Name": "",
+      "Note": "Unconfirmed: room 39 (ship map), a count capped at 3. Cleared at global/script_0259.scumm:32 when ship combat is first set up, incremented and capped at global/script_0300.scumm:9-11; global 300 starts when the ship being met is already beaten (rooms/039_shipmap/local_2007.scumm:20-22). The ship map launches 2 or 6 ships depending on var557 < 2 (rooms/039_shipmap/local_2005.scumm:18-21), and global/script_0321.scumm:121 plays a cut-scene at var557 == 1. Cited for context and not mentioning var557: the check that starts global 300 (rooms/039_shipmap/local_2007.scumm:20-22)."
     },
     "558": {
       "Name": "barber-rottingham-boast-step",
@@ -368,9 +536,41 @@
       "Name": "barber-rottingham-scare-step",
       "Note": "How far Guybrush has got with trying to scare Captain Rottingham out of the barber's chair, 0-8. It picks the choice offered: 0 \"Fire! Run for your life!\" (rooms/021_brbr-int/local_2041.scumm:632-638), then rabid dogs, an axe-wielding maniac, \"The calls are coming from within the barber shop!\", a storm, and 5 \"Captain Rottingham? You're being paged.\" (rooms/021_brbr-int/local_2041.scumm:823-829). Picking it adds 1 (up to 8, rooms/021_brbr-int/local_2041.scumm:1203-1205) and picks his reply, e.g. \"I'm sure the authorities probably have the situation under control.\" (rooms/021_brbr-int/local_2041.scumm:1207-1212)."
     },
+    "562": {
+      "Name": "",
+      "Note": "Unconfirmed: room 75 (egg beach), the blood-map door Guybrush last used. The two doors set it to their own object ids, 1222 (rooms/075_eggbeach/objects/1222_eggbeach-bloodmap-door-1.scumm:9) and 1226 (rooms/075_eggbeach/objects/1226_eggbeach-blood-map-door-2.scumm:6). Nothing in the export reads it."
+    },
+    "568": {
+      "Name": "offstage-sword-prop-tries",
+      "Note": "Room 18 (offstage): how often Guybrush has tried the wooden sword as a prop, up to 4. The sword (rooms/018_offstage/objects/0482_offstage-wooden-sword-1.scumm:10) starts local_2015, which on the 4th try (var568 == 3) first says \"You're just going to have to take my word for it.\" (rooms/018_offstage/local_2015.scumm:4-5), then \"I don't need a prop.\" (:10), and adds 1 while below 4 (:11-12). Cited for context and not mentioning var568: the sword's start-script-quick 2015 and the line at rooms/018_offstage/local_2015.scumm:10."
+    },
+    "569": {
+      "Name": "stage-teaser-line",
+      "Note": "Room 19 (stage): after \"I'd rather you didn't.\" (rooms/019_stage/local_2010.scumm:1000), once bit267 and bit430 are set, actor 2 counts up to 3 (rooms/019_stage/local_2010.scumm:1019-1020) and says 1 \"You might see the surprise ending to 'Romeo and Juliet.'\" (:1022-1024) or 2 \"Then you'll hear all the answers to my knock-knock jokes.\" (:1038-1040). Cited for context and not mentioning var569: the refusal line at rooms/019_stage/local_2010.scumm:1000."
+    },
+    "570": {
+      "Name": "treasure-cheat-code-step",
+      "Note": "Room 12 (treasure): how many keys of treasure-cheat-code (var571) have been typed correctly. rooms/012_treasure/local_2010.scumm:4-11 adds 1 on a match and clears it on a miss; at 16 it restores verb-script = 32 and sets class-of nickel-bag is [32] (:6-8). Room 24 also clears it (rooms/024_pistols/local_2007.scumm:12) where its own code would use pistols-cheat-code-step (var619), which looks like a slip in the game's script."
+    },
+    "571": {
+      "Name": "treasure-cheat-code",
+      "Note": "Room 12 (treasure): the 16 key codes of a typed secret, filled by rooms/012_treasure/local_2011.scumm:4-38 as 116 105 109 105 115 110 101 118 101 114 119 114 111 110 103 33, which is \"timisneverwrong!\" in ASCII. The room's verb-script (verb-script = 2010 at rooms/012_treasure/local_2002.scumm:6) compares each key with it: rooms/012_treasure/local_2010.scumm:4 if (local1 == var571[var570])."
+    },
+    "576": {
+      "Name": "crackwall-murray-giggle-line",
+      "Note": "Room 71 (cracked wall): which of Murray's giggles plays when the room starts local_2009 (rooms/071_crakwall/local_2002.scumm:6-7, while bit465 isn't set): \"(giggle)\" for 0, \"This is going to be so cool!\" for 1, \"(snicker)\" for 2, \"(giggle)\" for 3 (rooms/071_crakwall/local_2009.scumm:8-16), then adds 1 while below 4 (:40-41). Cited for context and not mentioning var576: the start of local_2009 (rooms/071_crakwall/local_2002.scumm:6-7)."
+    },
+    "580": {
+      "Name": "beachclub-cabana-boy-step",
+      "Note": "Room 26 (beach club): how far the talk with the cabana boy has got, up to 5. After \"Oh, cabana boy?\" (rooms/026_bchclub/local_2013.scumm:6, started from rooms/026_bchclub/objects/0670_cabana-boy-object.scumm:21) it plays \"Yesss...\" for 0 (rooms/026_bchclub/local_2013.scumm:14-15), \"Tell me more about my membership benefits.\" for 1 (rooms/026_bchclub/local_2013.scumm:34-35), \"Will you bury me in the sand?\" for 2 (rooms/026_bchclub/local_2013.scumm:63-64), then adds 1 while below 5 (rooms/026_bchclub/local_2013.scumm:88-89). Cited for context and not mentioning var580: the opening line (:6) and the cabana boy's start-script 2013."
+    },
     "582": {
       "Name": "hotelbar-rum-drinks",
       "Note": "How many times Guybrush has drunk the shot of rum: rooms/061_hotelbar/local_2025.scumm:229-230 adds 1 (up to 10). That script is the rum's use verb (context, not mentioning var582: rooms/061_hotelbar/objects/0978_hotel-bar-shot-o-rum.scumm:27). Only the first time (still 0) does it play the drowsy scene: a sound (rooms/061_hotelbar/local_2025.scumm:48-49), and \"That's odd. It's supposed to cause drowsiness.\" with Guybrush's voice slowing (rooms/061_hotelbar/local_2025.scumm:86-105)."
+    },
+    "591": {
+      "Name": "fortbase-chicken-spots-used",
+      "Note": "Room 14 (fort base): var591[spot] = 1 once one of the 16 chicken spots has launched its chicken this time. Cleared for 0-15 at rooms/014_fortbase/local_2013.scumm:9-10; a random spot is used only while it's still 0 (:22-24), and e.g. spot 0 puts the chicken at 36,155 and gives fortbase-chicken-1 class 32 (:27-31). Cited for context and not mentioning var591: the chicken launch at :27-31."
     },
     "592": {
       "Name": "hotelbar-neon-delay",
@@ -444,6 +644,14 @@
       "Name": "guybrush-voice-pitch",
       "Note": "Speech frequency of actor 1 (Guybrush): every write is followed by 'actor 1 frequency var611' (371 uses). Normal is 256 (global/script_0001.scumm:51, global/script_0090.scumm:12). The helium balloon raises it to 256 + 340 / 2 (global/script_0089.scumm:86, then \"That's made my voice sound funny.\" at :92) and script 90 slides it back to 256 (global/script_0090.scumm:6-12). The drowsy drink lowers it to 256 - 30/50/100 (rooms/061_hotelbar/local_2025.scumm:94-105)."
     },
+    "619": {
+      "Name": "pistols-cheat-code-step",
+      "Note": "Room 24 (pistols): how many keys of pistols-cheat-code (var620) have been typed. rooms/024_pistols/local_2007.scumm:4-9 adds 1 on a match, and at 8 sets bit627, restores verb-script = 32 and Guybrush says \"Let's rock.\" A miss clears var570 rather than var619 (:11-13) and passes the input on to global 32."
+    },
+    "620": {
+      "Name": "pistols-cheat-code",
+      "Note": "Room 24 (pistols): the 8 key codes of a typed secret, 109 105 112 111 115 116 97 108 (\"mipostal\" in ASCII), set by rooms/024_pistols/local_2008.scumm:4-11 (started at rooms/024_pistols/local_2002.scumm:6). The room's verb-script (verb-script = 2007 at rooms/024_pistols/entry.scumm:9) compares each key: rooms/024_pistols/local_2007.scumm:4 if (local1 == var620[var619]). Cited for context and not mentioning var620: start-script 2008."
+    },
     "624": {
       "Name": "ambient-sounds",
       "Note": "Array of the sound ids a room has loaded and locked for its ambient sounds. Room scripts do load-sound N, lock-sound N, var624[var625] = N, then start the sound with script 112 (rooms/028_brimbch/local_2003.scumm:10-13 and rooms/028_brimbch/local_2003.scumm:19-22). On room exit, global/script_0012.scumm:24-28 runs unlock-sound var624[var625] for entries 0-20."
@@ -452,6 +660,10 @@
       "Name": "ambient-sound-count",
       "Note": "Number of entries in ambient-sounds (var624), and the index of the next one. Room scripts add 1 after each sound and print \"ERROR! - Too many ambient sounds\" past 20 (rooms/028_brimbch/local_2003.scumm:15-17). global/script_0012.scumm:24-29 loops it from 0 to 20 to unlock them on room exit, then resets it to 0."
     },
+    "626": {
+      "Name": "chicken-maggots-line",
+      "Note": "Room 16 (Blondebeard's Chicken Shoppe): which line Guybrush says to the maggots next. The maggots object's verb 8 starts global 153 (rooms/016_chkn-int/objects/0445_maggots-object.scumm:28), which says \"Drop and give me twenty, YOU MAGGOTS!\" for 0, \"I bet I could chug all these guys in one gulp\" for 1 and \"Mmmmmm... maggoty.\" otherwise (global/script_0153.scumm:4-11), then adds 1 and wraps after 2 (:14-16). The object's verb 218 also reads it to pick its verb text (rooms/016_chkn-int/objects/0445_maggots-object.scumm:36-37). Cited for context and not mentioning var626: the maggots' start-script 153."
+    },
     "630": {
       "Name": "sentence-verb-text",
       "Note": "String array holding the verb word of the action sentence on screen. global/script_0039.scumm:166/169 sets it to \"/PU_M023/give\" or \"/PU_M004/use\" (var631 gets \"to\"/\"with\") and :176/181 blast-text it as \"%s{var630} %s{var635} %s{var631} %n{object}\". Object scripts set their own verb word in verb 218, e.g. rooms/009_cannon/objects/0281_gaff-object.scumm:48 \"/PU_M005/eat\" or :50 \"talk to\"."
@@ -459,6 +671,18 @@
     "631": {
       "Name": "sentence-preposition-text",
       "Note": "String array holding the preposition of the action sentence on screen, next to sentence-verb-text (var630). global/script_0039.scumm:166-170 sets it to \"/PU_M024/to\" with give or \"/PU_M025/with\" with use, and global/script_0039.scumm:176 shows it as \"%s{var630} %s{var635} %s{var631} %n{object}\". Object scripts set it in verb 219, e.g. rooms/009_cannon/objects/0288_sane-wally-object.scumm:45 and rooms/009_cannon/objects/0288_sane-wally-object.scumm:48."
+    },
+    "636": {
+      "Name": "fortbase-chicken-flock-size",
+      "Note": "Room 14 (fort base): how many chickens fly up each time the flock is startled, 2 more each time up to 15 (rooms/014_fortbase/local_2013.scumm:4-6). local_2013, started from rooms/014_fortbase/local_2007.scumm:7 after chicken 5 is set flying (:4-6), keeps launching chickens with start-script bak rec 88 until local1 passes it: rooms/014_fortbase/local_2013.scumm:123 } while (local1 <= var636). Cited for context and not mentioning var636: local_2007's chicken 5 (rooms/014_fortbase/local_2007.scumm:4-6) and its start-script 2013."
+    },
+    "637": {
+      "Name": "lc-quarters-fossey-pose",
+      "Note": "Room 36 (LeChuck's quarters): which pose actor 6 is in, 0, 1 or 2, for local_2002's idle loop: cleared at rooms/036_lc-qurtr/local_2002.scumm:6, plays animation 6, 16 or 14 by it (:12-21), and switches with start-script bak 2003(var637) then stand-animation 17 and var637 = 1 (:33-42) or stand-animation 15 and var637 = 2 (:46-55)."
+    },
+    "640": {
+      "Name": "torture-wally-promise-line",
+      "Note": "Room 85 (torture diorama): which line Guybrush says to the trapped Wally next, up to 5 (rooms/085_tort-dia/objects/1329_tort-dia-wally.scumm:61-62): 1 \"You can count on me Wally.\" (:64-66), 2 \"I feel so bad about leaving you to blow up in LeChuck's castle last time...\" (:74-76), 3 \"As soon as I defeat LeChuck I'll come back and set you free.\" (:82-83)."
     },
     "643": {
       "Name": "",
@@ -471,6 +695,10 @@
     "646": {
       "Name": "cave-andre-pose",
       "Note": "Room 80 (smugglers' cave). Which pose King Andre (actor 3) is in, so rooms/080_smglcave/local_2032.scumm:13-30 can play the right animation back to standing: 1 plays 24, 3 plays 28 then counts as 2, and 2 plays 35, before resetting to 0. Set to 2 when he lays down his cards (rooms/080_smglcave/local_2012.scumm:365-368), and to 1 and 3 at rooms/080_smglcave/local_2032.scumm:131 and rooms/080_smglcave/local_2032.scumm:144."
+    },
+    "648": {
+      "Name": "",
+      "Note": "Unconfirmed: room 39 (ship map), a streak of fights against badly matched ships. global/script_0321.scumm:6-11 adds 1 when abs(var390[1] - var395[var391][2]) > 1 (Guybrush's ship rating far from the enemy's) and clears it otherwise; global/script_0271.scumm:103 clears it after a fight. Above 3, the map's hover labels change (rooms/039_shipmap/local_2004.scumm:54 and :65 if (var648 > 3 && var390[1] == 3))."
     },
     "649": {
       "Name": "saveload-slot1-name",
@@ -628,6 +856,14 @@
       "Name": "",
       "Note": "Unconfirmed: room 25 (banjo duel). Set to 5 before the opponent plays (global/script_0216.scumm:14, global/script_0217.scumm:12) and to 1 once Guybrush's turn starts (global/script_0216.scumm:24). Its only read is global/script_0217.scumm:4-8, which re-enters room 25 in a cut-scene unless it is 5, so it may mean 'already in the duel view'. I couldn't tell why the values are 1 and 5."
     },
+    "691": {
+      "Name": "waterline-guybrush-facing",
+      "Note": "Room 11 (waterline): which way Guybrush faces, 135 or 225, set each time the room swaps his costume. rooms/011_waterln/local_2000.scumm:6-10 turns him (do-animation 1 7) and gives him costume 56 when it was 135, then sets 225 with costume 55 (:22-34); :66-70 sets 135 with costume 60, and :106 again 135. Global 133 and 134 set 225 the same way (global/script_0133.scumm:39-40, global/script_0134.scumm:6-8). All 66 writes are 135 or 225, the usual SCUMM directions."
+    },
+    "694": {
+      "Name": "barber-bill-glow",
+      "Note": "Room 21 (barber shop): the blue intensity of palette slot 224 while Cutthroat Bill is in class 13. Global 186 (started at rooms/021_brbr-int/local_2016.scumm:115) raises it from 255 by 1 every 8 frames up to 700 and sets room palette-intensity 255,255,var694 slots 224 to 224 (global/script_0186.scumm:4-15), then drops it 100 a frame back to 255 (:19-22). rooms/021_brbr-int/local_2017.scumm:147-149 stops 186 and resets it to 255. I haven't checked what slot 224 colours on screen. Cited for context and not mentioning var694: start-script bak 186."
+    },
     "696": {
       "Name": "hotelbar-xima-animation",
       "Note": "The animation Madame Xima (actor 3, XM lines; context, not mentioning var696: rooms/061_hotelbar/local_2008.scumm:21) is playing: all 73 writes are 26-36 and sit next to 'do-animation 3 N' with the same N (e.g. global/script_0351.scumm:39, rooms/061_hotelbar/local_2008.scumm:15). Her idle loop picks a fidget from it: 'if (var696 == 26) do-animation 3 29' (rooms/061_hotelbar/local_2022.scumm:4-9)."
@@ -636,9 +872,21 @@
       "Name": "hotelbar-goodsoup-animation",
       "Note": "The animation Griswold Goodsoup (actor 2, GS lines; context, not mentioning var699: rooms/061_hotelbar/local_2001.scumm:11) is playing: 165 writes, almost all next to 'do-animation 2 N' with the same N (17, 18, 20, 21 or 22; e.g. global/script_0351.scumm:37). Scripts check it before he moves, e.g. 'if (var699 == 18) do-animation 2 19' (global/script_0351.scumm:101-102, global/script_0379.scumm:21-22)."
     },
+    "700": {
+      "Name": "torture-wally-state",
+      "Note": "Room 85 (torture diorama): what the trapped Wally is doing. 12 once Guybrush sees \"Wait a minute! It really is Wally!\" (rooms/085_tort-dia/objects/1329_tort-dia-wally.scumm:11-13), which runs local_2010's animation of actor 43 until it becomes 10 (rooms/085_tort-dia/local_2010.scumm:4-20); 10 after \"I'll save him after I defeat LeChuck.\" (rooms/085_tort-dia/objects/1329_tort-dia-wally.scumm:42-44) and at global/script_0424.scumm:7-8, where local_2008 has him sob (rooms/085_tort-dia/local_2008.scumm:11). 7 when tort-dia-wally has class 22 (rooms/085_tort-dia/local_2002.scumm:15-16); the room's entry picks 2008 or 2010 by it (:21-24). Cited for context and not mentioning var700: the sob at rooms/085_tort-dia/local_2008.scumm:11."
+    },
     "701": {
       "Name": "barber-haggis-animation",
       "Note": "The animation Haggis McMutton (actor 3, BIHM lines; context, not mentioning var701: rooms/021_brbr-int/local_2001.scumm:94) is playing: almost every write sits next to 'do-animation 3 N' with the same N (e.g. global/script_0179.scumm:18-19 var701 = 37, rooms/021_brbr-int/local_2010.scumm:147-148 var701 = 33). Values 28-38. rooms/021_brbr-int/local_2039.scumm:4-21 plays his idle fidgets only while it is 38, the resting pose."
+    },
+    "702": {
+      "Name": "doghouse-barks-used",
+      "Note": "Room 68 (doghouse): var702[n] is set once Guybrush has used bark n in the dialogue, so it drops out of the menu. The menu shows \"Bark!\" while !var702[0] (rooms/068_doghouse/local_2001.scumm:58-62), \"Woof!\" for [1] (:95-99), \"Howwwwwl!\" for [2] (:132-136), \"(Pant!)\" for [3] (:169-173) and \"Arf Arf!\" for [4] (:206-210); picking choice 500-504 sets the matching entry (:292-300)."
+    },
+    "1150": {
+      "Name": "",
+      "Note": "Unclear: room 69 (Stan's crypt). The only use in the export is rooms/069_stancrpt/local_2010.scumm:8 var1150 = 0, next to set-box calls that switch the room's walk boxes (:5-7); nothing reads it. Cited for context and not mentioning var1150: the set-box lines (:5-7)."
     }
   },
   "Bits": {}
