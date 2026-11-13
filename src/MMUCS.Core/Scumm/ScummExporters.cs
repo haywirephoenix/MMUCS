@@ -154,6 +154,12 @@ public class ScummExporters
             {
                 RoomDataExport.WriteGame(root, dataDir);
                 written++;
+                // The room viewer's review marks, for mroom's review command (it also reads them live).
+                if (File.Exists(ReviewMarks.CurrentPath))
+                {
+                    File.Copy(ReviewMarks.CurrentPath, Path.Combine(dataDir, "review.json"), overwrite: true);
+                    written++;
+                }
             }
             if (options.Scripts)
             {

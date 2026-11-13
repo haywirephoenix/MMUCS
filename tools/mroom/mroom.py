@@ -7,6 +7,7 @@ with mscripts. Needs Python 3.9+ and nothing else. Run `mroom --help`.
 """
 import argparse
 import json
+import os
 import re
 import sys
 from collections import Counter, defaultdict
@@ -37,6 +38,8 @@ USAGE = """usage: mroom COMMAND [options]
   lines [ROOM] [--actor A]      Dialogue in script order. --grep TEXT, --choices, --limit N
   actor A                       Where an actor appears, its costumes and lines
   costume N                     Where a costume is stored, which actors wear it and how they're placed
+  review [N] [--changed]        Costumes and objects marked in MMUCS (Mark for review…): what changed
+                                since marking, and everything about one. --tag T, --done N clears one
   find TEXT                     Search room names, object names, hover names and dialogue
 
 ROOM is a number (15) or part of a name (town). OBJ is an id (397) or part of a name.
@@ -837,6 +840,210 @@ def cmd_find(args, game: Game):
     return 0
 
 
+# ── Review marks (Mark for review… in MMUCS's room viewer) ────────────────────────────────────────
+
+SNAPSHOT_FIELDS = [("placed", "placed"), ("actor", "actor"), ("x", "x"), ("y", "y"), ("width", "width"), ("height", "height"),
+                   ("elevation", "elevation"), ("scale", "scale"), ("zplane", "z-plane"), ("dressed_by", "dressed by"),
+                   ("owner", "object"), ("entry_state", "state on entry")]
+
+
+def live_marks_path() -> Path:
+    """Where MMUCS keeps the marks: review.json beside its settings."""
+    if os.name == "nt" and os.environ.get("LOCALAPPDATA"):
+        return Path(os.environ["LOCALAPPDATA"]) / "MMUCS" / "review.json"
+    return Path.home() / ".local" / "share" / "MMUCS" / "review.json"
+
+
+def marks_file(game: "Game", arg: Optional[str]) -> Optional[Path]:
+    """--marks FILE, else MMUCS's live file, else the copy the export made."""
+    for p in ([Path(arg)] if arg else [live_marks_path(), game.data_dir / "review.json"]):
+        if p.is_file():
+            return p
+    return None
+
+
+def load_marks(path: Optional[Path]) -> List[dict]:
+    if not path:
+        return []
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("marks", [])
+    except (OSError, ValueError):
+        raise SystemExit(f"mroom: can't read the review marks in {path}")
+
+
+def current_of(game: "Game", mark: dict) -> Tuple[Optional[dict], str]:
+    """What the export says now about a mark's costume or object, in the snapshot's terms, and how it was found."""
+    room = next((r for r in game.rooms.values() if r.no == mark.get("room")), None)
+    d = game.room_data(room) if room else None
+    if not d:
+        return None, "no room data for this room in the export"
+    snap = mark.get("snapshot") or {}
+    if mark.get("kind") == "object":
+        o = next((o for o in d["objects"] if o.get("name") == mark.get("object") and o.get("image")), None) \
+            or next((o for o in d["objects"] if o.get("name") == mark.get("object")), None)
+        if not o:
+            return None, "the object isn't in the room data"
+        img = o.get("image") or {}
+        return {"placed": bool(img.get("states")), "x": img.get("x"), "y": img.get("y"), "width": img.get("width"),
+                "height": img.get("height"), "entry_state": o.get("entry_state")}, "object"
+    entry = next((c for c in d["costumes"] if c.get("akos") == mark.get("akos")), None) \
+        or next((c for c in d["costumes"] if c.get("costume") == mark.get("costume")), None)
+    if not entry:
+        return None, "the costume isn't in the room data"
+    placed = entry.get("placed", [])
+    if not placed:
+        cur = {"placed": False, "owner": entry.get("object")}
+        if entry.get("dressed_by") is not None:
+            cur["dressed_by"] = entry["dressed_by"]
+        return cur, "costume"
+    # The placement at the marked spot, else the nearest (one costume can stand in several places).
+    sx, sy = snap.get("x"), snap.get("y")
+    p = min(placed, key=lambda q: 0 if sx is None else abs(q.get("x", 0) - sx) + abs(q.get("y", 0) - sy))
+    return {"placed": True, "actor": p.get("actor"), "x": p.get("x"), "y": p.get("y"), "elevation": p.get("elevation"),
+            "scale": p.get("scale", 255), "zplane": p.get("zplane", 0), "dressed_by": p.get("dressed_by"),
+            "owner": entry.get("object")}, "costume"
+
+
+def mark_changes(mark: dict, cur: Optional[dict]) -> List[Tuple[str, object, object]]:
+    if cur is None:
+        return []
+    snap = mark.get("snapshot") or {}
+    changes = []
+    for key, label in SNAPSHOT_FIELDS:
+        if key not in snap and key not in cur:
+            continue
+        then, now = snap.get(key), cur.get(key)
+        # The export leaves defaults out: no elevation is 0, no z-plane 0, full scale 255.
+        default = {"elevation": 0, "zplane": 0, "scale": 255}.get(key)
+        if key in ("width", "height", "entry_state") and mark.get("kind") != "object":
+            continue
+        if (then if then is not None else default) != (now if now is not None else default):
+            changes.append((label, then, now))
+    return changes
+
+
+def mark_label(mark: dict) -> str:
+    if mark.get("kind") == "object":
+        return f"object {mark.get('object')}"
+    snap = mark.get("snapshot") or {}
+    at = f" at {snap['x']},{snap['y']}" if snap.get("placed") and snap.get("x") is not None else " (not placed)"
+    return f"costume {mark.get('costume')}{at}"
+
+
+def save_marks(path: Path, marks: List[dict]):
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["marks"] = marks
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(path)
+
+
+def draw_order(game: "Game", room: "Room", mark: dict):
+    """The room's placed costumes in the order the engine draws them (y before elevation, then actor)."""
+    d = game.room_data(room) or {}
+    rows = []
+    for c in d.get("costumes", []):
+        for p in c.get("placed", []):
+            rows.append((p.get("y", 0), p.get("actor") or 0, c, p))
+    rows.sort(key=lambda r: (r[0], r[1]))
+    snap = mark.get("snapshot") or {}
+    mine = [i for i, (_, _, c, p) in enumerate(rows)
+            if c.get("akos") == mark.get("akos") and (snap.get("x") is None or (p.get("x"), p.get("y")) == (snap.get("x"), snap.get("y")))]
+    if not rows:
+        return
+    lo, hi = (0, len(rows)) if len(rows) <= 20 or not mine else (max(0, mine[0] - 6), min(len(rows), mine[0] + 7))
+    out(f"\nDraw order in {room.label} (behind first; {len(rows)} placed){'' if (lo, hi) == (0, len(rows)) else f', {lo + 1}-{hi} shown'}:")
+    for i in range(lo, hi):
+        y, actor, c, p = rows[i]
+        who = f"actor {actor}" if actor else (f"dressed by {p['dressed_by']}" if "dressed_by" in p else "actor ?")
+        extra = "".join([f" elevation {p['elevation']}" if p.get("elevation") else "", f" scale {p['scale']}" if "scale" in p else "",
+                         f" z-plane {p['zplane']}" if p.get("zplane") else ""])
+        out(f"  {'→' if i in mine else ' '} y {y:>4}  costume {c.get('costume')!s:>4}  {who:<18} at {p.get('x')},{y}{extra}"
+            + (f"  ({c['object']})" if c.get("object") else ""))
+
+
+def cmd_review(args, game: "Game"):
+    path = marks_file(game, args.marks)
+    marks = load_marks(path)
+    if args.done is not None:
+        if not path or path != live_marks_path() and not args.marks:
+            raise SystemExit("mroom: clear marks in MMUCS's file; this export's copy is read-only")
+        kept = [m for m in marks if m.get("id") != args.done]
+        if len(kept) == len(marks):
+            raise SystemExit(f"mroom: no mark #{args.done}")
+        save_marks(path, kept)
+        out(f"Cleared mark #{args.done} in {path}")
+        return 0
+    if not marks:
+        out("No review marks. In MMUCS's room viewer, right-click a costume or object: Mark for review…")
+        return 0
+    if args.id is not None:
+        mark = next((m for m in marks if m.get("id") == args.id), None)
+        if not mark:
+            raise SystemExit(f"mroom: no mark #{args.id}")
+        return review_one(game, mark)
+
+    shown = [m for m in marks if not args.tag or args.tag in m.get("tags", [])]
+    rows = []
+    for m in shown:
+        cur, how = current_of(game, m)
+        changes = mark_changes(m, cur)
+        status = "?" if cur is None else ("changed" if changes else "same")
+        if args.changed and status != "changed":
+            continue
+        rows.append((m, status, changes, how))
+    out(f"{len(rows)} review mark{'s' if len(rows) != 1 else ''} ({path}):")
+    for m, status, changes, how in rows:
+        tags = ",".join(m.get("tags", [])) or "-"
+        room = game.find_room(str(m["room"])).label if any(r.no == m["room"] for r in game.rooms.values()) else str(m["room"])
+        out(f"  #{m['id']:<3} {room:<16} {mark_label(m):<32} {tags:<16} {status}"
+            + (f": {', '.join(c[0] for c in changes)}" if changes else ""))
+        if m.get("note"):
+            out(f"        {m['note']}")
+    out("\nmroom review N for one in full; --changed for those MMUCS now works out differently; --done N to clear one.")
+    return 0
+
+
+def review_one(game: "Game", mark: dict):
+    room = next((r for r in game.rooms.values() if r.no == mark.get("room")), None)
+    out(f"Mark #{mark['id']}: {mark_label(mark)} in room {room.label if room else mark.get('room')}  (marked {mark.get('created', '?')})")
+    if mark.get("tags"):
+        out(f"looks wrong: {', '.join(mark['tags'])}")
+    if mark.get("note"):
+        out(f"note: {mark['note']}")
+    cur, how = current_of(game, mark)
+    snap = mark.get("snapshot") or {}
+    if cur is None:
+        out(f"now: {how}")
+    else:
+        changes = mark_changes(mark, cur)
+        out("\nWhat MMUCS worked out when marked → in this export:" if changes else "\nMMUCS still works it out the same:")
+        for key, label in SNAPSHOT_FIELDS:
+            if key not in snap and key not in cur:
+                continue
+            if key in ("width", "height", "entry_state") and mark.get("kind") != "object":
+                continue
+            then, now = snap.get(key), cur.get(key)
+            changed = any(c[0] == label for c in changes)
+            out(f"  {label:<15} {then!s:<24}{('→ ' + str(now)) if changed else ''}")
+    if not room:
+        return 0
+    if mark.get("kind") == "costume" and mark.get("costume") is not None:
+        out("")
+        cmd_costume(argparse.Namespace(costume=mark["costume"], limit=8), game)
+        draw_order(game, room, mark)
+    elif mark.get("kind") == "object":
+        out("")
+        cmd_object(argparse.Namespace(obj=mark["object"], limit=10, lines=3), game)
+        name = mark["object"]
+        pat = re.compile(rf"^state-of {re.escape(name)} is ")
+        sets = [(s.rel, line.no, line.text.strip()) for s in game.export.scripts for line in s.lines if pat.match(line.text.strip())]
+        out(f"\nScripts that set its state ({len(sets)}):")
+        for rel, n, t in sets[:12]:
+            out(f"  {rel}:{n}  {t}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="mroom", add_help=False)
     p.add_argument("-h", "--help", action="store_true")
@@ -868,6 +1075,12 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("costume")
     s.add_argument("costume", type=int)
     s.add_argument("--limit", type=int, default=8)
+    s = sub.add_parser("review")
+    s.add_argument("id", nargs="?", type=int)
+    s.add_argument("--changed", action="store_true", help="only marks MMUCS now works out differently")
+    s.add_argument("--tag", help="only marks with this tag (position, scale, order, zplane, object, frame, missing)")
+    s.add_argument("--done", type=int, metavar="N", help="clear mark N")
+    s.add_argument("--marks", help="the review file (default: MMUCS's, else the export's copy)")
     s = sub.add_parser("find")
     s.add_argument("text")
     s.add_argument("--limit", type=int, default=20)
@@ -888,7 +1101,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     scripts_root = ms.find_scripts_root(args.root)
     game = Game(ms.Export(scripts_root, ms.REPO_MAP if ms.REPO_MAP.exists() else None))
     handler = {"rooms": cmd_rooms, "room": cmd_room, "object": cmd_object, "exits": cmd_exits,
-               "lines": cmd_lines, "actor": cmd_actor, "costume": cmd_costume, "find": cmd_find}[args.command]
+               "lines": cmd_lines, "actor": cmd_actor, "costume": cmd_costume, "review": cmd_review, "find": cmd_find}[args.command]
     try:
         return handler(args, game)
     except BrokenPipeError:

@@ -124,7 +124,11 @@
                 <CheckBox IsChecked="{Binding IsVisible}" IsVisible="{Binding HasToggle}" MinWidth="0" MinHeight="0"
                           Padding="0" VerticalAlignment="Center" Focusable="False" ToolTip.Tip="Visible (Space)" />
                 <StackPanel Grid.Column="1">
-                  <TextBlock Text="{Binding Name}" FontSize="12" Classes="objname" Classes.hasImage="{Binding HasImage}" Classes.hasCostume="{Binding HasCostume}" />
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Text="⚑" FontSize="11" Foreground="#E06C75" IsVisible="{Binding IsMarked}"
+                               ToolTip.Tip="{Binding MarkText}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Name}" FontSize="12" Classes="objname" Classes.hasImage="{Binding HasImage}" Classes.hasCostume="{Binding HasCostume}" />
+                  </StackPanel>
                   <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
                 </StackPanel>
               </Grid>
