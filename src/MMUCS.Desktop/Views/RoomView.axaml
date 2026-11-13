@@ -77,11 +77,14 @@
 
       <DockPanel x:Name="ObjectsPanel" Grid.Column="2">
         <Border DockPanel.Dock="Top" Classes="panel-header">
-          <Grid ColumnDefinitions="Auto,*">
+          <Grid ColumnDefinitions="Auto,*,Auto">
             <!-- Toggle all: shows a mixed state when only some objects are visible. -->
             <CheckBox IsChecked="{Binding AllObjectsVisible}" MinWidth="0" MinHeight="0" Padding="0"
                       Margin="0,0,6,0" VerticalAlignment="Center" ToolTip.Tip="Show / hide all objects" />
             <TextBlock Grid.Column="1" Text="OBJECTS" VerticalAlignment="Center" />
+            <Button Grid.Column="2" Content="Reset" Command="{Binding ResetVisibilityCommand}" Padding="6,0" MinHeight="0"
+                    FontSize="11" VerticalAlignment="Center"
+                    ToolTip.Tip="Show the objects as the room opens: hidden while their state on entry is 0" />
           </Grid>
         </Border>
         <ListBox x:Name="ObjectList" ItemsSource="{Binding Objects}" SelectedItem="{Binding SelectedObjectItem, Mode=TwoWay}">

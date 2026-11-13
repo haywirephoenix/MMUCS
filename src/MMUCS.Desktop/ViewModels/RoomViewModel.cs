@@ -31,7 +31,12 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
     /// <summary>A costume no object claims, listed on its own (its object is a stand-in for its frame).</summary>
     public bool IsActorOnly { get; init; }
     public string Summary => IsActorOnly ? ActorSummary(Costume)
-        : Costume != null ? $"{Object.Summary}   costume {Costume.Costume}{(Costume.IsLinked ? " (linked)" : "")}" : Object.Summary;
+        : (Costume != null ? $"{Object.Summary}   costume {Costume.Costume}{(Costume.IsLinked ? " (linked)" : "")}" : Object.Summary)
+          + (Object.ImageCount > 0 && InitialState is int st ? $"   state {st}{(st == 0 ? " (hidden on entry)" : "")}" : "");
+    /// <summary>The object's state when the room is entered (see <see cref="RoomObjectStates"/>), for objects with an image.</summary>
+    public int? InitialState { get; init; }
+    /// <summary>Whether it's shown when the room opens; Reset puts every entry back to this.</summary>
+    public bool InitialVisible { get; init; } = true;
     /// <summary>
     /// Where the scripts put a costume no object claims: its position as the script writes it (with the
     /// elevation that lifts it), or why it has none.
@@ -117,6 +122,11 @@ public sealed partial class RoomViewModel : ObservableObject
     }
 
     public void SetAllVisible(bool visible) => SetVisibility(_ => visible);
+
+    private Dictionary<RoomObject, int> _initialStates = new();
+
+    /// <summary>Puts every entry's visibility back to how the room opened: objects by their state on entry.</summary>
+    [RelayCommand] private void ResetVisibility() => SetVisibility(o => o.InitialVisible);
 
     public void SetVisible(RoomObject obj, bool visible) => SetVisibility(o => ReferenceEquals(o.Object, obj) ? visible : null);
 
@@ -253,9 +263,18 @@ public sealed partial class RoomViewModel : ObservableObject
         Walkboxes = room.Walkboxes;
         foreach (var item in Objects) item.PropertyChanged -= OnItemChanged;
         Objects.Clear();
+        // Object images start as the game shows them on entry: hidden while their state is 0.
+        Dictionary<RoomObject, int> states;
+        try { states = RoomObjectStates.Initial(room); }
+        catch (Exception ex) { Log.Warn($"Object states for room {room.RoomNo}: {ex.Message}"); states = new(); }
+        _initialStates = states;
         foreach (var o in room.Objects)
         {
-            var item = new RoomObjectItem(o) { IsVisible = ShowObjects };
+            int? state = states.TryGetValue(o, out int st) ? st : null;
+            // Image-less hotspots have nothing to hide (their costume shows), and a room with no background
+            // is a library of images (room 3's inventory icons, all in state 0), not a scene.
+            bool shown = o.ImageCount <= 0 || room.Width <= 0 || state != 0;
+            var item = new RoomObjectItem(o) { IsVisible = ShowObjects && shown, InitialState = state, InitialVisible = shown };
             item.PropertyChanged += OnItemChanged;
             Objects.Add(item);
         }
@@ -390,7 +409,7 @@ public sealed partial class RoomViewModel : ObservableObject
                     Height = b is { } r2 ? r2.Bottom - r2.Top : 0,
                     Block = actor.Akos,
                 };
-                var item = new RoomObjectItem(standIn) { IsActorOnly = true, Costume = actor, IsVisible = ShowUnmatchedCostumes };
+                var item = new RoomObjectItem(standIn) { IsActorOnly = true, Costume = actor, IsVisible = ShowUnmatchedCostumes, InitialVisible = ShowUnmatchedCostumes };
                 item.PropertyChanged += OnItemChanged;
                 Objects.Add(item);
                 if (actor.CanDraw) _actorTargets[actor] = standIn;
@@ -459,7 +478,9 @@ public sealed partial class RoomViewModel : ObservableObject
                 {
                     // Objects use the room's current palette: SCUMM v8 has no per-object palette, the
                     // game switches the room palette from scripts.
-                    var result = await ObimCache.GetCachedObimAsync(obj.Block, 0, PaletteIndex, bakeImage: true, token);
+                    // The image for its state on entry (state N shows image N); the first when it starts hidden.
+                    int frame = RoomObjectStates.FrameFor(_initialStates.GetValueOrDefault(obj, 1), info.TotalFrames > 0 ? info.TotalFrames : 1);
+                    var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteIndex, bakeImage: true, token);
                     if (token.IsCancellationRequested) return;
                     rgba = result.ExecutedImage;
                     image = rgba?.ToSkImage();
