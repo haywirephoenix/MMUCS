@@ -603,7 +603,19 @@ public sealed partial class RoomViewModel : ObservableObject
     // ── Selection: several entries can be selected; the last one is the current one ──
 
     /// <summary>The entries selected in the Objects panel (the current one, SelectedObjectItem, among them).</summary>
-    public IReadOnlyList<RoomObjectItem> SelectedItems { get; set; } = Array.Empty<RoomObjectItem>();
+    public IReadOnlyList<RoomObjectItem> SelectedItems
+    {
+        get => _selectedItems;
+        set
+        {
+            _selectedItems = value ?? Array.Empty<RoomObjectItem>();
+            SelectedObjects = _selectedItems.Select(i => i.Object).ToHashSet();
+        }
+    }
+    private IReadOnlyList<RoomObjectItem> _selectedItems = Array.Empty<RoomObjectItem>();
+
+    /// <summary>The selected entries' objects, for the canvas to outline.</summary>
+    [ObservableProperty] private IReadOnlySet<RoomObject> _selectedObjects = new HashSet<RoomObject>();
 
     /// <summary>The entries an action on <paramref name="item"/> applies to: the selection when it holds it, else just it.</summary>
     public IReadOnlyList<RoomObjectItem> ActionItems(RoomObjectItem item) =>

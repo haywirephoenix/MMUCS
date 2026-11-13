@@ -83,7 +83,8 @@
                     LiveCostume="{Binding LiveCostume}"
                     ZMasks="{Binding ZMasks}"
                     MaskActors="{Binding ZPlaneMasking}"
-                    ZPlaneOverlay="{Binding ZPlaneOverlay}" />
+                    ZPlaneOverlay="{Binding ZPlaneOverlay}"
+                    SelectedObjects="{Binding SelectedObjects}" />
 
       <GridSplitter x:Name="ObjectsSplitter" Grid.Column="1" ResizeDirection="Columns" />
 
