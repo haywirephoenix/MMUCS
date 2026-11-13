@@ -61,7 +61,7 @@ TOWN = {
         {"costume": 79, "akos": "0x01AD8505", "placed": [{"actor": 1, "x": 0, "y": 0, "player": True}]},
         {"costume": 35, "akos": "0x01125269", "placed": [{"actor": 3, "x": 320, "y": 792, "elevation": 300}]},
         {"costume": 36, "akos": "0x01184801", "worn_by": [4], "placed": []},
-        {"costume": 67, "akos": "0x0172562C", "placed": [{"dressed_by": 88, "x": 36, "y": 155, "scale": 150}]},
+        {"costume": 67, "akos": "0x0172562C", "placed": [{"dressed_by": 88, "x": 36, "y": 155, "scale": 150, "when": "entry-if"}]},
     ],
     "global_scripts_stored": [],
 }
@@ -189,7 +189,7 @@ class MroomTests(unittest.TestCase):
 
     def test_costume_on_an_actor_kept_in_a_variable(self):
         text = self.mroom("costume", "67")
-        self.assertIn("MMUCS places it: an actor kept in a variable at 36,155, scale 150, dressed by script 88", text)
+        self.assertIn("MMUCS places it: an actor kept in a variable at 36,155, scale 150, on entry (conditional), dressed by script 88", text)
         self.assertIn("Actors (", self.mroom("room", "15"))  # no actor number doesn't break the room page
 
     def write_marks(self, marks):

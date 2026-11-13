@@ -12,11 +12,12 @@ usage: mprobe [--game FILE] COMMAND ...
                        object frames and costume cels.
   zplanes ROOM OUT     Write the room's background with each z-plane tinted, one PNG per plane
                        (roomN_planeK.png): plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan.
-  masked ROOM OUT [--debug] [--only C,C…]
+  masked ROOM OUT [--debug] [--only C,C…] [--start]
                        Write the room as the room viewer composes it: background, the actors MMUCS
                        places (position, elevation, scale, draw order), cut by their z-plane. Lists each
                        actor's costume, position, scale and z-plane. --debug paints the cut pixels magenta.
-                       --only draws just those costumes.
+                       --only draws just those costumes. --start draws only what's there as the room
+                       opens (placed on entry, not the player), as the room viewer starts.
   box ROOM X Y [--player]
                        The walkboxes at a point: each box holding it or near it, with its flags and mask,
                        and the box the engine puts an actor there in (and where it moves it), as an actor
@@ -149,7 +150,8 @@ async Task<int> DrawMasked(List<string> a)
 
     var img = Copy(await Background(room));
     // SCUMM's draw order: by y before elevation, then actor number.
-    var actors = RoomActors.Analyze(room).Where(x => x.CanDraw && (only == null || only.Contains(x.Costume)))
+    bool start = a.Contains("--start");
+    var actors = RoomActors.Analyze(room).Where(x => x.CanDraw && (only == null || only.Contains(x.Costume)) && (!start || x.StartsShown))
         .OrderBy(x => x.SortY).ThenBy(x => x.Actor).ToList();
     int cut = 0;
     foreach (var actor in actors)
@@ -180,9 +182,10 @@ async Task<int> DrawMasked(List<string> a)
         Console.WriteLine($"  costume {actor.Costume,4}  {who,-22} at {actor.X},{actor.Y}" +
                           (actor.Elevation != 0 ? $" elevation {actor.Elevation}" : "") +
                           (actor.Scale != 255 ? $" scale {actor.Scale}" : "") + $"  z-plane {actor.ZPlane}" +
+                          $"  {RoomDataExport.WhenText(actor.When) ?? "?"}{(actor.IsPlayer ? ", player" : "")}" +
                           (actor.Owner != null ? $"  ({actor.Owner.Name})" : ""));
     }
-    string file = Path.Combine(outDir, $"room{room.RoomNo}_{(debug ? "debug" : "masked")}.png");
+    string file = Path.Combine(outDir, $"room{room.RoomNo}_{(debug ? "debug" : start ? "start" : "masked")}.png");
     img.SavePng(file);
     Console.WriteLine($"room {room.RoomNo} {room.Name}: {actors.Count} actors drawn, {cut} pixels cut by z-planes → {file}");
     return 0;

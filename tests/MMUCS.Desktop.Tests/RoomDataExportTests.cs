@@ -374,3 +374,30 @@ public class PutInBoxTests
         Assert.Equal((5, 6, 0), RoomActors.PutInBox(new List<Walkbox> { Placeholder }, 5, 6, isPlayer: false));
     }
 }
+
+public class PlacementTimingTests
+{
+    // A setup script: a top-level line, a line inside an if, and a line inside a cut-scene block.
+    private static readonly ScriptLine[] Lines =
+    {
+        new(0, 0, "actor 18 costume 80"),
+        new(10, 0, "put-actor 18 at 1460,0 in-room 15"),
+        new(20, 0, "if (bit44) {"),
+        new(30, 1, "put-actor 4 at 552,268 in-room current-room"),
+        new(-1, 0, "}"),
+        new(40, 0, "cut-scene(2) {"),
+        new(50, 1, "if (local0) {"),
+        new(60, 2, "put-actor 1 at 925,241 in-room current-room"),
+        new(-1, 1, "}"),
+        new(-1, 0, "}"),
+    };
+
+    [Theory]
+    [InlineData(true, 12, PlacementTime.OnEntry)]     // top level of a script the room opens with
+    [InlineData(true, 33, PlacementTime.OnEntryIf)]   // inside an if
+    [InlineData(true, 64, PlacementTime.Cutscene)]    // inside a cut-scene, however deep
+    [InlineData(false, 12, PlacementTime.Later)]      // a script the room doesn't open with
+    [InlineData(false, 64, PlacementTime.Cutscene)]
+    public void A_placement_runs_when_its_line_does(bool onEntry, int pos, PlacementTime expected)
+        => Assert.Equal(expected, PlacementTiming.TimeAt(Lines, onEntry, pos));
+}

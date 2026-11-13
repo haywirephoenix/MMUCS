@@ -592,6 +592,8 @@ def cmd_costume(args, game: Game):
             el, sc = str(p.get("elevation", "")), str(p.get("scale", ""))
             who = f"actor {p['actor']}" if "actor" in p else "an actor kept in a variable"
             by = f", z-plane {p['zplane']}" if p.get("zplane") else ""
+            by += {"entry": ", on entry", "entry-if": ", on entry (conditional)", "cutscene": ", in a cutscene",
+                   "later": ", later"}.get(p.get("when"), "")
             by += f", dressed by script {p['dressed_by']}" if "dressed_by" in p else ""
             out(f"  MMUCS places it: {who} at {place_text(str(p.get('x', '?')), str(p.get('y', '?')), el, sc)}{by}")
         worn = entry.get("worn_by", [])
