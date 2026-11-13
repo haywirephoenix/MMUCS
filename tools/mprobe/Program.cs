@@ -1,10 +1,10 @@
 using MMUCS.Core.Imaging;
 using MMUCS.Core.Scumm;
 
-// probe: MMUCS.Core from the command line. See README.md.
+// mprobe: MMUCS.Core from the command line. See README.md.
 
 const string Usage = """
-usage: probe [--game FILE] COMMAND ...
+usage: mprobe [--game FILE] COMMAND ...
 
   export OUT [--scripts] [--data] [--images] [--offsets]
                        Export like File > Export into OUT. With no option: scripts and room data
@@ -30,7 +30,7 @@ if (argv.Count == 0 || argv[0] is "-h" or "--help")
 }
 if (string.IsNullOrEmpty(game) || !File.Exists(game))
 {
-    Console.Error.WriteLine("probe: give the game's COMI.LA0 with --game FILE or the MMUCS_GAME variable.");
+    Console.Error.WriteLine("mprobe: give the game's COMI.LA0 with --game FILE or the MMUCS_GAME variable.");
     return 2;
 }
 
@@ -193,8 +193,8 @@ static string TakeOption(List<string> a, string name)
 
 static int Fail(string message)
 {
-    Console.Error.WriteLine($"probe: {message}");
-    Console.Error.WriteLine("Run probe --help for the commands.");
+    Console.Error.WriteLine($"mprobe: {message}");
+    Console.Error.WriteLine("Run mprobe --help for the commands.");
     return 2;
 }
 
