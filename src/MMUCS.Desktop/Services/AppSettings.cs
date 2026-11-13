@@ -47,6 +47,7 @@ public sealed class AppSettings
     public bool ExportAllBackgroundPalettes { get; set; }
     public bool ExportScripts { get; set; }
     public bool ExportScriptOffsets { get; set; }
+    public bool ExportRoomData { get; set; }
     public bool CelAlphaEnabled { get; set; } = true;
     public bool CelShadowColorEnabled { get; set; } = true;
     public double CelShadowAmount { get; set; } = 0.4;

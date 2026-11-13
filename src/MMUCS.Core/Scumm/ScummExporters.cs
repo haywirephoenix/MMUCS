@@ -21,6 +21,8 @@ public sealed class ExportOptions
     public bool Scripts { get; set; }
     /// <summary>Keep each line's byte offset in the scripts' left margin.</summary>
     public bool ScriptOffsets { get; set; }
+    /// <summary>Room data as JSON under data/ (objects, walkboxes, costumes), for tools/mroom.</summary>
+    public bool RoomData { get; set; }
 
     /// <summary>Write one background per room palette instead of only the default palette.</summary>
     public bool AllBackgroundPalettes { get; set; }
@@ -68,7 +70,11 @@ public class ScummExporters
             (options.Backgrounds ? 1 : 0)
             + (options.Objects ? j.Room.Objects.Count : 0)
             + (options.Costumes ? j.Costumes.Count : 0)
-            + (options.Scripts ? scripts[j].Count : 0));
+            + (options.Scripts ? scripts[j].Count : 0)
+            + (options.RoomData ? 1 : 0));
+        string dataDir = Path.Combine(outputFolder, "data");
+        Dictionary<int, RoomDataExport.GameObject> objectTable = null;
+        var seenData = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         void Report(string current) => progress?.Report(new ExportProgress(done, total, current));
 
@@ -122,6 +128,32 @@ public class ScummExporters
                         done++;
                     }
                 }
+
+                if (options.RoomData)
+                {
+                    Report($"{roomLabel}: room data");
+                    // Per-disc copies share the first copy's file, like the scripts.
+                    if (seenData.Add(job.BaseName))
+                    {
+                        try
+                        {
+                            objectTable ??= RoomDataExport.ReadObjectTable(root).ToDictionary(o => o.Id);
+                            RoomDataExport.WriteRoom(job.Room, job.BaseName, dataDir, objectTable);
+                            written++;
+                        }
+                        catch (Exception ex)
+                        {
+                            failures++;
+                            Log.Warn($"Room data export failed for {job.BaseName}: {ex.Message}");
+                        }
+                    }
+                    done++;
+                }
+            }
+            if (options.RoomData)
+            {
+                RoomDataExport.WriteGame(root, dataDir);
+                written++;
             }
             if (options.Scripts)
             {
@@ -365,7 +397,7 @@ public class ScummExporters
         await ExportCelsAsync(akos, userConfig, targetDir);
 
     /// <summary>Name of the file root (e.g. COMI.LA2) that contains <paramref name="block"/>.</summary>
-    private static string FileRootName(ScummBlock block)
+    internal static string FileRootName(ScummBlock block)
     {
         var b = block;
         while (b.Parent != null && b.Parent.FileData != null) b = b.Parent;
