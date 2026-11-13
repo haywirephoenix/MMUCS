@@ -12,10 +12,11 @@ usage: mprobe [--game FILE] COMMAND ...
                        object frames and costume cels.
   zplanes ROOM OUT     Write the room's background with each z-plane tinted, one PNG per plane
                        (roomN_planeK.png): plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan.
-  masked ROOM OUT [--debug]
+  masked ROOM OUT [--debug] [--only C,C…]
                        Write the room as the room viewer composes it: background, the actors MMUCS
                        places (position, elevation, scale, draw order), cut by their z-plane. Lists each
                        actor's costume, position, scale and z-plane. --debug paints the cut pixels magenta.
+                       --only draws just those costumes.
   box ROOM X Y [--player]
                        The walkboxes at a point: each box holding it or near it, with its flags and mask,
                        and the box the engine puts an actor there in (and where it moves it), as an actor
@@ -136,6 +137,8 @@ async Task<int> DrawMasked(List<string> a)
     var room = FindRoom(Positional(a, 1, "ROOM"));
     string outDir = Positional(a, 2, "OUT");
     bool debug = a.Contains("--debug");
+    // --only 122,112: draw just these costumes (to see which picture is which, and how they overlap).
+    var only = TakeOption(a, "--only")?.Split(',').Select(int.Parse).ToHashSet();
     Directory.CreateDirectory(outDir);
 
     // The mask as the viewer builds it: the room's planes with the objects shown on entry over them.
@@ -146,7 +149,8 @@ async Task<int> DrawMasked(List<string> a)
 
     var img = Copy(await Background(room));
     // SCUMM's draw order: by y before elevation, then actor number.
-    var actors = RoomActors.Analyze(room).Where(x => x.CanDraw).OrderBy(x => x.Y).ThenBy(x => x.Actor).ToList();
+    var actors = RoomActors.Analyze(room).Where(x => x.CanDraw && (only == null || only.Contains(x.Costume)))
+        .OrderBy(x => x.SortY).ThenBy(x => x.Actor).ToList();
     int cut = 0;
     foreach (var actor in actors)
     {

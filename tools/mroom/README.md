@@ -37,6 +37,7 @@ It reads the export that `mscripts use` saved. `mroom use DIR` saves it too (for
 | `costume N` | Where a costume is stored, where MMUCS places it, each script that dresses an actor in it with the elevations and placements that follow, and the other scripts in its room that place the same actors. `--limit N` |
 | `find TEXT` | Rooms, objects, hover names and lines that contain the text |
 | `review [N]` | The costumes and objects marked in MMUCS's room viewer (see below). `--changed`, `--tag T`, `--done N` |
+| `compare OTHER [ROOM]` | Every costume placement that differs between another export (one made before a change to MMUCS) and this one: position, elevation, scale, z-plane, sort y, and whether the picture moved or only its depth ("same picture"). `--all` lists unchanged rooms too |
 
 `ROOM` is a number (`15`) or part of a name (`town`). `OBJ` is an id (`397`) or part of a name (`chicken`). Results are written as `path:line` under `scripts/`, so `mscripts script` and an editor open them.
 

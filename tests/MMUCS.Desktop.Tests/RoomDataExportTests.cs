@@ -160,6 +160,48 @@ public class RoomActorsScanTests
         Assert.Equal(new[] { (112, 3), (114, 3) }, found.Select(f => (f.Costume, f.Clip)).OrderBy(x => x).ToArray());
     }
 
+    private static readonly byte[] XOf = { 0xEB }, YOf = { 0xEC };
+
+    [Fact]
+    public void Elevation_then_a_put_at_y_of_plus_it_keeps_the_picture_and_sorts_by_the_lower_y()
+    {
+        // cannon's Wally: put-actor 2 at 0,0; elevation 381; put-actor 2 at x-of(2), y-of(2) + 381 in-room current-room
+        var s = Script(2, SetActor, 25, SetCostume, 2, 0, 0, 9, Put,
+                       2, SetActor, 381, Elevation, 2, 2, XOf, 2, YOf, 381, Add, PushVar(4), Put);
+        var found = Assert.Single(RoomActors.ScanScript(s, 9));
+        Assert.Equal((0, 381, 381), (found.X, found.Y, found.Elevation));
+    }
+
+    [Fact]
+    public void A_put_relative_to_where_it_is_without_an_elevation_is_a_later_step_and_is_not_applied()
+    {
+        // clifface's Guybrush climbs: put-actor 1 at 320,70; … put-actor 1 at x-of(1), y-of(1) + 33
+        var s = Script(1, SetActor, 384, SetCostume, 1, 320, 70, 79, Put, 1, 1, XOf, 1, YOf, 33, Add, 79, Put);
+        var found = Assert.Single(RoomActors.ScanScript(s, 79));
+        Assert.Equal((320, 70, 0), (found.X, found.Y, found.Elevation));
+    }
+
+    [Fact]
+    public void A_put_in_another_room_ends_what_a_later_relative_put_applies_to()
+    {
+        // snow-dia: put-actor 5 at 0,518 in-room 82; put-actor 5 at 640,0 in-room 84; elevation 501; put at y-of(5) + 501
+        var s = Script(5, SetActor, 413, SetCostume, 5, 0, 518, 82, Put, 5, 640, 0, 84, Put,
+                       5, SetActor, 501, Elevation, 5, 5, XOf, 5, YOf, 501, Add, PushVar(4), Put);
+        var found = Assert.Single(RoomActors.ScanScript(s, 82));
+        Assert.Equal((0, 518, 0), (found.X, found.Y, found.Elevation));
+    }
+
+    [Fact]
+    public void An_actor_taken_out_and_put_back_while_the_costume_plays_is_one_it_removes()
+    {
+        // barber: costume 122 put at 320,240; put-actor 4 in room 0; put-actor 4 back at 196,329 (122 draws Bill meanwhile)
+        var s = Script(1, SetActor, 122, SetCostume, 1, 320, 240, 21, Put, 4, 0, 0, 0, Put, 4, 196, 329, 21, Put);
+        Assert.Equal(new[] { 4 }, RoomActors.ScanScript(s, 21).Single(p => p.Costume == 122).Removes);
+        // Taken out for good: a scene ending, not the costume drawing it.
+        var gone = Script(1, SetActor, 122, SetCostume, 1, 320, 240, 21, Put, 4, 0, 0, 0, Put);
+        Assert.Empty(Assert.Single(RoomActors.ScanScript(gone, 21)).Removes);
+    }
+
     [Fact]
     public void Constant_expressions_nest()
     {

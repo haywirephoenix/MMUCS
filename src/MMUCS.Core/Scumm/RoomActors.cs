@@ -33,6 +33,18 @@ public sealed class RoomActor
     public int Elevation { get; init; }
     /// <summary>Where the actor's origin is drawn: <see cref="Y"/> lifted by <see cref="Elevation"/>.</summary>
     public int DrawY => Y - Elevation;
+    /// <summary>
+    /// Actors the script that places this costume takes out of the room for a while as it plays (put-actor B
+    /// in room 0, then back): the costume draws them meanwhile (barber's costume 122 draws Bill getting up,
+    /// so the script removes Bill's actor and puts it back after).
+    /// </summary>
+    public IReadOnlyList<int> Removes { get; init; } = Array.Empty<int>();
+    /// <summary>
+    /// The y it's drawn in order of: <see cref="Y"/>, as the engine sorts, except that a costume is drawn in
+    /// front of the actors it <see cref="Removes"/>. The two only share the screen for the moment before the
+    /// script removes them, so the viewer shows the costume as it plays.
+    /// </summary>
+    public int SortY { get; set; }
     /// <summary>actorOps scale: 255 is full size. The frame is scaled about the actor's origin.</summary>
     public int Scale { get; init; } = 255;
     public float ScaleFactor => Math.Clamp(Scale, 1, 255) / 255f;
@@ -259,6 +271,27 @@ public static class RoomActors
     }
 
     private const byte OpAdd = 0x0E, OpSub = 0x0F, OpMul = 0x10, OpDiv = 0x11;
+    private const byte OpGetObjectX = 0xEB, OpGetObjectY = 0xEC;
+    /// <summary>put-actor's "in-room" for "the room it's in" (the decompiler shows in-room 2147483647).</summary>
+    private const int SameRoom = int.MaxValue;
+
+    /// <summary>
+    /// An argument "x-of(A)" / "y-of(A)" (<paramref name="op"/>), optionally plus or minus a constant, ending at
+    /// <paramref name="end"/>: the actor key, the offset, and where the argument starts.
+    /// </summary>
+    private static bool OffsetOf(ReadOnlySpan<byte> s, int end, byte op, out int actor, out int delta, out int start)
+    {
+        actor = delta = 0;
+        start = end;
+        int opAt = end - 1;
+        if (end - 1 > 0 && s[end - 1] is OpAdd or OpSub && Const(s, end - 1, out int k, out int kStart) && kStart - 1 >= 0 && s[kStart - 1] == op)
+        {
+            delta = s[end - 1] == OpAdd ? k : -k;
+            opAt = kStart - 1;
+        }
+        else if (end - 1 < 0 || s[end - 1] != op) return false;
+        return ActorArg(s, opAt, out actor, out start);
+    }
 
     private static readonly object Sync = new();
     private static readonly ConditionalWeakTable<ScummBlock, CostumeDirectory> Directories = new();
@@ -511,7 +544,7 @@ public static class RoomActors
         var scriptOf = new Dictionary<RoomActor, int>();
         var seen = new HashSet<(int, int, int, int)>();
         int planes = ZPlanes.Count(room);
-        foreach (var (si, (actor, costume, sx, sy, elevation, anim, dir, via, scale, clip, ignoreBoxes, followsAtPut)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
+        foreach (var (si, (actor, costume, sx, sy, elevation, anim, dir, via, scale, clip, ignoreBoxes, followsAtPut, removes)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
         {
             // An actor number wears a costume once; an actor in a variable is a different actor at
             // each spot it's put (the fortbase chickens), so each spot is kept.
@@ -538,7 +571,8 @@ public static class RoomActors
             var entry = new RoomActor
             {
                 Actor = Math.Max(0, actor), Costume = costume, Akos = akos, X = x, Y = y, Elevation = elevation, HasPosition = true,
-                Data = d, Frame = f, IsPlayer = actor == player, DressedBy = via, Scale = scale,
+                Data = d, Frame = f, IsPlayer = actor == player, DressedBy = via, Scale = scale, SortY = y,
+                Removes = removes ?? Array.Empty<int>(),
                 // Clamped to the room's top plane, like the engine.
                 ZPlane = Math.Clamp(clip == ClipByBox ? MaskOf(room, box) : clip, 0, planes),
             };
@@ -546,6 +580,10 @@ public static class RoomActors
             scriptOf[entry] = si;
         }
         placed = MergeLayers(placed, scriptOf);
+        // A costume is drawn in front of the actors its script takes out of the room while it plays.
+        foreach (var p in placed.Where(p => p.Removes.Count > 0))
+            foreach (var o in placed.Where(o => o.Actor > 0 && o.Actor != p.Actor && p.Removes.Contains(o.Actor)))
+                p.SortY = Math.Max(p.SortY, o.Y + 1);
 
         // Image-less hotspots, except exits: a room's doors are walk-through areas, never a costume
         // (full-room overlays such as waterlines overlap them by chance).
@@ -850,7 +888,7 @@ public static class RoomActors
     /// dresses its parameter (start-script 88(local2, …)) counts as dressing the actor passed.
     /// </summary>
     internal readonly record struct Placement(int Actor, int Costume, int X, int Y, int Elevation, int Anim, int Dir, int Via, int Scale,
-        int Clip, bool IgnoreBoxes, bool FollowsAtPut = false);
+        int Clip, bool IgnoreBoxes, bool FollowsAtPut = false, int[] Removes = null);
 
     internal static List<Placement> ScanScript(
         ReadOnlySpan<byte> s, int roomNo, Func<int, IReadOnlyList<ParamCostume>> dressers = null)
@@ -875,6 +913,12 @@ public static class RoomActors
             else if (s[p + 1] == SubScale && curActor != 0 && Const(s, p, out int scale) && scale > 0) scales.Add((p, curActor, scale));
         }
         var places = new List<(int Pos, int Actor, int X, int Y)>();
+        // Re-placements relative to where the actor is: put-actor A at x-of(A) + dx, y-of(A) + dy.
+        var moves = new List<(int Pos, int Actor, int Dx, int Dy)>();
+        // Placements in other rooms (a cutscene that visits several): a re-placement after one isn't ours.
+        var elsewhere = new List<(int Pos, int Actor)>();
+        // Actors taken out of the room (put-actor B at … in-room 0).
+        var removals = new List<(int Pos, int Actor)>();
 
         for (int p = 20; p < s.Length; p++)
         {
@@ -882,9 +926,31 @@ public static class RoomActors
             {
                 // Arguments are pushed actor, x, y, room: read them back to front.
                 int yEnd;
-                if (Const(s, p, out int r, out int roomStart)) { if (r != roomNo) continue; yEnd = roomStart; }
+                bool sameRoom = false;
+                if (Const(s, p, out int r, out int roomStart))
+                {
+                    sameRoom = r == SameRoom;
+                    if (r != roomNo && !sameRoom)
+                    {
+                        if (Const(s, roomStart, out _, out int oxEnd) && Const(s, oxEnd, out _, out int oaEnd) && ActorArg(s, oaEnd, out int oa) && oa != 0)
+                        {
+                            elsewhere.Add((p, oa));
+                            if (r == 0) removals.Add((p, oa));
+                        }
+                        continue;
+                    }
+                    yEnd = roomStart;
+                }
                 else if (s[p - 5] == OpPushVar) yEnd = p - 5; // usually the current room
                 else continue;
+                if (OffsetOf(s, yEnd, OpGetObjectY, out int ya, out int dy, out int yStart)
+                    && OffsetOf(s, yStart, OpGetObjectX, out int xa, out int dx, out int xStart)
+                    && ActorArg(s, xStart, out int ma) && ma != 0 && ma == xa && ma == ya)
+                {
+                    moves.Add((p, ma, dx, dy));
+                    continue;
+                }
+                if (sameRoom) continue;
                 // 0,0 counts too: full-room overlays (waterlines) sit at the room's origin. Parking an
                 // actor out of the way is done with room 0, which the room check already rejects.
                 if (Const(s, yEnd, out int y, out int xEnd) && Const(s, xEnd, out int x, out int aEnd)
@@ -920,11 +986,31 @@ public static class RoomActors
                 }
             if (best is { } b)
             {
+                // "elevation E, then put-actor A at x-of(A), y-of(A) + E" after the placement: the picture
+                // stays where it was, but the actor now stands E lower, which is the y the engine sorts by
+                // (cannon's Wally: put at 0,0, then y 381 with elevation 381, in front of Guybrush at 328).
+                // Only a re-placement right after an elevation is that idiom; others are steps of a scene that
+                // plays later (clifface's Guybrush climbs with y-of(1) + 33).
+                int nextPlace = places.Select(pl => (pl.Pos, pl.Actor)).Concat(elsewhere)
+                    .Where(pl => pl.Actor == c.Actor && pl.Pos > b.Pos).Select(pl => pl.Pos).DefaultIfEmpty(int.MaxValue).Min();
+                var followUps = new List<(int Pos, int Actor, int Dx, int Dy)>();
+                if (b.Pos > c.Pos)
+                {
+                    int prev = b.Pos;
+                    foreach (var m in moves.Where(m => m.Actor == c.Actor && m.Pos > b.Pos && m.Pos < Math.Min(until, nextPlace)))
+                    {
+                        if (!elevations.Any(e => e.Actor == c.Actor && e.Pos > prev && e.Pos < m.Pos)) break;
+                        followUps.Add(m);
+                        prev = m.Pos;
+                    }
+                }
+                int lastPut = followUps.Count > 0 ? followUps[^1].Pos : b.Pos;
+                b = (b.Pos, b.Actor, b.X + followUps.Sum(m => m.Dx), b.Y + followUps.Sum(m => m.Dy));
                 // Only an elevation set while it wears this costume, before this placement, moves the
                 // picture. The common "elevation E, then put-actor at x-of(a), y-of(a) + E" re-places the
                 // actor after the literal placement so it's drawn where it was (only its depth changes).
                 bool inWindow = b.Pos > c.Pos && b.Pos < until;
-                int elevation = !inWindow ? 0 : elevations.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < b.Pos)
+                int elevation = !inWindow ? 0 : elevations.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < lastPut)
                                                           .Select(e => e.Elevation).DefaultIfEmpty(0).Last();
                 // Scale the same way: set while it wears this costume, before this placement; or what the
                 // call that dressed it passes.
@@ -952,7 +1038,15 @@ public static class RoomActors
                 if (c.Clip is { Ignore: true } && b.Pos > c.Pos
                     && !clips.Any(op => op.Actor == c.Actor && op.Pos > c.Pos && op.Pos < b.Pos && op.Ignore != null))
                     ignoreAtPut = true;  // the dressing script set ignore-boxes (script 88)
-                pairs.Add(new Placement(c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir, c.Via, scale, clip, ignore, ignoreAtPut == false));
+                // Other actors it takes out of the room for a while as this costume plays, putting them back
+                // before the actor's next costume: the costume draws them meanwhile (barber's 122 draws Bill
+                // getting up). Removals that aren't undone are a scene ending, not this.
+                var removes = b.Pos > c.Pos
+                    ? removals.Where(rm => rm.Actor != c.Actor && rm.Actor > 0 && rm.Pos > b.Pos && rm.Pos < until
+                                           && places.Any(pl => pl.Actor == rm.Actor && pl.Pos > rm.Pos && pl.Pos < until))
+                              .Select(rm => rm.Actor).Distinct().ToArray()
+                    : Array.Empty<int>();
+                pairs.Add(new Placement(c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir, c.Via, scale, clip, ignore, ignoreAtPut == false, removes));
             }
         }
         return pairs;
@@ -990,6 +1084,7 @@ public static class RoomActors
             {
                 Actor = p.Actor, Actors = layers.Select(l => l.Actor).Distinct().ToList(), Costume = p.Costume, Akos = p.Akos,
                 X = p.X, Y = p.Y, Elevation = p.Elevation, Scale = p.Scale, ZPlane = p.ZPlane, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
+                SortY = p.SortY, Removes = layers.SelectMany(l => l.Removes).Distinct().ToList(),
             });
         }
         return result;

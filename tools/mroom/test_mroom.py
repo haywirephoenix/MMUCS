@@ -272,3 +272,45 @@ class MroomTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CompareTests(unittest.TestCase):
+    """mroom compare OTHER: placements that differ between another export and this one."""
+
+    setUp, with_data, tearDown, mroom = MroomTests.setUp, MroomTests.with_data, MroomTests.tearDown, MroomTests.mroom
+
+    def other(self, costumes):
+        other = self.root / "before"
+        (other / "data" / "rooms").mkdir(parents=True)
+        (other / "data" / "rooms" / "015_town.json").write_text(json.dumps(dict(TOWN, costumes=costumes)), encoding="utf-8")
+        return str(other)
+
+    def test_a_depth_change_keeps_the_picture(self):
+        costumes = [dict(c) for c in TOWN["costumes"]]
+        costumes[2] = dict(costumes[2], placed=[{"actor": 3, "x": 320, "y": 492}])  # before: no elevation
+        text = self.mroom("compare", self.other(costumes))
+        self.assertIn("costume   35  actor 3          at 320,792: y 492 → 792, elevation 0 → 300  (same picture)", text)
+        self.assertIn("1 placement changed in 1 room: 0 drawn somewhere else, 1 only in depth.", text)
+
+    def test_moves_new_and_gone_placements(self):
+        costumes = [dict(c) for c in TOWN["costumes"] if c["costume"] != 79]
+        costumes[0] = dict(costumes[0], placed=[{"actor": 4, "x": 500, "y": 268, "zplane": 2}])
+        text = self.mroom("compare", self.other(costumes + [{"costume": 90, "akos": "0x1", "placed": [{"actor": 9, "x": 1, "y": 2}]}]))
+        self.assertIn("costume   75  actor 4          at 552,268: x 500 → 552, z-plane 2 → 0\n", text)
+        self.assertIn("costume   79  actor 1          at 0,0: new", text)
+        self.assertIn("costume   90  actor 9          at 1,2: gone", text)
+        self.assertIn("3 placements changed in 1 room: 3 drawn somewhere else", text)
+
+    def test_unchanged_export(self):
+        text = self.mroom("compare", self.other(TOWN["costumes"]), "--all")
+        self.assertIn("015_town: same", text)
+        self.assertIn("0 placements changed in 0 rooms", text)
+
+    def test_a_sort_y_change_is_listed(self):
+        costumes = [dict(c) for c in TOWN["costumes"]]
+        before = [dict(c) for c in costumes]
+        costumes[1] = dict(costumes[1], placed=[{"actor": 1, "x": 0, "y": 0, "player": True, "sort_y": 269, "removes": [4]}])
+        town = dict(TOWN, costumes=costumes)
+        (self.root / "data" / "rooms" / "015_town.json").write_text(json.dumps(town), encoding="utf-8")
+        text = self.mroom("compare", self.other(before))
+        self.assertIn("costume   79  actor 1          at 0,0: sort y 0 → 269, removes - → [4]  (same picture)", text)
