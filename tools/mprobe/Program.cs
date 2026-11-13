@@ -16,6 +16,10 @@ usage: mprobe [--game FILE] COMMAND ...
                        Write the room as the room viewer composes it: background, the actors MMUCS
                        places (position, elevation, scale, draw order), cut by their z-plane. Lists each
                        actor's costume, position, scale and z-plane. --debug paints the cut pixels magenta.
+  box ROOM X Y [--player]
+                       The walkboxes at a point: each box holding it or near it, with its flags and mask,
+                       and the box the engine puts an actor there in (and where it moves it), as an actor
+                       that follows the boxes. --player for the player's actor (player-only boxes).
 
 The game is the first resource file (COMI.LA0); the others beside it are loaded too. It comes from
 --game, else the MMUCS_GAME environment variable.
@@ -45,6 +49,7 @@ try
         "export" => await Export(argv),
         "zplanes" => await DrawZPlanes(argv),
         "masked" => await DrawMasked(argv),
+        "box" => ShowBox(argv),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }
@@ -97,6 +102,32 @@ async Task<int> DrawZPlanes(List<string> a)
         img.SavePng(file);
         Console.WriteLine($"  plane {k + 1}: {100.0 * set / (img.Width * img.Height):0.0}% set → {file}");
     }
+    return 0;
+}
+
+int ShowBox(List<string> a)
+{
+    var room = FindRoom(Positional(a, 1, "ROOM"));
+    if (!int.TryParse(Positional(a, 2, "X"), out int x) || !int.TryParse(Positional(a, 3, "Y"), out int y))
+        throw new UsageException("X and Y are numbers");
+    bool player = a.Contains("--player");
+    var boxes = room.Walkboxes;
+    Console.WriteLine($"room {room.RoomNo}: {boxes.Count} boxes, {ZPlanes.Count(room)} z-planes; point {x},{y}");
+    foreach (var b in boxes)
+    {
+        if (b.IsPlaceholder) continue;
+        var q = new[] { b.UpperLeft, b.UpperRight, b.LowerRight, b.LowerLeft };
+        bool inside = RoomActors.InBox(q, x, y);
+        int dx = Math.Max(0, Math.Max(q.Min(p => p.X) - x, x - q.Max(p => p.X)));
+        int dy = Math.Max(0, Math.Max(q.Min(p => p.Y) - y, y - q.Max(p => p.Y)));
+        if (!inside && dx * dx + dy * dy > 80 * 80) continue;
+        uint f = b.Flags & 0xFF;
+        string flags = $"0x{f:X2}{((f & 0x80) != 0 ? " invisible" : "")}{((f & 0x20) != 0 ? " player-only" : "")}";
+        Console.WriteLine($"  box {b.Index,3}  {(inside ? "holds it" : $"{Math.Sqrt(dx * dx + dy * dy),5:0} px away")}  mask {b.Mask & 0xFF}  flags {flags}"
+            + $"  ({string.Join(" ", q.Select(p => $"{p.X},{p.Y}"))})");
+    }
+    var (px, py, box) = RoomActors.PutInBox(boxes, x, y, player);
+    Console.WriteLine($"engine: box {box} (mask {(box < boxes.Count ? boxes[box].Mask & 0xFF : 0)}){(px != x || py != y ? $", moved to {px},{py}" : "")}");
     return 0;
 }
 

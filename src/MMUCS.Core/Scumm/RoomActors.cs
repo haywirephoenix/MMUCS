@@ -108,7 +108,8 @@ public static class RoomActors
     /// <summary>
     /// Ops that change an actor's z-clip, as ScummVM's o8_actorOps: default and follow-boxes set it to
     /// <see cref="ClipByBox"/> and follow the boxes; ignore-boxes does too but leaves the boxes; never-zclip
-    /// sets 0 (no mask); always-zclip N sets N. (position, actor key, clip or null, ignore-boxes or null).
+    /// sets 0 (no mask); always-zclip N sets N (a byte: 255 and -1 mean by box). (position, actor key, clip or
+    /// null, ignore-boxes or null).
     /// </summary>
     private static List<(int Pos, int Actor, int? Clip, bool? Ignore)> ClipOps(ReadOnlySpan<byte> s)
     {
@@ -125,7 +126,8 @@ public static class RoomActors
                 case SubDefault or SubFollowBoxes: ops.Add((p, cur, ClipByBox, false)); break;
                 case SubIgnoreBoxes: ops.Add((p, cur, ClipByBox, true)); break;
                 case SubNeverZClip: ops.Add((p, cur, 0, null)); break;
-                case SubAlwaysZClip when Const(s, p, out int n): ops.Add((p, cur, n == 255 ? ClipByBox : n, null)); break;
+                // The engine keeps the clip in a byte, so -1 is 255 too: "by box" (logo's actor 11, McMutton).
+                case SubAlwaysZClip when Const(s, p, out int n): ops.Add((p, cur, (n & 0xFF) == 255 ? ClipByBox : n & 0xFF, null)); break;
             }
         }
         return ops;
@@ -139,44 +141,123 @@ public static class RoomActors
         return state;
     }
 
-    /// <summary>The mask of the walkbox at a point (box 0's for an actor that ignores boxes), as ScummVM's getMaskFromBox.</summary>
-    private static int BoxMask(RoomModel room, int x, int y, bool ignoreBoxes)
+    /// <summary>The mask of a walkbox (0 when the room has no such box), as ScummVM's getMaskFromBox.</summary>
+    private static int MaskOf(RoomModel room, int box) =>
+        box >= 0 && box < room.Walkboxes.Count ? (int)(room.Walkboxes[box].Mask & 0xFF) : 0;
+
+    private const uint BoxPlayerOnly = 0x20, BoxInvisible = 0x80;
+
+    /// <summary>
+    /// Where the engine puts an actor placed at x,y that follows the boxes, and the walkbox it stands in:
+    /// ScummVM's Actor::adjustXYToBeInBox (v7+). Boxes are searched from the last down to box 1 (box 0 is
+    /// "no box"), skipping invisible ones; the first that holds the point wins, otherwise the actor moves
+    /// to the closest point on the closest box, within 30, then 80 pixels, then anywhere. An actor that
+    /// ignores the boxes stays where it's put, in box 0. Every put-actor in the current room does this
+    /// (putActor → showActor / adjustActorPos), so a costume put outside the boxes is drawn on their edge.
+    /// </summary>
+    public static (int X, int Y, int Box) PutInBox(IReadOnlyList<Walkbox> boxes, int x, int y, bool isPlayer)
     {
-        var boxes = room.Walkboxes;
-        if (boxes.Count == 0) return 0;
-        if (ignoreBoxes) return (int)(boxes.FirstOrDefault(b => b.Index == 0).Mask & 0xFF);
-        Walkbox? best = null;
-        double bestDist = double.MaxValue;
-        foreach (var b in boxes)
+        var abr = (X: x, Y: y, Box: 0);
+        int numBoxes = boxes.Count - 1;
+        if (numBoxes < 1) return abr;
+        foreach (int threshold in new[] { 30, 80, 0 })
         {
-            if (b.IsPlaceholder) continue;
-            var c = new[] { b.UpperLeft, b.UpperRight, b.LowerRight, b.LowerLeft };
-            if (Inside(c, x, y)) return (int)(b.Mask & 0xFF);
-            // Otherwise the nearest box, as the engine moves an actor into one.
-            int minX = c.Min(p => p.X), maxX = c.Max(p => p.X), minY = c.Min(p => p.Y), maxY = c.Max(p => p.Y);
-            double dx = Math.Max(0, Math.Max(minX - x, x - maxX)), dy = Math.Max(0, Math.Max(minY - y, y - maxY));
-            double d = dx * dx + dy * dy;
-            if (d < bestDist) { bestDist = d; best = b; }
+            int bestDist = int.MaxValue, bestBox = 0;
+            for (int box = numBoxes; box >= 1; box--)
+            {
+                var b = boxes[box];
+                uint flags = b.Flags & 0xFF;
+                if ((flags & BoxInvisible) != 0 && !((flags & BoxPlayerOnly) != 0 && !isPlayer)) continue;
+                var q = new[] { b.UpperLeft, b.UpperRight, b.LowerRight, b.LowerLeft };
+                if (threshold > 0 && QuickReject(q, x, y, threshold)) continue;
+                if (InBox(q, x, y)) return (x, y, box);
+                int dist = ClosestPtOnBox(q, x, y, out int tx, out int ty);
+                if (dist < bestDist)
+                {
+                    abr.X = tx;
+                    abr.Y = ty;
+                    if (dist == 0) return (tx, ty, box);
+                    bestDist = dist;
+                    bestBox = box;
+                }
+            }
+            if (threshold == 0 || (long)threshold * threshold >= bestDist) return (abr.X, abr.Y, bestBox);
         }
-        return best is { } nb ? (int)(nb.Mask & 0xFF) : 0;
+        return abr;
     }
 
-    /// <summary>Whether a point is inside (or on the edge of) a convex quad, either winding.</summary>
-    private static bool Inside(BoxPoint[] q, int x, int y)
+    private static bool QuickReject(BoxPoint[] q, int x, int y, int t) =>
+        q.All(p => x - t > p.X) || q.All(p => x + t < p.X) || q.All(p => y - t > p.Y) || q.All(p => y + t < p.Y);
+
+    /// <summary>ScummVM's compareSlope: p3 is on or to one side of the line p1 → p2.</summary>
+    private static bool Slope(BoxPoint p1, BoxPoint p2, BoxPoint p3) =>
+        (long)(p2.Y - p1.Y) * (p3.X - p1.X) <= (long)(p3.Y - p1.Y) * (p2.X - p1.X);
+
+    /// <summary>ScummVM's checkXYInBoxBounds for v7+ (corners UL, UR, LR, LL), including its line-box case.</summary>
+    public static bool InBox(BoxPoint[] q, int x, int y)
     {
-        int sign = 0;
+        if (q.All(c => x < c.X) || q.All(c => x > c.X) || q.All(c => y < c.Y) || q.All(c => y > c.Y)) return false;
+        BoxPoint ul = q[0], ur = q[1], lr = q[2], ll = q[3], p = new(x, y);
+        if ((ul == ur && lr == ll) || (ul == ll && ur == lr))
+            if (SqrDist(p, ClosestPtOnLine(ul, lr, p)) <= 4) return true;
+        if (Slope(ul, ur, p) && Slope(ur, lr, p) && Slope(lr, ll, p) && Slope(ll, ul, p)) return true;
+        return Slope(ul, ll, p) && Slope(ll, lr, p) && Slope(lr, ur, p) && Slope(ur, ul, p);
+    }
+
+    private static int SqrDist(BoxPoint a, BoxPoint b)
+    {
+        int dx = Math.Abs(a.X - b.X), dy = Math.Abs(a.Y - b.Y);
+        return dx >= 0x1000 || dy >= 0x1000 ? 0xFFFFFF : dx * dx + dy * dy;
+    }
+
+    private static int ClosestPtOnBox(BoxPoint[] q, int x, int y, out int ox, out int oy)
+    {
+        var p = new BoxPoint(x, y);
+        int best = 0xFFFFFF;
+        ox = x; oy = y;
         for (int i = 0; i < 4; i++)
         {
-            var a = q[i];
-            var b = q[(i + 1) % 4];
-            long cross = (long)(b.X - a.X) * (y - a.Y) - (long)(b.Y - a.Y) * (x - a.X);
-            if (cross == 0) continue;
-            int sg = Math.Sign(cross);
-            if (sign == 0) sign = sg;
-            else if (sg != sign) return false;
+            var t = ClosestPtOnLine(q[i], q[(i + 1) % 4], p);
+            int d = SqrDist(p, t);
+            if (d < best) { best = d; ox = t.X; oy = t.Y; }
         }
-        return true;
+        return best;
     }
+
+    /// <summary>ScummVM's closestPtOnLine, integer arithmetic and all.</summary>
+    private static BoxPoint ClosestPtOnLine(BoxPoint s, BoxPoint e, BoxPoint p)
+    {
+        int lx = e.X - s.X, ly = e.Y - s.Y;
+        BoxPoint r;
+        if (e.X == s.X) r = new(s.X, p.Y);
+        else if (e.Y == s.Y) r = new(p.X, s.Y);
+        else
+        {
+            int dist = lx * lx + ly * ly;
+            if (Math.Abs(lx) > Math.Abs(ly))
+            {
+                int a = s.X * ly / lx, b = p.X * lx / ly, c = (a + b - s.Y + p.Y) * ly * lx / dist;
+                r = new(c, c * ly / lx - a + s.Y);
+            }
+            else
+            {
+                int a = s.Y * lx / ly, b = p.Y * ly / lx, c = (a + b - s.X + p.X) * ly * lx / dist;
+                r = new(c * lx / ly - a + s.X, c);
+            }
+        }
+        if (Math.Abs(ly) < Math.Abs(lx))
+        {
+            if (lx > 0) { if (r.X < s.X) r = s; else if (r.X > e.X) r = e; }
+            else { if (r.X > s.X) r = s; else if (r.X < e.X) r = e; }
+        }
+        else
+        {
+            if (ly > 0) { if (r.Y < s.Y) r = s; else if (r.Y > e.Y) r = e; }
+            else { if (r.Y > s.Y) r = s; else if (r.Y < e.Y) r = e; }
+        }
+        return r;
+    }
+
     private const byte OpAdd = 0x0E, OpSub = 0x0F, OpMul = 0x10, OpDiv = 0x11;
 
     private static readonly object Sync = new();
@@ -430,14 +511,23 @@ public static class RoomActors
         var scriptOf = new Dictionary<RoomActor, int>();
         var seen = new HashSet<(int, int, int, int)>();
         int planes = ZPlanes.Count(room);
-        foreach (var (si, (actor, costume, x, y, elevation, anim, dir, via, scale, clip, ignoreBoxes)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
+        foreach (var (si, (actor, costume, sx, sy, elevation, anim, dir, via, scale, clip, ignoreBoxes, followsAtPut)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
         {
             // An actor number wears a costume once; an actor in a variable is a different actor at
             // each spot it's put (the fortbase chickens), so each spot is kept.
-            if (!seen.Add(actor > 0 ? (actor, costume, 0, 0) : (actor, costume, x, y))) continue;
+            if (!seen.Add(actor > 0 ? (actor, costume, 0, 0) : (actor, costume, sx, sy))) continue;
             var akos = directory.Resolve(costume, lflf);
             if (akos == null || !ReferenceEquals(akos.Parent, lflf)) continue;
             var (d, f) = Load(akos);
+            // An actor that follows the boxes when it's put is moved into one, as the engine does. Otherwise
+            // it's drawn where it's put (a close-up at 0,0), in the box the engine would pick there; a later
+            // follow-boxes, which close-ups set once they're done, doesn't move the picture. Ignoring the
+            // boxes in the end means box 0.
+            var (bx, by, box) = PutInBox(room.Walkboxes, sx, sy, actor == player);
+            var (x, y) = followsAtPut ? (bx, by) : (sx, sy);
+            // Put outside every box without a follow-boxes before it: the engine would have moved it, so
+            // it ignores the boxes (set by the room's setup script), and stands in box 0.
+            if (ignoreBoxes || (!followsAtPut && (bx, by) != (sx, sy))) box = 0;
             // Show the animation the script starts (e.g. a full-screen close-up whose stand chore is
             // empty). If that's blank and so is the default pose (the costume starts hidden), use
             // another animation the room plays on the same actor, as long as the actor wears only this
@@ -450,7 +540,7 @@ public static class RoomActors
                 Actor = Math.Max(0, actor), Costume = costume, Akos = akos, X = x, Y = y, Elevation = elevation, HasPosition = true,
                 Data = d, Frame = f, IsPlayer = actor == player, DressedBy = via, Scale = scale,
                 // Clamped to the room's top plane, like the engine.
-                ZPlane = Math.Clamp(clip == ClipByBox ? BoxMask(room, x, y, ignoreBoxes) : clip, 0, planes),
+                ZPlane = Math.Clamp(clip == ClipByBox ? MaskOf(room, box) : clip, 0, planes),
             };
             placed.Add(entry);
             scriptOf[entry] = si;
@@ -760,7 +850,7 @@ public static class RoomActors
     /// dresses its parameter (start-script 88(local2, …)) counts as dressing the actor passed.
     /// </summary>
     internal readonly record struct Placement(int Actor, int Costume, int X, int Y, int Elevation, int Anim, int Dir, int Via, int Scale,
-        int Clip, bool IgnoreBoxes);
+        int Clip, bool IgnoreBoxes, bool FollowsAtPut = false);
 
     internal static List<Placement> ScanScript(
         ReadOnlySpan<byte> s, int roomNo, Func<int, IReadOnlyList<ParamCostume>> dressers = null)
@@ -843,10 +933,26 @@ public static class RoomActors
                 // The z-clip it's drawn with: what this script sets on it until its next costume (it applies
                 // whenever it's drawn, so after the placement too). A dressing call starts from what the
                 // callee set up; otherwise from the start of the script, from the engine's default.
+                // After the placement, follow-boxes and default don't count: that's how a script hands the
+                // actor back to walking once its scene is done (lc-deck's captain is put with always-zclip
+                // 5, and follow-boxes comes at the end).
+                // A put after the costume counts even past another costume set on a sibling branch
+                // (barber's "if … costume 114 else costume 112", then always-zclip 3 and the put for both).
+                int putAt = b.Pos > c.Pos ? b.Pos : c.Pos;
                 var (clip, ignore) = c.Clip is { } start
-                    ? FoldClip(clips, c.Actor, c.Pos, until, start)
-                    : FoldClip(clips, c.Actor, -1, until, (ClipByBox, false));
-                pairs.Add(new Placement(c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir, c.Via, scale, clip, ignore));
+                    ? FoldClip(clips, c.Actor, c.Pos, putAt, start)
+                    : FoldClip(clips, c.Actor, -1, putAt, (ClipByBox, false));
+                (clip, ignore) = FoldClip(clips.Where(op => op.Ignore != false).ToList(), c.Actor, putAt, until, (clip, ignore));
+                // Whether it surely follows the boxes when it's put: then the engine moves it into one. Only
+                // what this script says counts (follow-boxes or default before the put); a room's setup
+                // script often sets ignore-boxes on an actor that a cutscene elsewhere puts at 0,0.
+                bool? ignoreAtPut = null;
+                foreach (var op in clips)
+                    if (op.Actor == c.Actor && op.Pos < b.Pos && op.Ignore is bool ig) ignoreAtPut = ig;
+                if (c.Clip is { Ignore: true } && b.Pos > c.Pos
+                    && !clips.Any(op => op.Actor == c.Actor && op.Pos > c.Pos && op.Pos < b.Pos && op.Ignore != null))
+                    ignoreAtPut = true;  // the dressing script set ignore-boxes (script 88)
+                pairs.Add(new Placement(c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir, c.Via, scale, clip, ignore, ignoreAtPut == false));
             }
         }
         return pairs;
