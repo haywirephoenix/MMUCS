@@ -123,4 +123,6 @@ public sealed class RoomViewOptions
     public bool ShowLabels { get; set; } = true;
     public bool ShowBounds { get; set; }
     public bool ShowObjectsPanel { get; set; } = true;
+    public bool ZPlaneMasking { get; set; } = true;
+    public bool ShowZPlanes { get; set; }
 }

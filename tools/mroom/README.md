@@ -13,6 +13,8 @@ data/game.json                  every object in the game's object table: name, r
 data/rooms/015_town.json        one room: size, objects, walkboxes, costumes
 ```
 
+[probe](../probe/README.md) writes the same export from the command line: `dotnet run --project tools/probe -c Release -- --game COMI.LA0 export FOLDER`.
+
 Without `data/`, mroom still works from the scripts. It just can't show the room's size, object positions, hover names, walk-to points or costumes.
 
 ## Setup
@@ -67,6 +69,7 @@ Variables: 52 used here: 29 unnamed, 14 named, 7 engine, 2 tracked
 - **Actors** come from `actor A costume C`, `put-actor A at X,Y in-room R` and `say-line A`. Sums such as `492 + 300` are worked out; other expressions are shown as written. An actor is named after the object its costume belongs to in the room data (`4 (kenny-object)`). Actor numbers are reused from room to room, so the name only shows in that room. The player's actor is named everywhere.
 - **Elevation** (`actor A elevation E`) draws an actor E pixels above its y, so a placement shows as `320,792 elevation 300 (drawn at 320,492)`. It counts for a placement when it's set after the actor's last costume change or `default` in the same script. Scripts use it to keep an actor drawn in one place while a large y puts it in front of the others, often as `elevation E` followed by `put-actor A at x-of(A),y-of(A) + E`.
 - **Scale** (`actor A scale N`, 255 is full size) is read the same way and shown as `, scale 150`. When a room starts a script that dresses the actor it passes in (`start-script 88(local2, 150, 0)`, where script 88 sets the costume and `scale local1`), the room data shows the costume at the spot the room places that actor, with the scale passed in, marked `dressed by script 88`.
+- **Z-plane** is the mask plane that hides parts of the actor behind the room's foreground, as MMUCS works it out: the actor's `always-zclip N`, or by default the mask of the walkbox it stands in (`never-zclip` is none). `mroom costume N` shows it as `, z-plane 2`.
 - **Hover names** are the names the game shows under the cursor ("mysterious flowers"), from each object's `OBNA` block.
 - **Walk-to** is where an actor walks to use the object, one point per state, read from the object image's hotspots the way ScummVM reads them.
 - **Classes** are the object's starting classes from the game's object table. Class 32 is shown as `untouchable`.

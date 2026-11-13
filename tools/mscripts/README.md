@@ -14,6 +14,8 @@ scripts/rooms/009_cannon/objects/0277_cannon-wally-object.scumm
 scripts/variables.index.json
 ```
 
+The same export can be made from the command line with [probe](../probe/README.md): `dotnet run --project tools/probe -c Release -- --game COMI.LA0 export FOLDER`.
+
 `variables.index.json` lists the names the export used, so mscripts can turn a name back into its number. If an export doesn't have one, export again from a current MMUCS.
 
 ## Setup

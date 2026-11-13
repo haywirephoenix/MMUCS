@@ -13,13 +13,13 @@ namespace MMUCS.Desktop.Controls;
 /// costumed actor that stands there, with its top-left corner in room coordinates.
 /// </summary>
 /// <summary>A costume frame being played elsewhere (the Costume viewer), drawn in place of <paramref name="Target"/>'s costume.</summary>
-public sealed record LiveCostume(RoomObject Target, SKImage Image, int X, int Y, float Scale = 1);
+public sealed record LiveCostume(RoomObject Target, SKImage Image, int X, int Y, float Scale = 1, int ZPlane = 0);
 
 /// <param name="CostumeDepth">The actor's y before elevation: SCUMM draws actors in order of it, lowest first.</param>
 /// <param name="CostumeActor">The actor number, which breaks ties in that order.</param>
 /// <param name="CostumeScale">The actor's scale as a factor; <see cref="CostumeX"/>/<see cref="CostumeY"/> are the scaled image's corner.</param>
 public sealed record RoomObjectLayer(RoomObject Object, SKImage Image, SKImage CostumeImage = null, int CostumeX = 0, int CostumeY = 0,
-    bool IsActorOnly = false, int CostumeDepth = 0, int CostumeActor = 0, float CostumeScale = 1);
+    bool IsActorOnly = false, int CostumeDepth = 0, int CostumeActor = 0, float CostumeScale = 1, int CostumeZPlane = 0);
 
 /// <summary>
 /// Room viewer: background, object images, object bounds (hotspots), walkbox polygons and room bounds.
@@ -65,6 +65,18 @@ public sealed class RoomCanvas : SkiaViewport
     public static readonly StyledProperty<bool> HoldSceneProperty =
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(HoldScene));
 
+    /// <summary>The room's z-plane masks (index 0 = plane 1), opaque where they hide actors; null for none.</summary>
+    public static readonly StyledProperty<IReadOnlyList<SKImage>> ZMasksProperty =
+        AvaloniaProperty.Register<RoomCanvas, IReadOnlyList<SKImage>>(nameof(ZMasks));
+
+    /// <summary>Whether actors are cut by their z-plane.</summary>
+    public static readonly StyledProperty<bool> MaskActorsProperty =
+        AvaloniaProperty.Register<RoomCanvas, bool>(nameof(MaskActors), true);
+
+    /// <summary>The z-plane overlay: -1 none, 0 every plane, N plane N.</summary>
+    public static readonly StyledProperty<int> ZPlaneOverlayProperty =
+        AvaloniaProperty.Register<RoomCanvas, int>(nameof(ZPlaneOverlay), -1);
+
     public static readonly StyledProperty<LiveCostume> LiveCostumeProperty =
         AvaloniaProperty.Register<RoomCanvas, LiveCostume>(nameof(LiveCostume));
 
@@ -90,6 +102,9 @@ public sealed class RoomCanvas : SkiaViewport
     public bool HoldScene { get => GetValue(HoldSceneProperty); set => SetValue(HoldSceneProperty, value); }
     /// <summary>The Costume viewer's playing frame, shown in place of that costume (Play in place).</summary>
     public LiveCostume LiveCostume { get => GetValue(LiveCostumeProperty); set => SetValue(LiveCostumeProperty, value); }
+    public IReadOnlyList<SKImage> ZMasks { get => GetValue(ZMasksProperty); set => SetValue(ZMasksProperty, value); }
+    public bool MaskActors { get => GetValue(MaskActorsProperty); set => SetValue(MaskActorsProperty, value); }
+    public int ZPlaneOverlay { get => GetValue(ZPlaneOverlayProperty); set => SetValue(ZPlaneOverlayProperty, value); }
 
     /// <summary>Raised on a right-click (not a right-drag) with the object under the pointer, or null.</summary>
     public event Action<RoomObject> ObjectContextRequested;
@@ -106,7 +121,8 @@ public sealed class RoomCanvas : SkiaViewport
         AffectsRender<RoomCanvas>(
             BackgroundImageProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
-            ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty, LiveCostumeProperty);
+            ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty, LiveCostumeProperty,
+            ZMasksProperty, MaskActorsProperty, ZPlaneOverlayProperty);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -163,7 +179,10 @@ public sealed class RoomCanvas : SkiaViewport
         ShowFullScreenObjects,
         BackgroundObject,
         VisibleObjects,
-        LiveCostume);
+        LiveCostume,
+        MaskActors ? ZMasks : null,
+        ZPlaneOverlay >= 0 ? ZMasks : null,
+        ZPlaneOverlay);
 
     protected override void OnContentClicked(Point p, PointerPressedEventArgs e)
     {
@@ -209,13 +228,18 @@ public sealed class RoomCanvas : SkiaViewport
         private readonly RoomObject _bgObject;
         private readonly IReadOnlySet<RoomObject> _visible;
         private readonly LiveCostume _live;
+        private readonly IReadOnlyList<SKImage> _zMasks;
+        private readonly IReadOnlyList<SKImage> _overlayMasks;
+        private readonly int _overlayPlane;
         private readonly Size _size;
 
         public Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
-            IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live)
+            IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
+            IReadOnlyList<SKImage> overlayMasks, int overlayPlane)
         {
             _bg = bg; _drawLayers = drawLayers; _allLayers = allLayers; _boxes = boxes;
-            _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject; _visible = visible; _live = live;
+            _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject; _visible = visible; _live = live; _zMasks = zMasks;
+            _overlayMasks = overlayMasks; _overlayPlane = overlayPlane;
         }
 
         private static readonly SKPaint HotspotFill = new() { Color = new SKColor(255, 220, 0, 38), Style = SKPaintStyle.Fill };
@@ -228,6 +252,34 @@ public sealed class RoomCanvas : SkiaViewport
         private static readonly SKPaint LabelShadow = new() { Color = new SKColor(0, 0, 0, 200), IsAntialias = true };
         private static readonly SKPaint BoxLabelPaint = new() { Color = new SKColor(160, 255, 200), IsAntialias = true };
         private static readonly SKFont LabelFont = new(SKTypeface.Default, 11) { Subpixel = true, Edging = SKFontEdging.SubpixelAntialias };
+
+        private static readonly SKPaint MaskOut = new() { BlendMode = SKBlendMode.DstOut };
+        /// <summary>Plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan, 7 white; half see-through.</summary>
+        private static readonly SKColor[] PlaneColors =
+        {
+            new(255, 0, 0, 110), new(0, 255, 0, 110), new(0, 0, 255, 110), new(255, 255, 0, 110),
+            new(255, 0, 255, 110), new(0, 255, 255, 110), new(255, 255, 255, 110),
+        };
+        // An alpha-only image is drawn in the paint's colour.
+        private static readonly SKPaint PlanePaint = new();
+
+        /// <summary>
+        /// Draws an actor's frame with the pixels behind its z-plane removed: the frame goes into a layer
+        /// and the plane's mask (room coordinates) cuts it out, as the engine skips masked pixels.
+        /// </summary>
+        private void DrawActor(SKCanvas canvas, SKImage image, int x, int y, float scale, int zplane, SKSamplingOptions sampling)
+        {
+            var mask = zplane > 0 && _zMasks != null && zplane <= _zMasks.Count ? _zMasks[zplane - 1] : null;
+            if (mask == null)
+            {
+                DrawScaled(canvas, image, x, y, scale, sampling);
+                return;
+            }
+            canvas.SaveLayer(SKRect.Create(x, y, image.Width * scale, image.Height * scale), null);
+            DrawScaled(canvas, image, x, y, scale, sampling);
+            canvas.DrawImage(mask, 0, 0, MaskOut);
+            canvas.Restore();
+        }
 
         private static void DrawScaled(SKCanvas canvas, SKImage image, int x, int y, float scale, SKSamplingOptions sampling)
         {
@@ -259,6 +311,16 @@ public sealed class RoomCanvas : SkiaViewport
                     canvas.DrawImage(layer.Image, layer.Object.X, layer.Object.Y, sampling);
                 }
 
+                // The z-planes, tinted, between the scene and the actors: what each plane hides shows
+                // through the actors' cut-outs.
+                if (_overlayMasks != null)
+                    for (int k = 0; k < _overlayMasks.Count; k++)
+                        if (_overlayMasks[k] != null && (_overlayPlane == 0 || _overlayPlane == k + 1))
+                        {
+                            PlanePaint.Color = PlaneColors[k % PlaneColors.Length];
+                            canvas.DrawImage(_overlayMasks[k], 0, 0, PlanePaint);
+                        }
+
                 // Actors are drawn over the objects, in SCUMM's order: by y before elevation, then actor
                 // number, so an actor lifted by elevation still sorts by where it stands (cannon-v's cannon
                 // stands at y 792 to be drawn in front of the water).
@@ -266,10 +328,10 @@ public sealed class RoomCanvas : SkiaViewport
                 {
                     if (layer.CostumeImage == null || _visible == null || !_visible.Contains(layer.Object)) continue;
                     if (_live != null && ReferenceEquals(layer.Object, _live.Target)) continue; // replaced by the playing frame
-                    DrawScaled(canvas, layer.CostumeImage, layer.CostumeX, layer.CostumeY, layer.CostumeScale, sampling);
+                    DrawActor(canvas, layer.CostumeImage, layer.CostumeX, layer.CostumeY, layer.CostumeScale, layer.CostumeZPlane, sampling);
                 }
                 // Played in place even when its entry is hidden: it was asked for from the Costume viewer.
-                if (_live?.Image != null) DrawScaled(canvas, _live.Image, _live.X, _live.Y, _live.Scale, sampling);
+                if (_live?.Image != null) DrawActor(canvas, _live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, sampling);
             }
             canvas.Restore();
 

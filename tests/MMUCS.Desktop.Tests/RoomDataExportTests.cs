@@ -97,6 +97,26 @@ public class RoomActorsScanTests
         Assert.True(found.Actor < 0); // an actor kept in a variable
     }
 
+    private static readonly byte[] NeverZClip = { 0xAC, 0x74 }, AlwaysZClip = { 0xAC, 0x75 }, IgnoreBoxes = { 0xAC, 0x76 };
+
+    [Fact]
+    public void The_z_clip_set_while_it_wears_the_costume_counts_even_after_the_placement()
+    {
+        // never-zclip; put-actor 3 at 320,240; then always-zclip 2 (fortbase's chickens are clipped after they're put)
+        var s = Script(3, SetActor, 35, SetCostume, NeverZClip, 3, 320, 240, 10, Put, 3, SetActor, 2, AlwaysZClip);
+        Assert.Equal(2, Assert.Single(RoomActors.ScanScript(s, 10)).Clip);
+    }
+
+    [Fact]
+    public void Ignore_boxes_puts_the_clip_back_to_the_walkbox_mask_and_255_means_the_same()
+    {
+        var s = Script(3, SetActor, 35, SetCostume, 1, AlwaysZClip, IgnoreBoxes, 3, 320, 240, 10, Put);
+        var found = Assert.Single(RoomActors.ScanScript(s, 10));
+        Assert.Equal((RoomActors.ClipByBox, true), (found.Clip, found.IgnoreBoxes));
+        var s255 = Script(3, SetActor, 35, SetCostume, 255, AlwaysZClip, 3, 320, 240, 10, Put);
+        Assert.Equal(RoomActors.ClipByBox, Assert.Single(RoomActors.ScanScript(s255, 10)).Clip);
+    }
+
     [Fact]
     public void Constant_expressions_nest()
     {
@@ -117,4 +137,42 @@ public class RoomObjectStatesTests
     [InlineData(2, 0, 0)]
     public void A_state_shows_its_image(int state, int frames, int frame)
         => Assert.Equal(frame, RoomObjectStates.FrameFor(state, frames));
+}
+
+public class ZPlanesTests
+{
+    [Fact]
+    public void A_strip_decodes_runs_and_literals_one_byte_per_row()
+    {
+        var dst = new byte[5];
+        // run of 3 x FF, then 2 literal bytes
+        ZPlanes.DecompressStrip(new byte[] { 0x83, 0xFF, 0x02, 0x0F, 0xF0 }, dst, strip: 0, strips: 1, height: 5);
+        Assert.Equal(new byte[] { 0xFF, 0xFF, 0xFF, 0x0F, 0xF0 }, dst);
+    }
+
+    [Fact]
+    public void A_plane_reads_strip_offsets_and_leaves_empty_strips_clear()
+    {
+        // OFFS header (8 bytes), offsets for 2 strips: strip 0 at 16, strip 1 empty (0); then strip 0's data.
+        var d = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0x82, 0x80 };
+        var plane = ZPlanes.DecodePlane(d, strips: 2, height: 2);
+        Assert.True(plane.IsSet(0, 0));
+        Assert.False(plane.IsSet(1, 0));
+        Assert.True(plane.IsSet(0, 1));
+        Assert.False(plane.IsSet(8, 0));
+    }
+
+    [Fact]
+    public void Shown_objects_write_their_planes_over_the_rooms()
+    {
+        var room = new ZPlane(4, 2);
+        Array.Fill(room.Data, (byte)0xFF);
+        var objPlane = new ZPlane(1, 1); // one empty strip: clears the room's mask there
+        var obj = new RoomObject { X = 8, Y = 1, Width = 8, Height = 1 };
+        var composed = ZPlanes.Compose(new[] { room, room }, 2, 32, 2, new[] { (obj, new[] { objPlane, null }) });
+        Assert.False(composed[0].IsSet(8, 1));  // plane 1: the object's empty strip
+        Assert.True(composed[0].IsSet(8, 0));   // above the object: the room's
+        Assert.True(composed[1].IsSet(8, 1));   // plane 2: the object has none, the room's stays
+        Assert.True(room.IsSet(8, 1));          // the room's own planes aren't changed
+    }
 }
