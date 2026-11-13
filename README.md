@@ -22,93 +22,51 @@
 
 ## Overview
 
-MMUCS (Modular Media Unpacker Content Studio) is a native .NET desktop tool (Avalonia UI + SkiaSharp) designed to deconstruct, visualize, and analyze SCUMM-based media architectures.
+MMUCS (Modular Media Unpacker Content Studio) is a native .NET desktop tool (Avalonia UI + SkiaSharp) for exploring, viewing and exporting the data of SCUMM v8 games.
 
-Why I Built This
+- **Blocks, metadata and hex:** every block in the game's files, with its fields and bytes
+- **Rooms:** backgrounds, objects, hotspots, walkboxes, and the costumes the room's scripts place
+- **Costumes:** cels, palettes and shading, animations in 4 or 8 directions, and Play in place in the room
+- **Scripts:** decompiled to readable SCUMM source with syntax colours and named variables
+- **Export:** backgrounds, objects, costume cels and scripts in bulk
+
+### Why I built this
+
 I originally built MMUCS to aid my own pursuit of modding The Curse of Monkey Island (COMI), with the ultimate goal of creating extended background art and higher-resolution sprites. Because I focused and tested exclusively within the context of COMI (SCUMM v8), the scope and codebase have remained slim.
 
-As a result, it will most likely not work as expected with other SCUMM games out of the box—though adapting it to support other titles is entirely possible. I'm sharing this prematurely with the community by request, so please keep in mind that it is by no means complete!
+As a result, it will most likely not work as expected with other SCUMM games out of the box, though adapting it to support other titles is entirely possible. I'm sharing this prematurely with the community by request, so please keep in mind that it is by no means complete!
 
----
+## Documentation
 
-### Releases
+The **[wiki](https://github.com/haywirephoenix/MMUCS/wiki)** covers everything:
 
-Download releases here:
+| | |
+|---|---|
+| [Getting Started](https://github.com/haywirephoenix/MMUCS/wiki/Getting-Started) | Downloading, opening a game, and where MMUCS keeps its files |
+| [Interface](https://github.com/haywirephoenix/MMUCS/wiki/Interface) | Panels, menus, layouts and keyboard shortcuts |
+| [Room Viewer](https://github.com/haywirephoenix/MMUCS/wiki/Room-Viewer) · [Costume Viewer](https://github.com/haywirephoenix/MMUCS/wiki/Costume-Viewer) · [Script Viewer](https://github.com/haywirephoenix/MMUCS/wiki/Script-Viewer) | The viewers |
+| [Exporting](https://github.com/haywirephoenix/MMUCS/wiki/Exporting) | The export wizard and what it writes |
+| [Naming Variables](https://github.com/haywirephoenix/MMUCS/wiki/Naming-Variables) | Helping name the game's script variables, with the mscripts tool |
+| [Building from Source](https://github.com/haywirephoenix/MMUCS/wiki/Building-from-Source) | Building, testing and making a release |
+| [Contributing](https://github.com/haywirephoenix/MMUCS/wiki/Contributing) | Where help is most useful |
+
+## Download
 
 <a href="https://github.com/haywirephoenix/MMUCS/releases/latest">
   <img alt="Download Latest Release" src="https://img.shields.io/github/v/release/haywirephoenix/MMUCS?include_prereleases&label=Download&style=for-the-badge&color=brightgreen"/>
 </a>
 
-The legacy Godot build is on the `godot` branch (previously `master`). 
+Self-contained builds for Windows, Linux and macOS. The legacy Godot build is on the `godot` branch.
 
-
-### Building from source (Avalonia frontend)
-
-Requires the .NET 8 SDK (or newer).
+To build it yourself, you need the .NET 8 SDK or newer:
 
 ```bash
 dotnet run --project src/MMUCS.Desktop -c Release -- "path/to/COMI.LA1"
 ```
 
-The file argument is optional; you can also use **File ▸ Open…** or drag a file onto the window.
-
-| Project | Purpose |
-|---|---|
-| `src/MMUCS.Core` | UI-agnostic SCUMM v8 parsing, decoding, caches and PNG export. No framework dependencies. |
-| `src/MMUCS.Desktop` | Avalonia 12 desktop host. Skia viewports (`ICustomDrawOperation`) for rooms and AKOS cels, SkSL palette shader, virtualized hex inspector. |
-
-Decode caches live in `%LocalAppData%/MMUCS/cache` (`~/.local/share/MMUCS` on Linux). Crash reports go to `crash.log` in the same folder.
-
-**Viewport controls:** mouse wheel zooms around the cursor; middle- or right-drag (or Space + left-drag) pans; double-click or `F` fits; `1` shows actual pixels.
-
-### Making a release
-
-1. Bump `<Version>` in `Directory.Build.props` and push.
-2. On GitHub: **Actions ▸ Release ▸ Run workflow**, choose the branch, and leave *pre-release* ticked or untick it.
-
-The workflow builds self-contained packages for Windows, Linux and macOS (arm64 + x64), tags the commit with the version, and publishes a release whose notes list every commit since the previous tag (`- <hash> <subject>`).
-
----
-
-## Usage
-
-### Loading Resources
-1.  Launch the application.
-2.  Open a resource file (eg: `COMI.LA0`) from your game directory. MMUCS will automatically find the other `.LA` files. 
-4.  The `ScummResourceParser` will begin indexing the file, and the `BlockHierarchyPanel` will populate with detected data segments.
-
-### Visualizing
-1.  Within the `BlockHierarchyPanel`, browse through the tree. You can navigate with the keyboard or mouse.
-2.  When an `LFLF` or `ROOM` block is selected, the `RoomPreviewPanel` will automatically populate.
-3. Inside an `LFLF` block, you will often find `AKOS` blocks. Selecting one of those will automatically populate the `AkosViewerPanel` where you can cycle through the cels.
-
----
-
 ## Contributing
 
-Contributions welcome! Whether you are an expert in legacy formats or a UI/UX designer, your input is valuable. 
- 
-For any SCUMM veterans out there, please verify my metadata descriptions in [ScummTag](scripts/OS/ScummUtils/ScummTag.cs) - Some are my best guess. 
-Also see [ScummMeta](scripts/OS/ScummUtils/ScummMeta.cs) as the new type-safe format which may need expanding. 
-
-Please let me know if I missed any decoding formats in Scumm V8 - feel free to add more decoders.
-
-### Naming script variables
-
-SCUMM compiles variable names away, so the Script viewer shows most of the game's globals as `var600`, `var630` and so on. The engine's own variables (`ego`, `current-room`, `have-msg`, ...) are named from ScummVM; the rest are collected in [variables.json](src/MMUCS.Core/Names/variables.json) as people work out what they do. Each entry has a `Name` and a `Note` saying how you know; an entry with an empty name tracks a variable that's still being worked out.
-
-Names are lower-case kebab-case, each part starting with a letter, and must be unique. To try names before opening a pull request, put the same format in `%LocalAppData%/MMUCS/variables.json` (`~/.local/share/MMUCS` on Linux); it adds to and overrides the built-in file when MMUCS starts. Entries that don't fit are skipped and reported in the log.
-
-[mscripts](tools/mscripts/README.md) is a small command-line tool (Python 3.9+, nothing else) for this. It reads the scripts that **File ▸ Export ▸ Scripts** writes, ranks the unnamed variables, gathers the evidence for one (how it's written, what it's compared with, which commands use it), and writes names into `variables.json` after checking them:
-
-```bash
-mscripts use D:/exports/comi
-mscripts vars --unnamed
-mscripts var 261
-mscripts name 261 cutscene-depth --note "engine runs script 6 (+1) and 7 (-1) around each cut-scene"
-```
-
----
+Contributions are welcome, whether you know old formats well or design interfaces. The most open way to help is [naming the game's script variables](https://github.com/haywirephoenix/MMUCS/wiki/Naming-Variables), which needs no C#. See [Contributing](https://github.com/haywirephoenix/MMUCS/wiki/Contributing) for more.
 
 ## License
 
