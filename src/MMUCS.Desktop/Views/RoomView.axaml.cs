@@ -15,6 +15,7 @@ public partial class RoomView : UserControl
     {
         InitializeComponent();
         Canvas.ObjectContextRequested += OnObjectContextRequested;
+        Canvas.ObjectModifierClicked += OnCanvasModifierClicked;
         // Space toggles the focused object's visibility. Tunnel, so the ListBox doesn't take it first.
         ObjectList.AddHandler(KeyDownEvent, OnObjectListKeyDown, RoutingStrategies.Tunnel);
         ObjectList.ContextRequested += OnObjectListContextRequested;
@@ -22,6 +23,18 @@ public partial class RoomView : UserControl
     }
 
     private bool _syncingSelection;
+
+    /// <summary>Ctrl-click in the room adds or removes the object from the selection; Shift-click adds it.</summary>
+    private void OnCanvasModifierClicked(RoomObject obj, KeyModifiers mods)
+    {
+        if (_vm?.ItemFor(obj) is not { } item || ObjectList.SelectedItems is not { } selected) return;
+        if (selected.Contains(item))
+        {
+            if ((mods & (KeyModifiers.Control | KeyModifiers.Meta)) != 0) selected.Remove(item);
+        }
+        else selected.Add(item);
+        ObjectList.ScrollIntoView(item);
+    }
 
     /// <summary>The list's selection → the view model: all selected, and the last one picked as the current one.</summary>
     private void OnObjectListSelectionChanged(object sender, SelectionChangedEventArgs e)

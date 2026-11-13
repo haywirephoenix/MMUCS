@@ -69,6 +69,10 @@ public sealed class RoomCanvas : SkiaViewport
     public static readonly StyledProperty<IReadOnlyList<SKImage>> ZMasksProperty =
         AvaloniaProperty.Register<RoomCanvas, IReadOnlyList<SKImage>>(nameof(ZMasks));
 
+    /// <summary>Every selected object (the Objects panel's multi-selection), outlined like the current one.</summary>
+    public static readonly StyledProperty<IReadOnlySet<RoomObject>> SelectedObjectsProperty =
+        AvaloniaProperty.Register<RoomCanvas, IReadOnlySet<RoomObject>>(nameof(SelectedObjects));
+
     /// <summary>Whether actors are cut by their z-plane.</summary>
     public static readonly StyledProperty<bool> MaskActorsProperty =
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(MaskActors), true);
@@ -104,6 +108,10 @@ public sealed class RoomCanvas : SkiaViewport
     public LiveCostume LiveCostume { get => GetValue(LiveCostumeProperty); set => SetValue(LiveCostumeProperty, value); }
     public IReadOnlyList<SKImage> ZMasks { get => GetValue(ZMasksProperty); set => SetValue(ZMasksProperty, value); }
     public bool MaskActors { get => GetValue(MaskActorsProperty); set => SetValue(MaskActorsProperty, value); }
+    public IReadOnlySet<RoomObject> SelectedObjects { get => GetValue(SelectedObjectsProperty); set => SetValue(SelectedObjectsProperty, value); }
+
+    /// <summary>A Ctrl- or Shift-click on an object: the view adds it to or toggles it in the selection.</summary>
+    public event Action<RoomObject, KeyModifiers> ObjectModifierClicked;
     public int ZPlaneOverlay { get => GetValue(ZPlaneOverlayProperty); set => SetValue(ZPlaneOverlayProperty, value); }
 
     /// <summary>Raised on a right-click (not a right-drag) with the object under the pointer, or null.</summary>
@@ -122,7 +130,7 @@ public sealed class RoomCanvas : SkiaViewport
             BackgroundImageProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
             ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty, LiveCostumeProperty,
-            ZMasksProperty, MaskActorsProperty, ZPlaneOverlayProperty);
+            ZMasksProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -182,11 +190,24 @@ public sealed class RoomCanvas : SkiaViewport
         LiveCostume,
         MaskActors ? ZMasks : null,
         ZPlaneOverlay >= 0 ? ZMasks : null,
-        ZPlaneOverlay);
+        ZPlaneOverlay,
+        SelectedObjects);
 
     protected override void OnContentClicked(Point p, PointerPressedEventArgs e)
     {
-        SelectedObject = HitTestObject(p);
+        var mods = e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Shift);
+        var hits = HitTestObjects(p);
+        if (mods != KeyModifiers.None)
+        {
+            // Ctrl / Shift: the topmost thing under the pointer joins or leaves the selection.
+            if (hits.Count > 0) ObjectModifierClicked?.Invoke(hits[0], mods);
+        }
+        else
+        {
+            // Clicking what's already selected goes through to the next thing under it (then back to the top).
+            int at = SelectedObject == null ? -1 : hits.IndexOf(SelectedObject);
+            SelectedObject = hits.Count == 0 ? null : hits[(at + 1) % hits.Count];
+        }
         e.Handled = true;
     }
 
@@ -200,21 +221,60 @@ public sealed class RoomCanvas : SkiaViewport
     }
 
     /// <summary>Topmost, smallest object whose rect contains the point (smallest wins for nested objects).</summary>
-    private RoomObject HitTestObject(Point p)
+    private RoomObject HitTestObject(Point p) => HitTestObjects(p).FirstOrDefault();
+
+    /// <summary>
+    /// Everything under a point, topmost first, as it's drawn: actors in reverse draw order (on their
+    /// visible pixels: not see-through, not cut by their z-plane), then object images in reverse draw
+    /// order (on their visible pixels), then image-less hotspots, smallest first.
+    /// </summary>
+    private List<RoomObject> HitTestObjects(Point p)
     {
+        var result = new List<RoomObject>();
         var layers = ObjectLayers;
-        if (layers == null) return null;
-        RoomObject best = null;
-        double bestArea = double.MaxValue;
-        foreach (var l in layers)
+        if (layers == null) return result;
+        var visible = VisibleObjects;
+        bool Shown(RoomObject o) => visible == null || visible.Contains(o);
+        void Add(RoomObject o) { if (!result.Contains(o)) result.Add(o); }
+
+        // Actors, front first: the reverse of SCUMM's draw order.
+        foreach (var l in layers.Where(l => l.CostumeImage != null && Shown(l.Object))
+                                .OrderByDescending(l => l.CostumeDepth).ThenByDescending(l => l.CostumeActor))
         {
-            var o = l.Object;
-            if (o.Width <= 0 || o.Height <= 0) continue;
-            if (p.X < o.X || p.Y < o.Y || p.X >= o.X + o.Width || p.Y >= o.Y + o.Height) continue;
-            double area = (double)o.Width * o.Height;
-            if (area < bestArea) { best = o; bestArea = area; }
+            float s = l.CostumeScale <= 0 ? 1 : l.CostumeScale;
+            double ix = (p.X - l.CostumeX) / s, iy = (p.Y - l.CostumeY) / s;
+            if (!Opaque(l.CostumeImage, ix, iy)) continue;
+            var masks = MaskActors ? ZMasks : null;
+            if (l.CostumeZPlane > 0 && masks != null && l.CostumeZPlane <= masks.Count && Opaque(masks[l.CostumeZPlane - 1], p.X, p.Y))
+                continue; // behind the foreground there
+            Add(l.Object);
         }
-        return best;
+
+        // Object images, front first (later layers are drawn over earlier ones).
+        if (ShowObjects)
+            for (int i = layers.Count - 1; i >= 0; i--)
+            {
+                var l = layers[i];
+                if (l.Image == null || !Shown(l.Object) || ReferenceEquals(l.Object, BackgroundObject)) continue;
+                if (l.Image.Width >= 640 && !ShowFullScreenObjects) continue; // not drawn
+                if (Opaque(l.Image, p.X - l.Object.X, p.Y - l.Object.Y)) Add(l.Object);
+            }
+
+        // Hotspots (objects without a drawn image), smallest first, as before.
+        foreach (var o in layers.Select(l => l.Object)
+                     .Where(o => o.Width > 0 && o.Height > 0 && p.X >= o.X && p.Y >= o.Y && p.X < o.X + o.Width && p.Y < o.Y + o.Height)
+                     .OrderBy(o => (double)o.Width * o.Height))
+            Add(o);
+        return result;
+    }
+
+    /// <summary>Whether an image has a visible pixel at (x, y) in its own pixels.</summary>
+    private static bool Opaque(SKImage image, double x, double y)
+    {
+        int px = (int)Math.Floor(x), py = (int)Math.Floor(y);
+        if (image == null || px < 0 || py < 0 || px >= image.Width || py >= image.Height) return false;
+        using var pixmap = image.PeekPixels();
+        return pixmap == null || pixmap.GetPixelColor(px, py).Alpha > 0; // not raster: count the box
     }
 
     private sealed class Scene : IViewportScene
@@ -231,15 +291,16 @@ public sealed class RoomCanvas : SkiaViewport
         private readonly IReadOnlyList<SKImage> _zMasks;
         private readonly IReadOnlyList<SKImage> _overlayMasks;
         private readonly int _overlayPlane;
+        private readonly IReadOnlySet<RoomObject> _selectedAll;
         private readonly Size _size;
 
         public Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
             IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
-            IReadOnlyList<SKImage> overlayMasks, int overlayPlane)
+            IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll)
         {
             _bg = bg; _drawLayers = drawLayers; _allLayers = allLayers; _boxes = boxes;
             _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject; _visible = visible; _live = live; _zMasks = zMasks;
-            _overlayMasks = overlayMasks; _overlayPlane = overlayPlane;
+            _overlayMasks = overlayMasks; _overlayPlane = overlayPlane; _selectedAll = selectedAll;
         }
 
         private static readonly SKPaint HotspotFill = new() { Color = new SKColor(255, 220, 0, 38), Style = SKPaintStyle.Fill };
@@ -361,12 +422,12 @@ public sealed class RoomCanvas : SkiaViewport
                 }
             }
 
-            if (_allLayers != null && (_hotspots || _selected != null))
+            if (_allLayers != null && (_hotspots || _selected != null || _selectedAll is { Count: > 0 }))
             {
                 foreach (var layer in _allLayers)
                 {
                     var o = layer.Object;
-                    bool isSel = ReferenceEquals(o, _selected);
+                    bool isSel = ReferenceEquals(o, _selected) || _selectedAll?.Contains(o) == true;
                     if (!_hotspots && !isSel) continue;
 
                     int w = o.Width > 0 ? o.Width : 100, h = o.Height > 0 ? o.Height : 100;
