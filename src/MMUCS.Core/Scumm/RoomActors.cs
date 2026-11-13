@@ -36,6 +36,11 @@ public sealed class RoomActor
     /// <summary>actorOps scale: 255 is full size. The frame is scaled about the actor's origin.</summary>
     public int Scale { get; init; } = 255;
     public float ScaleFactor => Math.Clamp(Scale, 1, 255) / 255f;
+    /// <summary>
+    /// The z-plane that masks it (0 for none): its always-zclip plane, or with the default (and after
+    /// ignore-boxes / follow-boxes) the mask of the walkbox it stands in, as the engine does.
+    /// </summary>
+    public int ZPlane { get; init; }
     public bool HasPosition { get; init; }
     public AkosData Data { get; init; }
     /// <summary>The frame shown in the room (the stand/init chore), or null when it draws nothing.</summary>
@@ -94,7 +99,84 @@ public sealed class RoomActor
 public static class RoomActors
 {
     private const byte OpPushWord = 0x01, OpPushVar = 0x02, OpPutActorAtXY = 0xA1, OpAnimateActor = 0xA4, OpActorOps = 0xAC;
-    private const byte SubSetCostume = 0x64, SubElevation = 0x6E, SubScale = 0x73, SubSetCurActor = 0x7A, SubFace = 0x81;
+    private const byte SubSetCostume = 0x64, SubDefault = 0x6D, SubElevation = 0x6E, SubScale = 0x73, SubNeverZClip = 0x74,
+        SubAlwaysZClip = 0x75, SubIgnoreBoxes = 0x76, SubFollowBoxes = 0x77, SubSetCurActor = 0x7A, SubFace = 0x81;
+
+    /// <summary>The engine's "use the walkbox's mask" clip value (v8 scripts write 255 for it).</summary>
+    public const int ClipByBox = 100;
+
+    /// <summary>
+    /// Ops that change an actor's z-clip, as ScummVM's o8_actorOps: default and follow-boxes set it to
+    /// <see cref="ClipByBox"/> and follow the boxes; ignore-boxes does too but leaves the boxes; never-zclip
+    /// sets 0 (no mask); always-zclip N sets N. (position, actor key, clip or null, ignore-boxes or null).
+    /// </summary>
+    private static List<(int Pos, int Actor, int? Clip, bool? Ignore)> ClipOps(ReadOnlySpan<byte> s)
+    {
+        var ops = new List<(int, int, int?, bool?)>();
+        int cur = 0;
+        for (int p = 5; p + 1 < s.Length; p++)
+        {
+            if (s[p] != OpActorOps) continue;
+            byte sub = s[p + 1];
+            if (sub == SubSetCurActor) { cur = ActorArg(s, p, out int a) ? a : 0; continue; }
+            if (cur == 0) continue;
+            switch (sub)
+            {
+                case SubDefault or SubFollowBoxes: ops.Add((p, cur, ClipByBox, false)); break;
+                case SubIgnoreBoxes: ops.Add((p, cur, ClipByBox, true)); break;
+                case SubNeverZClip: ops.Add((p, cur, 0, null)); break;
+                case SubAlwaysZClip when Const(s, p, out int n): ops.Add((p, cur, n == 255 ? ClipByBox : n, null)); break;
+            }
+        }
+        return ops;
+    }
+
+    private static (int Clip, bool Ignore) FoldClip(List<(int Pos, int Actor, int? Clip, bool? Ignore)> ops, int actor, int after, int before, (int Clip, bool Ignore) state)
+    {
+        foreach (var op in ops)
+            if (op.Actor == actor && op.Pos > after && op.Pos < before)
+                state = (op.Clip ?? state.Clip, op.Ignore ?? state.Ignore);
+        return state;
+    }
+
+    /// <summary>The mask of the walkbox at a point (box 0's for an actor that ignores boxes), as ScummVM's getMaskFromBox.</summary>
+    private static int BoxMask(RoomModel room, int x, int y, bool ignoreBoxes)
+    {
+        var boxes = room.Walkboxes;
+        if (boxes.Count == 0) return 0;
+        if (ignoreBoxes) return (int)(boxes.FirstOrDefault(b => b.Index == 0).Mask & 0xFF);
+        Walkbox? best = null;
+        double bestDist = double.MaxValue;
+        foreach (var b in boxes)
+        {
+            if (b.IsPlaceholder) continue;
+            var c = new[] { b.UpperLeft, b.UpperRight, b.LowerRight, b.LowerLeft };
+            if (Inside(c, x, y)) return (int)(b.Mask & 0xFF);
+            // Otherwise the nearest box, as the engine moves an actor into one.
+            int minX = c.Min(p => p.X), maxX = c.Max(p => p.X), minY = c.Min(p => p.Y), maxY = c.Max(p => p.Y);
+            double dx = Math.Max(0, Math.Max(minX - x, x - maxX)), dy = Math.Max(0, Math.Max(minY - y, y - maxY));
+            double d = dx * dx + dy * dy;
+            if (d < bestDist) { bestDist = d; best = b; }
+        }
+        return best is { } nb ? (int)(nb.Mask & 0xFF) : 0;
+    }
+
+    /// <summary>Whether a point is inside (or on the edge of) a convex quad, either winding.</summary>
+    private static bool Inside(BoxPoint[] q, int x, int y)
+    {
+        int sign = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            var a = q[i];
+            var b = q[(i + 1) % 4];
+            long cross = (long)(b.X - a.X) * (y - a.Y) - (long)(b.Y - a.Y) * (x - a.X);
+            if (cross == 0) continue;
+            int sg = Math.Sign(cross);
+            if (sign == 0) sign = sg;
+            else if (sg != sign) return false;
+        }
+        return true;
+    }
     private const byte OpAdd = 0x0E, OpSub = 0x0F, OpMul = 0x10, OpDiv = 0x11;
 
     private static readonly object Sync = new();
@@ -347,7 +429,8 @@ public static class RoomActors
         var placed = new List<RoomActor>();
         var scriptOf = new Dictionary<RoomActor, int>();
         var seen = new HashSet<(int, int, int, int)>();
-        foreach (var (si, (actor, costume, x, y, elevation, anim, dir, via, scale)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
+        int planes = ZPlanes.Count(room);
+        foreach (var (si, (actor, costume, x, y, elevation, anim, dir, via, scale, clip, ignoreBoxes)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
         {
             // An actor number wears a costume once; an actor in a variable is a different actor at
             // each spot it's put (the fortbase chickens), so each spot is kept.
@@ -366,6 +449,8 @@ public static class RoomActors
             {
                 Actor = Math.Max(0, actor), Costume = costume, Akos = akos, X = x, Y = y, Elevation = elevation, HasPosition = true,
                 Data = d, Frame = f, IsPlayer = actor == player, DressedBy = via, Scale = scale,
+                // Clamped to the room's top plane, like the engine.
+                ZPlane = Math.Clamp(clip == ClipByBox ? BoxMask(room, x, y, ignoreBoxes) : clip, 0, planes),
             };
             placed.Add(entry);
             scriptOf[entry] = si;
@@ -541,8 +626,10 @@ public static class RoomActors
     /// nonzero third argument and 67/68 for zero.</param>
     /// <param name="Scale">The scale it sets after the costume (-1 for none), or <paramref name="ScaleParam"/>, the
     /// parameter it takes the scale from (script 88: "actor local0 scale local1").</param>
+    /// <param name="Clip">Its z-clip once the script has set it up (<see cref="ClipByBox"/> when it doesn't), and
+    /// <paramref name="IgnoreBoxes"/>, whether it then ignores the walkboxes.</param>
     internal readonly record struct ParamCostume(int Param, int Costume, int Anim, int Dir, int WhenParam = -1, bool WhenTrue = false,
-        int Scale = -1, int ScaleParam = -1);
+        int Scale = -1, int ScaleParam = -1, int Clip = ClipByBox, bool IgnoreBoxes = false);
 
     private const byte OpIf = 0x64, OpIfNot = 0x65, OpJump = 0x66, OpNot = 0x07;
 
@@ -593,6 +680,7 @@ public static class RoomActors
                 scales.Add((p, cur, Const(s, p, out _), sc));
         }
         var anims = Animations(s);
+        var clips = ClipOps(s);
         foreach (var c in sets)
         {
             if (c.Actor >= 0) continue;
@@ -612,8 +700,10 @@ public static class RoomActors
                 if (sc.IsConst) scale = sc.Value;
                 else if (((sc.Value - int.MinValue) & LocalVar) != 0) scaleParam = (sc.Value - int.MinValue) & ~LocalVar;
             }
+            // Its clip after the whole setup, whichever branch each op is in.
+            var (clip, ignore) = FoldClip(clips, c.Actor, -1, int.MaxValue, (ClipByBox, false));
             if (!result.Any(r => r.Param == param && r.Costume == c.Costume))
-                result.Add(new ParamCostume(param, c.Costume, anim, dir, guard?.Param ?? -1, guard?.WhenTrue ?? false, scale, scaleParam));
+                result.Add(new ParamCostume(param, c.Costume, anim, dir, guard?.Param ?? -1, guard?.WhenTrue ?? false, scale, scaleParam, clip, ignore));
         }
         return result;
     }
@@ -669,12 +759,17 @@ public static class RoomActors
     /// between the costume and the placement. With <paramref name="dressers"/>, a call to a script that
     /// dresses its parameter (start-script 88(local2, …)) counts as dressing the actor passed.
     /// </summary>
-    internal static List<(int Actor, int Costume, int X, int Y, int Elevation, int Anim, int Dir, int Via, int Scale)> ScanScript(
+    internal readonly record struct Placement(int Actor, int Costume, int X, int Y, int Elevation, int Anim, int Dir, int Via, int Scale,
+        int Clip, bool IgnoreBoxes);
+
+    internal static List<Placement> ScanScript(
         ReadOnlySpan<byte> s, int roomNo, Func<int, IReadOnlyList<ParamCostume>> dressers = null)
     {
-        var costumes = CostumeSets(s).Select(c => (c.Pos, c.Actor, c.Costume, Anim: (int?)null, Dir: (int?)null, Via: -1, Scale: (int?)null)).ToList();
+        var costumes = CostumeSets(s).Select(c => (c.Pos, c.Actor, c.Costume, Anim: (int?)null, Dir: (int?)null, Via: -1, Scale: (int?)null,
+            Clip: ((int Clip, bool Ignore)?)null)).ToList();
         foreach (var (pos, script, actor, pc, scale) in DressingCalls(s, dressers))
-            costumes.Add((pos, actor, pc.Costume, pc.Anim, pc.Dir, script, scale));
+            costumes.Add((pos, actor, pc.Costume, pc.Anim, pc.Dir, script, scale, (pc.Clip, pc.IgnoreBoxes)));
+        var clips = ClipOps(s);
         costumes.Sort((a, b) => a.Pos.CompareTo(b.Pos));
         var anims = Animations(s);
         var faces = new List<(int Pos, int Actor, int Dir)>(); // Dir in degrees
@@ -708,7 +803,7 @@ public static class RoomActors
             }
         }
 
-        var pairs = new List<(int, int, int, int, int, int, int, int, int)>();
+        var pairs = new List<Placement>();
         foreach (var c in costumes)
         {
             // Until the actor's next costume change in this script (a call offering several costumes
@@ -745,7 +840,13 @@ public static class RoomActors
                 // call that dressed it passes.
                 int scale = !inWindow ? 255 : scales.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < b.Pos)
                                                     .Select(e => e.Scale).DefaultIfEmpty(c.Scale ?? 255).Last();
-                pairs.Add((c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir, c.Via, scale));
+                // The z-clip it's drawn with: what this script sets on it until its next costume (it applies
+                // whenever it's drawn, so after the placement too). A dressing call starts from what the
+                // callee set up; otherwise from the start of the script, from the engine's default.
+                var (clip, ignore) = c.Clip is { } start
+                    ? FoldClip(clips, c.Actor, c.Pos, until, start)
+                    : FoldClip(clips, c.Actor, -1, until, (ClipByBox, false));
+                pairs.Add(new Placement(c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir, c.Via, scale, clip, ignore));
             }
         }
         return pairs;
@@ -782,7 +883,7 @@ public static class RoomActors
             result.Add(new RoomActor
             {
                 Actor = p.Actor, Actors = layers.Select(l => l.Actor).Distinct().ToList(), Costume = p.Costume, Akos = p.Akos,
-                X = p.X, Y = p.Y, Elevation = p.Elevation, Scale = p.Scale, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
+                X = p.X, Y = p.Y, Elevation = p.Elevation, Scale = p.Scale, ZPlane = p.ZPlane, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
             });
         }
         return result;

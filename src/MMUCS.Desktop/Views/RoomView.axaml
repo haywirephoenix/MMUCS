@@ -30,6 +30,12 @@
                         IsChecked="{Binding ShowLabels, Mode=OneWay}" Command="{Binding ToggleLabelsCommand}" />
               <MenuItem Header="Room bounds" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowBounds, Mode=OneWay}" Command="{Binding ToggleBoundsCommand}" />
+              <MenuItem Header="Z-plane masking" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ZPlaneMasking, Mode=OneWay}" Command="{Binding ToggleZPlaneMaskingCommand}"
+                        ToolTip.Tip="Hide the parts of actors behind the room's foreground, as the game does" />
+              <MenuItem Header="Draw z-planes" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowZPlanes, Mode=OneWay}" Command="{Binding ToggleZPlanesCommand}"
+                        ToolTip.Tip="Tint the room's z-planes (plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan)" />
             </MenuFlyout>
           </Button.Flyout>
         </Button>
@@ -42,6 +48,9 @@
         <TextBlock Text="Palette" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
         <NumericUpDown Value="{Binding PaletteIndex}" Minimum="0" Maximum="{Binding MaxPaletteIndex}"
                        IsEnabled="{Binding HasPaletteChoices}" Increment="1" FormatString="0" Width="96" Margin="0,0,12,0" />
+        <ComboBox ItemsSource="{Binding ZPlaneChoices}" SelectedIndex="{Binding ZPlaneShown}" IsVisible="{Binding ShowZPlanes}"
+                  MinWidth="110" Margin="0,0,12,0" FontSize="12"
+                  ToolTip.Tip="The z-plane to draw: plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan" />
         <Button Content="Fit" Click="OnFitClick" Margin="0,0,4,0" ToolTip.Tip="Zoom to fit (F / double-click)" />
         <Button Content="1:1" Click="OnActualClick" ToolTip.Tip="Actual pixels (1)" Margin="0,0,12,0" />
         <ToggleButton Content="Objects" IsChecked="{Binding ShowObjectsPanel}" ToolTip.Tip="Show / hide the Objects panel" />
@@ -71,7 +80,10 @@
                     BackgroundObject="{Binding BackgroundObject}"
                     VisibleObjects="{Binding VisibleObjects}"
                     HoldScene="{Binding IsSwitchingRoom}"
-                    LiveCostume="{Binding LiveCostume}" />
+                    LiveCostume="{Binding LiveCostume}"
+                    ZMasks="{Binding ZMasks}"
+                    MaskActors="{Binding ZPlaneMasking}"
+                    ZPlaneOverlay="{Binding ZPlaneOverlay}" />
 
       <GridSplitter x:Name="ObjectsSplitter" Grid.Column="1" ResizeDirection="Columns" />
 

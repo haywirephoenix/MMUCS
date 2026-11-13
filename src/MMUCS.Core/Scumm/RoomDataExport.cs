@@ -279,6 +279,7 @@ public static class RoomDataExport
                 // Drawn this far above y: the picture's origin is at y - elevation.
                 if (a.Elevation != 0) w.WriteNumber("elevation", a.Elevation);
                 if (a.Scale != 255) w.WriteNumber("scale", a.Scale);
+                if (a.ZPlane > 0) w.WriteNumber("zplane", a.ZPlane);
                 if (a.IsPlayer) w.WriteBoolean("player", true);
                 w.WriteEndObject();
             }
