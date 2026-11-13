@@ -106,3 +106,15 @@ public class RoomActorsScanTests
         Assert.False(RoomActors.Const(Script(new byte[] { 0x02, 1, 0, 0, 0 }), 29, out _)); // a variable
     }
 }
+
+public class RoomObjectStatesTests
+{
+    [Theory]
+    [InlineData(0, 3, 0)]  // hidden: the first image, should it be shown by hand
+    [InlineData(1, 3, 0)]  // state N shows image N
+    [InlineData(2, 3, 1)]
+    [InlineData(9, 3, 2)]  // past the last image: the last
+    [InlineData(2, 0, 0)]
+    public void A_state_shows_its_image(int state, int frames, int frame)
+        => Assert.Equal(frame, RoomObjectStates.FrameFor(state, frames));
+}
