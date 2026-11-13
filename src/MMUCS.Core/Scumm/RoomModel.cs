@@ -36,6 +36,8 @@ public sealed class RoomModel
     public int PaletteCount { get; init; }
     public IReadOnlyList<RoomObject> Objects { get; init; } = Array.Empty<RoomObject>();
     public IReadOnlyList<Walkbox> Walkboxes { get; init; } = Array.Empty<Walkbox>();
+    /// <summary>The room's scale slots (SCAL), which walkboxes may scale their actors by.</summary>
+    public IReadOnlyList<ScaleSlot> ScaleSlots { get; init; } = Array.Empty<ScaleSlot>();
 
     /// <summary>Resolves a room from any block inside (or equal to) an LFLF.</summary>
     public static bool TryCreate(ScummBlock any, out RoomModel model)
@@ -106,6 +108,7 @@ public sealed class RoomModel
             PaletteCount = Math.Max(1, info.TotalPalettes),
             Objects = objects,
             Walkboxes = Scumm.Walkboxes.Parse(room.FindChildRecursive(ScummTag.BOXD)),
+            ScaleSlots = Scumm.Walkboxes.ParseScaleSlots(room.FindChildRecursive(ScummTag.SCAL)),
         };
         return true;
     }

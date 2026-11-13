@@ -1220,6 +1220,8 @@ def start_rows(game: "Game", room: "Room") -> List[dict]:
                 why = "the player"
             elif p.get("when") in ("cutscene", "later"):
                 why = WHEN_TEXT[p["when"]]
+            elif p.get("first_visit") is False:
+                why = "not on a first visit (a condition around it fails with every bit at 0)"
             elif p.get("when") in ("entry", "entry-if"):
                 why = f"another costume of actor {actor} starts" if actor else "another costume starts here"
             else:
