@@ -288,6 +288,7 @@ public static class RoomDataExport
                 if (a.Elevation != 0) w.WriteNumber("elevation", a.Elevation);
                 if (a.Scale != 255) w.WriteNumber("scale", a.Scale);
                 if (a.ZPlane > 0) w.WriteNumber("zplane", a.ZPlane);
+                if (WhenText(a.When) is { } when) w.WriteString("when", when);
                 // Drawn in front of the actors its script takes out of the room while it plays.
                 if (a.SortY != a.Y) w.WriteNumber("sort_y", a.SortY);
                 if (a.Removes.Count > 0) WriteInts(w, "removes", a.Removes);
@@ -299,6 +300,16 @@ public static class RoomDataExport
         }
         w.WriteEndArray();
     }
+
+    /// <summary>"entry", "entry-if", "cutscene" or "later" (null when not worked out).</summary>
+    public static string WhenText(PlacementTime t) => t switch
+    {
+        PlacementTime.OnEntry => "entry",
+        PlacementTime.OnEntryIf => "entry-if",
+        PlacementTime.Cutscene => "cutscene",
+        PlacementTime.Later => "later",
+        _ => null,
+    };
 
     private static void WriteInts(Utf8JsonWriter w, string name, IEnumerable<int> values)
     {

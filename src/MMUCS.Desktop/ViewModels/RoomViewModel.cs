@@ -32,12 +32,12 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
     /// <summary>A costume no object claims, listed on its own (its object is a stand-in for its frame).</summary>
     public bool IsActorOnly { get; init; }
     public string Summary => IsActorOnly ? ActorSummary(Costume)
-        : (Costume != null ? $"{Object.Summary}   costume {Costume.Costume}{(Costume.IsLinked ? " (linked)" : "")}" : Object.Summary)
+        : (Costume != null ? $"{Object.Summary}   costume {Costume.Costume}{(Costume.IsLinked ? " (linked)" : "")}{WhenText(Costume)}" : Object.Summary)
           + (Object.ImageCount > 0 && InitialState is int st ? $"   state {st}{(st == 0 ? " (hidden on entry)" : "")}" : "");
     /// <summary>The object's state when the room is entered (see <see cref="RoomObjectStates"/>), for objects with an image.</summary>
     public int? InitialState { get; init; }
     /// <summary>Whether it's shown when the room opens; Reset puts every entry back to this.</summary>
-    public bool InitialVisible { get; init; } = true;
+    public bool InitialVisible { get; set; } = true;
     /// <summary>
     /// Where the scripts put a costume no object claims: its position as the script writes it (with the
     /// elevation that lifts it), or why it has none.
@@ -45,11 +45,21 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
     private static string ActorSummary(RoomActor a) => a switch
     {
         null => "",
-        { HasPosition: true, Elevation: 0 } => $"placed at {a.X},{a.Y}",
-        { HasPosition: true } => $"placed at {a.X},{a.Y}, elevation {a.Elevation} (drawn at {a.X},{a.DrawY})",
+        { HasPosition: true, Elevation: 0 } => $"placed at {a.X},{a.Y}{WhenText(a)}",
+        { HasPosition: true } => $"placed at {a.X},{a.Y}, elevation {a.Elevation} (drawn at {a.X},{a.DrawY}){WhenText(a)}",
         { Actor: > 0 } => "placed at runtime (the script's position isn't a constant)",
         _ => "dressed at runtime (no script sets this costume with a constant)",
     };
+
+    /// <summary>When the game puts a costume in the room, for the panel: "   on entry", "   in a cutscene" ….</summary>
+    private static string WhenText(RoomActor a) => (a.When switch
+    {
+        PlacementTime.OnEntry => "   on entry",
+        PlacementTime.OnEntryIf => "   on entry (conditional)",
+        PlacementTime.Cutscene => "   in a cutscene",
+        PlacementTime.Later => "   later (a verb or another script)",
+        _ => "",
+    }) + (a.IsPlayer ? ", player" : "") + (a.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf && !a.StartsShown && !a.IsPlayer ? ", another costume starts" : "");
 
     [ObservableProperty] private bool _isVisible = true;
     /// <summary>The review marks that include it (Mark for review…), alone or with other entries.</summary>
@@ -147,6 +157,7 @@ public sealed partial class RoomViewModel : ObservableObject
     public void SetAllVisible(bool visible) => SetVisibility(_ => visible);
 
     private Dictionary<RoomObject, int> _initialStates = new();
+    private bool _startVisibilityApplied;
 
     /// <summary>Puts every entry's visibility back to how the room opened: objects by their state on entry.</summary>
     [RelayCommand] private void ResetVisibility() => SetVisibility(o => o.InitialVisible);
@@ -351,6 +362,7 @@ public sealed partial class RoomViewModel : ObservableObject
         try { states = RoomObjectStates.Initial(room); }
         catch (Exception ex) { Log.Warn($"Object states for room {room.RoomNo}: {ex.Message}"); states = new(); }
         _initialStates = states;
+        _startVisibilityApplied = false;
         _objectPlanes.Clear();
         _zMaskKey = null;
         try
@@ -487,10 +499,19 @@ public sealed partial class RoomViewModel : ObservableObject
 
         // The analysis may be cached from another RoomModel of the same room, so match by OBIM block.
         _actorTargets = new Dictionary<RoomActor, RoomObject>();
+        // The first analysis of a room sets how its costumes start (later ones, after a link change, keep
+        // what the user toggled): a hotspot's costume shows only if it's there as the room opens.
+        bool applyStart = !_startVisibilityApplied;
+        _startVisibilityApplied = true;
         foreach (var item in Objects)
         {
             item.Costume = _actors.FirstOrDefault(a => a.Object != null && ReferenceEquals(a.Object.Block, item.Object.Block));
             if (item.Costume is { CanDraw: true } a) _actorTargets[a] = item.Object;
+            if (applyStart && item.Object.ImageCount <= 0 && item.Costume is { CanDraw: true } c)
+            {
+                item.InitialVisible = c.StartsShown;
+                item.IsVisible = ShowObjects && c.StartsShown;
+            }
         }
 
         {
@@ -507,7 +528,9 @@ public sealed partial class RoomViewModel : ObservableObject
                     Height = b is { } r2 ? r2.Bottom - r2.Top : 0,
                     Block = actor.Akos,
                 };
-                var item = new RoomObjectItem(standIn) { IsActorOnly = true, Costume = actor, IsVisible = ShowUnmatchedCostumes, InitialVisible = ShowUnmatchedCostumes };
+                // Shown as the room opens only when the game has it there then (not the player, not a
+                // cutscene's or a verb's costume); Unmatched costumes in the View menu shows or hides them all.
+                var item = new RoomObjectItem(standIn) { IsActorOnly = true, Costume = actor, IsVisible = actor.StartsShown, InitialVisible = actor.StartsShown };
                 item.PropertyChanged += OnItemChanged;
                 Objects.Add(item);
                 if (actor.CanDraw) _actorTargets[actor] = standIn;
