@@ -3,6 +3,8 @@
 # ==========================================
 TODO.MD
 layout.user.json
+# Agent instructions, kept local
+CLAUDE.md
 
 # ==========================================
 # C# / .NET / Mono Specific
