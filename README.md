@@ -95,15 +95,35 @@ Please let me know if I missed any decoding formats in Scumm V8 - feel free to a
 
 ### Naming script variables
 
-SCUMM compiles variable names away, so the Script viewer shows most of the game's globals as `var261`, `var600` and so on. The engine's own variables (`ego`, `current-room`, `have-msg`, ...) are named from ScummVM; the rest are collected in [variables.json](src/MMUCS.Core/Names/variables.json) as people work out what they do.
-
-To name one, add it under `Globals` (or `Bits` for `bitN`) with a `Note` saying how you know:
-
-```json
-"266": { "Name": "cursor-object", "Note": "cursor image var266, load-object var266 in 250+ scripts" }
-```
+SCUMM compiles variable names away, so the Script viewer shows most of the game's globals as `var600`, `var630` and so on. The engine's own variables (`ego`, `current-room`, `have-msg`, ...) are named from ScummVM; the rest are collected in [variables.json](src/MMUCS.Core/Names/variables.json) as people work out what they do. Each entry has a `Name` and a `Note` saying how you know; an entry with an empty name tracks a variable that's still being worked out.
 
 Names are lower-case kebab-case, each part starting with a letter, and must be unique. To try names before opening a pull request, put the same format in `%LocalAppData%/MMUCS/variables.json` (`~/.local/share/MMUCS` on Linux); it adds to and overrides the built-in file when MMUCS starts. Entries that don't fit are skipped and reported in the log.
+
+#### mscripts
+
+[tools/mscripts](tools/mscripts) is a command-line tool for reading the decompiled scripts and gathering the evidence for a name. It needs Python 3.9 or newer and nothing else, and reads the tree that **File ▸ Export ▸ Scripts** writes.
+
+```bash
+mscripts use D:/exports/comi          # the folder holding scripts/
+mscripts vars --unnamed               # the most widely used variables without a name
+mscripts var 261                      # how one variable is written, compared, passed to commands
+mscripts search "cutscene-(start|end)-script ="
+mscripts name 261 cutscene-depth --note "engine runs script 6 (+1) and 7 (-1) around each cut-scene"
+```
+
+| Command | What it does |
+|---|---|
+| `use [DIR]` | Remembers the export to read (or shows it) |
+| `rooms` | Lists rooms and their script counts |
+| `script WHERE` | Prints a script: `global 6`, `9 local_2006`, `9 entry`, or part of a path |
+| `search REGEX` | Finds lines; `--in ROOM` (number or name), `--global`, `--rooms`, `-C N`, `--count`, `-l` |
+| `calls N` | Lists who starts, calls or chains to script `N` |
+| `vars` | Ranks variables by how many scripts use them, with their status (`engine`, `named`, `tracked`) |
+| `var V` | Shows one variable's evidence: its writes (constants, increments, expressions), comparisons, truth tests, the commands and calls it's passed to, what it's copied into, and the rooms using it |
+| `name V NAME --note TEXT` | Checks the name and writes it to `variables.json` (`--local` for the app data copy) |
+| `note V TEXT` | Tracks a variable with a note, without naming it |
+
+`V` is a number, `varN`, `bitN` or a name. Names given with `mscripts name` resolve straight away; re-export from MMUCS to see them in the files and the Script viewer. On Windows, add `tools/mscripts` to your PATH to run `mscripts` from anywhere (`mscripts.bat` for cmd and PowerShell, `mscripts` for Git Bash), or run `python tools/mscripts/mscripts.py`. Its tests run with `python -m unittest test_mscripts` from that folder.
 
 ---
 

@@ -2,127 +2,127 @@
   "Globals": {
     "200": {
       "Name": "",
-      "Note": "Not named yet. 179 refs in 113 scripts."
+      "Note": ""
     },
     "201": {
       "Name": "",
-      "Note": "Not named yet. 697 refs in 121 scripts."
+      "Note": ""
     },
     "208": {
       "Name": "",
-      "Note": "Not named yet. 4752 refs in 54 scripts."
+      "Note": ""
     },
     "234": {
       "Name": "",
-      "Note": "Not named yet. 285 refs in 52 scripts."
+      "Note": ""
     },
     "254": {
       "Name": "",
-      "Note": "Not named yet. 1029 refs in 51 scripts."
+      "Note": ""
     },
     "255": {
       "Name": "",
-      "Note": "Not named yet. 714 refs in 50 scripts."
+      "Note": ""
     },
     "256": {
       "Name": "",
-      "Note": "Not named yet. 2849 refs in 51 scripts."
+      "Note": ""
     },
     "261": {
-      "Name": "",
-      "Note": "Unconfirmed: incremented only in global script 6 and decremented in 7; global script 111's idle loop waits on it. Possibly a busy/don't-interrupt counter."
+      "Name": "cutscene-depth",
+      "Note": "Cutscene nesting depth: global script 1 sets cutscene-start-script = 6 and cutscene-end-script = 7; the engine runs 6 at each cut-scene (var261 + 1, cursor and userput soft-off) and 7 at its end (var261 - 1, back on). Scripts wait while it is non-zero, e.g. Wally in 009_cannon local_2006."
     },
     "266": {
       "Name": "cursor-object",
-      "Note": "The inventory object on the cursor: 'cursor image var266 frame 1', 'load-object var266', 'class-of var266' (2812 refs in 252 scripts)."
+      "Note": "The inventory object on the cursor: set to object ids (117-274) in object scripts, used with 'cursor image', 'load-object' and 'class-of'."
     },
     "268": {
       "Name": "",
-      "Note": "Not named yet. 1945 refs in 51 scripts."
+      "Note": ""
     },
     "290": {
       "Name": "",
-      "Note": "Not named yet. 704 refs in 144 scripts."
+      "Note": ""
     },
     "291": {
       "Name": "",
-      "Note": "Not named yet. 540 refs in 139 scripts."
+      "Note": ""
     },
     "292": {
       "Name": "",
-      "Note": "Not named yet. 260 refs in 137 scripts."
+      "Note": ""
     },
     "300": {
       "Name": "",
-      "Note": "Not named yet. 382 refs in 173 scripts."
+      "Note": ""
     },
     "301": {
       "Name": "",
-      "Note": "Not named yet. 147 refs in 130 scripts."
+      "Note": ""
     },
     "312": {
       "Name": "",
-      "Note": "Not named yet. 159 refs in 67 scripts."
+      "Note": ""
     },
     "315": {
       "Name": "",
-      "Note": "Not named yet. 345 refs in 83 scripts."
+      "Note": ""
     },
     "329": {
       "Name": "",
-      "Note": "Not named yet. 151 refs in 51 scripts."
+      "Note": ""
     },
     "594": {
       "Name": "",
-      "Note": "Not named yet. 1822 refs in 50 scripts."
+      "Note": ""
     },
     "596": {
       "Name": "",
-      "Note": "Not named yet. 914 refs in 50 scripts."
+      "Note": ""
     },
     "602": {
       "Name": "",
-      "Note": "Not named yet. 2849 refs in 51 scripts."
+      "Note": ""
     },
     "603": {
       "Name": "",
-      "Note": "Not named yet. 3164 refs in 55 scripts."
+      "Note": ""
     },
     "604": {
       "Name": "",
-      "Note": "Not named yet. 2859 refs in 53 scripts."
+      "Note": ""
     },
     "605": {
       "Name": "",
-      "Note": "Not named yet. 2849 refs in 51 scripts."
+      "Note": ""
     },
     "607": {
       "Name": "",
-      "Note": "Not named yet. 1150 refs in 52 scripts."
+      "Note": ""
     },
     "609": {
       "Name": "",
-      "Note": "Not named yet. 1874 refs in 51 scripts."
+      "Note": ""
     },
     "611": {
       "Name": "",
-      "Note": "Not named yet. 419 refs in 208 scripts."
+      "Note": ""
     },
     "624": {
       "Name": "",
-      "Note": "Not named yet. 201 refs in 51 scripts."
+      "Note": ""
     },
     "625": {
       "Name": "",
-      "Note": "Not named yet. 806 refs in 51 scripts."
+      "Note": ""
     },
     "630": {
       "Name": "",
-      "Note": "Not named yet. 395 refs in 298 scripts."
+      "Note": ""
     },
     "643": {
       "Name": "",
-      "Note": "Not named yet. 427 refs in 209 scripts."
+      "Note": ""
     }
   },
   "Bits": {}

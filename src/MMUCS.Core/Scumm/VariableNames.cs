@@ -74,6 +74,37 @@ public static class VariableNames
     /// <summary>True for any name this gives a variable (engine or mapped).</summary>
     public static bool IsName(string name) => _maps.Value.Names.Contains(name);
 
+    /// <summary>True when global <paramref name="n"/> is one the engine itself uses.</summary>
+    public static bool IsEngine(int n) => EngineVars.ContainsKey(n);
+
+    /// <summary>Every named global (engine and mapped), as used by the decompiler.</summary>
+    public static IReadOnlyDictionary<int, string> Globals => _maps.Value.Globals;
+
+    /// <summary>Every named bit variable.</summary>
+    public static IReadOnlyDictionary<int, string> Bits => _maps.Value.Bits;
+
+    /// <summary>
+    /// The names an export used, as JSON: { "Globals": { "15": { "Name": "have-msg", "Source": "engine" } }, "Bits": { … } },
+    /// so tools reading the export can turn names back into numbers.
+    /// </summary>
+    public static string IndexJson()
+    {
+        static Dictionary<string, object> Section(IReadOnlyDictionary<int, string> names, bool globals)
+        {
+            var d = new Dictionary<string, object>();
+            foreach (var n in new SortedSet<int>(names.Keys))
+                d[n.ToString()] = new { Name = names[n], Source = globals && EngineVars.ContainsKey(n) ? "engine" : "map" };
+            return d;
+        }
+        var doc = new
+        {
+            Note = "Variable names used in this export (engine: fixed by the engine; map: from variables.json). Written by MMUCS.",
+            Globals = Section(Globals, true),
+            Bits = Section(Bits, false),
+        };
+        return JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true }).Replace("\r\n", "\n") + "\n";
+    }
+
     // ── Loading ──
 
     /// <summary>One file: { "Globals": { "266": { "Name": "...", "Note": "..." } }, "Bits": { ... } }.</summary>

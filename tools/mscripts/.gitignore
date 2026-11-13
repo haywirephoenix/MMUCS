@@ -1,0 +1,4 @@
+# The export folder saved by `mscripts use`.
+.export
+__pycache__/
+.venv/

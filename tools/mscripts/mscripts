@@ -1,0 +1,6 @@
+#!/bin/sh
+# Git Bash can't run mscripts.bat by name, so this does the same job there.
+here=$(dirname "$(readlink -f "$0")")
+python_exe=python
+[ -x "$here/.venv/Scripts/python.exe" ] && python_exe="$here/.venv/Scripts/python.exe"
+exec "$python_exe" "$here/mscripts.py" "$@"

@@ -123,6 +123,14 @@ public class ScummExporters
                     }
                 }
             }
+            if (options.Scripts)
+            {
+                // Lets tools reading the export (tools/mscripts) map names back to variable numbers.
+                string dir = Path.Combine(outputFolder, "scripts");
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "variables.index.json"), VariableNames.IndexJson());
+                written++;
+            }
             Report("Done");
             return new ExportSummary(written, failures, sw.Elapsed, false, outputFolder);
         }
