@@ -9,9 +9,10 @@ namespace MMUCS.Core.Scumm;
 /// The state each object image is in when the player enters a room. SCUMM draws an object's image
 /// only while its state is nonzero, and state N shows the object's image N. An object starts in the
 /// state the game's object table (DOBJ) gives it; the room's entry script and the local scripts it
-/// starts then set some with "state-of OBJ is N". Only those set unconditionally count (top-level
-/// lines, not inside an if or loop), so this is the room as it looks before anything the player has
-/// done changes it.
+/// starts then set some with "state-of OBJ is N". Those set unconditionally count, and those inside
+/// conditions known to hold on a fresh game (bit variables 0, the objects' starting classes: pistols'
+/// "if (class-of(lid) is [32]) … else state 1"), so this is the room as it looks before anything the
+/// player has done changes it.
 /// </summary>
 public static class RoomObjectStates
 {
@@ -29,10 +30,12 @@ public static class RoomObjectStates
         // Start states by name (object images only know their name) and by id.
         var byName = new Dictionary<string, int>(StringComparer.Ordinal);
         var byId = new Dictionary<int, string>();
+        var classes = new Dictionary<int, uint>();
         foreach (var o in RoomDataExport.ReadObjectTable(root))
         {
             byName.TryAdd(o.Name, o.State);
             byId.TryAdd(o.Id, o.Name);
+            classes.TryAdd(o.Id, o.Classes);
         }
 
         var scripts = RoomScripts.List(room.Lflf);
@@ -48,7 +51,10 @@ public static class RoomObjectStates
             List<ScriptLine> lines;
             try { lines = RoomScripts.Decompile(e); }
             catch { return; } // a script that doesn't decompile sets nothing we can read
-            foreach (var line in lines.Where(l => l.Indent == 0))
+            var part = e.Parts.FirstOrDefault();
+            var branches = PlacementTiming.Branches(e.Block.DataSpan, part.Start, part.End, room.RoomNo,
+                id => classes.TryGetValue(id, out uint c) ? c : null);
+            foreach (var line in lines.Where(l => l.Indent == 0 || (l.Offset >= 0 && PlacementTiming.Surely(branches, l.Offset))))
             {
                 string t = line.Text.Trim();
                 if (SetState.Match(t) is { Success: true } m)

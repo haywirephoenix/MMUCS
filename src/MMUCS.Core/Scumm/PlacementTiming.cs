@@ -33,9 +33,12 @@ internal sealed class PlacementTiming
 
     private readonly Dictionary<ScummBlock, List<ScriptLine>> _lines = new();
     private readonly HashSet<ScummBlock> _onEntry = new();
+    private readonly Dictionary<ScummBlock, List<Branch>> _branches = new();
+    private readonly int _room;
 
-    public PlacementTiming(IEnumerable<ScummBlock> scripts)
+    public PlacementTiming(IEnumerable<ScummBlock> scripts, int roomNo = -1)
     {
+        _room = roomNo;
         var all = scripts.ToList();
         var locals = new Dictionary<int, ScummBlock>();
         foreach (var b in all.Where(b => b.Tag == ScummTag.LSCR && b.DataLength >= 4))
@@ -74,6 +77,142 @@ internal sealed class PlacementTiming
             if (time > worst) worst = time;
         }
         return worst == PlacementTime.Unknown ? (RunsOnEntry(script) ? PlacementTime.OnEntryIf : PlacementTime.Later) : worst;
+    }
+
+    /// <summary>
+    /// Whether code at these positions runs on a fresh game's first visit, as far as the conditions around
+    /// it can be read: every bit variable is 0 then, and the current room is this room; other variables
+    /// and function results aren't known, and an unknown condition doesn't hold anything back. False when
+    /// a condition known to fail skips any of them (clring-a's "if (bit43)" puts Haggis there only once
+    /// the caber toss has happened).
+    /// </summary>
+    public bool Reached(ScummBlock script, params int[] positions)
+    {
+        if (!_branches.TryGetValue(script, out var branches))
+        {
+            branches = RoomScripts.For(script) is { Parts.Count: > 0 } e
+                ? Branches(script.DataSpan, e.Parts[0].Start, e.Parts[0].End, _room) : new();
+            _branches[script] = branches;
+        }
+        return positions.Where(p => p >= 0).All(p => Reached(branches, p));
+    }
+
+    /// <summary>A conditional jump: where it is, where the code after it starts, where it goes, whether it's
+    /// taken on a fresh game (null when that isn't known), and where an else part it skips to ends.</summary>
+    internal readonly record struct Branch(int At, int Next, int Target, bool? Taken, int ElseEnd);
+
+    /// <summary>Whether code at a position surely runs on a fresh game: every condition around it is
+    /// known, and holds (the then-part of a branch not taken, the else part of one taken).</summary>
+    internal static bool Surely(IReadOnlyList<Branch> branches, int pos)
+    {
+        foreach (var b in branches)
+        {
+            if (pos >= b.Next && pos < b.Target && b.Taken != false) return false;
+            if (pos >= b.Target && pos < b.ElseEnd && b.Taken != true) return false;
+        }
+        return true;
+    }
+
+    internal static bool Reached(IReadOnlyList<Branch> branches, int pos)
+    {
+        foreach (var b in branches)
+        {
+            if (b.Taken == true && pos >= b.Next && pos < b.Target) return false;   // the part it jumps over
+            if (b.Taken == false && pos >= b.Target && pos < b.ElseEnd) return false; // the else part it doesn't reach
+        }
+        return true;
+    }
+
+    /// <param name="classes">An object's starting classes (bit N-1 for class N), or null when not known;
+    /// with it, "class-of(OBJ) is [..]" is read as the engine does.</param>
+    internal static List<Branch> Branches(ReadOnlySpan<byte> code, int start, int end, int room, Func<int, uint?> classes = null)
+    {
+        var list = new List<Branch>();
+        List<ScriptInstruction> ins;
+        try { ins = ScummScript.Disassemble(code, start, end); }
+        catch { return list; }
+        var stack = new List<int?>();
+        int? Pop()
+        {
+            if (stack.Count == 0) return null;
+            var v = stack[^1];
+            stack.RemoveAt(stack.Count - 1);
+            return v;
+        }
+        static int? Bin(int? a, int? b, Func<int, int, int> f) => a is int x && b is int y ? f(x, y) : null;
+        var jumps = ins.Where(i => i.Opcode == 0x66).ToDictionary(i => i.Offset + i.Length, i => i.Target);
+        foreach (var i in ins)
+        {
+            if (i.Unknown) break;
+            switch (i.Opcode)
+            {
+                case 0x01: stack.Add(i.Operand); break;
+                case 0x02:
+                {
+                    uint v = (uint)i.Operand;
+                    // A bit variable is 0 on a fresh game; current-room (31) is this room.
+                    stack.Add((v & 0x80000000) != 0 ? 0 : v == 31 && room >= 0 ? room : null);
+                    break;
+                }
+                case 0x05: { var v = Pop(); stack.Add(v); stack.Add(v); break; }
+                case 0x06: Pop(); break;
+                case 0x07: { var v = Pop(); stack.Add(v is int x ? (x == 0 ? 1 : 0) : null); break; }
+                case >= 0x08 and <= 0x16:
+                {
+                    var b = Pop();
+                    var a = Pop();
+                    // land / lor with one side known can still be decided.
+                    if (i.Opcode == 0x12 && (a == 0 || b == 0)) { stack.Add(0); break; }
+                    if (i.Opcode == 0x13 && ((a is int la && la != 0) || (b is int lb && lb != 0))) { stack.Add(1); break; }
+                    stack.Add(i.Opcode switch
+                    {
+                        0x08 => Bin(a, b, (x, y) => x == y ? 1 : 0), 0x09 => Bin(a, b, (x, y) => x != y ? 1 : 0),
+                        0x0a => Bin(a, b, (x, y) => x > y ? 1 : 0), 0x0b => Bin(a, b, (x, y) => x < y ? 1 : 0),
+                        0x0c => Bin(a, b, (x, y) => x <= y ? 1 : 0), 0x0d => Bin(a, b, (x, y) => x >= y ? 1 : 0),
+                        0x0e => Bin(a, b, (x, y) => x + y), 0x0f => Bin(a, b, (x, y) => x - y), 0x10 => Bin(a, b, (x, y) => x * y),
+                        0x12 => Bin(a, b, (x, y) => x != 0 && y != 0 ? 1 : 0), 0x13 => Bin(a, b, (x, y) => x != 0 || y != 0 ? 1 : 0),
+                        _ => null,
+                    });
+                    break;
+                }
+                case 0xd0:
+                {
+                    // ifClassOfIs: the list (its items, then their count) above the object. A class
+                    // without 0x80 asks that the object doesn't have it, with 0x80 that it does
+                    // (ScummVM's o6_ifClassOfIs).
+                    var n = Pop();
+                    var tested = new List<int?>();
+                    for (int k = 0; k < (n ?? 0) && k < 32; k++) tested.Add(Pop());
+                    var obj = Pop();
+                    if (n == null || obj is not int o || classes?.Invoke(o) is not uint bits
+                        || tested.Any(c => c is not int x || (x & 0x7F) is < 1 or > 32)) { stack.Add(null); break; }
+                    bool holds = tested.All(c => ((bits & (1u << (((int)c & 0x7F) - 1))) != 0) == (((int)c & 0x80) != 0));
+                    stack.Add(holds ? 1 : 0);
+                    break;
+                }
+                case 0x64 or 0x65:
+                {
+                    var c = Pop();
+                    bool? taken = c is int x ? (x != 0) == (i.Opcode == 0x64) : null;
+                    int next = i.Offset + i.Length;
+                    // An if's then-part ending in a jump over an else part.
+                    int elseEnd = i.Target > next && jumps.TryGetValue(i.Target, out int over) && over > i.Target ? over : i.Target;
+                    if (i.Target > next) list.Add(new Branch(i.Offset, next, i.Target, taken, elseEnd));
+                    stack.Clear();
+                    break;
+                }
+                default:
+                {
+                    // Anything else: pops what it takes, and pushes an unknown result if it has one.
+                    int pops = i.Def?.Args?.Count(ch => ch == 'a') ?? 0;
+                    if (i.Def?.Args?.Any(ch => ch != 'a') == true) stack.Clear();
+                    else for (int k = 0; k < pops; k++) Pop();
+                    if (i.Def?.Push == true) stack.Add(null);
+                    break;
+                }
+            }
+        }
+        return list;
     }
 
     /// <summary>When the statement at a position runs, from its script's decompiled lines.</summary>

@@ -98,6 +98,15 @@ public class RoomActorsScanTests
         Assert.True(found.Actor < 0); // an actor kept in a variable
     }
 
+    [Fact]
+    public void A_costume_change_on_a_branch_the_goto_skips_does_not_end_the_window()
+    {
+        // actor 5 costume 166; goto L; actor 5 costume 12; L: actor 5 scale 140; put-actor 5 at 346,130 (voodoo-e's skull)
+        var s = Script(5, SetActor, 166, SetCostume, Jump(0x66, 7), 12, SetCostume, 140, new byte[] { 0xAC, 0x73 }, 5, 346, 130, 29, Put);
+        var found = RoomActors.ScanScript(s, 29).First(p => p.Costume == 166);
+        Assert.Equal((346, 130, 140), (found.X, found.Y, found.Scale));
+    }
+
     private static readonly byte[] NeverZClip = { 0xAC, 0x74 }, AlwaysZClip = { 0xAC, 0x75 }, IgnoreBoxes = { 0xAC, 0x76 };
 
     [Fact]
@@ -155,7 +164,7 @@ public class RoomActorsScanTests
     public void A_costume_set_on_one_branch_gets_the_clip_set_after_both_branches()
     {
         // barber: if (…) costume 114 else costume 112; always-zclip 3; put-actor 4 at 196,329
-        var s = Script(4, SetActor, 114, SetCostume, Jump(0x66, 15), 112, SetCostume, 3, AlwaysZClip, 4, 196, 329, 21, Put);
+        var s = Script(4, SetActor, 114, SetCostume, Jump(0x66, 7), 112, SetCostume, 3, AlwaysZClip, 4, 196, 329, 21, Put);
         var found = RoomActors.ScanScript(s, 21);
         Assert.Equal(new[] { (112, 3), (114, 3) }, found.Select(f => (f.Costume, f.Clip)).OrderBy(x => x).ToArray());
     }
@@ -400,4 +409,64 @@ public class PlacementTimingTests
     [InlineData(false, 64, PlacementTime.Cutscene)]
     public void A_placement_runs_when_its_line_does(bool onEntry, int pos, PlacementTime expected)
         => Assert.Equal(expected, PlacementTiming.TimeAt(Lines, onEntry, pos));
+
+    private static byte[] Code(params object[] parts)
+    {
+        var b = new List<byte>();
+        foreach (var part in parts)
+        {
+            if (part is int v) { b.Add(0x01); b.AddRange(BitConverter.GetBytes(v)); }
+            else if (part is byte[] raw) b.AddRange(raw);
+        }
+        return b.ToArray();
+    }
+
+    private static byte[] Op(byte op, int operand) { var b = new byte[5]; b[0] = op; BitConverter.GetBytes(operand).CopyTo(b, 1); return b; }
+    private static readonly byte[] Costume = { 0xAC, 0x64 };
+    private const int Bit5 = unchecked((int)0x80000005), CurrentRoom = 31;
+
+    [Fact]
+    public void On_a_first_visit_every_bit_is_0_and_the_room_is_known()
+    {
+        // if (bit5) { costume 1 } else { costume 2 }   (then-part 10-22, else part 22-29)
+        var ifElse = Code(Op(0x02, Bit5), Op(0x65, 12), 1, Costume, Op(0x66, 7), 2, Costume);
+        var branches = PlacementTiming.Branches(ifElse, 0, ifElse.Length, 11);
+        Assert.False(PlacementTiming.Reached(branches, 12));
+        Assert.True(PlacementTiming.Reached(branches, 24));
+        // if (current-room == 11) { costume 1 }
+        var room = Code(Op(0x02, CurrentRoom), 11, new byte[] { 0x08 }, Op(0x65, 7), 1, Costume);
+        Assert.True(PlacementTiming.Reached(PlacementTiming.Branches(room, 0, room.Length, 11), 22));
+        Assert.False(PlacementTiming.Reached(PlacementTiming.Branches(room, 0, room.Length, 29), 22));
+        // if (var400) { costume 1 }: a global that isn't known holds nothing back
+        var global = Code(Op(0x02, 400), Op(0x65, 7), 1, Costume);
+        Assert.True(PlacementTiming.Reached(PlacementTiming.Branches(global, 0, global.Length, 11), 12));
+    }
+
+    [Theory]
+    [InlineData(1u << 31, false)] // the lid has class 32: "is [32]" fails, so the else part runs (pistols)
+    [InlineData(0u, true)]
+    public void A_class_test_without_0x80_asks_that_the_object_lacks_the_class(uint lidClasses, bool thenRuns)
+    {
+        // if (class-of(650) is [32]) { costume 1 } else { costume 2 }   (then-part 21-33, else 33-40)
+        var code = Code(650, 32, 1, new byte[] { 0xD0 }, Op(0x65, 12), 1, Costume, Op(0x66, 7), 2, Costume);
+        var branches = PlacementTiming.Branches(code, 0, code.Length, 24, id => id == 650 ? lidClasses : null);
+        Assert.Equal(thenRuns, PlacementTiming.Surely(branches, 23));
+        Assert.Equal(!thenRuns, PlacementTiming.Surely(branches, 35));
+    }
+}
+
+public class WalkboxScaleTests
+{
+    private static Walkbox Box(uint slot, uint scale) => new(1, new(0, 0), new(10, 0), new(10, 10), new(0, 10), 0, 0, slot, scale);
+
+    [Fact]
+    public void A_box_scales_by_its_own_scale_or_by_its_slot_interpolated_by_y()
+    {
+        var slots = new[] { new ScaleSlot(50, 100, 250, 300) };
+        Assert.Equal(12, Walkboxes.ScaleAt(new[] { Box(0, 0), Box(0, 12) }, slots, 1, 5, 5));
+        Assert.Equal(150, Walkboxes.ScaleAt(new[] { Box(0, 0), Box(1, 255) }, slots, 1, 5, 200));
+        Assert.Equal(250, Walkboxes.ScaleAt(new[] { Box(0, 0), Box(1, 255) }, slots, 1, 5, 300));
+        Assert.Equal(255, Walkboxes.ScaleAt(new[] { Box(0, 0), Box(1, 255) }, slots, 1, 5, 400)); // clipped to 255
+        Assert.Equal(255, Walkboxes.ScaleAt(new[] { Box(0, 0), Box(1, 255) }, slots, 5, 5, 5));   // no such box
+    }
 }

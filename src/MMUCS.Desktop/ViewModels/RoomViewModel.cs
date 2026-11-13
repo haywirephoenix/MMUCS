@@ -384,7 +384,9 @@ public sealed partial class RoomViewModel : ObservableObject
             // Image-less hotspots have nothing to hide (their costume shows), and a room with no background
             // is a library of images (room 3's inventory icons, all in state 0), not a scene.
             bool shown = o.ImageCount <= 0 || room.Width <= 0 || state != 0;
-            var item = new RoomObjectItem(o) { IsVisible = ShowObjects && shown, InitialState = state, InitialVisible = shown };
+            // A room starts as the game shows it, whatever the last room left the Objects toggle at (the
+            // toggle follows the checkboxes, so a room whose images all start hidden turns it off).
+            var item = new RoomObjectItem(o) { IsVisible = shown, InitialState = state, InitialVisible = shown };
             item.PropertyChanged += OnItemChanged;
             Objects.Add(item);
         }
@@ -510,7 +512,7 @@ public sealed partial class RoomViewModel : ObservableObject
             if (applyStart && item.Object.ImageCount <= 0 && item.Costume is { CanDraw: true } c)
             {
                 item.InitialVisible = c.StartsShown;
-                item.IsVisible = ShowObjects && c.StartsShown;
+                item.IsVisible = c.StartsShown;
             }
         }
 

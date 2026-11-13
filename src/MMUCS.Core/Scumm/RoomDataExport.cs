@@ -291,6 +291,7 @@ public static class RoomDataExport
                 if (WhenText(a.When) is { } when) w.WriteString("when", when);
                 // Shown as the room opens: what the room viewer starts with.
                 if (a.StartsShown) w.WriteBoolean("starts_shown", true);
+                else if (a.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf && !a.FirstVisit) w.WriteBoolean("first_visit", false);
                 // Drawn in front of the actors its script takes out of the room while it plays.
                 if (a.SortY != a.Y) w.WriteNumber("sort_y", a.SortY);
                 if (a.Removes.Count > 0) WriteInts(w, "removes", a.Removes);

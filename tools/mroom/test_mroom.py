@@ -61,7 +61,7 @@ TOWN = {
         {"costume": 79, "akos": "0x01AD8505", "placed": [{"actor": 1, "x": 0, "y": 0, "player": True, "when": "cutscene"}]},
         {"costume": 35, "akos": "0x01125269", "placed": [{"actor": 3, "x": 320, "y": 792, "elevation": 300}]},
         {"costume": 36, "akos": "0x01184801", "worn_by": [4], "placed": []},
-        {"costume": 67, "akos": "0x0172562C", "placed": [{"dressed_by": 88, "x": 36, "y": 155, "scale": 150, "when": "entry-if"}]},
+        {"costume": 67, "akos": "0x0172562C", "placed": [{"dressed_by": 88, "x": 36, "y": 155, "scale": 150, "when": "entry-if", "first_visit": False}]},
     ],
     "global_scripts_stored": [],
 }
@@ -247,6 +247,7 @@ class MroomTests(unittest.TestCase):
         self.assertRegex(text, r"Shown \(1\):\n  costume   75  actor 4 +at 552,268  on entry \(conditional\)  \(kenny-object\)\n +rooms/015_town/local_2001.scumm:5")
         self.assertRegex(text, r"costume   79  actor 1 +at 0,0  in a cutscene  hidden: the player")
         self.assertIn("Not placed where MMUCS can read it (1): 36 (worn by 4)", text)
+        self.assertRegex(text, r"costume   67  dressed by 88 +at 36,155  on entry \(conditional\)  hidden: not on a first visit")
 
     def test_a_visibility_mark_shows_the_start_state_then_and_now(self):
         path = self.write_marks([{"id": 7, "room": 15, "tags": ["visibility"], "note": "shouldn't be there on entry", "targets": [

@@ -115,6 +115,8 @@ public sealed class AppSettings
 public sealed class RoomViewOptions
 {
     public bool ShowBackground { get; set; } = true;
+    // ShowObjects and ShowUnmatchedCostumes are no longer applied: the toggles follow each room's checkboxes,
+    // and rooms start as the game shows them. Kept so settings files that have them still load.
     public bool ShowObjects { get; set; } = true;
     public bool ShowFullScreenObjects { get; set; }
     public bool ShowUnmatchedCostumes { get; set; }

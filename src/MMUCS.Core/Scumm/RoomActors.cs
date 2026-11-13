@@ -81,6 +81,12 @@ public sealed class RoomActor
     /// its actor starts in when the setup offers several (Bill's 112 or 114 by condition).
     /// </summary>
     public bool StartsShown { get; set; }
+    /// <summary>
+    /// Whether a fresh game's first visit reaches a placement of it on entry: no condition around it is
+    /// known to fail with every bit variable at 0. False keeps it hidden at the start (residents that
+    /// only turn up once the story has moved on).
+    /// </summary>
+    public bool FirstVisit { get; set; }
     /// <summary>The player's actor (dressed in most rooms): never matched to a hotspot by overlap.</summary>
     public bool IsPlayer { get; init; }
 
@@ -556,8 +562,9 @@ public static class RoomActors
         int planes = ZPlanes.Count(room);
         // When each placement runs (as the room opens, in a cutscene, later); a costume placed several
         // ways gets its earliest, so McMutton placed on entry and in a cutscene counts as on entry.
-        var timing = new PlacementTiming(scripts);
+        var timing = new PlacementTiming(scripts, room.RoomNo);
         var earliest = new Dictionary<(int, int, int, int), PlacementTime>();
+        var firstVisit = new HashSet<(int, int, int, int)>();
         static (int, int, int, int) Key(int actor, int costume, int x, int y) => actor > 0 ? (actor, costume, 0, 0) : (actor, costume, x, y);
         foreach (var (si, list) in scans.Select((list, i) => (i, list)))
             foreach (var pl in list)
@@ -565,6 +572,8 @@ public static class RoomActors
                 var t = timing.At(scripts[si], pl.CostumePos, pl.PlacePos);
                 var key = Key(pl.Actor, pl.Costume, pl.X, pl.Y);
                 if (!earliest.TryGetValue(key, out var e) || t < e) earliest[key] = t;
+                if (t is PlacementTime.OnEntry or PlacementTime.OnEntryIf && timing.Reached(scripts[si], pl.CostumePos, pl.PlacePos))
+                    firstVisit.Add(key);
             }
         foreach (var (si, (actor, costume, sx, sy, elevation, anim, dir, via, scale, clip, ignoreBoxes, followsAtPut, removes, _, _)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
         {
@@ -579,10 +588,15 @@ public static class RoomActors
             // follow-boxes, which close-ups set once they're done, doesn't move the picture. Ignoring the
             // boxes in the end means box 0.
             var (bx, by, box) = PutInBox(room.Walkboxes, sx, sy, actor == player);
-            var (x, y) = followsAtPut ? (bx, by) : (sx, sy);
+            // The player walks the boxes unless its script says otherwise; no room setup script turns
+            // that off for it (plndrmap puts Guybrush next to his line of boxes, and he stands on it).
+            // Only when the script leaves its z-clip alone and doesn't put it at the origin: a pose with
+            // never-zclip, or a full-screen close-up at 0,0, isn't the player walking.
+            bool follows = followsAtPut || (actor == player && !ignoreBoxes && clip == ClipByBox && (sx, sy) != (0, 0));
+            var (x, y) = follows ? (bx, by) : (sx, sy);
             // Put outside every box without a follow-boxes before it: the engine would have moved it, so
             // it ignores the boxes (set by the room's setup script), and stands in box 0.
-            if (ignoreBoxes || (!followsAtPut && (bx, by) != (sx, sy))) box = 0;
+            if (ignoreBoxes || (!follows && (bx, by) != (sx, sy))) box = 0;
             // Show the animation the script starts (e.g. a full-screen close-up whose stand chore is
             // empty). If that's blank and so is the default pose (the costume starts hidden), use
             // another animation the room plays on the same actor, as long as the actor wears only this
@@ -593,9 +607,13 @@ public static class RoomActors
             var entry = new RoomActor
             {
                 Actor = Math.Max(0, actor), Costume = costume, Akos = akos, X = x, Y = y, Elevation = elevation, HasPosition = true,
-                Data = d, Frame = f, IsPlayer = actor == player, DressedBy = via, Scale = scale, SortY = y,
+                // An actor in a box is drawn at the box's scale, whatever its script set: the engine
+                // works it out again at every draw (setupActorScale). Only ignoring the boxes keeps it.
+                Data = d, Frame = f, IsPlayer = actor == player, DressedBy = via, SortY = y,
+                Scale = box > 0 ? Walkboxes.ScaleAt(room.Walkboxes, room.ScaleSlots, box, x, y) : scale,
                 Removes = removes ?? Array.Empty<int>(),
                 When = earliest.GetValueOrDefault(Key(actor, costume, sx, sy)),
+                FirstVisit = firstVisit.Contains(Key(actor, costume, sx, sy)),
                 // Clamped to the room's top plane, like the engine.
                 ZPlane = Math.Clamp(clip == ClipByBox ? MaskOf(room, box) : clip, 0, planes),
             };
@@ -653,10 +671,11 @@ public static class RoomActors
 
         ApplyLinks(room, result, directory, Load);
 
-        // What's there as the room opens: costumes placed on entry, the player aside, one per actor (an
-        // unconditional one first). An actor in a variable is a different actor at each spot.
+        // What's there as the room opens: costumes placed on entry, on a fresh game's first visit, the
+        // player aside, one per actor (an unconditional one first). An actor in a variable is a different
+        // actor at each spot.
         foreach (var g in result.Select((r, i) => (r, i))
-                     .Where(x => x.r.HasPosition && !x.r.IsPlayer && x.r.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf)
+                     .Where(x => x.r.HasPosition && !x.r.IsPlayer && x.r.FirstVisit && x.r.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf)
                      .GroupBy(x => x.r.Actor > 0 ? x.r.Actor : -1 - x.i))
             g.OrderBy(x => x.r.When).First().r.StartsShown = true;
 
@@ -815,6 +834,16 @@ public static class RoomActors
                 return (var & ~LocalVar, jumpsWhenTrue);                            // the else part it jumps to
         }
         return null;
+    }
+
+    /// <summary>Whether code at <paramref name="at"/> is skipped by an unconditional forward jump after
+    /// <paramref name="from"/> (the end of an if's then-part jumping over its else-part).</summary>
+    internal static bool JumpedOver(ReadOnlySpan<byte> s, int from, int at)
+    {
+        for (int j = from + 1; j < at && j + 5 <= s.Length; j++)
+            if (s[j] == OpJump && j + 5 + s.S32LE(j + 1) is int target && target > at && target <= s.Length)
+                return true;
+        return false;
     }
 
     /// <summary>Calls that start a script with arguments: start-script, start-script-quick, chain-script.</summary>
@@ -990,21 +1019,27 @@ public static class RoomActors
         }
 
         var pairs = new List<Placement>();
+        var code = s.ToArray();
         foreach (var c in costumes)
         {
+            // Code on this costume's path: not on a branch a goto after it jumps over.
+            bool OnPath(int pos) => !JumpedOver(code, c.Pos, pos);
             // Until the actor's next costume change in this script (a call offering several costumes
-            // changes it once).
-            int until = costumes.Where(o => o.Actor == c.Actor && o.Pos > c.Pos).Select(o => o.Pos).DefaultIfEmpty(int.MaxValue).Min();
+            // changes it once). A change on a sibling branch doesn't end it: "if … { costume 166; goto L }
+            // else { costume 12 }  L: scale 140; put-actor" scales and places both (voodoo-e's skull).
+            int until = int.MaxValue;
+            foreach (var o in costumes)
+                if (o.Actor == c.Actor && o.Pos > c.Pos && o.Pos < until && !JumpedOver(s, c.Pos, o.Pos)) until = o.Pos;
             // Below 1000 an animation number is a chore; 1000 and up are turn/stop commands.
-            int anim = c.Anim ?? anims.Where(a => a.Actor == c.Actor && a.Pos > c.Pos && a.Pos < until && a.Anim is >= 0 and < 1000)
+            int anim = c.Anim ?? anims.Where(a => a.Actor == c.Actor && a.Pos > c.Pos && a.Pos < until && OnPath(a.Pos) && a.Anim is >= 0 and < 1000)
                                       .Select(a => a.Anim).DefaultIfEmpty(-1).First();
-            int dir = c.Dir ?? faces.Where(f => f.Actor == c.Actor && f.Pos > c.Pos && f.Pos < until).Select(f => f.Dir).DefaultIfEmpty(180).First();
+            int dir = c.Dir ?? faces.Where(f => f.Actor == c.Actor && f.Pos > c.Pos && f.Pos < until && OnPath(f.Pos)).Select(f => f.Dir).DefaultIfEmpty(180).First();
 
             // The first placement of the actor while it wears this costume (after the costume is set,
             // before its next change); otherwise, for an actor number, the nearest one, preferring
             // those after. A variable holds different actors at different times, so it needs the former.
             (int Pos, int Actor, int X, int Y)? best = places
-                .Where(pl => pl.Actor == c.Actor && pl.Pos > c.Pos && pl.Pos < until)
+                .Where(pl => pl.Actor == c.Actor && pl.Pos > c.Pos && pl.Pos < until && OnPath(pl.Pos))
                 .Select(pl => ((int, int, int, int)?)pl).FirstOrDefault();
             int bestDist = int.MaxValue;
             if (best == null && c.Actor > 0)
@@ -1040,11 +1075,11 @@ public static class RoomActors
                 // picture. The common "elevation E, then put-actor at x-of(a), y-of(a) + E" re-places the
                 // actor after the literal placement so it's drawn where it was (only its depth changes).
                 bool inWindow = b.Pos > c.Pos && b.Pos < until;
-                int elevation = !inWindow ? 0 : elevations.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < lastPut)
+                int elevation = !inWindow ? 0 : elevations.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < lastPut && OnPath(e.Pos))
                                                           .Select(e => e.Elevation).DefaultIfEmpty(0).Last();
                 // Scale the same way: set while it wears this costume, before this placement; or what the
                 // call that dressed it passes.
-                int scale = !inWindow ? 255 : scales.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < b.Pos)
+                int scale = !inWindow ? 255 : scales.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < b.Pos && OnPath(e.Pos))
                                                     .Select(e => e.Scale).DefaultIfEmpty(c.Scale ?? 255).Last();
                 // The z-clip it's drawn with: what this script sets on it until its next costume (it applies
                 // whenever it's drawn, so after the placement too). A dressing call starts from what the
@@ -1055,15 +1090,17 @@ public static class RoomActors
                 // A put after the costume counts even past another costume set on a sibling branch
                 // (barber's "if … costume 114 else costume 112", then always-zclip 3 and the put for both).
                 int putAt = b.Pos > c.Pos ? b.Pos : c.Pos;
+                // Between the costume and the put, only what's on its path (not the sibling branch's default).
+                var path = clips.Where(op => op.Pos <= c.Pos || OnPath(op.Pos)).ToList();
                 var (clip, ignore) = c.Clip is { } start
-                    ? FoldClip(clips, c.Actor, c.Pos, putAt, start)
-                    : FoldClip(clips, c.Actor, -1, putAt, (ClipByBox, false));
-                (clip, ignore) = FoldClip(clips.Where(op => op.Ignore != false).ToList(), c.Actor, putAt, until, (clip, ignore));
+                    ? FoldClip(path, c.Actor, c.Pos, putAt, start)
+                    : FoldClip(path, c.Actor, -1, putAt, (ClipByBox, false));
+                (clip, ignore) = FoldClip(clips.Where(op => op.Ignore != false && !JumpedOver(code, putAt, op.Pos)).ToList(), c.Actor, putAt, until, (clip, ignore));
                 // Whether it surely follows the boxes when it's put: then the engine moves it into one. Only
                 // what this script says counts (follow-boxes or default before the put); a room's setup
                 // script often sets ignore-boxes on an actor that a cutscene elsewhere puts at 0,0.
                 bool? ignoreAtPut = null;
-                foreach (var op in clips)
+                foreach (var op in path)
                     if (op.Actor == c.Actor && op.Pos < b.Pos && op.Ignore is bool ig) ignoreAtPut = ig;
                 if (c.Clip is { Ignore: true } && b.Pos > c.Pos
                     && !clips.Any(op => op.Actor == c.Actor && op.Pos > c.Pos && op.Pos < b.Pos && op.Ignore != null))
@@ -1116,7 +1153,7 @@ public static class RoomActors
                 Actor = p.Actor, Actors = layers.Select(l => l.Actor).Distinct().ToList(), Costume = p.Costume, Akos = p.Akos,
                 X = p.X, Y = p.Y, Elevation = p.Elevation, Scale = p.Scale, ZPlane = p.ZPlane, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
                 SortY = p.SortY, Removes = layers.SelectMany(l => l.Removes).Distinct().ToList(),
-                When = layers.Min(l => l.When),
+                When = layers.Min(l => l.When), FirstVisit = layers.Any(l => l.FirstVisit),
             });
         }
         return result;
