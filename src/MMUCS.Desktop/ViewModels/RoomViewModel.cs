@@ -642,7 +642,7 @@ public sealed partial class RoomViewModel : ObservableObject
                 var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, token);
                 // Scaled about the actor's origin: the frame's offset from it shrinks with the frame.
                 float f = actor.ScaleFactor;
-                if (rgba != null) result[target] = (rgba.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), actor.Y, actor.Actor, f, actor.ZPlane);
+                if (rgba != null) result[target] = (rgba.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), actor.SortY, actor.Actor, f, actor.ZPlane);
             }
         }
         return result;

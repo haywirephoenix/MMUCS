@@ -40,6 +40,10 @@ USAGE = """usage: mroom COMMAND [options]
   costume N                     Where a costume is stored, which actors wear it and how they're placed
   review [N] [--changed]        Costumes and objects marked in MMUCS (Mark for review…): what changed
                                 since marking, and everything about one. --tag T, --done N clears one
+  compare OTHER [ROOM]          Every costume placement that differs between another export (OTHER, e.g.
+                                one made before a change to MMUCS) and this one: position, elevation, scale,
+                                z-plane, draw order; and whether the picture moved or only its depth. --all
+                                lists unchanged rooms too
   find TEXT                     Search room names, object names, hover names and dialogue
 
 ROOM is a number (15) or part of a name (town). OBJ is an id (397) or part of a name.
@@ -907,7 +911,7 @@ def current_of(game: "Game", room_no: int, target: dict) -> Tuple[Optional[dict]
     p = min(placed, key=lambda q: 0 if sx is None else abs(q.get("x", 0) - sx) + abs(q.get("y", 0) - (sy or 0)))
     return {"placed": True, "actor": p.get("actor"), "x": p.get("x"), "y": p.get("y"), "elevation": p.get("elevation"),
             "scale": p.get("scale", 255), "zplane": p.get("zplane", 0), "dressed_by": p.get("dressed_by"),
-            "owner": entry.get("object")}, "costume"
+            "owner": entry.get("object"), **({"sort_y": p["sort_y"]} if "sort_y" in p else {})}, "costume"
 
 
 def fields_of(target: dict, cur: Optional[dict]) -> List[str]:
@@ -972,7 +976,7 @@ def order_of(game: "Game", mark: dict, now: bool) -> List[int]:
             continue
         v = current_of(game, mark["room"], t)[0] if now else (t.get("snapshot") or {})
         if v and v.get("placed") and v.get("y") is not None:
-            rows.append((v["y"], v.get("actor") or 0, i))
+            rows.append((v.get("sort_y", v["y"]), v.get("actor") or 0, i))
     return [i for _, _, i in sorted(rows)]
 
 
@@ -982,7 +986,7 @@ def draw_order(game: "Game", room: "Room", mark: dict):
     rows = []
     for c in d.get("costumes", []):
         for p in c.get("placed", []):
-            rows.append((p.get("y", 0), p.get("actor") or 0, c, p))
+            rows.append((p.get("sort_y", p.get("y", 0)), p.get("actor") or 0, c, p))
     rows.sort(key=lambda r: (r[0], r[1]))
     if not rows:
         return
@@ -1005,9 +1009,92 @@ def draw_order(game: "Game", room: "Room", mark: dict):
         y, actor, c, p = rows[i]
         who = f"actor {actor}" if actor else (f"dressed by {p['dressed_by']}" if "dressed_by" in p else "actor ?")
         extra = "".join([f" elevation {p['elevation']}" if p.get("elevation") else "", f" scale {p['scale']}" if "scale" in p else "",
-                         f" z-plane {p['zplane']}" if p.get("zplane") else ""])
-        out(f"  {'→' if i in mine else ' '} y {y:>4}  costume {c.get('costume')!s:>4}  {who:<18} at {p.get('x')},{y}{extra}"
+                         f" z-plane {p['zplane']}" if p.get("zplane") else "",
+                         f" (in front of actor{'s' if len(p['removes']) > 1 else ''} {', '.join(map(str, p['removes']))}, which its script takes out)"
+                         if p.get("removes") and "sort_y" in p else ""])
+        out(f"  {'→' if i in mine else ' '} y {y:>4}  costume {c.get('costume')!s:>4}  {who:<18} at {p.get('x')},{p.get('y')}{extra}"
             + (f"  ({c['object']})" if c.get("object") else ""))
+
+
+# ── Comparing two exports (before and after a change to MMUCS) ──────────────────────────────────
+
+# Placement fields compared, with the value an absent one means.
+PLACEMENT_FIELDS = [("x", None), ("y", None), ("elevation", 0), ("scale", 255), ("zplane", 0), ("sort_y", None), ("removes", None)]
+
+
+def placements_of(room_json: dict) -> Dict[tuple, dict]:
+    """A room's placements keyed by (costume, AKOS, actor, which of that costume's spots)."""
+    found = {}
+    for c in room_json.get("costumes", []):
+        for i, p in enumerate(c.get("placed", [])):
+            found[(c.get("costume"), c.get("akos"), p.get("actor"), i)] = p
+    return found
+
+
+def placement_value(p: dict, field: str, default):
+    if field == "sort_y":
+        return p.get("sort_y", p.get("y"))
+    return p.get(field, default)
+
+
+def compare_placement(before: Optional[dict], after: Optional[dict]) -> Tuple[List[str], bool]:
+    """What changed ('y -6 → 474'), and whether the picture moved (its drawn spot or size), not just its depth."""
+    if before is None or after is None:
+        return (["new"] if before is None else ["gone"]), True
+    changes = []
+    for field, default in PLACEMENT_FIELDS:
+        a, b = placement_value(before, field, default), placement_value(after, field, default)
+        if a != b and not (field == "sort_y" and before.get("sort_y") is None and after.get("sort_y") is None):
+            label = {"zplane": "z-plane", "sort_y": "sort y"}.get(field, field)
+            changes.append(f"{label} {a if a is not None else '-'} → {b if b is not None else '-'}")
+    def drawn(p):
+        return (p.get("x"), (p.get("y") or 0) - (p.get("elevation") or 0), p.get("scale", 255))
+    return changes, drawn(before) != drawn(after)
+
+
+def other_rooms_dir(arg: str) -> Path:
+    """An export folder (with data/rooms), its data folder, or the rooms folder itself."""
+    base = Path(arg)
+    for d in (base / "data" / "rooms", base / "rooms", base):
+        if d.is_dir() and any(d.glob("*.json")):
+            return d
+    raise SystemExit(f"mroom: no room data in {arg} (export it with Room data ticked, or mprobe export --data)")
+
+
+def cmd_compare(args, game: "Game"):
+    if not game.has_data:
+        raise SystemExit("mroom: this export has no data/ folder to compare")
+    other = other_rooms_dir(args.other)
+    mine = game.data_dir / "rooms"
+    names = sorted({p.name for p in other.glob("*.json")} | {p.name for p in mine.glob("*.json")})
+    if args.room:
+        names = [f"{game.find_room(args.room).folder}.json"]
+    total = moved = rooms = 0
+    for name in names:
+        a = json.loads((other / name).read_text(encoding="utf-8")) if (other / name).is_file() else {}
+        b = json.loads((mine / name).read_text(encoding="utf-8")) if (mine / name).is_file() else {}
+        pa, pb = placements_of(a), placements_of(b)
+        rows = []
+        for key in sorted(set(pa) | set(pb), key=lambda k: (k[0] or 0, k[2] or 0, k[3])):
+            if pa.get(key) == pb.get(key):
+                continue
+            changes, picture = compare_placement(pa.get(key), pb.get(key))
+            if not changes:
+                continue
+            p = pb.get(key) or pa.get(key)
+            who = f"actor {key[2]}" if key[2] else (f"dressed by {p['dressed_by']}" if "dressed_by" in p else "actor ?")
+            rows.append(f"  costume {key[0]!s:>4}  {who:<16} at {p.get('x')},{p.get('y')}: {', '.join(changes)}"
+                        + ("" if picture else "  (same picture)"))
+            moved += picture
+        if rows or args.all:
+            out(f"{Path(name).stem}" + ("" if rows else ": same"))
+            for r in rows:
+                out(r)
+        total += len(rows)
+        rooms += bool(rows)
+    out(f"\n{total} placement{'s' if total != 1 else ''} changed in {rooms} room{'s' if rooms != 1 else ''}"
+        f": {moved} drawn somewhere else, {total - moved} only in depth.")
+    return 0
 
 
 def cmd_review(args, game: "Game"):
@@ -1142,6 +1229,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--tag", help="only marks with this tag (position, scale, order, zplane, object, frame, missing)")
     s.add_argument("--done", type=int, metavar="N", help="clear mark N")
     s.add_argument("--marks", help="the review file (default: MMUCS's, else the export's copy)")
+    s = sub.add_parser("compare")
+    s.add_argument("other", help="the export to compare with (made before the change)")
+    s.add_argument("room", nargs="?")
+    s.add_argument("--all", action="store_true", help="list unchanged rooms too")
     s = sub.add_parser("find")
     s.add_argument("text")
     s.add_argument("--limit", type=int, default=20)
@@ -1162,7 +1253,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     scripts_root = ms.find_scripts_root(args.root)
     game = Game(ms.Export(scripts_root, ms.REPO_MAP if ms.REPO_MAP.exists() else None))
     handler = {"rooms": cmd_rooms, "room": cmd_room, "object": cmd_object, "exits": cmd_exits,
-               "lines": cmd_lines, "actor": cmd_actor, "costume": cmd_costume, "review": cmd_review, "find": cmd_find}[args.command]
+               "lines": cmd_lines, "actor": cmd_actor, "costume": cmd_costume, "review": cmd_review, "compare": cmd_compare,
+               "find": cmd_find}[args.command]
     try:
         return handler(args, game)
     except BrokenPipeError:

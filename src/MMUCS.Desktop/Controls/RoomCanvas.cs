@@ -15,7 +15,7 @@ namespace MMUCS.Desktop.Controls;
 /// <summary>A costume frame being played elsewhere (the Costume viewer), drawn in place of <paramref name="Target"/>'s costume.</summary>
 public sealed record LiveCostume(RoomObject Target, SKImage Image, int X, int Y, float Scale = 1, int ZPlane = 0);
 
-/// <param name="CostumeDepth">The actor's y before elevation: SCUMM draws actors in order of it, lowest first.</param>
+/// <param name="CostumeDepth">The actor's y before elevation (<see cref="MMUCS.Core.Scumm.RoomActor.SortY"/>): SCUMM draws actors in order of it, lowest first.</param>
 /// <param name="CostumeActor">The actor number, which breaks ties in that order.</param>
 /// <param name="CostumeScale">The actor's scale as a factor; <see cref="CostumeX"/>/<see cref="CostumeY"/> are the scaled image's corner.</param>
 public sealed record RoomObjectLayer(RoomObject Object, SKImage Image, SKImage CostumeImage = null, int CostumeX = 0, int CostumeY = 0,

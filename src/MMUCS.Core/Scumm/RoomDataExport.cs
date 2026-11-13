@@ -288,6 +288,9 @@ public static class RoomDataExport
                 if (a.Elevation != 0) w.WriteNumber("elevation", a.Elevation);
                 if (a.Scale != 255) w.WriteNumber("scale", a.Scale);
                 if (a.ZPlane > 0) w.WriteNumber("zplane", a.ZPlane);
+                // Drawn in front of the actors its script takes out of the room while it plays.
+                if (a.SortY != a.Y) w.WriteNumber("sort_y", a.SortY);
+                if (a.Removes.Count > 0) WriteInts(w, "removes", a.Removes);
                 if (a.IsPlayer) w.WriteBoolean("player", true);
                 w.WriteEndObject();
             }
