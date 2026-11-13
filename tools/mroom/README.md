@@ -13,7 +13,7 @@ data/game.json                  every object in the game's object table: name, r
 data/rooms/015_town.json        one room: size, objects, walkboxes, costumes
 ```
 
-[probe](../probe/README.md) writes the same export from the command line: `dotnet run --project tools/probe -c Release -- --game COMI.LA0 export FOLDER`.
+[mprobe](../mprobe/README.md) writes the same export from the command line: `dotnet run --project tools/mprobe -c Release -- --game COMI.LA0 export FOLDER`.
 
 Without `data/`, mroom still works from the scripts. It just can't show the room's size, object positions, hover names, walk-to points or costumes.
 
@@ -89,7 +89,7 @@ mroom review --tag scale     # only marks tagged scale
 mroom review --done 3        # clear it once it's right
 ```
 
-The tags only say what was seen; `review N` shows everything either way. mroom reads the marks from MMUCS's own file (`%LocalAppData%/MMUCS/review.json`, `~/.local/share/MMUCS/review.json` elsewhere) as soon as they're made, and the export copies them to `data/review.json`. "Now" comes from the export, so export again after a code change to see what it fixed: `dotnet run --project tools/probe -c Release -- export FOLDER`.
+The tags only say what was seen; `review N` shows everything either way. mroom reads the marks from MMUCS's own file (`%LocalAppData%/MMUCS/review.json`, `~/.local/share/MMUCS/review.json` elsewhere) as soon as they're made, and the export copies them to `data/review.json`. "Now" comes from the export, so export again after a code change to see what it fixed: `dotnet run --project tools/mprobe -c Release -- export FOLDER`.
 
 ### The index
 

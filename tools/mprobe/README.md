@@ -1,21 +1,21 @@
-# probe
+# mprobe
 
-probe runs MMUCS.Core from the command line, without the app. It exports the game the way **File ▸ Export** does, and draws the debug pictures used to check the room viewer: a room's z-planes, and a room with its actors placed and cut by their z-planes.
+mprobe runs MMUCS.Core from the command line, without the app. It exports the game the way **File ▸ Export** does, and draws the debug pictures used to check the room viewer: a room's z-planes, and a room with its actors placed and cut by their z-planes.
 
 ## Requirements
 
 - The .NET 8 SDK, as for MMUCS itself.
-- The game's resource files. Point probe at the first one (`COMI.LA0`); the others beside it are loaded too.
+- The game's resource files. Point mprobe at the first one (`COMI.LA0`); the others beside it are loaded too.
 
 ```bash
-dotnet run --project tools/probe -c Release -- --game D:/Games/COMI/COMI.LA0 COMMAND ...
+dotnet run --project tools/mprobe -c Release -- --game D:/Games/COMI/COMI.LA0 COMMAND ...
 ```
 
 Or set the `MMUCS_GAME` variable once and leave `--game` out:
 
 ```bash
 export MMUCS_GAME=D:/Games/COMI/COMI.LA0      # PowerShell: $env:MMUCS_GAME = "D:/Games/COMI/COMI.LA0"
-dotnet run --project tools/probe -c Release -- masked 14 out
+dotnet run --project tools/mprobe -c Release -- masked 14 out
 ```
 
 ## Commands
@@ -31,7 +31,7 @@ dotnet run --project tools/probe -c Release -- masked 14 out
 ## Refreshing the export for mscripts and mroom
 
 ```bash
-dotnet run --project tools/probe -c Release -- export D:/exports/comi
+dotnet run --project tools/mprobe -c Release -- export D:/exports/comi
 python tools/mscripts/mscripts.py use D:/exports/comi
 ```
 
@@ -39,4 +39,4 @@ The export uses the variable names built into MMUCS.Core, so run it again after 
 
 ## Notes
 
-probe isn't part of `MMUCS.sln`, so building the app doesn't build it. It references `src/MMUCS.Core` directly and always runs the current code.
+mprobe isn't part of `MMUCS.sln`, so building the app doesn't build it. It references `src/MMUCS.Core` directly and always runs the current code.
