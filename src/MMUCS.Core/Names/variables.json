@@ -12,17 +12,97 @@
       "Name": "dialog-choice-verb",
       "Note": "Verb id of the dialogue choice being laid out. Each choice in a dialogue script sets it to 500 + n - 1 and builds that verb: 'verb var208 at var594,var256', 'verb var208 name \"...\"', 'verb var208 on', then records it in var254 (global/script_0142.scumm:113-117, :399-403). Dialogue verbs are 500-539 (global/script_0005.scumm:13-19). Also used as a plain loop counter over 500-539 to turn them off (global/script_0005.scumm:5-8, global/script_0013.scumm:13-16)."
     },
-    "234": {
+    "216": {
       "Name": "",
-      "Note": ""
+      "Note": "Unconfirmed: looks like the object the player last clicked to act on, room object or inventory icon. It is set from var333, the object under the mouse, only in the click handlers: when the action popup opens (global/script_0034.scumm:45, before script 42 starts), on a quick click (global/script_0034.scumm:20 and global/script_0034.scumm:25), when picking from the inventory (global/script_0035.scumm:27), and in global/script_0038.scumm:14 and global/script_0038.scumm:33. global/script_0036.scumm:5-53 runs the popup's chosen verb var215 on it, then clears it at global/script_0036.scumm:56. But object scripts read it in verb 219 (the hover label) and compare it with inventory icons, e.g. rooms/009_cannon/objects/0288_sane-wally-object.scumm:43 'var216 in [178, 122, 117]' (ventriloquism-book, ramrod and cutlass icons). So it outlives the click and seems to be the held item's icon there; I couldn't tell which meaning to name."
+    },
+    "223": {
+      "Name": "",
+      "Note": "Unclear: all 117 refs are 'var223 = 0' in the per-menu reset of the dialogue scripts (global/script_0142.scumm:88, with dialog-choice-count and dialog-lines-used). No script reads it or writes another value; it may be left over from an older dialogue system."
+    },
+    "234": {
+      "Name": "room-var234",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:10), so it never carries state between rooms. It's used in 15 rooms with a different meaning in each: a flag in rooms/021_brbr-int/local_2009.scumm:51, a counter in rooms/039_shipmap/local_2006.scumm:18, a saved verb-script in rooms/017_cu-elpol/local_2003.scumm:4, a palette-intensity value in rooms/080_smglcave/local_2019.scumm:10, and hover state in rooms/092_saveload/local_2005.scumm:7. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "235": {
+      "Name": "room-var235",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:11), so it never carries state between rooms. It's used in 7 rooms, mostly 009_cannon and 030_voodoo-i, e.g. rooms/009_cannon/local_2004.scumm:368. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "236": {
+      "Name": "room-var236",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:12), so it never carries state between rooms. It's used in 6 rooms, e.g. rooms/021_brbr-int/local_2007.scumm:145 var236 = 500. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "237": {
+      "Name": "room-var237",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:13), so it never carries state between rooms. It's used in 4 rooms (021_brbr-int, 080_smglcave, 092_saveload, 010_cannon-v), e.g. rooms/010_cannon-v/local_2002.scumm:25 and rooms/010_cannon-v/local_2008.scumm:12. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "238": {
+      "Name": "room-var238",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:14), so it never carries state between rooms. It's used in 010_cannon-v and 092_saveload, e.g. rooms/010_cannon-v/local_2011.scumm:106 var238 = local2. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "239": {
+      "Name": "room-var239",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:15), so it never carries state between rooms. It's used in 010_cannon-v and 092_saveload, e.g. a busy flag in rooms/010_cannon-v/local_2007.scumm:24 and rooms/010_cannon-v/local_2016.scumm:5. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "240": {
+      "Name": "room-var240",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:16), so it never carries state between rooms. So far it's used only in 092_saveload, e.g. rooms/092_saveload/local_2002.scumm:10 and rooms/092_saveload/local_2006.scumm:26. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "241": {
+      "Name": "room-var241",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:17), so it never carries state between rooms. So far it's used only in 092_saveload, e.g. rooms/092_saveload/local_2016.scumm:12. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "242": {
+      "Name": "room-var242",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:18), so it never carries state between rooms. So far it's used only in 092_saveload, e.g. rooms/092_saveload/local_2002.scumm:18 and rooms/092_saveload/local_2024.scumm:28. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "243": {
+      "Name": "room-var243",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:19), so it never carries state between rooms. No room script uses it; only the reset touches it. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "244": {
+      "Name": "room-var244",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:20), so it never carries state between rooms. No room script uses it; only the reset touches it. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "245": {
+      "Name": "room-var245",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:21), so it never carries state between rooms. No room script uses it; only the reset touches it. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "246": {
+      "Name": "room-var246",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:22), so it never carries state between rooms. No room script uses it; only the reset touches it. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "247": {
+      "Name": "room-var247",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:23), so it never carries state between rooms. No room script uses it; only the reset touches it. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "249": {
+      "Name": "room-var249",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:24), so it never carries state between rooms. No room script uses it; only the reset touches it. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "250": {
+      "Name": "room-var250",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:25), so it never carries state between rooms. No room script uses it; only the reset touches it. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "251": {
+      "Name": "room-var251",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:26), so it never carries state between rooms. No room script uses it; only the reset touches it. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "252": {
+      "Name": "room-var252",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:27), so it never carries state between rooms. No room script uses it; only the reset touches it. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+    },
+    "253": {
+      "Name": "room-var253",
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:28), so it never carries state between rooms. No room script uses it; only the reset touches it. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
     },
     "254": {
       "Name": "dialog-choice-verbs",
       "Note": "Array of the dialogue choice verbs shown, in order: cleared for 0-50 at the start of each menu (global/script_0142.scumm:71-74) and filled with 'var254[var268] = var208' as each choice is laid out (:117, :403)."
     },
     "255": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-selected-verb",
+      "Note": "The dialogue choice the player picked, as its verb id (500-539). It is reset to 0 per menu (global/script_0142.scumm:59), and the menu loops 'while (!var255)' (global/script_0142.scumm:64). The dialogue verb-script sets it to the clicked verb (global/script_0013.scumm:29-31). Dialogue scripts then branch on it: 'if (var255 == 500)' ... (global/script_0142.scumm:428-437)."
     },
     "256": {
       "Name": "dialog-choice-y",
@@ -69,16 +149,44 @@
       "Note": "Index of the first inventory item on the current inventory page; pages hold (4 + 1) * (2 + 1) = 15 items. global/script_0034.scumm:64-68 adds 15 on the next-page arrow (capped at inventory-count), :74-77 subtracts 15 on the previous one (not below 1). global/script_0067.scumm:4-9 moves it to the last page. Reset to 1 when it passes inventory-count(ego) (global/script_0114.scumm:114-115, 144 'var315 > inventory-count' checks)."
     },
     "329": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-choice-silent",
+      "Note": "Array with a flag for each dialogue choice (1-based, local5 = verb - 500 + 1): when it is set, picking that choice skips Guybrush's pose, gesture and say-line (global/script_0013.scumm:20-30). It is cleared for 1-50 at each menu (global/script_0142.scumm:75-79). global/script_0318.scumm:58-62 sets it for every choice. Declared with 'dim int var329[50]' (global/script_0001.scumm:50)."
+    },
+    "330": {
+      "Name": "dialog-choice-pose",
+      "Note": "Array with a pose for each dialogue choice: when that choice is picked, global/script_0013.scumm:22-23 runs script 106 with it before Guybrush says the line. Its values (15, 18, 20, 24, 26, 27, 29, and 4) are all in script 106's first list, so script 107 changes 'actor 1 talk-animation'. Context, not mentioning var330: global/script_0106.scumm:4-10 gets the value as local0. It is set per choice in dialogue scripts, e.g. global/script_0243.scumm:242 var330[4] = 24, and cleared per menu (global/script_0142.scumm:80-85)."
+    },
+    "331": {
+      "Name": "dialog-choice-gesture",
+      "Note": "Array with a gesture for each dialogue choice: when that choice is picked, global/script_0013.scumm:25-26 runs script 106 with it after the pose. Its values (9, 10, 11, 30, 31, 34, 35, 38, 39) are not in script 106's first list, so they go to script 108, which plays 'do-animation 1 N' and waits. Context, not mentioning var331: global/script_0106.scumm:11-17 and global/script_0108.scumm:4-17 get the value as local0. It is set per choice, e.g. global/script_0243.scumm:243 var331[4] = 11, and cleared per menu (global/script_0142.scumm:80-85)."
     },
     "594": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-choice-x",
+      "Note": "X position of the dialogue choices: set once to 5 (global/script_0001.scumm:69), used in 'verb dialog-choice-verb at var594,dialog-choice-y' (global/script_0142.scumm:114) and to get the text width as 640 - var594 (global/script_0142.scumm:97)."
+    },
+    "595": {
+      "Name": "dialog-top-y",
+      "Note": "Y position of the first dialogue choice: set once to 330 (global/script_0001.scumm:70) and copied into dialog-choice-y at the start of each menu (global/script_0142.scumm:86)."
     },
     "596": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-line-height",
+      "Note": "Height of one line of dialogue choice text: set once to 24 (global/script_0001.scumm:71). dialog-choice-y goes up by it for each line a choice wraps to (global/script_0142.scumm:118-122)."
+    },
+    "598": {
+      "Name": "dialog-choice-width",
+      "Note": "Pixel width of the dialogue choice being laid out: 'var598 = string-width(1, \"...\")' with that choice's text (global/script_0142.scumm:96). It is compared with dialog-text-width to work out how many lines the choice wraps to (global/script_0142.scumm:98-103)."
+    },
+    "599": {
+      "Name": "dialog-text-width",
+      "Note": "Width available for dialogue choice text, 640 - dialog-choice-x (global/script_0142.scumm:97, written 896 times, always like this). Used as the divisor for the number of wrapped lines (global/script_0142.scumm:98-99)."
+    },
+    "600": {
+      "Name": "dialog-choice-lines",
+      "Note": "Number of lines the dialogue choice being laid out wraps to: dialog-choice-width / dialog-text-width + 1 when it doesn't fit, else 1 (global/script_0142.scumm:98-103). It is added to dialog-lines-used (global/script_0142.scumm:104), sets how far dialog-choice-y moves (global/script_0142.scumm:118-122), and adds its extra lines to dialog-scroll after a scroll down (global/script_0142.scumm:124-125)."
+    },
+    "601": {
+      "Name": "dialog-line-counter",
+      "Note": "Loop counter over the lines of the dialogue choice just placed: 'var601 = 1; while (var601 <= var600) { dialog-choice-y = dialog-choice-y + var596; var601++ }' (global/script_0142.scumm:118-122). Every write in all 49 scripts is that loop."
     },
     "602": {
       "Name": "dialog-lines-used",
@@ -96,9 +204,17 @@
       "Name": "dialog-lines-skipped",
       "Note": "Dialogue choice lines skipped so far while laying out a scrolled menu: reset to 0 per menu (global/script_0142.scumm:90), and each choice is skipped and counted with 'var605 = var605 + 1' while dialog-scroll (var604) is greater (:93-94, :130-131)."
     },
+    "606": {
+      "Name": "dialog-loop-counter",
+      "Note": "Loop counter in the dialogue menu setup: it turns off verbs 500-539 (global/script_0142.scumm:65-69) and clears dialog-choice-verbs, dialog-choice-silent, dialog-choice-pose and dialog-choice-gesture for entries 0/1-50 (global/script_0142.scumm:70-85). Some rooms use smaller bounds for the same loops: verbs 500-508 and entries 0-8 in rooms/070_famcrypt/local_2003.scumm:72-80."
+    },
     "607": {
       "Name": "dialog-scrolled-down",
       "Note": "Set to 1 when the player clicks the dialogue down arrow (dialog-increment-icon 189, global/script_0013.scumm:38-40). For the next layout pass, a skipped choice that wraps over several lines adds its extra lines to dialog-scroll ('else if (var607 == 1) var604 = var604 + (var600 - 1)', global/script_0142.scumm:124-125), so scrolling moves by whole choices; it is cleared after that pass (:417-419)."
+    },
+    "608": {
+      "Name": "",
+      "Note": "Unconfirmed: the dialog-choice-lines (line count) of the first dialogue choice shown since var609 was last cleared: 'if (!var609) { var609 = 1; var608 = var600 }' (global/script_0142.scumm:105-108). All 896 refs are that write, and no script reads it."
     },
     "609": {
       "Name": "",
@@ -109,16 +225,20 @@
       "Note": "Speech frequency of actor 1 (Guybrush): every write is followed by 'actor 1 frequency var611' (371 uses). Normal is 256 (global/script_0001.scumm:51, global/script_0090.scumm:12). The helium balloon raises it to 256 + 340 / 2 (global/script_0089.scumm:86, then \"That's made my voice sound funny.\" at :92) and script 90 slides it back to 256 (global/script_0090.scumm:6-12). The drowsy drink lowers it to 256 - 30/50/100 (rooms/061_hotelbar/local_2025.scumm:94-105)."
     },
     "624": {
-      "Name": "",
-      "Note": ""
+      "Name": "ambient-sounds",
+      "Note": "Array of the sound ids a room has loaded and locked for its ambient sounds. Room scripts do load-sound N, lock-sound N, var624[var625] = N, then start the sound with script 112 (rooms/028_brimbch/local_2003.scumm:10-13 and rooms/028_brimbch/local_2003.scumm:19-22). On room exit, global/script_0012.scumm:24-28 runs unlock-sound var624[var625] for entries 0-20."
     },
     "625": {
-      "Name": "",
-      "Note": ""
+      "Name": "ambient-sound-count",
+      "Note": "Number of entries in ambient-sounds (var624), and the index of the next one. Room scripts add 1 after each sound and print \"ERROR! - Too many ambient sounds\" past 20 (rooms/028_brimbch/local_2003.scumm:15-17). global/script_0012.scumm:24-29 loops it from 0 to 20 to unlock them on room exit, then resets it to 0."
     },
     "630": {
       "Name": "sentence-verb-text",
       "Note": "String array holding the verb word of the action sentence on screen. global/script_0039.scumm:166/169 sets it to \"/PU_M023/give\" or \"/PU_M004/use\" (var631 gets \"to\"/\"with\") and :176/181 blast-text it as \"%s{var630} %s{var635} %s{var631} %n{object}\". Object scripts set their own verb word in verb 218, e.g. rooms/009_cannon/objects/0281_gaff-object.scumm:48 \"/PU_M005/eat\" or :50 \"talk to\"."
+    },
+    "631": {
+      "Name": "sentence-preposition-text",
+      "Note": "String array holding the preposition of the action sentence on screen, next to sentence-verb-text (var630). global/script_0039.scumm:166-170 sets it to \"/PU_M024/to\" with give or \"/PU_M025/with\" with use, and global/script_0039.scumm:176 shows it as \"%s{var630} %s{var635} %s{var631} %n{object}\". Object scripts set it in verb 219, e.g. rooms/009_cannon/objects/0288_sane-wally-object.scumm:45 and rooms/009_cannon/objects/0288_sane-wally-object.scumm:48."
     },
     "643": {
       "Name": "",
