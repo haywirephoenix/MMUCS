@@ -25,6 +25,15 @@
     </Border>
 
     <!-- The viewer's own panels: Cels, Preview, Chores and Resolved palette (see CostumeDock.cs). -->
-    <dock:DockControl Layout="{Binding Layout}" />
+    <!-- Its tool title bars use their own theme so they never take over a floating window (see the file). -->
+    <dock:DockControl Layout="{Binding Layout}">
+      <dock:DockControl.Resources>
+        <ResourceDictionary>
+          <ResourceDictionary.MergedDictionaries>
+            <ResourceInclude Source="/Styles/InnerToolChrome.axaml" />
+          </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+      </dock:DockControl.Resources>
+    </dock:DockControl>
   </DockPanel>
 </UserControl>
