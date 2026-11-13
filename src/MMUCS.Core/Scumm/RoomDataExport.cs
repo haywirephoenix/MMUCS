@@ -289,6 +289,8 @@ public static class RoomDataExport
                 if (a.Scale != 255) w.WriteNumber("scale", a.Scale);
                 if (a.ZPlane > 0) w.WriteNumber("zplane", a.ZPlane);
                 if (WhenText(a.When) is { } when) w.WriteString("when", when);
+                // Shown as the room opens: what the room viewer starts with.
+                if (a.StartsShown) w.WriteBoolean("starts_shown", true);
                 // Drawn in front of the actors its script takes out of the room while it plays.
                 if (a.SortY != a.Y) w.WriteNumber("sort_y", a.SortY);
                 if (a.Removes.Count > 0) WriteInts(w, "removes", a.Removes);
