@@ -115,8 +115,8 @@ public sealed class AppSettings
 public sealed class RoomViewOptions
 {
     public bool ShowBackground { get; set; } = true;
-    // ShowObjects and ShowUnmatchedCostumes are no longer applied: the toggles follow each room's checkboxes,
-    // and rooms start as the game shows them. Kept so settings files that have them still load.
+    // ShowObjects and ShowUnmatchedCostumes are no longer used (the Show mode replaced those toggles).
+    // Kept so settings files that have them still load.
     public bool ShowObjects { get; set; } = true;
     public bool ShowFullScreenObjects { get; set; }
     public bool ShowUnmatchedCostumes { get; set; }
@@ -127,4 +127,6 @@ public sealed class RoomViewOptions
     public bool ShowObjectsPanel { get; set; } = true;
     public bool ZPlaneMasking { get; set; } = true;
     public bool ShowZPlanes { get; set; }
+    /// <summary>What each room starts with: 0 Room start, 1 Everything, 2 Hidden at start, 3 None.</summary>
+    public int ShowMode { get; set; }
 }

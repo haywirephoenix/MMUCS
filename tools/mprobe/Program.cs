@@ -18,6 +18,9 @@ usage: mprobe [--game FILE] COMMAND ...
                        actor's costume, position, scale and z-plane. --debug paints the cut pixels magenta.
                        --only draws just those costumes. --start draws only what's there as the room
                        opens (placed on entry, not the player), as the room viewer starts.
+                       ROOM "all" draws every room with a background (roomNNN_name.png) with all its
+                       costumes, and writes the listings to OUT/costumes.txt, where each actor's line
+                       also gives its walkbox and the scale that box would give it.
   box ROOM X Y [--player]
                        The walkboxes at a point: each box holding it or near it, with its flags and mask,
                        and the box the engine puts an actor there in (and where it moves it), as an actor
@@ -135,12 +138,38 @@ int ShowBox(List<string> a)
 
 async Task<int> DrawMasked(List<string> a)
 {
-    var room = FindRoom(Positional(a, 1, "ROOM"));
+    string wanted = Positional(a, 1, "ROOM");
     string outDir = Positional(a, 2, "OUT");
-    bool debug = a.Contains("--debug");
+    bool debug = a.Contains("--debug"), start = a.Contains("--start");
     // --only 122,112: draw just these costumes (to see which picture is which, and how they overlap).
     var only = TakeOption(a, "--only")?.Split(',').Select(int.Parse).ToHashSet();
     Directory.CreateDirectory(outDir);
+    if (wanted != "all")
+        return await DrawRoom(FindRoom(wanted), outDir, debug, start, only, Console.Out, null, boxes: false);
+
+    // Every room: one picture each, sorted by number, and one listing to read them by.
+    var rooms = root.FindChildrenRecursive(ScummTag.LFLF)
+        .Select(l => RoomModel.TryCreate(l, out var r) ? r : null)
+        .Where(r => r != null && r.Width > 0).OrderBy(r => r.RoomNo).ToList();
+    string listing = Path.Combine(outDir, "costumes.txt");
+    int failed = 0;
+    using (var log = new StreamWriter(listing))
+        foreach (var room in rooms)
+        {
+            try { await DrawRoom(room, outDir, debug, start, only, log, $"room{room.RoomNo:000}_{room.Name}.png", boxes: true); }
+            catch (Exception ex) when (ex is not UsageException)
+            {
+                failed++;
+                log.WriteLine($"room {room.RoomNo} {room.Name}: failed: {ex.Message}");
+            }
+            log.WriteLine();
+        }
+    Console.WriteLine($"{rooms.Count - failed} rooms drawn, {failed} failed → {outDir} (listing: {listing})");
+    return failed > 0 ? 1 : 0;
+}
+
+async Task<int> DrawRoom(RoomModel room, string outDir, bool debug, bool start, HashSet<int> only, TextWriter log, string name, bool boxes)
+{
 
     // The mask as the viewer builds it: the room's planes with the objects shown on entry over them.
     var states = RoomObjectStates.Initial(room);
@@ -150,10 +179,10 @@ async Task<int> DrawMasked(List<string> a)
 
     var img = Copy(await Background(room));
     // SCUMM's draw order: by y before elevation, then actor number.
-    bool start = a.Contains("--start");
     var actors = RoomActors.Analyze(room).Where(x => x.CanDraw && (only == null || only.Contains(x.Costume)) && (!start || x.StartsShown))
         .OrderBy(x => x.SortY).ThenBy(x => x.Actor).ToList();
     int cut = 0;
+    var lines = new List<string>();
     foreach (var actor in actors)
     {
         var frame = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy);
@@ -179,15 +208,28 @@ async Task<int> DrawMasked(List<string> a)
                 for (int c = 0; c < 4; c++) img.Data[di + c] = frame.Data[si + c];
             }
         string who = actor.Actor > 0 ? $"actor {actor.Actor}" : actor.DressedBy >= 0 ? $"dressed by script {actor.DressedBy}" : "actor ?";
-        Console.WriteLine($"  costume {actor.Costume,4}  {who,-22} at {actor.X},{actor.Y}" +
-                          (actor.Elevation != 0 ? $" elevation {actor.Elevation}" : "") +
-                          (actor.Scale != 255 ? $" scale {actor.Scale}" : "") + $"  z-plane {actor.ZPlane}" +
-                          $"  {RoomDataExport.WhenText(actor.When) ?? "?"}{(actor.IsPlayer ? ", player" : "")}" +
-                          (actor.Owner != null ? $"  ({actor.Owner.Name})" : ""));
+        // The box at its feet and the scale it would give an actor that follows the boxes: an actor drawn
+        // at another scale either ignores the boxes or has its scale wrong.
+        string box = "";
+        if (boxes)
+        {
+            var (_, _, b) = RoomActors.PutInBox(room.Walkboxes, actor.X, actor.Y, actor.IsPlayer);
+            int bs = Walkboxes.ScaleAt(room.Walkboxes, room.ScaleSlots, b, actor.X, actor.Y);
+            box = $"  [box {b} scale {bs}{(bs != actor.Scale ? " ≠" : "")}]";
+        }
+        lines.Add($"  costume {actor.Costume,4}  {who,-22} at {actor.X},{actor.Y}" +
+                      (actor.Elevation != 0 ? $" elevation {actor.Elevation}" : "") +
+                      (actor.Scale != 255 ? $" scale {actor.Scale}" : "") + $"  z-plane {actor.ZPlane}" +
+                      $"  {RoomDataExport.WhenText(actor.When) ?? "?"}{(actor.IsPlayer ? ", player" : "")}" +
+                      (actor.Owner != null ? $"  ({actor.Owner.Name})" : "") + box);
     }
-    string file = Path.Combine(outDir, $"room{room.RoomNo}_{(debug ? "debug" : start ? "start" : "masked")}.png");
+    string file = Path.Combine(outDir, name ?? $"room{room.RoomNo}_{(debug ? "debug" : start ? "start" : "masked")}.png");
     img.SavePng(file);
-    Console.WriteLine($"room {room.RoomNo} {room.Name}: {actors.Count} actors drawn, {cut} pixels cut by z-planes → {file}");
+    // One room alone: its actors, then where the picture went. In the listing of all rooms: the room first.
+    string summary = $"room {room.RoomNo} {room.Name}: {actors.Count} actors drawn, {cut} pixels cut by z-planes → {file}";
+    if (boxes) log.WriteLine(summary);
+    foreach (var line in lines) log.WriteLine(line);
+    if (!boxes) log.WriteLine(summary);
     return 0;
 }
 
