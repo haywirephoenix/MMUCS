@@ -5,6 +5,45 @@ using System.Text.RegularExpressions;
 
 namespace MMUCS.Core.Scumm;
 
+/// <summary>
+/// What a fresh game knows before the player does anything: each object's starting classes, and the
+/// variables and array cells the boot script (global script 1) sets unconditionally to constants
+/// (var390[1] = 3, the cannons' starting level). Bit variables are 0 unless the boot script sets them.
+/// </summary>
+internal sealed class FreshGame
+{
+    public Dictionary<int, uint> Classes { get; } = new();
+    /// <summary>Boot values by raw variable reference (bit 31 for a bit variable).</summary>
+    public Dictionary<uint, int> Vars { get; } = new();
+    public Dictionary<(uint Array, int Index), int> Arrays { get; } = new();
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ScummBlock, FreshGame> Cache = new();
+
+    /// <summary>The fresh game of the project <paramref name="any"/> belongs to (worked out once).</summary>
+    public static FreshGame For(ScummBlock any)
+    {
+        if (any == null) return new FreshGame();
+        var root = any;
+        while (root.Parent != null) root = root.Parent;
+        lock (Cache)
+        {
+            if (Cache.TryGetValue(root, out var known)) return known;
+            var fresh = new FreshGame();
+            try
+            {
+                foreach (var o in RoomDataExport.ReadObjectTable(root)) fresh.Classes.TryAdd(o.Id, o.Classes);
+                var boot = root.FindChildrenRecursive(ScummTag.SCRP)
+                    .Select(RoomScripts.For).FirstOrDefault(e => e?.Title == "Global script 1");
+                if (boot != null)
+                    PlacementTiming.Branches(boot.Block.DataSpan, boot.Parts[0].Start, boot.Parts[0].End, -1, fresh, record: true);
+            }
+            catch { /* what can't be read stays unknown */ }
+            Cache.AddOrUpdate(root, fresh);
+            return fresh;
+        }
+    }
+}
+
 /// <summary>When the game puts a costume in the room, as far as the scripts show.</summary>
 public enum PlacementTime
 {
@@ -35,10 +74,12 @@ internal sealed class PlacementTiming
     private readonly HashSet<ScummBlock> _onEntry = new();
     private readonly Dictionary<ScummBlock, List<Branch>> _branches = new();
     private readonly int _room;
+    private readonly FreshGame _fresh;
 
-    public PlacementTiming(IEnumerable<ScummBlock> scripts, int roomNo = -1)
+    public PlacementTiming(IEnumerable<ScummBlock> scripts, int roomNo = -1, FreshGame fresh = null)
     {
         _room = roomNo;
+        _fresh = fresh;
         var all = scripts.ToList();
         var locals = new Dictionary<int, ScummBlock>();
         foreach (var b in all.Where(b => b.Tag == ScummTag.LSCR && b.DataLength >= 4))
@@ -91,7 +132,7 @@ internal sealed class PlacementTiming
         if (!_branches.TryGetValue(script, out var branches))
         {
             branches = RoomScripts.For(script) is { Parts.Count: > 0 } e
-                ? Branches(script.DataSpan, e.Parts[0].Start, e.Parts[0].End, _room) : new();
+                ? Branches(script.DataSpan, e.Parts[0].Start, e.Parts[0].End, _room, _fresh) : new();
             _branches[script] = branches;
         }
         return positions.Where(p => p >= 0).All(p => Reached(branches, p));
@@ -123,14 +164,19 @@ internal sealed class PlacementTiming
         return true;
     }
 
-    /// <param name="classes">An object's starting classes (bit N-1 for class N), or null when not known;
-    /// with it, "class-of(OBJ) is [..]" is read as the engine does.</param>
-    internal static List<Branch> Branches(ReadOnlySpan<byte> code, int start, int end, int room, Func<int, uint?> classes = null)
+    /// <param name="fresh">What a fresh game knows (objects' classes, boot values), or null.</param>
+    /// <param name="record">Reading the boot script: put its top-level constant writes into <paramref name="fresh"/>.</param>
+    internal static List<Branch> Branches(ReadOnlySpan<byte> code, int start, int end, int room, FreshGame fresh = null, bool record = false)
     {
         var list = new List<Branch>();
         List<ScriptInstruction> ins;
         try { ins = ScummScript.Disassemble(code, start, end); }
         catch { return list; }
+        // Code inside a condition, an else part or a loop: its writes don't count as the boot script's.
+        var guarded = ins.Where(i => i.Opcode is 0x64 or 0x65 or 0x66 && i.Target >= 0)
+            .Select(i => i.Target > i.Offset ? (From: i.Offset + i.Length, To: i.Target) : (From: i.Target, To: i.Offset + i.Length))
+            .Where(r => r.To > r.From).ToList();
+        bool TopLevel(int at) => !guarded.Any(r => at >= r.From && at < r.To);
         var stack = new List<int?>();
         int? Pop()
         {
@@ -150,8 +196,30 @@ internal sealed class PlacementTiming
                 case 0x02:
                 {
                     uint v = (uint)i.Operand;
-                    // A bit variable is 0 on a fresh game; current-room (31) is this room.
-                    stack.Add((v & 0x80000000) != 0 ? 0 : v == 31 && room >= 0 ? room : null);
+                    // What the boot script set it to; else a bit variable is 0 on a fresh game, and
+                    // current-room (31) is this room. Locals and other globals aren't known.
+                    stack.Add(fresh != null && fresh.Vars.TryGetValue(v, out int boot) ? boot
+                        : (v & 0x80000000) != 0 ? 0 : v == 31 && room >= 0 ? room : null);
+                    break;
+                }
+                case 0x03:
+                {
+                    var index = Pop();
+                    stack.Add(index is int ix && fresh != null && fresh.Arrays.TryGetValue(((uint)i.Operand, ix), out int cell) ? cell : null);
+                    break;
+                }
+                case 0x6d:
+                {
+                    var value = Pop();
+                    uint v = (uint)i.Operand;
+                    if (record && value is int x && (v & 0x40000000) == 0 && TopLevel(i.Offset)) fresh.Vars[v] = x;
+                    break;
+                }
+                case 0x71:
+                {
+                    var value = Pop();
+                    var index = Pop();
+                    if (record && value is int x && index is int ix && TopLevel(i.Offset)) fresh.Arrays[((uint)i.Operand, ix)] = x;
                     break;
                 }
                 case 0x05: { var v = Pop(); stack.Add(v); stack.Add(v); break; }
@@ -184,7 +252,7 @@ internal sealed class PlacementTiming
                     var tested = new List<int?>();
                     for (int k = 0; k < (n ?? 0) && k < 32; k++) tested.Add(Pop());
                     var obj = Pop();
-                    if (n == null || obj is not int o || classes?.Invoke(o) is not uint bits
+                    if (n == null || obj is not int o || fresh == null || !fresh.Classes.TryGetValue(o, out uint bits)
                         || tested.Any(c => c is not int x || (x & 0x7F) is < 1 or > 32)) { stack.Add(null); break; }
                     bool holds = tested.All(c => ((bits & (1u << (((int)c & 0x7F) - 1))) != 0) == (((int)c & 0x80) != 0));
                     stack.Add(holds ? 1 : 0);

@@ -601,7 +601,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         nameof(RoomViewModel.ShowBackground), nameof(RoomViewModel.ShowFullScreenObjects),
         nameof(RoomViewModel.ShowHotspots), nameof(RoomViewModel.ShowWalkboxes),
         nameof(RoomViewModel.ShowLabels), nameof(RoomViewModel.ShowBounds), nameof(RoomViewModel.ShowObjectsPanel),
-        nameof(RoomViewModel.ZPlaneMasking), nameof(RoomViewModel.ShowZPlanes),
+        nameof(RoomViewModel.ZPlaneMasking), nameof(RoomViewModel.ShowZPlanes), nameof(RoomViewModel.ShowMode),
     };
     private bool _applyingRoomView;
 
@@ -618,6 +618,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Room.ShowObjectsPanel = o.ShowObjectsPanel;
         Room.ZPlaneMasking = o.ZPlaneMasking;
         Room.ShowZPlanes = o.ShowZPlanes;
+        Room.ShowMode = Math.Clamp(o.ShowMode, 0, RoomViewModel.ShowModes.Count - 1);
         _applyingRoomView = false;
     }
 
@@ -635,6 +636,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             ShowObjectsPanel = Room.ShowObjectsPanel,
             ZPlaneMasking = Room.ZPlaneMasking,
             ShowZPlanes = Room.ShowZPlanes,
+            ShowMode = Room.ShowMode,
         };
         var json = System.Text.Json.JsonSerializer.Serialize(next);
         if (json == System.Text.Json.JsonSerializer.Serialize(Settings.RoomView)) return;

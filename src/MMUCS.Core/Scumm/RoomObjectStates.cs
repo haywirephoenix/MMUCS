@@ -30,14 +30,13 @@ public static class RoomObjectStates
         // Start states by name (object images only know their name) and by id.
         var byName = new Dictionary<string, int>(StringComparer.Ordinal);
         var byId = new Dictionary<int, string>();
-        var classes = new Dictionary<int, uint>();
         foreach (var o in RoomDataExport.ReadObjectTable(root))
         {
             byName.TryAdd(o.Name, o.State);
             byId.TryAdd(o.Id, o.Name);
-            classes.TryAdd(o.Id, o.Classes);
         }
 
+        var fresh = FreshGame.For(root);
         var scripts = RoomScripts.List(room.Lflf);
         var locals = new Dictionary<int, ScriptEntry>();
         foreach (var e in scripts.Where(e => e.Group == "Local" && e.Title.StartsWith("Local script ")))
@@ -52,8 +51,7 @@ public static class RoomObjectStates
             try { lines = RoomScripts.Decompile(e); }
             catch { return; } // a script that doesn't decompile sets nothing we can read
             var part = e.Parts.FirstOrDefault();
-            var branches = PlacementTiming.Branches(e.Block.DataSpan, part.Start, part.End, room.RoomNo,
-                id => classes.TryGetValue(id, out uint c) ? c : null);
+            var branches = PlacementTiming.Branches(e.Block.DataSpan, part.Start, part.End, room.RoomNo, fresh);
             foreach (var line in lines.Where(l => l.Indent == 0 || (l.Offset >= 0 && PlacementTiming.Surely(branches, l.Offset))))
             {
                 string t = line.Text.Trim();

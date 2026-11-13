@@ -107,6 +107,18 @@ public class RoomActorsScanTests
         Assert.Equal((346, 130, 140), (found.X, found.Y, found.Scale));
     }
 
+    [Fact]
+    public void A_costume_its_script_takes_away_again_is_only_there_for_a_moment()
+    {
+        // actor 35 costume 267; put-actor 35 at 429,335 in-room 52; put-actor 35 at 0,0 in-room 0 (gb-deck's idle arms)
+        var s = Script(35, SetActor, 267, SetCostume, 35, 429, 335, 52, Put, 35, 0, 0, 0, Put);
+        Assert.True(RoomActors.ScanScript(s, 52).Single(p => p.Costume == 267).Passing);
+        // … if (bit5) { put-actor 35 at 0,0 in-room 0 }: taken away only sometimes
+        var guarded = Script(35, SetActor, 267, SetCostume, 35, 429, 335, 52, Put,
+                             PushVar(unchecked((int)0x80000005)), Jump(0x65, 21), 35, 0, 0, 0, Put);
+        Assert.False(RoomActors.ScanScript(guarded, 52).Single(p => p.Costume == 267).Passing);
+    }
+
     private static readonly byte[] NeverZClip = { 0xAC, 0x74 }, AlwaysZClip = { 0xAC, 0x75 }, IgnoreBoxes = { 0xAC, 0x76 };
 
     [Fact]
@@ -442,6 +454,21 @@ public class PlacementTimingTests
         Assert.True(PlacementTiming.Reached(PlacementTiming.Branches(global, 0, global.Length, 11), 12));
     }
 
+    [Fact]
+    public void The_boot_scripts_top_level_constants_are_known()
+    {
+        // var390[1] = 3; var400 = 7; if (bit5) { var401 = 1 }
+        var boot = Code(1, 3, Op(0x71, 390), 7, Op(0x6d, 400), Op(0x02, Bit5), Op(0x65, 10), 1, Op(0x6d, 401));
+        var fresh = new FreshGame();
+        PlacementTiming.Branches(boot, 0, boot.Length, -1, fresh, record: true);
+        Assert.Equal(3, fresh.Arrays[(390u, 1)]);
+        Assert.Equal(7, fresh.Vars[400u]);
+        Assert.False(fresh.Vars.ContainsKey(401u));
+        // if (var390[1] == 9) { costume 1 }: not on a fresh game
+        var room = Code(1, Op(0x03, 390), 9, new byte[] { 0x08 }, Op(0x65, 7), 1, Costume);
+        Assert.False(PlacementTiming.Reached(PlacementTiming.Branches(room, 0, room.Length, 52, fresh), 27));
+    }
+
     [Theory]
     [InlineData(1u << 31, false)] // the lid has class 32: "is [32]" fails, so the else part runs (pistols)
     [InlineData(0u, true)]
@@ -449,7 +476,9 @@ public class PlacementTimingTests
     {
         // if (class-of(650) is [32]) { costume 1 } else { costume 2 }   (then-part 21-33, else 33-40)
         var code = Code(650, 32, 1, new byte[] { 0xD0 }, Op(0x65, 12), 1, Costume, Op(0x66, 7), 2, Costume);
-        var branches = PlacementTiming.Branches(code, 0, code.Length, 24, id => id == 650 ? lidClasses : null);
+        var fresh = new FreshGame();
+        fresh.Classes[650] = lidClasses;
+        var branches = PlacementTiming.Branches(code, 0, code.Length, 24, fresh);
         Assert.Equal(thenRuns, PlacementTiming.Surely(branches, 23));
         Assert.Equal(!thenRuns, PlacementTiming.Surely(branches, 35));
     }

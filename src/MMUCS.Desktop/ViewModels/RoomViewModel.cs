@@ -103,7 +103,6 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private bool _isSwitchingRoom;
 
     [ObservableProperty] private bool _showBackground = true;
-    [ObservableProperty] private bool _showObjects = true;
     [ObservableProperty] private bool _showHotspots;
     [ObservableProperty] private bool _showWalkboxes;
     [ObservableProperty] private bool _showLabels = true;
@@ -124,8 +123,32 @@ public sealed partial class RoomViewModel : ObservableObject
     /// </summary>
     [ObservableProperty] private IReadOnlyList<SKImage> _zMasks;
     [ObservableProperty] private bool _showFullScreenObjects;
-    /// <summary>List (and draw) costumes no object claims, e.g. the player in a cutscene costume.</summary>
-    [ObservableProperty] private bool _showUnmatchedCostumes;
+    /// <summary>
+    /// What each room starts with, and what Reset goes back to: <see cref="ShowModes"/> by index. Room start
+    /// is what the game shows on entry; Everything every object image and placed costume, ignoring the
+    /// entry scripts (for checking positions and scales); Hidden at start the reverse of Room start; None
+    /// nothing. The Objects panel's checkboxes still change single entries.
+    /// </summary>
+    [ObservableProperty] private int _showMode;
+    public static IReadOnlyList<string> ShowModes { get; } = new[] { "Room start", "Everything", "Hidden at start", "None" };
+    public const int ShowRoomStart = 0, ShowEverything = 1, ShowHiddenAtStart = 2, ShowNone = 3;
+
+    /// <summary>Whether an entry is shown under the current <see cref="ShowMode"/>. Entries with nothing to
+    /// draw (a hotspot without a costume) keep their room-start value.</summary>
+    private bool ShownByMode(RoomObjectItem o)
+    {
+        bool drawable = o.Object.ImageCount > 0 || o.Costume is { CanDraw: true };
+        if (!drawable) return o.InitialVisible;
+        return ShowMode switch
+        {
+            ShowEverything => true,
+            ShowHiddenAtStart => !o.InitialVisible,
+            ShowNone => false,
+            _ => o.InitialVisible,
+        };
+    }
+
+    partial void OnShowModeChanged(int value) => SetVisibility(o => ShownByMode(o));
     /// <summary>Whether the Objects side panel is shown (toolbar toggle).</summary>
     [ObservableProperty] private bool _showObjectsPanel = true;
 
@@ -159,8 +182,8 @@ public sealed partial class RoomViewModel : ObservableObject
     private Dictionary<RoomObject, int> _initialStates = new();
     private bool _startVisibilityApplied;
 
-    /// <summary>Puts every entry's visibility back to how the room opened: objects by their state on entry.</summary>
-    [RelayCommand] private void ResetVisibility() => SetVisibility(o => o.InitialVisible);
+    /// <summary>Puts every entry's visibility back to what the Show mode starts a room with.</summary>
+    [RelayCommand] private void ResetVisibility() => SetVisibility(o => ShownByMode(o));
 
     public void SetVisible(RoomObject obj, bool visible) => SetVisibility(o => ReferenceEquals(o.Object, obj) ? visible : null);
 
@@ -188,7 +211,6 @@ public sealed partial class RoomViewModel : ObservableObject
     {
         VisibleObjects = Objects.Where(o => o.IsVisible).Select(o => o.Object).ToHashSet();
         UpdateZMasks();
-        SyncToggles();
         OnPropertyChanged(nameof(AllObjectsVisible));
     }
 
@@ -211,7 +233,6 @@ public sealed partial class RoomViewModel : ObservableObject
 
     // View menu items invoke these; their IsChecked is bound one-way, so the state lives here only.
     [RelayCommand] private void ToggleBackground() => ShowBackground = !ShowBackground;
-    [RelayCommand] private void ToggleObjects() => ShowObjects = !ShowObjects;
     [RelayCommand] private void ToggleHotspots() => ShowHotspots = !ShowHotspots;
     [RelayCommand] private void ToggleWalkboxes() => ShowWalkboxes = !ShowWalkboxes;
     [RelayCommand] private void ToggleLabels() => ShowLabels = !ShowLabels;
@@ -221,6 +242,8 @@ public sealed partial class RoomViewModel : ObservableObject
 
     partial void OnZPlaneMaskingChanged(bool value) => UpdateZMasks();
     partial void OnShowZPlanesChanged(bool value) => UpdateZMasks();
+    partial void OnShowFullScreenObjectsChanged(bool value) => UpdateZMasks();
+    partial void OnBackgroundObjectChanged(RoomObject value) => UpdateZMasks();
 
     private ZPlane[] _roomPlanes = Array.Empty<ZPlane>();
     private int _planeCount;
@@ -237,8 +260,14 @@ public sealed partial class RoomViewModel : ObservableObject
             ZMasks = null;
             return;
         }
-        // Objects write their planes over the room's while they're drawn (shown, with an image).
-        var shown = Objects.Where(o => !o.IsActorOnly && o.IsVisible && o.Object.ImageCount > 0).Select(o => o.Object).ToList();
+        // Objects write their planes over the room's while they're drawn (shown, with an image), blank
+        // parts included. A full-screen image the canvas doesn't draw (Full-screen objects off) mustn't
+        // count: shown by the Show mode's Everything, its empty planes would wipe the room's. The image
+        // picked as the background is drawn, so its planes do count.
+        var shown = Objects.Where(o => !o.IsActorOnly && o.Object.ImageCount > 0
+                                       && (ReferenceEquals(o.Object, BackgroundObject)
+                                           || (o.IsVisible && (ShowFullScreenObjects || o.Object.Width < 640))))
+            .Select(o => o.Object).ToList();
         string key = room.Room.Offset + ":" + string.Join(",", shown.Select(o => o.Index));
         if (key == _zMaskKey && ZMasks != null) return; // a costume or hotspot toggled: the masks are the same
         _zMaskKey = key;
@@ -276,32 +305,6 @@ public sealed partial class RoomViewModel : ObservableObject
         return SKImage.FromPixelCopy(info, alpha, width);
     }
     [RelayCommand] private void ToggleFullScreenObjects() => ShowFullScreenObjects = !ShowFullScreenObjects;
-    [RelayCommand] private void ToggleUnmatchedCostumes() => ShowUnmatchedCostumes = !ShowUnmatchedCostumes;
-
-    // The View menu's Objects / Unmatched costumes toggles switch the Objects panel checkboxes of
-    // their group; the checkboxes in turn decide what is drawn, and the toggles follow them.
-    private bool _syncingToggles;
-
-    partial void OnShowObjectsChanged(bool value)
-    {
-        if (!_syncingToggles) SetVisibility(o => !o.IsActorOnly && o.HasToggle ? value : null);
-    }
-
-    partial void OnShowUnmatchedCostumesChanged(bool value)
-    {
-        if (!_syncingToggles) SetVisibility(o => o.IsActorOnly && o.HasToggle ? value : null);
-    }
-
-    /// <summary>Each toggle is on while any checkbox of its group is (unchanged when the group is empty).</summary>
-    private void SyncToggles()
-    {
-        _syncingToggles = true;
-        var objects = Objects.Where(o => !o.IsActorOnly && o.HasToggle).ToList();
-        var costumes = Objects.Where(o => o.IsActorOnly && o.HasToggle).ToList();
-        if (objects.Count > 0) ShowObjects = objects.Any(o => o.IsVisible);
-        if (costumes.Count > 0) ShowUnmatchedCostumes = costumes.Any(o => o.IsVisible);
-        _syncingToggles = false;
-    }
 
     private IReadOnlyList<BackgroundChoice> _backgroundChoices = Array.Empty<BackgroundChoice>();
     /// <summary>The room's costumed actors (from its scripts), with their parsed costumes and default frames.</summary>
@@ -384,9 +387,9 @@ public sealed partial class RoomViewModel : ObservableObject
             // Image-less hotspots have nothing to hide (their costume shows), and a room with no background
             // is a library of images (room 3's inventory icons, all in state 0), not a scene.
             bool shown = o.ImageCount <= 0 || room.Width <= 0 || state != 0;
-            // A room starts as the game shows it, whatever the last room left the Objects toggle at (the
-            // toggle follows the checkboxes, so a room whose images all start hidden turns it off).
-            var item = new RoomObjectItem(o) { IsVisible = shown, InitialState = state, InitialVisible = shown };
+            // A room starts as the Show mode says (Room start: as the game shows it).
+            var item = new RoomObjectItem(o) { InitialState = state, InitialVisible = shown };
+            item.IsVisible = ShownByMode(item);
             item.PropertyChanged += OnItemChanged;
             Objects.Add(item);
         }
@@ -401,7 +404,7 @@ public sealed partial class RoomViewModel : ObservableObject
 
         // With objects and costumes hidden nothing waits on the costume analysis: show the new
         // background as soon as it's decoded and let the analysis finish behind it.
-        if (!ShowObjects && !ShowUnmatchedCostumes)
+        if (ShowMode == ShowNone)
         {
             await ShowBackgroundFirstAsync(room);
             if (!ReferenceEquals(Room, room)) return;
@@ -512,7 +515,7 @@ public sealed partial class RoomViewModel : ObservableObject
             if (applyStart && item.Object.ImageCount <= 0 && item.Costume is { CanDraw: true } c)
             {
                 item.InitialVisible = c.StartsShown;
-                item.IsVisible = c.StartsShown;
+                item.IsVisible = ShownByMode(item);
             }
         }
 
@@ -530,9 +533,10 @@ public sealed partial class RoomViewModel : ObservableObject
                     Height = b is { } r2 ? r2.Bottom - r2.Top : 0,
                     Block = actor.Akos,
                 };
-                // Shown as the room opens only when the game has it there then (not the player, not a
-                // cutscene's or a verb's costume); Unmatched costumes in the View menu shows or hides them all.
-                var item = new RoomObjectItem(standIn) { IsActorOnly = true, Costume = actor, IsVisible = actor.StartsShown, InitialVisible = actor.StartsShown };
+                // There as the room opens only when the game has it there then (not the player, not a
+                // cutscene's or a verb's costume); the Show mode decides whether it starts shown.
+                var item = new RoomObjectItem(standIn) { IsActorOnly = true, Costume = actor, InitialVisible = actor.StartsShown };
+                item.IsVisible = ShownByMode(item);
                 item.PropertyChanged += OnItemChanged;
                 Objects.Add(item);
                 if (actor.CanDraw) _actorTargets[actor] = standIn;

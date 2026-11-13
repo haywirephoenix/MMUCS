@@ -14,14 +14,9 @@
             <MenuFlyout Placement="BottomEdgeAlignedLeft">
               <MenuItem Header="Background" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowBackground, Mode=OneWay}" Command="{Binding ToggleBackgroundCommand}" />
-              <MenuItem Header="Objects" ToggleType="CheckBox" StaysOpenOnClick="True"
-                        IsChecked="{Binding ShowObjects, Mode=OneWay}" Command="{Binding ToggleObjectsCommand}" />
               <MenuItem Header="Full-screen objects" ToggleType="CheckBox" StaysOpenOnClick="True"
                         ToolTip.Tip="Draw all 640px-wide object images over the background (or pick one with the Background spinbox)"
                         IsChecked="{Binding ShowFullScreenObjects, Mode=OneWay}" Command="{Binding ToggleFullScreenObjectsCommand}" />
-              <MenuItem Header="Unmatched costumes" ToggleType="CheckBox" StaysOpenOnClick="True"
-                        ToolTip.Tip="List and draw costumes no object claims (e.g. the player in a cutscene costume)"
-                        IsChecked="{Binding ShowUnmatchedCostumes, Mode=OneWay}" Command="{Binding ToggleUnmatchedCostumesCommand}" />
               <MenuItem Header="Hotspots" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowHotspots, Mode=OneWay}" Command="{Binding ToggleHotspotsCommand}" />
               <MenuItem Header="Walkboxes" ToggleType="CheckBox" StaysOpenOnClick="True"
@@ -39,6 +34,9 @@
             </MenuFlyout>
           </Button.Flyout>
         </Button>
+        <TextBlock Text="Show" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
+        <ComboBox ItemsSource="{Binding ShowModes}" SelectedIndex="{Binding ShowMode}" MinWidth="130" Margin="0,0,12,0" FontSize="12"
+                  ToolTip.Tip="What each room starts with (and Reset goes back to): Room start as the game shows it on entry; Everything every object image and placed costume, ignoring the entry scripts; Hidden at start what the game hides on entry (the player, cutscenes, later, closed states); None nothing" />
         <TextBlock Text="Background" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
         <NumericUpDown Value="{Binding BackgroundIndex}" Minimum="0" Maximum="{Binding MaxBackgroundIndex}"
                        IsEnabled="{Binding HasBackgroundChoices}" Increment="1" FormatString="0" Width="96" Margin="0,0,4,0"
@@ -71,7 +69,6 @@
                     RoomSize="{Binding RoomSize}"
                     SelectedObject="{Binding SelectedObject, Mode=TwoWay}"
                     ShowBackground="{Binding ShowBackground}"
-                    ShowObjects="{Binding ShowObjects}"
                     ShowHotspots="{Binding ShowHotspots}"
                     ShowWalkboxes="{Binding ShowWalkboxes}"
                     ShowLabels="{Binding ShowLabels}"
@@ -97,7 +94,7 @@
             <TextBlock Grid.Column="1" Text="OBJECTS" VerticalAlignment="Center" />
             <Button Grid.Column="2" Content="Reset" Command="{Binding ResetVisibilityCommand}" Padding="6,0" MinHeight="0"
                     FontSize="11" VerticalAlignment="Center"
-                    ToolTip.Tip="Show the objects as the room opens: hidden while their state on entry is 0" />
+                    ToolTip.Tip="Show the objects and costumes as the Show mode starts the room (Room start: as the game opens it)" />
           </Grid>
         </Border>
         <!-- Multiple: Ctrl / Shift click select several (visibility and Mark for review apply to all);

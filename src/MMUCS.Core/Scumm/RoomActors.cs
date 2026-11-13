@@ -82,6 +82,18 @@ public sealed class RoomActor
     /// </summary>
     public bool StartsShown { get; set; }
     /// <summary>
+    /// Only there for a moment: every script that puts it here takes its actor out of the room again
+    /// (put-actor A in-room 0) before the actor's next costume, unconditionally (McMutton's arms in
+    /// gb-deck's idle loop, put for 21 frames now and then). Never shown at the start.
+    /// </summary>
+    public bool Passing { get; set; }
+    /// <summary>
+    /// Put in the room drawing nothing: the pose it's put in is empty, and the frame shown is borrowed from
+    /// an animation another script plays on it later (smglcave's diamond sparkle, once the diamond is on
+    /// the table). Never shown at the start.
+    /// </summary>
+    public bool StartsBlank { get; set; }
+    /// <summary>
     /// Whether a fresh game's first visit reaches a placement of it on entry: no condition around it is
     /// known to fail with every bit variable at 0. False keeps it hidden at the start (residents that
     /// only turn up once the story has moved on).
@@ -562,9 +574,10 @@ public static class RoomActors
         int planes = ZPlanes.Count(room);
         // When each placement runs (as the room opens, in a cutscene, later); a costume placed several
         // ways gets its earliest, so McMutton placed on entry and in a cutscene counts as on entry.
-        var timing = new PlacementTiming(scripts, room.RoomNo);
+        var timing = new PlacementTiming(scripts, room.RoomNo, FreshGame.For(lflf));
         var earliest = new Dictionary<(int, int, int, int), PlacementTime>();
         var firstVisit = new HashSet<(int, int, int, int)>();
+        var stays = new HashSet<(int, int, int, int)>();
         static (int, int, int, int) Key(int actor, int costume, int x, int y) => actor > 0 ? (actor, costume, 0, 0) : (actor, costume, x, y);
         foreach (var (si, list) in scans.Select((list, i) => (i, list)))
             foreach (var pl in list)
@@ -572,10 +585,15 @@ public static class RoomActors
                 var t = timing.At(scripts[si], pl.CostumePos, pl.PlacePos);
                 var key = Key(pl.Actor, pl.Costume, pl.X, pl.Y);
                 if (!earliest.TryGetValue(key, out var e) || t < e) earliest[key] = t;
+                if (!pl.Passing) stays.Add(key);
                 if (t is PlacementTime.OnEntry or PlacementTime.OnEntryIf && timing.Reached(scripts[si], pl.CostumePos, pl.PlacePos))
                     firstVisit.Add(key);
             }
-        foreach (var (si, (actor, costume, sx, sy, elevation, anim, dir, via, scale, clip, ignoreBoxes, followsAtPut, removes, _, _)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
+        foreach (var (si, (actor, costume, sx, sy, elevation, anim, dir, via, scale, clip, ignoreBoxes, followsAtPut, removes, _, _, _)) in scans.SelectMany((list, i) => list.Select(e => (i, e)))
+                     // A put that follows its costume first: it says how the actor is set up (smglcave's
+                     // 388 is set up with ignore-boxes and scale 255 before its put in local 2012, while
+                     // local 2004 only puts the player there before dressing it, in an override).
+                     .OrderBy(x => x.e.PlacePos > x.e.CostumePos ? 0 : 1))
         {
             // An actor number wears a costume once; an actor in a variable is a different actor at
             // each spot it's put (the fortbase chickens), so each spot is kept.
@@ -601,9 +619,13 @@ public static class RoomActors
             // empty). If that's blank and so is the default pose (the costume starts hidden), use
             // another animation the room plays on the same actor, as long as the actor wears only this
             // costume here (banjo's close-up appears from a loop in another script).
+            bool borrowed = false;
             if (Animated(d, anim, dir) is { } started) f = started;
             else if (f == null && wears.GetValueOrDefault(actor) == 1 && roomAnims.TryGetValue(actor, out var others))
+            {
                 f = others.Distinct().Select(o => Animated(d, o, dir)).FirstOrDefault(x => x != null);
+                borrowed = f != null;
+            }
             var entry = new RoomActor
             {
                 Actor = Math.Max(0, actor), Costume = costume, Akos = akos, X = x, Y = y, Elevation = elevation, HasPosition = true,
@@ -614,6 +636,8 @@ public static class RoomActors
                 Removes = removes ?? Array.Empty<int>(),
                 When = earliest.GetValueOrDefault(Key(actor, costume, sx, sy)),
                 FirstVisit = firstVisit.Contains(Key(actor, costume, sx, sy)),
+                Passing = !stays.Contains(Key(actor, costume, sx, sy)),
+                StartsBlank = borrowed,
                 // Clamped to the room's top plane, like the engine.
                 ZPlane = Math.Clamp(clip == ClipByBox ? MaskOf(room, box) : clip, 0, planes),
             };
@@ -675,7 +699,7 @@ public static class RoomActors
         // player aside, one per actor (an unconditional one first). An actor in a variable is a different
         // actor at each spot.
         foreach (var g in result.Select((r, i) => (r, i))
-                     .Where(x => x.r.HasPosition && !x.r.IsPlayer && x.r.FirstVisit && x.r.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf)
+                     .Where(x => x.r.HasPosition && !x.r.IsPlayer && x.r.FirstVisit && !x.r.Passing && !x.r.StartsBlank && x.r.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf)
                      .GroupBy(x => x.r.Actor > 0 ? x.r.Actor : -1 - x.i))
             g.OrderBy(x => x.r.When).First().r.StartsShown = true;
 
@@ -846,6 +870,21 @@ public static class RoomActors
         return false;
     }
 
+    /// <summary>Whether code at <paramref name="at"/> sits inside a condition or a loop that starts after
+    /// <paramref name="from"/> (town's "do { … put-actor 18 in-room 0 } while (true)" runs once the
+    /// costume has been handed to another actor).</summary>
+    internal static bool Guarded(ReadOnlySpan<byte> s, int from, int at)
+    {
+        for (int j = from + 1; j < at && j + 5 <= s.Length; j++)
+            if (s[j] is OpIf or OpIfNot && j + 5 + s.S32LE(j + 1) is int target && target > at && target <= s.Length)
+                return true;
+        // A loop: a jump after it back to between the two.
+        for (int j = at + 1; j + 5 <= s.Length; j++)
+            if (s[j] is OpIf or OpIfNot or OpJump && j + 5 + s.S32LE(j + 1) is int back && back > from && back <= at)
+                return true;
+        return false;
+    }
+
     /// <summary>Calls that start a script with arguments: start-script, start-script-quick, chain-script.</summary>
     private const byte OpStartScript = 0x79, OpStartScriptQuick = 0x7A, OpChainScript = 0x7D;
 
@@ -947,7 +986,8 @@ public static class RoomActors
     /// dresses its parameter (start-script 88(local2, …)) counts as dressing the actor passed.
     /// </summary>
     internal readonly record struct Placement(int Actor, int Costume, int X, int Y, int Elevation, int Anim, int Dir, int Via, int Scale,
-        int Clip, bool IgnoreBoxes, bool FollowsAtPut = false, int[] Removes = null, int CostumePos = -1, int PlacePos = -1);
+        int Clip, bool IgnoreBoxes, bool FollowsAtPut = false, int[] Removes = null, int CostumePos = -1, int PlacePos = -1,
+        bool Passing = false);
 
     internal static List<Placement> ScanScript(
         ReadOnlySpan<byte> s, int roomNo, Func<int, IReadOnlyList<ParamCostume>> dressers = null)
@@ -1113,8 +1153,12 @@ public static class RoomActors
                                            && places.Any(pl => pl.Actor == rm.Actor && pl.Pos > rm.Pos && pl.Pos < until))
                               .Select(rm => rm.Actor).Distinct().ToArray()
                     : Array.Empty<int>();
+                // Taken out of the room again by this script before its next costume, on the same path and
+                // not under a new condition: only there for a moment (an idle animation's extra layer).
+                bool passing = b.Pos > c.Pos && removals.Any(rm => rm.Actor == c.Actor && rm.Pos > lastPut && rm.Pos < until
+                                                                  && OnPath(rm.Pos) && !Guarded(code, lastPut, rm.Pos));
                 pairs.Add(new Placement(c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir, c.Via, scale, clip, ignore, ignoreAtPut == false, removes,
-                    c.Pos, b.Pos));
+                    c.Pos, b.Pos, passing));
             }
         }
         return pairs;
@@ -1153,7 +1197,7 @@ public static class RoomActors
                 Actor = p.Actor, Actors = layers.Select(l => l.Actor).Distinct().ToList(), Costume = p.Costume, Akos = p.Akos,
                 X = p.X, Y = p.Y, Elevation = p.Elevation, Scale = p.Scale, ZPlane = p.ZPlane, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
                 SortY = p.SortY, Removes = layers.SelectMany(l => l.Removes).Distinct().ToList(),
-                When = layers.Min(l => l.When), FirstVisit = layers.Any(l => l.FirstVisit),
+                When = layers.Min(l => l.When), FirstVisit = layers.Any(l => l.FirstVisit), Passing = layers.All(l => l.Passing), StartsBlank = layers.All(l => l.StartsBlank),
             });
         }
         return result;

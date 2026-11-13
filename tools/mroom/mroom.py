@@ -1220,6 +1220,10 @@ def start_rows(game: "Game", room: "Room") -> List[dict]:
                 why = "the player"
             elif p.get("when") in ("cutscene", "later"):
                 why = WHEN_TEXT[p["when"]]
+            elif p.get("passing"):
+                why = "only there for a moment (its script takes the actor away again)"
+            elif p.get("starts_blank"):
+                why = "draws nothing until another script animates it"
             elif p.get("first_visit") is False:
                 why = "not on a first visit (a condition around it fails with every bit at 0)"
             elif p.get("when") in ("entry", "entry-if"):
