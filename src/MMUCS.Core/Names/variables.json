@@ -1,5 +1,13 @@
 {
   "Globals": {
+    "43": {
+      "Name": "",
+      "Note": "Unconfirmed: on while the player types a save name. Set to 1 at the start of editing (rooms/092_saveload/local_2016.scumm:4), and to 0 when editing ends (rooms/092_saveload/local_2017.scumm:4), in rooms/092_saveload/local_2009.scumm:14 and on leaving the room (rooms/092_saveload/exit.scumm:4). No script reads it, and it is a low number among the engine variables (current-disk is 42), so the engine probably reads it, perhaps to turn off key shortcuts while typing. Not in ScummVM's v8 variable list that MMUCS uses."
+    },
+    "63": {
+      "Name": "",
+      "Note": "Unconfirmed: probably an engine key-binding variable. Its only write is 'var63 = 0' in rooms/092_saveload/local_2002.scumm:12, between cutscene-exit-key (62) and pause-key (64), alongside main-menu-key, version-key and talk-stop-key (rooms/092_saveload/local_2002.scumm:11-16), which turns the keys off while the save/load screen is up. ScummVM's v8 list that MMUCS uses has no name for 63."
+    },
     "200": {
       "Name": "sentence-object",
       "Note": "First object of the sentence being run. Only written by the sentence script, global/script_0040.scumm (sentence-script = 40, global/script_0001.scumm:193): = local1 at :118 and :125 just before 'start-object local1 verb local0(local2, ...)' or the actor's script, and = the object at :25/:31 for verb 11. Object scripts pass it on: 'do-sentence 61 var201 with var200' (rooms/016_chkn-int/objects/0452_pie-pan-object.scumm:9)."
@@ -112,6 +120,14 @@
       "Name": "cutscene-depth",
       "Note": "Cutscene nesting depth: global script 1 sets cutscene-start-script = 6 and cutscene-end-script = 7; the engine runs 6 at each cut-scene (var261 + 1, cursor and userput soft-off) and 7 at its end (var261 - 1, back on). Scripts wait while it is non-zero, e.g. Wally in 009_cannon local_2006."
     },
+    "263": {
+      "Name": "actor-verb-scripts",
+      "Note": "Array, indexed by actor number, of the script that handles verbs on that actor in the current room. The entry-script clears it for actors 0-80 on every room entry (global/script_0010.scumm:4-9), so like room-var234 it only lasts for one room. global/script_0039.scumm:36-43 only lets the cursor pick up an actor under the mouse if it has an entry here. The sentence script runs 'start-script var263[local1](local0, local2)' for actors (below 80) instead of an object verb (global/script_0040.scumm:124-127). Its only writer: global/script_0426.scumm:40 sets var263[8] = 428 for actor 8 in the snow rooms, and global/script_0428.scumm walks Guybrush to it; global/script_0426.scumm:50 and global/script_0426.scumm:76 clear it."
+    },
+    "264": {
+      "Name": "actor-exit-icons",
+      "Note": "Array, indexed by actor number, of the exit arrow to show when the cursor is over an actor that works as an exit (class 156). The entry-script clears it for actors 0-80 on every room entry (global/script_0010.scumm:4-9). global/script_0039.scumm:49-56 uses var264[actor] as exit-cursor-icon, falling back to 109 (south-arrow-icon). Its only writer: global/script_0426.scumm:38-39 makes actor 8 class 156 with var264[8] = 109."
+    },
     "266": {
       "Name": "item-icon",
       "Note": "The inventory icon object for an item: each item's verb 91 sets it to its icon, e.g. rooms/009_cannon/objects/0279_ramrod-object.scumm:36 = 122 (0122_ramrod-icon-object) and rooms/001_logo/objects/0100_string-balloon-object.scumm:109/111 = 120 or 119 by class. Global script 2 runs verb 91 just after pick-up-object and loads the icon (global/script_0002.scumm:67-71); script 36 runs it when an item is selected and sets cursor-image (var290) from it (global/script_0036.scumm:10-12). The reverse of icon-item (var300)."
@@ -159,6 +175,142 @@
     "331": {
       "Name": "dialog-choice-gesture",
       "Note": "Array with a gesture for each dialogue choice: when that choice is picked, global/script_0013.scumm:25-26 runs script 106 with it after the pose. Its values (9, 10, 11, 30, 31, 34, 35, 38, 39) are not in script 106's first list, so they go to script 108, which plays 'do-animation 1 N' and waits. Context, not mentioning var331: global/script_0106.scumm:11-17 and global/script_0108.scumm:4-17 get the value as local0. It is set per choice, e.g. global/script_0243.scumm:243 var331[4] = 11, and cleared per menu (global/script_0142.scumm:80-85)."
+    },
+    "339": {
+      "Name": "carnival-dinghy-dog-hits",
+      "Note": "How many times Guybrush has hit Dinghy Dog (actor 12, CLDD lines) while he still has his hair: rooms/086_carnival/local_2010.scumm:4-5 adds 1. Each count gets a warning, from \"(Hyuk!) Now that's not very nice, little boy.\" at 1 (rooms/086_carnival/local_2010.scumm:41-43) to \"You're really starting to bug me, kid.\" at 5 (rooms/086_carnival/local_2010.scumm:56-58). After 5 (context, not mentioning var339: the line tests whether the hair is gone), \"All right, (hyuk!), that does it.\" (rooms/086_carnival/local_2010.scumm:62-64). Starts at 0 (global/script_0001.scumm:134)."
+    },
+    "431": {
+      "Name": "spotlight-sequence-step",
+      "Note": "How far Guybrush has got pressing the spotlight buttons in the right order. The master lever starts it at 1 (context, not mentioning var431: rooms/020_spotlght/local_2009.scumm:17 runs rooms/020_spotlght/local_2002.scumm with 8, which sets 1 at rooms/020_spotlght/local_2002.scumm:48-50). While Guybrush has lc-qurtr-treasure-map, each button press adds 1 when the button fits the current step (rooms/020_spotlght/local_2002.scumm:8-39, e.g. button 4 at step 1, button 0 at step 2) and resets it to 0 otherwise (rooms/020_spotlght/local_2002.scumm:43-47). It is set to 10 when the lever is pulled with bit65 set, which chains to global script 178 (rooms/020_spotlght/local_2009.scumm:12-15). It also picks the light pattern shown (rooms/020_spotlght/local_2006.scumm:17)."
+    },
+    "433": {
+      "Name": "spotlight-lights",
+      "Note": "Array of the 8 spotlight objects, one per direction: rooms/020_spotlght/local_2015.scumm:5-26 sets var433[0-7] to 520 (spotlight-northwest), 519 (north), 518 (northeast), 521 (east), 522 (southeast), 523 (south), 524 (southwest) and 525 (west). rooms/020_spotlght/local_2000.scumm:18-19 turns a light on with 'state-of var433[local0] is 1'."
+    },
+    "434": {
+      "Name": "spotlight-beam-actors",
+      "Note": "Array of the actor drawing each spotlight's beam, in the same order as spotlight-lights: rooms/020_spotlght/local_2015.scumm:7-28 sets var434[0-7] to actors 11 and 4-10. Animated with 'do-animation var434[local0] 13' (rooms/020_spotlght/local_2012.scumm:14), and global/script_0178.scumm:10 puts them away."
+    },
+    "435": {
+      "Name": "spotlight-buttons",
+      "Note": "Array of the 8 spotlight control buttons, in the same order as spotlight-lights: rooms/020_spotlght/local_2015.scumm:6-27 sets var435[0-7] to 527-534 (spotlight-northwest-button to spotlight-west-button). Pressed with 'state-of var435[local0] is 1' (rooms/020_spotlght/local_2008.scumm:11), and global/script_0178.scumm:65 makes them unusable (class 160) once the puzzle is solved."
+    },
+    "436": {
+      "Name": "spotlight-step-patterns",
+      "Note": "Table of 10 light patterns, 8 entries each, one row per step of the button sequence: rooms/020_spotlght/local_2015.scumm:29-38 fills var436[0-9]. rooms/020_spotlght/local_2006.scumm:15-19 sets each light from the row for the current spotlight-sequence-step: 'start-script 2000(local1, var436[var431 - 1][local1], local0)'. Most entries are 0 or 1 (off or on); var436[6][1] is 3."
+    },
+    "437": {
+      "Name": "spotlight-light-states",
+      "Note": "Array with whether each of the 8 spotlights is on (1) or off (0): rooms/020_spotlght/local_2000.scumm:5-17 sets it, toggling when asked for 2 and leaving the sound off when the state doesn't change (rooms/020_spotlght/local_2000.scumm:13-14). When it is 1, rooms/020_spotlght/local_2000.scumm:18-20 turns the light on (context: those lines test the new state, local3), and rooms/020_spotlght/local_2017.scumm:25 redraws each light's beam from it."
+    },
+    "447": {
+      "Name": "hotelbar-goodsoup-ingredients",
+      "Note": "How many hangover-cure ingredients Guybrush has given the hungover Griswold Goodsoup: rooms/061_hotelbar/local_2002.scumm:36 adds 1 each time. That script is the give verb (context, not mentioning var447: rooms/061_hotelbar/objects/1007_hotel-bar-goodsoup-hungover.scumm:27, 'start-script 2002(sentence-with-object)'). At 3 he says \"That's all the ingredients I need.\" (rooms/061_hotelbar/local_2002.scumm:91-97)."
+    },
+    "460": {
+      "Name": "hotelbar-tarot-cards-dealt",
+      "Note": "Tarot cards Madame Xima has laid on the table in this reading: each reading adds 1, or sets 5 when bit65 is set (rooms/061_hotelbar/local_2024.scumm:902-906). It names hotel-bar-cards-on-table \"tarot card\" or \"tarot cards\" (rooms/061_hotelbar/local_2024.scumm:907-910), and the table cards' look-at branches on 1-4 (rooms/061_hotelbar/objects/0985_hotel-bar-cards-on-table.scumm:11). When Guybrush takes the cards, it is added to var458 and cleared (rooms/061_hotelbar/local_2008.scumm:77-79)."
+    },
+    "467": {
+      "Name": "cannon-v-boats-hit",
+      "Note": "Array of 4 flags, one per rowboat (actors 5, 8, 12 and 18) Guybrush's cannon shot has hit: set in rooms/010_cannon-v/local_2012.scumm:9-10 (actor 5), rooms/010_cannon-v/local_2012.scumm:18-19 (8), rooms/010_cannon-v/local_2012.scumm:27-28 (12), rooms/010_cannon-v/local_2012.scumm:37-38 (18). When the view is set up, a hit boat is drawn as a wreck ('do-animation 5 11') instead of being started (rooms/010_cannon-v/local_2001.scumm:22-36, rooms/010_cannon-v/local_2001.scumm:38-51, rooms/010_cannon-v/local_2001.scumm:53-67, rooms/010_cannon-v/local_2001.scumm:69-71), and rooms/010_cannon-v/local_2006.scumm:4-10 counts how many are set."
+    },
+    "468": {
+      "Name": "",
+      "Note": "Unconfirmed: a table of 13 walk-box numbers for room 10: rooms/010_cannon-v/local_2002.scumm:4-15 sets var468[0-12] to 1, 4, 2, 3, 5-8 and 9-12 (index 8 is never set). rooms/010_cannon-v/local_2008.scumm:115-122 looks for the first one that actor 4 is in ('actor-in-box(4, var468[local12])') and remaps 9 and 10 to other values. Actor 4 seems to be the cannonball, so the box may decide where the shot lands, but I didn't trace what local13 is used for."
+    },
+    "488": {
+      "Name": "carnival-snowcone-ingredients",
+      "Note": "Array of 6 flags, one per ingredient mixed into the snowcone: 0 voodoo paste, 2 tofu mask, 3 Dinghy Dog's hair, 4 meringue pie. The vendor's dialogue only offers an ingredient while Guybrush has it and its flag is clear (rooms/086_carnival/local_2031.scumm:287-296, rooms/086_carnival/local_2031.scumm:333). Mixing one sets it (e.g. rooms/086_carnival/local_2031.scumm:559 for the paste, rooms/086_carnival/local_2031.scumm:659 for the pie); rooms/086_carnival/local_2031.scumm:12-16 clears all of them. Guybrush lists what's in it when he looks (rooms/086_carnival/local_2006.scumm:28-32), and eating it with [3] and [4] set (and bit171) counts as a success (rooms/086_carnival/local_2005.scumm:4)."
+    },
+    "489": {
+      "Name": "carnival-snowcone-flavor",
+      "Note": "Which snowcone Guybrush got from the snowcone vendor (actor 2, S7 lines): 5 plain, 1 strawberry, 2 rainbow, each with its object name (rooms/086_carnival/local_2031.scumm:201-213). Set to 3, the \"Disgusting Snowcone\", once ingredients are mixed in (rooms/086_carnival/local_2031.scumm:662-665). The snowcone's look-at and eat lines branch on it: \"It's a plain snowcone.\" (rooms/086_carnival/local_2006.scumm:4-8), \"Mmmm... Peppery ice!\" (rooms/086_carnival/local_2005.scumm:28-30)."
+    },
+    "490": {
+      "Name": "carnival-dinghy-dog-step",
+      "Note": "How far Guybrush has got with asking the cannon booth worker (actor 3, WD lines) about Dinghy Dog, 0-5. It picks the choice offered: 0 \"What's Dinghy Dog really like in person?\" (rooms/086_carnival/local_2015.scumm:353-357), 1 \"Could you introduce me to Dinghy Dog?\", 2 \"Dinghy Dog is really cool, huh?\", 3 \"I bet Dinghy Dog gets paid a lot of money, right?\", 4 \"I bet Dinghy Dog could beat you up.\" (rooms/086_carnival/local_2015.scumm:498-502). Picking it adds 1 and picks the reply (rooms/086_carnival/local_2015.scumm:694-725)."
+    },
+    "491": {
+      "Name": "carnival-pie-cannon-shots",
+      "Note": "How many times the cannon booth worker has fired the pie cannon for Guybrush: rooms/086_carnival/local_2016.scumm:41 adds 1 at the end of the firing cut-scene (context, not mentioning var491: it is started from rooms/086_carnival/local_2015.scumm:685). At 0 the choice is \"I want to shoot the cannon!\" and later \"Fire the cannon again!\" (rooms/086_carnival/local_2015.scumm:242-281). The worker refuses at 0, \"Sorry, little boy, you're too young.\" (rooms/086_carnival/local_2015.scumm:665-666), and from 3 on, \"you've already seen it enough times.\" (rooms/086_carnival/local_2015.scumm:659-660)."
+    },
+    "496": {
+      "Name": "cannon-v-near-miss-line",
+      "Note": "Which complaint a rowboat crew shouts next when Guybrush's shot lands close to them, 0-10. rooms/010_cannon-v/local_2011.scumm:99-130 picks the line for a shot within 180 of a boat, from \"Hey! You're gettin' a little close there, pal!\" at 0 to \"Aim farther out, you idiot!\" at 8 and \"Stop it!\" at 9, with one set of lines per boat crew (rooms/010_cannon-v/local_2011.scumm:136-145). It then adds 1, up to 10 (rooms/010_cannon-v/local_2011.scumm:269-270)."
+    },
+    "500": {
+      "Name": "barber-jawbreaker-step",
+      "Note": "How far Guybrush has got with asking about the barber's jawbreaker (local_2040, BDSO lines), 0-6. It picks the choice offered: 0 \"Say, what are you eating there?\" (rooms/021_brbr-int/local_2040.scumm:533-539), 1 \"That's a really good jawbreaker there, huh?\", 2 \"Boy, I sure could go for a jawbreaker right about now.\", 3 \"You going to finish that jawbreaker?\" (rooms/021_brbr-int/local_2040.scumm:647-653), 4 \"Nothing I love more than a good jawbreaker!\" (rooms/021_brbr-int/local_2040.scumm:686-690). Picking it adds 1 (up to 6, rooms/021_brbr-int/local_2040.scumm:1982-1983) and picks the reply (rooms/021_brbr-int/local_2040.scumm:1998-2030)."
+    },
+    "509": {
+      "Name": "barber-van-helgen-insults-tried",
+      "Note": "Array of 4 flags, one per insult Guybrush has already tried on Edward Van Helgen (actor 5, VD lines). Set at rooms/021_brbr-int/local_2021.scumm:1365 (\"How long have you been colorblind?\"), rooms/021_brbr-int/local_2021.scumm:1375 (the dung one), rooms/021_brbr-int/local_2021.scumm:1386 and rooms/021_brbr-int/local_2021.scumm:1398. An insult is only offered while its flag is clear (rooms/021_brbr-int/local_2021.scumm:1150, rooms/021_brbr-int/local_2021.scumm:1187, rooms/021_brbr-int/local_2021.scumm:1224, rooms/021_brbr-int/local_2021.scumm:1261). With all four set, Guybrush says \"I don't want to insult you!\" (rooms/021_brbr-int/local_2021.scumm:1112-1113); the sum decides Van Helgen's reply (rooms/021_brbr-int/local_2021.scumm:1017-1020)."
+    },
+    "511": {
+      "Name": "barber-van-helgen-songs-tried",
+      "Note": "Array of 5 flags, one per song Guybrush has already offered to sing to Edward Van Helgen: \"There's a Monkey in My Pocket\", \"I've Got a Friend in the Ocean\", \"Plunder On My Mind\", \"Wooden Leg, Restless Heart\" and \"Silver's Long Johns\". A song is only offered while its flag is clear (from rooms/021_brbr-int/local_2021.scumm:2037), and picking it sets it (rooms/021_brbr-int/local_2021.scumm:2295, rooms/021_brbr-int/local_2021.scumm:2404, rooms/021_brbr-int/local_2021.scumm:2513, rooms/021_brbr-int/local_2021.scumm:2622, rooms/021_brbr-int/local_2021.scumm:2675)."
+    },
+    "512": {
+      "Name": "cannon-v-fort-wall-hits",
+      "Note": "How many times Guybrush's cannon shot has hit a fort wall piece, 0-6. Context, not mentioning var512: rooms/010_cannon-v/local_2013.scumm:6-20 blows up a still-intact (class 150) fort-wall object at the shot's point and starts rooms/010_cannon-v/local_2014.scumm, which adds 1 (up to 6, rooms/010_cannon-v/local_2014.scumm:6-7) and has Guybrush apologise: \"Whoops!\", \"That was me. Sorry.\", \"Sorry about that!\", \"Oops! My fault!\", \"Ouch.\" (rooms/010_cannon-v/local_2014.scumm:9-19)."
+    },
+    "515": {
+      "Name": "barber-scissors-step",
+      "Note": "How far Guybrush has got with asking Haggis about his scissors (local_2020, HGSO lines), 0-5. It picks the choice offered: 0 \"Those sure are nice scissors.\" (rooms/021_brbr-int/local_2020.scumm:715-722), 1 \"Could I borrow those scissors for a minute?\" (rooms/021_brbr-int/local_2020.scumm:789-796), 2 \"When I think of all I could do with those scissors...\" (rooms/021_brbr-int/local_2020.scumm:863-870), 3 \"Did I mention how nice those scissors are?\" (rooms/021_brbr-int/local_2020.scumm:938-945). Picking it adds 1 (up to 5, rooms/021_brbr-int/local_2020.scumm:2936-2937) and picks the reply (rooms/021_brbr-int/local_2020.scumm:2939-2974)."
+    },
+    "549": {
+      "Name": "cannon-v-volley-points",
+      "Note": "Table of 11 x,y screen positions where the gun flashes of a cannon volley appear: x and y rows at rooms/010_cannon-v/local_2002.scumm:16-18. rooms/010_cannon-v/local_2025.scumm:5-39 fires 1-5 shots along points 0-6 or 7-10, putting flash actors 22 and up at each (rooms/010_cannon-v/local_2025.scumm:24), and (context, not mentioning var549) hands each shot to rooms/010_cannon-v/local_2024.scumm with its point index (rooms/010_cannon-v/local_2025.scumm:36)."
+    },
+    "550": {
+      "Name": "cannon-v-splash-points",
+      "Note": "Table of 11 x,y screen positions where the shots of a cannon volley land, matching cannon-v-volley-points one to one: x and y rows at rooms/010_cannon-v/local_2002.scumm:19-21. rooms/010_cannon-v/local_2024.scumm:4-20 scales the splash actor by its y (255 - abs(y - 480) / 2), plays a splash sound (88 or 89) and puts the actor at that point (rooms/010_cannon-v/local_2024.scumm:19)."
+    },
+    "552": {
+      "Name": "cannon-v-fort-flash-points",
+      "Note": "Table of 23 x,y screen positions for the fort's cannon flashes: 'dim int var552[1][22]' with the x row and y row at rooms/010_cannon-v/local_2002.scumm:22-24. rooms/010_cannon-v/local_2023.scumm:9-11 (context, not mentioning var552: started for actors 27-29 at rooms/010_cannon-v/local_2002.scumm:27-29) puts a flash actor at a random one; context, not mentioning var552 but its index local1: points 0 and 1 only fire while fort-turret-1 is still there (rooms/010_cannon-v/local_2023.scumm:18-31)."
+    },
+    "553": {
+      "Name": "carnival-murray-plea-line",
+      "Note": "Which line Murray (actor 5, CLMR lines) shouts next while he begs to be picked as a prize, 0-9: rooms/086_carnival/local_2007.scumm:9-29 says \"Look into your heart! I'm the prize you really want!\" at 0 up to \"Don't leave me here!\" at 9, then adds 1 (rooms/086_carnival/local_2007.scumm:35) and stops the loop past 9 (rooms/086_carnival/local_2007.scumm:36-38)."
+    },
+    "554": {
+      "Name": "carnival-murray-sulk-line",
+      "Note": "Which line Murray shouts next after Guybrush picks the anchor instead of him, 0-10: rooms/086_carnival/local_2008.scumm:9-31 goes from \"I can't believe you picked that stupid anchor instead of me.\" at 0 to \"Bwahahahahahahahahaha!\" at 10, then adds 1 (rooms/086_carnival/local_2008.scumm:37) and stops past 10 (rooms/086_carnival/local_2008.scumm:38-39). global/script_0452.scumm:9-27 runs the same count for lines 6 and up."
+    },
+    "556": {
+      "Name": "hotelbar-portrait-state",
+      "Note": "Which picture the hotel bar portrait shows, 1-6. The room's entry script (rooms/061_hotelbar/local_2013.scumm; context, not mentioning var556: it is started from rooms/061_hotelbar/entry.scumm:6) sets it to 1 on the first visit (rooms/061_hotelbar/local_2013.scumm:12-13). After that it adds 1 (up to 6) each time Guybrush comes in from room 64 (var212 == 64), and sets 'state-of hotel-bar-portrait is var556' (rooms/061_hotelbar/local_2013.scumm:14-18)."
+    },
+    "558": {
+      "Name": "barber-rottingham-boast-step",
+      "Note": "How far Guybrush has got with boasting to Captain Rottingham (actor 2), 0-5. It picks the choice offered: 0 \"Ahoy there! I'm Guybrush Threepwood!\" (rooms/021_brbr-int/local_2041.scumm:73-79), 1 \"I'm a mighty pirate.\" (rooms/021_brbr-int/local_2041.scumm:113-119), 2 \"What did you mean, 'Ha'?\", 3 \"I'm mighty enough to defeat LeChuck! Twice!\" (rooms/021_brbr-int/local_2041.scumm:193-199). Picking it adds 1 (up to 5, rooms/021_brbr-int/local_2041.scumm:1009-1011) and picks Rottingham's reply (rooms/021_brbr-int/local_2041.scumm:1013-1041, e.g. \"I see. And I don't care.\")."
+    },
+    "559": {
+      "Name": "barber-rottingham-crew-step",
+      "Note": "How far Guybrush has got with asking Captain Rottingham to join his crew, 0-5. It picks the choice offered: 0 \"So you're a ship captain, huh?\" (rooms/021_brbr-int/local_2041.scumm:234-238), 1 \"How'd you like to join my crew?\", 2 \"Why don't you want to join my crew?\", 3 \"Well, I didn't want you on my crew anyway.\" (rooms/021_brbr-int/local_2041.scumm:352-358). Picking it adds 1 (up to 5, rooms/021_brbr-int/local_2041.scumm:1053-1055) and picks his reply (rooms/021_brbr-int/local_2041.scumm:1057-1064)."
+    },
+    "560": {
+      "Name": "barber-rottingham-hair-step",
+      "Note": "How far Guybrush has got with needling Captain Rottingham about his hair, 0-7. It picks the choice offered: 0 \"Did you know you're starting to go gray?\" (rooms/021_brbr-int/local_2041.scumm:393-399), then gray hair, split ends, a bald spot, dry scalp, and 5 \"They're doing great things with dandruff shampoo these days.\" (rooms/021_brbr-int/local_2041.scumm:591-597). Picking it adds 1 (up to 7, rooms/021_brbr-int/local_2041.scumm:1123-1125) and picks his reply, e.g. \"I most certainly am not!\" (rooms/021_brbr-int/local_2041.scumm:1127-1130)."
+    },
+    "561": {
+      "Name": "barber-rottingham-scare-step",
+      "Note": "How far Guybrush has got with trying to scare Captain Rottingham out of the barber's chair, 0-8. It picks the choice offered: 0 \"Fire! Run for your life!\" (rooms/021_brbr-int/local_2041.scumm:632-638), then rabid dogs, an axe-wielding maniac, \"The calls are coming from within the barber shop!\", a storm, and 5 \"Captain Rottingham? You're being paged.\" (rooms/021_brbr-int/local_2041.scumm:823-829). Picking it adds 1 (up to 8, rooms/021_brbr-int/local_2041.scumm:1203-1205) and picks his reply, e.g. \"I'm sure the authorities probably have the situation under control.\" (rooms/021_brbr-int/local_2041.scumm:1207-1212)."
+    },
+    "582": {
+      "Name": "hotelbar-rum-drinks",
+      "Note": "How many times Guybrush has drunk the shot of rum: rooms/061_hotelbar/local_2025.scumm:229-230 adds 1 (up to 10). That script is the rum's use verb (context, not mentioning var582: rooms/061_hotelbar/objects/0978_hotel-bar-shot-o-rum.scumm:27). Only the first time (still 0) does it play the drowsy scene: a sound (rooms/061_hotelbar/local_2025.scumm:48-49), and \"That's odd. It's supposed to cause drowsiness.\" with Guybrush's voice slowing (rooms/061_hotelbar/local_2025.scumm:86-105)."
+    },
+    "592": {
+      "Name": "hotelbar-neon-delay",
+      "Note": "How long the neon sign stays on and off, in jiffies: rooms/061_hotelbar/local_2015.scumm:4-9 toggles state-of hotelbar-neon with 'sleep-for var592 jiffies'. Starts at 90 (global/script_0001.scumm:132); each pull of the chain (hotelbar-neon-pulls) makes it blink faster, 60, 30, 15, then 1 (rooms/061_hotelbar/local_2016.scumm:10-17), and the sixth pull resets it to 90 (rooms/061_hotelbar/local_2016.scumm:21-24)."
+    },
+    "593": {
+      "Name": "hotelbar-neon-pulls",
+      "Note": "How many times Guybrush has pulled the neon sign's chain, 0-6: rooms/061_hotelbar/local_2016.scumm:4 adds 1. Context, not mentioning var593: the script is run from rooms/061_hotelbar/objects/1004_neon-sign-pull-chain.scumm:11. Pulls 1-4 speed up the blinking (hotelbar-neon-delay, rooms/061_hotelbar/local_2016.scumm:10-17), 5 stops it (rooms/061_hotelbar/local_2016.scumm:18-19), and 6 restarts it and resets the count to 0 (rooms/061_hotelbar/local_2016.scumm:21-24). The room's entry script only starts the blinking while it isn't 5 (rooms/061_hotelbar/local_2013.scumm:20-22)."
     },
     "594": {
       "Name": "dialog-choice-x",
@@ -243,6 +395,54 @@
     "643": {
       "Name": "",
       "Note": "Unconfirmed: looks like an id for Guybrush's current talk/stand animation set. Scripts only ever write it (381 refs, all writes), so if anything reads it, it is the engine. It is set to 47 right after 'do-animation 1 3' when Guybrush's normal look is restored (global/script_0001.scumm:114-115, global/script_0089.scumm:76-77), and global/script_0107.scumm:4-38 and global/script_0109.scumm:8-29 pair each 'actor 1 talk-animation A,B' with one value: (4,5) 47, (15,14) 48, (18,17) 49, (20,19) 50, (24,23) 51, (26,25) 52, (29,28) 53. It is 4 when Guybrush is given a special costume (global/script_0114.scumm:16-18, rooms/071_crakwall/local_2014.scumm:8-10)."
+    },
+    "649": {
+      "Name": "saveload-slot1-name",
+      "Note": "String array with the save name in slot 1 of the save/load page shown. rooms/092_saveload/local_2010.scumm:6 clears it. Context, not mentioning var649: rooms/092_saveload/local_2010.scumm:34-38 reads each slot's name for page saveload-page with 'save-game-read-name local2, var657', and rooms/092_saveload/local_2010.scumm:42 copies slot 1's into it. Shown with blast-text at rooms/092_saveload/local_2011.scumm:30; rooms/092_saveload/local_2015.scumm:8 tests whether the slot is empty. Space-filled at start (global/script_0001.scumm:181)."
+    },
+    "650": {
+      "Name": "saveload-slot2-name",
+      "Note": "String array with the save name in slot 2 of the save/load page shown. rooms/092_saveload/local_2010.scumm:11 clears it. Context, not mentioning var650: rooms/092_saveload/local_2010.scumm:34-38 reads each slot's name for page saveload-page with 'save-game-read-name local2, var657', and rooms/092_saveload/local_2010.scumm:48 copies slot 2's into it. Shown with blast-text at rooms/092_saveload/local_2011.scumm:68; rooms/092_saveload/local_2015.scumm:12 tests whether the slot is empty. Space-filled at start (global/script_0001.scumm:182)."
+    },
+    "651": {
+      "Name": "saveload-slot3-name",
+      "Note": "String array with the save name in slot 3 of the save/load page shown. rooms/092_saveload/local_2010.scumm:16 clears it. Context, not mentioning var651: rooms/092_saveload/local_2010.scumm:34-38 reads each slot's name for page saveload-page with 'save-game-read-name local2, var657', and rooms/092_saveload/local_2010.scumm:54 copies slot 3's into it. Shown with blast-text at rooms/092_saveload/local_2011.scumm:106; rooms/092_saveload/local_2015.scumm:16 tests whether the slot is empty. Space-filled at start (global/script_0001.scumm:183)."
+    },
+    "652": {
+      "Name": "saveload-slot4-name",
+      "Note": "String array with the save name in slot 4 of the save/load page shown. rooms/092_saveload/local_2010.scumm:21 clears it. Context, not mentioning var652: rooms/092_saveload/local_2010.scumm:34-38 reads each slot's name for page saveload-page with 'save-game-read-name local2, var657', and rooms/092_saveload/local_2010.scumm:60 copies slot 4's into it. Shown with blast-text at rooms/092_saveload/local_2011.scumm:144; rooms/092_saveload/local_2015.scumm:20 tests whether the slot is empty. Space-filled at start (global/script_0001.scumm:184)."
+    },
+    "653": {
+      "Name": "saveload-slot5-name",
+      "Note": "String array with the save name in slot 5 of the save/load page shown. rooms/092_saveload/local_2010.scumm:26 clears it. Context, not mentioning var653: rooms/092_saveload/local_2010.scumm:34-38 reads each slot's name for page saveload-page with 'save-game-read-name local2, var657', and rooms/092_saveload/local_2010.scumm:66 copies slot 5's into it. Shown with blast-text at rooms/092_saveload/local_2011.scumm:182; rooms/092_saveload/local_2015.scumm:24 tests whether the slot is empty. Space-filled at start (global/script_0001.scumm:185)."
+    },
+    "654": {
+      "Name": "saveload-slot6-name",
+      "Note": "String array with the save name in slot 6 of the save/load page shown. rooms/092_saveload/local_2010.scumm:31 clears it. Context, not mentioning var654: rooms/092_saveload/local_2010.scumm:34-38 reads each slot's name for page saveload-page with 'save-game-read-name local2, var657', and rooms/092_saveload/local_2010.scumm:73 copies slot 6's into it. Shown with blast-text at rooms/092_saveload/local_2011.scumm:220; rooms/092_saveload/local_2015.scumm:28 tests whether the slot is empty. Space-filled at start (global/script_0001.scumm:186)."
+    },
+    "655": {
+      "Name": "saveload-typed-name",
+      "Note": "String array with the save name being typed. rooms/092_saveload/local_2016.scumm:8-11 clears it, then copies in the chosen slot's existing name (e.g. rooms/092_saveload/local_2016.scumm:13-20 for slot 1). rooms/092_saveload/local_2018.scumm:5-10 inserts a character and rooms/092_saveload/local_2019.scumm:5-7 deletes one, with room-var236 as its length. rooms/092_saveload/local_2017.scumm:9-15 cuts it to that length and saves it with 'save-game-write var240, var655'."
+    },
+    "656": {
+      "Name": "saveload-text-before-cursor",
+      "Note": "Copy of saveload-typed-name cut off at the text cursor, used to place the cursor. rooms/092_saveload/local_2020.scumm:4-14 copies var655 into it. rooms/092_saveload/local_2020.scumm:39-42 centres on the whole name's string-width; then rooms/092_saveload/local_2020.scumm:43 cuts it at room-var237 (the cursor position), and rooms/092_saveload/local_2020.scumm:44-46 adds the width before the cursor to room-var238, the cursor x."
+    },
+    "657": {
+      "Name": "saveload-read-buffer",
+      "Note": "String buffer for reading a save's name: rooms/092_saveload/local_2010.scumm:37-38 sets it to \" \" and runs 'save-game-read-name local2, var657' for each slot on the page, then copies it into saveload-slot1-name to saveload-slot6-name (rooms/092_saveload/local_2010.scumm:39-75). It's used nowhere else."
+    },
+    "696": {
+      "Name": "hotelbar-xima-animation",
+      "Note": "The animation Madame Xima (actor 3, XM lines; context, not mentioning var696: rooms/061_hotelbar/local_2008.scumm:21) is playing: all 73 writes are 26-36 and sit next to 'do-animation 3 N' with the same N (e.g. global/script_0351.scumm:39, rooms/061_hotelbar/local_2008.scumm:15). Her idle loop picks a fidget from it: 'if (var696 == 26) do-animation 3 29' (rooms/061_hotelbar/local_2022.scumm:4-9)."
+    },
+    "699": {
+      "Name": "hotelbar-goodsoup-animation",
+      "Note": "The animation Griswold Goodsoup (actor 2, GS lines; context, not mentioning var699: rooms/061_hotelbar/local_2001.scumm:11) is playing: 165 writes, almost all next to 'do-animation 2 N' with the same N (17, 18, 20, 21 or 22; e.g. global/script_0351.scumm:37). Scripts check it before he moves, e.g. 'if (var699 == 18) do-animation 2 19' (global/script_0351.scumm:101-102, global/script_0379.scumm:21-22)."
+    },
+    "701": {
+      "Name": "barber-haggis-animation",
+      "Note": "The animation Haggis McMutton (actor 3, BIHM lines; context, not mentioning var701: rooms/021_brbr-int/local_2001.scumm:94) is playing: almost every write sits next to 'do-animation 3 N' with the same N (e.g. global/script_0179.scumm:18-19 var701 = 37, rooms/021_brbr-int/local_2010.scumm:147-148 var701 = 33). Values 28-38. rooms/021_brbr-int/local_2039.scumm:4-21 plays his idle fidgets only while it is 38, the resting pose."
     }
   },
   "Bits": {}
