@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using MMUCS.Core;
 using MMUCS.Core.Scumm;
 using MMUCS.Desktop.ViewModels;
 
@@ -16,6 +18,35 @@ public partial class RoomView : UserControl
         // Space toggles the focused object's visibility. Tunnel, so the ListBox doesn't take it first.
         ObjectList.AddHandler(KeyDownEvent, OnObjectListKeyDown, RoutingStrategies.Tunnel);
         ObjectList.ContextRequested += OnObjectListContextRequested;
+        ObjectList.SelectionChanged += OnObjectListSelectionChanged;
+    }
+
+    private bool _syncingSelection;
+
+    /// <summary>The list's selection → the view model: all selected, and the last one picked as the current one.</summary>
+    private void OnObjectListSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingSelection || _vm == null) return;
+        var selected = ObjectList.SelectedItems?.OfType<RoomObjectItem>().ToList() ?? new();
+        _vm.SelectedItems = selected;
+        var current = e.AddedItems.OfType<RoomObjectItem>().LastOrDefault()
+                      ?? (selected.Contains(_vm.SelectedObjectItem) ? _vm.SelectedObjectItem : selected.LastOrDefault());
+        _syncingSelection = true;
+        _vm.SelectedObjectItem = current;
+        _syncingSelection = false;
+    }
+
+    /// <summary>The view model's current entry (a click in the room) → the list, as the only one selected.</summary>
+    private void SyncListSelection()
+    {
+        if (_syncingSelection || _vm == null) return;
+        var item = _vm.SelectedObjectItem;
+        if (item != null && ObjectList.SelectedItems?.Contains(item) == true) return;
+        _syncingSelection = true;
+        ObjectList.SelectedItems?.Clear();
+        if (item != null) ObjectList.SelectedItem = item;
+        _vm.SelectedItems = item == null ? System.Array.Empty<RoomObjectItem>() : new[] { item };
+        _syncingSelection = false;
     }
 
     private RoomViewModel _vm;
@@ -33,6 +64,7 @@ public partial class RoomView : UserControl
     private void OnVmPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(RoomViewModel.ShowObjectsPanel)) ApplyObjectsPanel();
+        else if (e.PropertyName == nameof(RoomViewModel.SelectedObjectItem)) SyncListSelection();
     }
 
     /// <summary>Collapses or restores the Objects panel column (keeping the width it had).</summary>
@@ -61,7 +93,8 @@ public partial class RoomView : UserControl
     {
         var item = (e.Source as Avalonia.StyledElement)?.DataContext as RoomObjectItem ?? Vm?.SelectedObjectItem;
         if (item == null) return;
-        Vm.SelectedObjectItem = item;
+        // Right-click inside the selection acts on all of it; elsewhere it selects just that entry.
+        if (ObjectList.SelectedItems?.Contains(item) != true) Vm.SelectedObjectItem = item;
         ShowObjectMenu(item.Object, ObjectList);
         e.Handled = true;
     }
@@ -77,7 +110,7 @@ public partial class RoomView : UserControl
         var vm = Vm;
         if (vm?.Room == null) return;
 
-        MenuItem Item(string header, System.Action action, bool enabled = true)
+        static MenuItem Item(string header, System.Action action, bool enabled = true)
         {
             var item = new MenuItem { Header = header, IsEnabled = enabled };
             item.Click += (_, _) => action();
@@ -85,7 +118,17 @@ public partial class RoomView : UserControl
         }
 
         var menu = new ContextMenu();
-        if (obj != null)
+        var items = obj == null ? null : vm.ActionItems(vm.ItemFor(obj));
+        if (items is { Count: > 1 })
+        {
+            int n = items.Count;
+            menu.Items.Add(Item($"Show {n} selected", () => vm.SetVisible(items, true)));
+            menu.Items.Add(Item($"Hide {n} selected", () => vm.SetVisible(items, false)));
+            menu.Items.Add(Item($"Show only the {n} selected", () => vm.ShowOnly(items)));
+            AddReviewItems(menu, vm, items, Item);
+            menu.Items.Add(new Separator());
+        }
+        else if (obj != null)
         {
             // Underscores in names would otherwise be read as access keys.
             string name = obj.ToString().Replace("_", "__");
@@ -94,12 +137,7 @@ public partial class RoomView : UserControl
             menu.Items.Add(Item($"Show only {name}", () => vm.ShowOnly(obj)));
             menu.Items.Add(Item("Select", () => vm.SelectedObject = obj));
             if (CostumeMenu(vm, obj) is { } costumeMenu) menu.Items.Add(costumeMenu);
-            if (vm.ItemFor(obj) is { } entry && vm.Identify(entry) != null)
-            {
-                menu.Items.Add(new Separator());
-                menu.Items.Add(Item(entry.IsMarked ? "Edit review mark…" : "Mark for review…", () => _ = MarkAsync(vm, entry)));
-                if (entry.IsMarked) menu.Items.Add(Item("Clear review mark", () => vm.ClearReviewMark(entry)));
-            }
+            if (vm.ItemFor(obj) is { } entry) AddReviewItems(menu, vm, new[] { entry }, Item);
             menu.Items.Add(new Separator());
         }
         menu.Items.Add(Item("Show all objects", () => vm.SetAllVisible(true), vm.AllObjectsVisible != true));
@@ -107,12 +145,27 @@ public partial class RoomView : UserControl
         menu.Open(target);
     }
 
-    /// <summary>Asks what looks wrong (tags and a note) and saves the mark, for mroom's review command.</summary>
-    private async System.Threading.Tasks.Task MarkAsync(RoomViewModel vm, RoomObjectItem entry)
+    /// <summary>Mark for review… (one mark for all of <paramref name="items"/>), and clearing their marks.</summary>
+    private void AddReviewItems(ContextMenu menu, RoomViewModel vm, IReadOnlyList<RoomObjectItem> items,
+        System.Func<string, System.Action, bool, MenuItem> item)
+    {
+        var markable = items.Where(i => vm.TargetOf(i) != null).ToList();
+        if (markable.Count == 0) return;
+        var existing = vm.MarkFor(markable);
+        string what = markable.Count > 1 ? $" {markable.Count} together" : "";
+        menu.Items.Add(new Separator());
+        menu.Items.Add(item(existing != null ? $"Edit review mark{what}…" : $"Mark{what} for review…", () => _ = MarkAsync(vm, markable, existing), true));
+        int marks = markable.SelectMany(i => i.ReviewMarks).Select(m => m.Id).Distinct().Count();
+        if (marks > 0) menu.Items.Add(item(marks == 1 ? "Clear review mark" : $"Clear {marks} review marks", () => vm.ClearReviewMarks(markable), true));
+    }
+
+    /// <summary>Asks what looks wrong (tags and a note) and saves one mark for the entries, for mroom's review command.</summary>
+    private async System.Threading.Tasks.Task MarkAsync(RoomViewModel vm, IReadOnlyList<RoomObjectItem> items, ReviewMark existing)
     {
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
-        var result = await ReviewMarkDialog.Ask(owner, entry.Name, entry.ReviewMark);
-        if (result is { } r) vm.MarkForReview(entry, r.Tags, r.Note);
+        string name = items.Count == 1 ? items[0].Name : $"{items.Count} together: " + string.Join(", ", items.Select(i => i.Name));
+        var result = await ReviewMarkDialog.Ask(owner, name, existing);
+        if (result is { } r) vm.MarkForReview(items, r.Tags, r.Note);
     }
 
     /// <summary>

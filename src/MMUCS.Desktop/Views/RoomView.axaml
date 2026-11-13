@@ -99,7 +99,9 @@
                     ToolTip.Tip="Show the objects as the room opens: hidden while their state on entry is 0" />
           </Grid>
         </Border>
-        <ListBox x:Name="ObjectList" ItemsSource="{Binding Objects}" SelectedItem="{Binding SelectedObjectItem, Mode=TwoWay}">
+        <!-- Multiple: Ctrl / Shift click select several (visibility and Mark for review apply to all);
+             the last one clicked is the current one (canvas, Costume viewer). Kept in step in code-behind. -->
+        <ListBox x:Name="ObjectList" ItemsSource="{Binding Objects}" SelectionMode="Multiple">
           <ListBox.Styles>
             <Style Selector="ListBoxItem">
               <Setter Property="Padding" Value="8,3" />

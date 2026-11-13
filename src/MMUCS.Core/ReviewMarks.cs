@@ -33,22 +33,52 @@ public sealed class ReviewSnapshot
 /// A costume or object marked in the room viewer as possibly wrong (position, scale, draw order …),
 /// for tools/mroom's review command.
 /// </summary>
+public sealed class ReviewTarget
+{
+    /// <summary>"costume" or "object".</summary>
+    [JsonPropertyName("kind")] public string Kind { get; set; }
+    [JsonPropertyName("costume")] public int? Costume { get; set; }
+    /// <summary>The costume's AKOS block offset, "0x…": tells copies apart.</summary>
+    [JsonPropertyName("akos")] public string Akos { get; set; }
+    /// <summary>For an object, the object's name.</summary>
+    [JsonPropertyName("object")] public string Object { get; set; }
+    [JsonPropertyName("snapshot")] public ReviewSnapshot Snapshot { get; set; } = new();
+
+    /// <summary>
+    /// The same thing: the same object, or the same costume at the same spot (one costume can stand in
+    /// several places, like the fortbase chickens).
+    /// </summary>
+    public bool Same(ReviewTarget o) => o != null && Kind == o.Kind && (Kind == "object"
+        ? Object == o.Object
+        : Akos == o.Akos && Snapshot?.X == o.Snapshot?.X && Snapshot?.Y == o.Snapshot?.Y);
+}
+
+/// <summary>
+/// One or more costumes and objects of a room marked together, e.g. a pair drawn in the wrong order
+/// where either could be the one that's wrong. Tags and note are about them all.
+/// </summary>
 public sealed class ReviewMark
 {
     [JsonPropertyName("id")] public int Id { get; set; }
     [JsonPropertyName("created")] public string Created { get; set; }
     [JsonPropertyName("room")] public int Room { get; set; }
     [JsonPropertyName("room_name")] public string RoomName { get; set; }
-    /// <summary>"costume" or "object".</summary>
-    [JsonPropertyName("kind")] public string Kind { get; set; }
-    [JsonPropertyName("costume")] public int? Costume { get; set; }
-    /// <summary>The costume's AKOS block offset, "0x…": tells copies apart.</summary>
-    [JsonPropertyName("akos")] public string Akos { get; set; }
-    /// <summary>For an object mark, the object's name.</summary>
-    [JsonPropertyName("object")] public string Object { get; set; }
+    [JsonPropertyName("targets")] public List<ReviewTarget> Targets { get; set; } = new();
     [JsonPropertyName("tags")] public List<string> Tags { get; set; } = new();
     [JsonPropertyName("note")] public string Note { get; set; }
-    [JsonPropertyName("snapshot")] public ReviewSnapshot Snapshot { get; set; } = new();
+
+    // A first-format mark held one target in these; Load moves them into Targets.
+    [JsonPropertyName("kind")] public string LegacyKind { get; set; }
+    [JsonPropertyName("costume")] public int? LegacyCostume { get; set; }
+    [JsonPropertyName("akos")] public string LegacyAkos { get; set; }
+    [JsonPropertyName("object")] public string LegacyObject { get; set; }
+    [JsonPropertyName("snapshot")] public ReviewSnapshot LegacySnapshot { get; set; }
+
+    public bool Includes(int room, ReviewTarget target) => Room == room && Targets.Any(t => t.Same(target));
+
+    /// <summary>The same room and the same set of targets.</summary>
+    public bool SameTargets(ReviewMark o) =>
+        o != null && Room == o.Room && Targets.Count == o.Targets.Count && Targets.All(t => o.Targets.Any(t.Same));
 }
 
 /// <summary>
@@ -78,7 +108,7 @@ public static class ReviewMarks
 
     private sealed class Document
     {
-        [JsonPropertyName("format")] public int Format { get; set; } = 1;
+        [JsonPropertyName("format")] public int Format { get; set; } = 2;
         [JsonPropertyName("marks")] public List<ReviewMark> Marks { get; set; } = new();
     }
 
@@ -96,7 +126,13 @@ public static class ReviewMarks
         {
             string path = PathOrDefault;
             if (!File.Exists(path)) return new();
-            return JsonSerializer.Deserialize<Document>(File.ReadAllText(path), Options)?.Marks ?? new();
+            var marks = JsonSerializer.Deserialize<Document>(File.ReadAllText(path), Options)?.Marks ?? new();
+            foreach (var m in marks.Where(m => m.LegacyKind != null))
+            {
+                m.Targets.Add(new ReviewTarget { Kind = m.LegacyKind, Costume = m.LegacyCostume, Akos = m.LegacyAkos, Object = m.LegacyObject, Snapshot = m.LegacySnapshot ?? new() });
+                m.LegacyKind = null; m.LegacyCostume = null; m.LegacyAkos = null; m.LegacyObject = null; m.LegacySnapshot = null;
+            }
+            return marks;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
@@ -114,11 +150,11 @@ public static class ReviewMarks
         File.Move(tmp, path, overwrite: true);
     }
 
-    /// <summary>Adds a mark (replacing one for the same thing) and returns it with its id.</summary>
+    /// <summary>Adds a mark (replacing one for the same set of things) and returns it with its id.</summary>
     public static ReviewMark Add(ReviewMark mark)
     {
         var marks = Load();
-        var same = marks.FirstOrDefault(m => SameTarget(m, mark));
+        var same = marks.FirstOrDefault(m => m.SameTargets(mark));
         if (same != null) marks.Remove(same);
         mark.Id = same?.Id ?? (marks.Count == 0 ? 1 : marks.Max(m => m.Id) + 1);
         mark.Created ??= DateTime.Now.ToString("yyyy-MM-dd HH:mm");
@@ -135,12 +171,4 @@ public static class ReviewMarks
         return true;
     }
 
-    /// <summary>
-    /// Whether two marks are about the same thing: the same object, or the same costume in the same
-    /// room at the same spot (one costume can stand in several places, like the fortbase chickens).
-    /// </summary>
-    public static bool SameTarget(ReviewMark a, ReviewMark b) =>
-        a.Room == b.Room && a.Kind == b.Kind && (a.Kind == "object"
-            ? a.Object == b.Object
-            : a.Akos == b.Akos && a.Snapshot?.X == b.Snapshot?.X && a.Snapshot?.Y == b.Snapshot?.Y);
 }
