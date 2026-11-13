@@ -77,7 +77,9 @@ Variables: 52 used here: 29 unnamed, 14 named, 7 engine, 2 tracked
 
 ### Reviewing what looks wrong
 
-In MMUCS's room viewer, right-click a costume or object (in the room or the Objects panel) and pick **Mark for review…**. Tick what looks wrong if you know (position, scale, draw order, z-plane, wrong object, frame, not placed) and add a note, such as "should be behind the fence". Marked entries get a ⚑ in the Objects panel. The mark keeps what MMUCS worked out at the time: position, elevation, scale, z-plane, owner object, or an object's box and state on entry.
+In MMUCS's room viewer, right-click a costume or object (in the room or the Objects panel) and pick **Mark for review…**. Tick what looks wrong if you know (position, scale, draw order, z-plane, wrong object, frame, not placed) and add a note, such as "should be behind the fence". Marked entries get a ⚑ in the Objects panel.
+
+To mark several things together, such as a pair drawn in the wrong order where either could be the one that's wrong, Ctrl- or Shift-click them in the Objects panel and right-click the selection: **Mark N together for review…** makes one mark for all of them. (The selection also shows or hides them all at once, with Space or the menu.) `review N` then shows each one, and a "Between them" section with their draw order when marked and now: y, actor and z-plane, and whether the order changed. The mark keeps what MMUCS worked out at the time: position, elevation, scale, z-plane, owner object, or an object's box and state on entry.
 
 ```bash
 mroom review                 # every mark: same, or what MMUCS now works out differently

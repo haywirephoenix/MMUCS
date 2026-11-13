@@ -191,32 +191,53 @@ public class ReviewMarksTests : IDisposable
         if (System.IO.Directory.Exists(_dir)) System.IO.Directory.Delete(_dir, true);
     }
 
-    private static MMUCS.Core.ReviewMark Chicken(int x, string note = null) => new()
+    private static MMUCS.Core.ReviewTarget Chicken(int x) => new()
     {
-        Room = 14, Kind = "costume", Costume = 68, Akos = "0x0173E1B4", Note = note,
+        Kind = "costume", Costume = 68, Akos = "0x0173E1B4",
         Snapshot = new MMUCS.Core.ReviewSnapshot { Placed = true, X = x, Y = 155, Scale = 150 },
     };
 
+    private static MMUCS.Core.ReviewMark Mark(string note, params MMUCS.Core.ReviewTarget[] targets) =>
+        new() { Room = 14, Note = note, Targets = targets.ToList() };
+
     [Fact]
-    public void Marks_are_saved_numbered_and_replaced_for_the_same_spot()
+    public void Marks_are_saved_numbered_and_replaced_for_the_same_set_of_things()
     {
-        var first = MMUCS.Core.ReviewMarks.Add(Chicken(36, "too big"));
-        var other = MMUCS.Core.ReviewMarks.Add(Chicken(160));
-        var again = MMUCS.Core.ReviewMarks.Add(Chicken(36, "too small"));
-        Assert.Equal((1, 2, 1), (first.Id, other.Id, again.Id));
+        var first = MMUCS.Core.ReviewMarks.Add(Mark("too big", Chicken(36)));
+        var pair = MMUCS.Core.ReviewMarks.Add(Mark("one of these is in front", Chicken(36), Chicken(160)));
+        var again = MMUCS.Core.ReviewMarks.Add(Mark("too small", Chicken(36)));
+        var pairAgain = MMUCS.Core.ReviewMarks.Add(Mark("the left one", Chicken(160), Chicken(36))); // order doesn't matter
+        Assert.Equal((1, 2, 1, 2), (first.Id, pair.Id, again.Id, pairAgain.Id));
         var marks = MMUCS.Core.ReviewMarks.Load();
         Assert.Equal(2, marks.Count);
         Assert.Equal("too small", marks.Single(m => m.Id == 1).Note);
+        Assert.Equal(2, marks.Single(m => m.Id == 2).Targets.Count);
+        Assert.True(marks.Single(m => m.Id == 2).Includes(14, Chicken(36)));
+        Assert.False(marks.Single(m => m.Id == 2).Includes(15, Chicken(36)));
         Assert.Contains("\"akos\": \"0x0173E1B4\"", System.IO.File.ReadAllText(MMUCS.Core.ReviewMarks.CurrentPath));
     }
 
     [Fact]
     public void Removing_a_mark_keeps_the_others()
     {
-        MMUCS.Core.ReviewMarks.Add(Chicken(36));
-        MMUCS.Core.ReviewMarks.Add(Chicken(160));
+        MMUCS.Core.ReviewMarks.Add(Mark(null, Chicken(36)));
+        MMUCS.Core.ReviewMarks.Add(Mark(null, Chicken(160)));
         Assert.True(MMUCS.Core.ReviewMarks.Remove(1));
         Assert.False(MMUCS.Core.ReviewMarks.Remove(1));
         Assert.Equal(2, Assert.Single(MMUCS.Core.ReviewMarks.Load()).Id);
+    }
+
+    [Fact]
+    public void A_first_format_mark_is_read_as_one_target()
+    {
+        System.IO.Directory.CreateDirectory(_dir);
+        System.IO.File.WriteAllText(MMUCS.Core.ReviewMarks.CurrentPath, """
+            {"format": 1, "marks": [{"id": 3, "room": 14, "kind": "object", "object": "fortbase-sign", "tags": ["order"],
+              "snapshot": {"placed": true, "x": 8, "y": 16}}]}
+            """);
+        var mark = Assert.Single(MMUCS.Core.ReviewMarks.Load());
+        var target = Assert.Single(mark.Targets);
+        Assert.Equal(("object", "fortbase-sign", 8), (target.Kind, target.Object, target.Snapshot.X));
+        Assert.Null(mark.LegacyKind);
     }
 }

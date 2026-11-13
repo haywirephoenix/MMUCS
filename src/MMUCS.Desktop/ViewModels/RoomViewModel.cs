@@ -52,12 +52,13 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
     };
 
     [ObservableProperty] private bool _isVisible = true;
-    /// <summary>Its review mark (Mark for review…), or null.</summary>
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsMarked), nameof(MarkText))] private ReviewMark _reviewMark;
-    public bool IsMarked => ReviewMark != null;
-    public string MarkText => ReviewMark == null ? null
-        : $"Marked for review (#{ReviewMark.Id}){(ReviewMark.Tags.Count > 0 ? ": " + string.Join(", ", ReviewMark.Tags) : "")}"
-          + (string.IsNullOrWhiteSpace(ReviewMark.Note) ? "" : "\n" + ReviewMark.Note);
+    /// <summary>The review marks that include it (Mark for review…), alone or with other entries.</summary>
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsMarked), nameof(MarkText))] private IReadOnlyList<ReviewMark> _reviewMarks = Array.Empty<ReviewMark>();
+    public bool IsMarked => ReviewMarks.Count > 0;
+    public string MarkText => ReviewMarks.Count == 0 ? null : string.Join("\n\n", ReviewMarks.Select(m =>
+        $"Marked for review (#{m.Id}{(m.Targets.Count > 1 ? $", with {m.Targets.Count - 1} more" : "")})"
+        + (m.Tags.Count > 0 ? ": " + string.Join(", ", m.Tags) : "")
+        + (string.IsNullOrWhiteSpace(m.Note) ? "" : "\n" + m.Note)));
     /// <summary>False for objects with no image (or a fully transparent one).</summary>
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasToggle))] private bool _hasImage;
     /// <summary>The costumed actor drawn in this object's hotspot (image-less objects only).</summary>
@@ -519,74 +520,101 @@ public sealed partial class RoomViewModel : ObservableObject
 
     // ── Review marks (Mark for review…, read by tools/mroom's review command) ──
 
-    /// <summary>Shows on each entry whether it's marked; reads the marks again (mroom may have cleared some).</summary>
+    /// <summary>Shows on each entry whether a mark includes it; reads the marks again (mroom may have cleared some).</summary>
     public void ApplyReviewMarks()
     {
         var room = Room;
         var marks = room == null ? new List<ReviewMark>() : ReviewMarks.Load().Where(m => m.Room == room.RoomNo).ToList();
         foreach (var item in Objects)
         {
-            var probe = Identify(item);
-            item.ReviewMark = probe == null ? null : marks.FirstOrDefault(m => ReviewMarks.SameTarget(m, probe));
+            var target = TargetOf(item);
+            var mine = target == null ? new List<ReviewMark>() : marks.Where(m => m.Includes(room.RoomNo, target)).ToList();
+            item.ReviewMarks = mine;
         }
     }
 
     /// <summary>
-    /// A mark for an entry, with what MMUCS works out for it now: a costume (its placement, scale,
-    /// z-plane, owner) when it has one, else the object image (its box and state on entry).
+    /// An entry as a review target, with what MMUCS works out for it now: a costume (its placement,
+    /// scale, z-plane, owner) when it has one, else the object image (its box and state on entry).
     /// </summary>
-    public ReviewMark Identify(RoomObjectItem item)
+    public ReviewTarget TargetOf(RoomObjectItem item)
     {
-        var room = Room;
-        if (room == null || item == null) return null;
-        var mark = new ReviewMark { Room = room.RoomNo, RoomName = room.Name };
+        if (Room == null || item == null) return null;
         if (item.Costume is { } a)
-        {
-            mark.Kind = "costume";
-            mark.Costume = a.Costume;
-            mark.Akos = $"0x{a.Akos.Offset:X8}";
-            mark.Snapshot = new ReviewSnapshot
+            return new ReviewTarget
             {
-                Placed = a.HasPosition,
-                Actor = a.Actor > 0 ? a.Actor : null,
-                X = a.HasPosition ? a.X : null,
-                Y = a.HasPosition ? a.Y : null,
-                Elevation = a.HasPosition && a.Elevation != 0 ? a.Elevation : null,
-                Scale = a.HasPosition ? a.Scale : null,
-                ZPlane = a.HasPosition ? a.ZPlane : null,
-                DressedBy = a.DressedBy >= 0 ? a.DressedBy : null,
-                Owner = a.Owner?.Name,
+                Kind = "costume", Costume = a.Costume, Akos = $"0x{a.Akos.Offset:X8}",
+                Snapshot = new ReviewSnapshot
+                {
+                    Placed = a.HasPosition,
+                    Actor = a.Actor > 0 ? a.Actor : null,
+                    X = a.HasPosition ? a.X : null,
+                    Y = a.HasPosition ? a.Y : null,
+                    Elevation = a.HasPosition && a.Elevation != 0 ? a.Elevation : null,
+                    Scale = a.HasPosition ? a.Scale : null,
+                    ZPlane = a.HasPosition ? a.ZPlane : null,
+                    DressedBy = a.DressedBy >= 0 ? a.DressedBy : null,
+                    Owner = a.Owner?.Name,
+                },
             };
-            return mark;
-        }
         if (item.IsActorOnly) return null;
         var o = item.Object;
-        mark.Kind = "object";
-        mark.Object = o.Name;
-        mark.Snapshot = new ReviewSnapshot
+        return new ReviewTarget
         {
-            Placed = o.ImageCount > 0,
-            X = o.X, Y = o.Y, Width = o.Width, Height = o.Height,
-            EntryState = item.InitialState,
+            Kind = "object", Object = o.Name,
+            Snapshot = new ReviewSnapshot { Placed = o.ImageCount > 0, X = o.X, Y = o.Y, Width = o.Width, Height = o.Height, EntryState = item.InitialState },
         };
-        return mark;
     }
 
-    public void MarkForReview(RoomObjectItem item, IEnumerable<string> tags, string note)
+    /// <summary>The mark for exactly these entries, if there is one (what "Edit review mark…" edits).</summary>
+    public ReviewMark MarkFor(IReadOnlyList<RoomObjectItem> items)
     {
-        var mark = Identify(item);
+        var probe = NewMark(items);
+        return probe == null ? null : ReviewMarks.Load().FirstOrDefault(m => m.SameTargets(probe));
+    }
+
+    private ReviewMark NewMark(IReadOnlyList<RoomObjectItem> items)
+    {
+        var room = Room;
+        var targets = items.Select(TargetOf).Where(t => t != null).ToList();
+        if (room == null || targets.Count == 0) return null;
+        return new ReviewMark { Room = room.RoomNo, RoomName = room.Name, Targets = targets };
+    }
+
+    /// <summary>Marks these entries together (one mark: a pair drawn in the wrong order, say).</summary>
+    public void MarkForReview(IReadOnlyList<RoomObjectItem> items, IEnumerable<string> tags, string note)
+    {
+        var mark = NewMark(items);
         if (mark == null) return;
         mark.Tags = tags.ToList();
         mark.Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
-        item.ReviewMark = ReviewMarks.Add(mark);
+        ReviewMarks.Add(mark);
         ApplyReviewMarks();
     }
 
-    public void ClearReviewMark(RoomObjectItem item)
+    /// <summary>Clears every mark that includes any of these entries.</summary>
+    public void ClearReviewMarks(IReadOnlyList<RoomObjectItem> items)
     {
-        if (item?.ReviewMark is { } mark) ReviewMarks.Remove(mark.Id);
+        foreach (int id in items.SelectMany(i => i.ReviewMarks).Select(m => m.Id).Distinct().ToList())
+            ReviewMarks.Remove(id);
         ApplyReviewMarks();
     }
+
+    // ── Selection: several entries can be selected; the last one is the current one ──
+
+    /// <summary>The entries selected in the Objects panel (the current one, SelectedObjectItem, among them).</summary>
+    public IReadOnlyList<RoomObjectItem> SelectedItems { get; set; } = Array.Empty<RoomObjectItem>();
+
+    /// <summary>The entries an action on <paramref name="item"/> applies to: the selection when it holds it, else just it.</summary>
+    public IReadOnlyList<RoomObjectItem> ActionItems(RoomObjectItem item) =>
+        item != null && SelectedItems.Count > 1 && SelectedItems.Contains(item) ? SelectedItems : item == null ? Array.Empty<RoomObjectItem>() : new[] { item };
+
+    /// <summary>Shows or hides several entries at once.</summary>
+    public void SetVisible(IReadOnlyList<RoomObjectItem> items, bool visible) =>
+        SetVisibility(o => items.Contains(o) ? visible : null);
+
+    /// <summary>Shows these entries and hides every other one.</summary>
+    public void ShowOnly(IReadOnlyList<RoomObjectItem> items) => SetVisibility(o => items.Contains(o));
 
     /// <summary>Renders the actors' frames in palette <paramref name="palette"/>, keyed by where they're shown.</summary>
     private Dictionary<RoomObject, (SKImage Image, int X, int Y, int Depth, int Actor, float Scale, int ZPlane)> RenderActors(
@@ -718,6 +746,9 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>Toggles the visibility of the selected object (Space in the Objects list).</summary>
     public void ToggleSelectedVisibility()
     {
+        // Several selected: all follow the current one's new state.
+        var items = ActionItems(SelectedObjectItem).Where(o => o.HasToggle).ToList();
+        if (items.Count > 1) { SetVisible(items, !SelectedObjectItem.IsVisible); return; }
         if (SelectedObjectItem is { HasToggle: true } item) item.IsVisible = !item.IsVisible;
     }
 

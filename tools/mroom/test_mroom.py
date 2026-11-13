@@ -207,10 +207,9 @@ class MroomTests(unittest.TestCase):
              "snapshot": {"placed": True, "x": 1288, "y": 168, "width": 48, "height": 144}},
         ])
         text = self.mroom("review", "--marks", str(path))
-        self.assertRegex(text, r"#1 .*costume 67 at 36,155 .*scale .*changed: scale")
-        self.assertIn("too big", text)
-        self.assertRegex(text, r"#2 .*costume 35 at 320,792 .*same")
-        self.assertRegex(text, r"#3 .*object town-chicken-door .*missing .*same")
+        self.assertRegex(text, r"#1 .*costume 67 at 36,155\n\s+scale  changed: scale  . too big")
+        self.assertRegex(text, r"#2 .*costume 35 at 320,792\n\s+-  same")
+        self.assertRegex(text, r"#3 .*object town-chicken-door\n\s+missing  same")
         changed = self.mroom("review", "--changed", "--marks", str(path))
         self.assertIn("#1", changed)
         self.assertNotIn("#2", changed)
@@ -225,6 +224,22 @@ class MroomTests(unittest.TestCase):
         self.assertIn("Costume 67: stored in room 15 town", text)
         self.assertIn("Draw order in 15 town", text)
         self.assertRegex(text, r"→ y  155  costume   67")
+
+    def test_a_pair_is_reviewed_together_with_their_draw_order(self):
+        # Marked when the chicken stood at y 900, in front of the cannon (y 792); now it's at 155, behind it.
+        path = self.write_marks([{"id": 5, "room": 15, "tags": ["order"], "note": "one of these is in the wrong order", "targets": [
+            {"kind": "costume", "costume": 35, "akos": "0x01125269", "snapshot": {"placed": True, "actor": 3, "x": 320, "y": 792, "elevation": 300, "scale": 255}},
+            {"kind": "costume", "costume": 67, "akos": "0x0172562C", "snapshot": {"placed": True, "x": 36, "y": 900, "scale": 150, "dressed_by": 88}},
+        ]}])
+        listing = self.mroom("review", "--marks", str(path))
+        self.assertIn("costume 35 at 320,792 + costume 67 at 36,900", listing)
+        self.assertIn("changed: costume 67 at 36,900 y, draw order", listing)
+        text = self.mroom("review", "5", "--marks", str(path))
+        self.assertIn("Between them", text)
+        self.assertRegex(text, r"when marked: costume 35 \(y 792.*→  costume 67 \(y 900")
+        self.assertRegex(text, r"now: +costume 67 \(y 155.*→  costume 35 \(y 792, actor 3, z-plane 0\)   \(order changed\)")
+        self.assertIn("Costume 35: stored in room 15 town", text)
+        self.assertIn("Costume 67: stored in room 15 town", text)
 
     def test_review_done_clears_a_mark(self):
         path = self.write_marks([{"id": 4, "room": 15, "kind": "object", "object": "town-chicken-door", "tags": [], "snapshot": {}}])
