@@ -94,11 +94,25 @@ public partial class RoomView : UserControl
             menu.Items.Add(Item($"Show only {name}", () => vm.ShowOnly(obj)));
             menu.Items.Add(Item("Select", () => vm.SelectedObject = obj));
             if (CostumeMenu(vm, obj) is { } costumeMenu) menu.Items.Add(costumeMenu);
+            if (vm.ItemFor(obj) is { } entry && vm.Identify(entry) != null)
+            {
+                menu.Items.Add(new Separator());
+                menu.Items.Add(Item(entry.IsMarked ? "Edit review mark…" : "Mark for review…", () => _ = MarkAsync(vm, entry)));
+                if (entry.IsMarked) menu.Items.Add(Item("Clear review mark", () => vm.ClearReviewMark(entry)));
+            }
             menu.Items.Add(new Separator());
         }
         menu.Items.Add(Item("Show all objects", () => vm.SetAllVisible(true), vm.AllObjectsVisible != true));
         menu.Items.Add(Item("Hide all objects", () => vm.SetAllVisible(false), vm.AllObjectsVisible != false));
         menu.Open(target);
+    }
+
+    /// <summary>Asks what looks wrong (tags and a note) and saves the mark, for mroom's review command.</summary>
+    private async System.Threading.Tasks.Task MarkAsync(RoomViewModel vm, RoomObjectItem entry)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        var result = await ReviewMarkDialog.Ask(owner, entry.Name, entry.ReviewMark);
+        if (result is { } r) vm.MarkForReview(entry, r.Tags, r.Note);
     }
 
     /// <summary>

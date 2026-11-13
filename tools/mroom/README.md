@@ -36,6 +36,7 @@ It reads the export that `mscripts use` saved. `mroom use DIR` saves it too (for
 | `actor A` | The rooms an actor appears in, its costumes there, its line counts and a few lines |
 | `costume N` | Where a costume is stored, where MMUCS places it, each script that dresses an actor in it with the elevations and placements that follow, and the other scripts in its room that place the same actors. `--limit N` |
 | `find TEXT` | Rooms, objects, hover names and lines that contain the text |
+| `review [N]` | The costumes and objects marked in MMUCS's room viewer (see below). `--changed`, `--tag T`, `--done N` |
 
 `ROOM` is a number (`15`) or part of a name (`town`). `OBJ` is an id (`397`) or part of a name (`chicken`). Results are written as `path:line` under `scripts/`, so `mscripts script` and an editor open them.
 
@@ -73,6 +74,20 @@ Variables: 52 used here: 29 unnamed, 14 named, 7 engine, 2 tracked
 - **Hover names** are the names the game shows under the cursor ("mysterious flowers"), from each object's `OBNA` block.
 - **Walk-to** is where an actor walks to use the object, one point per state, read from the object image's hotspots the way ScummVM reads them.
 - **Classes** are the object's starting classes from the game's object table. Class 32 is shown as `untouchable`.
+
+### Reviewing what looks wrong
+
+In MMUCS's room viewer, right-click a costume or object (in the room or the Objects panel) and pick **Mark for review…**. Tick what looks wrong if you know (position, scale, draw order, z-plane, wrong object, frame, not placed) and add a note, such as "should be behind the fence". Marked entries get a ⚑ in the Objects panel. The mark keeps what MMUCS worked out at the time: position, elevation, scale, z-plane, owner object, or an object's box and state on entry.
+
+```bash
+mroom review                 # every mark: same, or what MMUCS now works out differently
+mroom review 3               # one mark: then and now, the costume's (or object's) full trace, its place in the draw order
+mroom review --changed       # only the marks a change has moved
+mroom review --tag scale     # only marks tagged scale
+mroom review --done 3        # clear it once it's right
+```
+
+The tags only say what was seen; `review N` shows everything either way. mroom reads the marks from MMUCS's own file (`%LocalAppData%/MMUCS/review.json`, `~/.local/share/MMUCS/review.json` elsewhere) as soon as they're made, and the export copies them to `data/review.json`. "Now" comes from the export, so export again after a code change to see what it fixed: `dotnet run --project tools/probe -c Release -- export FOLDER`.
 
 ### The index
 

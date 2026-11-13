@@ -126,6 +126,9 @@ public static class RoomDataExport
         // Code (OBCD) carries the id, hover name and verbs; the image (OBIM) the placement. They're
         // matched by name, since OBIM only knows the object's name.
         var images = room.Objects.GroupBy(o => o.Name ?? "").ToDictionary(g => g.Key, g => new Queue<RoomObject>(g));
+        Dictionary<RoomObject, int> entryStates;
+        try { entryStates = RoomObjectStates.Initial(room); }
+        catch { entryStates = new(); }
         var code = new List<(int Id, string Name, string Title, List<int> Verbs)>();
         var rmsc = room.Lflf.FindChild(ScummTag.RMSC);
         foreach (var obcd in (rmsc ?? room.Room).Children.Where(c => c.Tag == ScummTag.OBCD))
@@ -159,7 +162,12 @@ public static class RoomDataExport
                 w.WriteNumber("state", t.State);
                 WriteInts(w, "classes", ClassList(t.Classes));
             }
-            if (img != null) WriteImage(w, img);
+            if (img != null)
+            {
+                // Its state when the room is entered (0 = hidden), as the room viewer starts it.
+                if (entryStates.TryGetValue(img, out int entry)) w.WriteNumber("entry_state", entry);
+                WriteImage(w, img);
+            }
             w.WriteEndObject();
         }
         // Images with no code: scenery the scripts only draw.

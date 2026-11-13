@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MMUCS.Core.Scumm;
 using Xunit;
 
@@ -174,5 +175,48 @@ public class ZPlanesTests
         Assert.True(composed[0].IsSet(8, 0));   // above the object: the room's
         Assert.True(composed[1].IsSet(8, 1));   // plane 2: the object has none, the room's stays
         Assert.True(room.IsSet(8, 1));          // the room's own planes aren't changed
+    }
+}
+
+/// <summary>The review marks file the room viewer writes and tools/mroom reads.</summary>
+public class ReviewMarksTests : IDisposable
+{
+    private readonly string _dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mmucs-review-" + Guid.NewGuid().ToString("N"));
+
+    public ReviewMarksTests() => MMUCS.Core.ReviewMarks.FilePath = System.IO.Path.Combine(_dir, "review.json");
+
+    public void Dispose()
+    {
+        MMUCS.Core.ReviewMarks.FilePath = null;
+        if (System.IO.Directory.Exists(_dir)) System.IO.Directory.Delete(_dir, true);
+    }
+
+    private static MMUCS.Core.ReviewMark Chicken(int x, string note = null) => new()
+    {
+        Room = 14, Kind = "costume", Costume = 68, Akos = "0x0173E1B4", Note = note,
+        Snapshot = new MMUCS.Core.ReviewSnapshot { Placed = true, X = x, Y = 155, Scale = 150 },
+    };
+
+    [Fact]
+    public void Marks_are_saved_numbered_and_replaced_for_the_same_spot()
+    {
+        var first = MMUCS.Core.ReviewMarks.Add(Chicken(36, "too big"));
+        var other = MMUCS.Core.ReviewMarks.Add(Chicken(160));
+        var again = MMUCS.Core.ReviewMarks.Add(Chicken(36, "too small"));
+        Assert.Equal((1, 2, 1), (first.Id, other.Id, again.Id));
+        var marks = MMUCS.Core.ReviewMarks.Load();
+        Assert.Equal(2, marks.Count);
+        Assert.Equal("too small", marks.Single(m => m.Id == 1).Note);
+        Assert.Contains("\"akos\": \"0x0173E1B4\"", System.IO.File.ReadAllText(MMUCS.Core.ReviewMarks.CurrentPath));
+    }
+
+    [Fact]
+    public void Removing_a_mark_keeps_the_others()
+    {
+        MMUCS.Core.ReviewMarks.Add(Chicken(36));
+        MMUCS.Core.ReviewMarks.Add(Chicken(160));
+        Assert.True(MMUCS.Core.ReviewMarks.Remove(1));
+        Assert.False(MMUCS.Core.ReviewMarks.Remove(1));
+        Assert.Equal(2, Assert.Single(MMUCS.Core.ReviewMarks.Load()).Id);
     }
 }

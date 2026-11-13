@@ -192,6 +192,45 @@ class MroomTests(unittest.TestCase):
         self.assertIn("MMUCS places it: an actor kept in a variable at 36,155, scale 150, dressed by script 88", text)
         self.assertIn("Actors (", self.mroom("room", "15"))  # no actor number doesn't break the room page
 
+    def write_marks(self, marks):
+        path = self.root / "marks.json"
+        path.write_text(json.dumps({"format": 1, "marks": marks}), encoding="utf-8")
+        return path
+
+    def test_review_lists_marks_with_what_changed_since(self):
+        path = self.write_marks([
+            {"id": 1, "room": 15, "kind": "costume", "costume": 67, "akos": "0x0172562C", "tags": ["scale"], "note": "too big",
+             "snapshot": {"placed": True, "x": 36, "y": 155, "scale": 255, "dressed_by": 88}},
+            {"id": 2, "room": 15, "kind": "costume", "costume": 35, "akos": "0x01125269", "tags": [],
+             "snapshot": {"placed": True, "actor": 3, "x": 320, "y": 792, "elevation": 300, "scale": 255}},
+            {"id": 3, "room": 15, "kind": "object", "object": "town-chicken-door", "tags": ["missing"],
+             "snapshot": {"placed": True, "x": 1288, "y": 168, "width": 48, "height": 144}},
+        ])
+        text = self.mroom("review", "--marks", str(path))
+        self.assertRegex(text, r"#1 .*costume 67 at 36,155 .*scale .*changed: scale")
+        self.assertIn("too big", text)
+        self.assertRegex(text, r"#2 .*costume 35 at 320,792 .*same")
+        self.assertRegex(text, r"#3 .*object town-chicken-door .*missing .*same")
+        changed = self.mroom("review", "--changed", "--marks", str(path))
+        self.assertIn("#1", changed)
+        self.assertNotIn("#2", changed)
+        self.assertIn("#1", self.mroom("review", "--tag", "scale", "--marks", str(path)))
+        self.assertNotIn("#2", self.mroom("review", "--tag", "scale", "--marks", str(path)))
+
+    def test_review_one_shows_then_and_now_and_the_evidence(self):
+        path = self.write_marks([{"id": 1, "room": 15, "kind": "costume", "costume": 67, "akos": "0x0172562C", "tags": [],
+                                  "snapshot": {"placed": True, "x": 36, "y": 155, "scale": 255, "dressed_by": 88}}])
+        text = self.mroom("review", "1", "--marks", str(path))
+        self.assertRegex(text, r"scale\s+255\s+→ 150")
+        self.assertIn("Costume 67: stored in room 15 town", text)
+        self.assertIn("Draw order in 15 town", text)
+        self.assertRegex(text, r"→ y  155  costume   67")
+
+    def test_review_done_clears_a_mark(self):
+        path = self.write_marks([{"id": 4, "room": 15, "kind": "object", "object": "town-chicken-door", "tags": [], "snapshot": {}}])
+        self.assertIn("Cleared mark #4", self.mroom("review", "--done", "4", "--marks", str(path)))
+        self.assertEqual([], json.loads(path.read_text(encoding="utf-8"))["marks"])
+
     def test_evaluate_and_split(self):
         self.assertEqual(mroom.evaluate("492 + 300"), "792")
         self.assertEqual(mroom.evaluate("100 / 3"), "33")

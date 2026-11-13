@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MMUCS.Core;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Imaging;
 using MMUCS.Core.Scumm;
@@ -51,6 +52,12 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
     };
 
     [ObservableProperty] private bool _isVisible = true;
+    /// <summary>Its review mark (Mark for review…), or null.</summary>
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsMarked), nameof(MarkText))] private ReviewMark _reviewMark;
+    public bool IsMarked => ReviewMark != null;
+    public string MarkText => ReviewMark == null ? null
+        : $"Marked for review (#{ReviewMark.Id}){(ReviewMark.Tags.Count > 0 ? ": " + string.Join(", ", ReviewMark.Tags) : "")}"
+          + (string.IsNullOrWhiteSpace(ReviewMark.Note) ? "" : "\n" + ReviewMark.Note);
     /// <summary>False for objects with no image (or a fully transparent one).</summary>
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasToggle))] private bool _hasImage;
     /// <summary>The costumed actor drawn in this object's hotspot (image-less objects only).</summary>
@@ -506,7 +513,79 @@ public sealed partial class RoomViewModel : ObservableObject
             }
         }
         _batchVisibility = false;
+        ApplyReviewMarks();
         RefreshVisibility();
+    }
+
+    // ── Review marks (Mark for review…, read by tools/mroom's review command) ──
+
+    /// <summary>Shows on each entry whether it's marked; reads the marks again (mroom may have cleared some).</summary>
+    public void ApplyReviewMarks()
+    {
+        var room = Room;
+        var marks = room == null ? new List<ReviewMark>() : ReviewMarks.Load().Where(m => m.Room == room.RoomNo).ToList();
+        foreach (var item in Objects)
+        {
+            var probe = Identify(item);
+            item.ReviewMark = probe == null ? null : marks.FirstOrDefault(m => ReviewMarks.SameTarget(m, probe));
+        }
+    }
+
+    /// <summary>
+    /// A mark for an entry, with what MMUCS works out for it now: a costume (its placement, scale,
+    /// z-plane, owner) when it has one, else the object image (its box and state on entry).
+    /// </summary>
+    public ReviewMark Identify(RoomObjectItem item)
+    {
+        var room = Room;
+        if (room == null || item == null) return null;
+        var mark = new ReviewMark { Room = room.RoomNo, RoomName = room.Name };
+        if (item.Costume is { } a)
+        {
+            mark.Kind = "costume";
+            mark.Costume = a.Costume;
+            mark.Akos = $"0x{a.Akos.Offset:X8}";
+            mark.Snapshot = new ReviewSnapshot
+            {
+                Placed = a.HasPosition,
+                Actor = a.Actor > 0 ? a.Actor : null,
+                X = a.HasPosition ? a.X : null,
+                Y = a.HasPosition ? a.Y : null,
+                Elevation = a.HasPosition && a.Elevation != 0 ? a.Elevation : null,
+                Scale = a.HasPosition ? a.Scale : null,
+                ZPlane = a.HasPosition ? a.ZPlane : null,
+                DressedBy = a.DressedBy >= 0 ? a.DressedBy : null,
+                Owner = a.Owner?.Name,
+            };
+            return mark;
+        }
+        if (item.IsActorOnly) return null;
+        var o = item.Object;
+        mark.Kind = "object";
+        mark.Object = o.Name;
+        mark.Snapshot = new ReviewSnapshot
+        {
+            Placed = o.ImageCount > 0,
+            X = o.X, Y = o.Y, Width = o.Width, Height = o.Height,
+            EntryState = item.InitialState,
+        };
+        return mark;
+    }
+
+    public void MarkForReview(RoomObjectItem item, IEnumerable<string> tags, string note)
+    {
+        var mark = Identify(item);
+        if (mark == null) return;
+        mark.Tags = tags.ToList();
+        mark.Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        item.ReviewMark = ReviewMarks.Add(mark);
+        ApplyReviewMarks();
+    }
+
+    public void ClearReviewMark(RoomObjectItem item)
+    {
+        if (item?.ReviewMark is { } mark) ReviewMarks.Remove(mark.Id);
+        ApplyReviewMarks();
     }
 
     /// <summary>Renders the actors' frames in palette <paramref name="palette"/>, keyed by where they're shown.</summary>
