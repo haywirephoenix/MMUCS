@@ -18,7 +18,7 @@ sys.path.insert(0, str(TOOL_DIR.parent / "mscripts"))
 import mscripts as ms  # noqa: E402
 
 INDEX_FILE = ".mroom-index.json"
-INDEX_VERSION = 2
+INDEX_VERSION = 3
 LOCAL_SCRIPTS = 2000  # local script numbers start here; below are global
 
 # Verbs whose use is plain from the scripts (e.g. verb 6 always describes the object). Others print as numbers.
@@ -60,6 +60,7 @@ RE_CHOICE = re.compile(r'^verb\s+[\w-]+\s+name\s+"(?:/([A-Za-z0-9_]+)/)?(.*)"$')
 RE_PUT = re.compile(r"^put-actor\s+([\w$-]+)\s+at\s+(.+?)\s+in-room\s+([\w$-]+)$")
 RE_ELEVATION = re.compile(r"^actor\s+([\w$-]+)\s+elevation\s+(.+)$")
 RE_DEFAULT = re.compile(r"^actor\s+([\w$-]+)\s+default$")
+RE_SCALE = re.compile(r"^actor\s+([\w$-]+)\s+scale\s+(.+)$")
 CONSTANT = re.compile(r"^[\d\s+\-*/()]+$")
 
 
@@ -100,6 +101,7 @@ def scan(s: "ms.Script") -> dict:
     # An elevation lifts where the actor is drawn. It counts for a placement when it's set after the
     # actor's last costume change (or reset) in this script, like MMUCS's own costume matching.
     elevation: Dict[str, str] = {}
+    scale: Dict[str, str] = {}  # the same, for the actor's scale (255 is full size)
     for line in s.lines:
         t = line.text.strip()
         if t.startswith("}"):
@@ -120,15 +122,21 @@ def scan(s: "ms.Script") -> dict:
         elif m := RE_PUT.match(t):
             xy = split_args(m.group(2))
             if len(xy) == 2:
-                e["put"].append([n, m.group(1), evaluate(xy[0]), evaluate(xy[1]), m.group(3), elevation.get(m.group(1), "")])
+                e["put"].append([n, m.group(1), evaluate(xy[0]), evaluate(xy[1]), m.group(3),
+                                 elevation.get(m.group(1), ""), scale.get(m.group(1), "")])
         elif m := RE_COSTUME.match(t):
             e["costume"].append([n, m.group(1), m.group(2)])
             elevation.pop(m.group(1), None)
+            scale.pop(m.group(1), None)
+        elif m := RE_SCALE.match(t):
+            scale[m.group(1)] = evaluate(m.group(2))
+            e["scale"].append([n, m.group(1), scale[m.group(1)]])
         elif m := RE_ELEVATION.match(t):
             elevation[m.group(1)] = evaluate(m.group(2))
             e["elevation"].append([n, m.group(1), elevation[m.group(1)]])
         elif m := RE_DEFAULT.match(t):
             elevation.pop(m.group(1), None)
+            scale.pop(m.group(1), None)
         elif m := RE_SOUND.match(t):
             e["sounds"].append([n, int(m.group(1))])
     info = {"kind": s.kind, "room": s.room, "name": s.name, "lines": len(s.lines)}
@@ -337,6 +345,8 @@ class Game:
                 d = self.room_data(room) or {}
                 for c in d.get("costumes", []):
                     for p in c.get("placed", []):
+                        if "actor" not in p:
+                            continue  # kept in a variable: no number to name
                         a = str(p["actor"])
                         if p.get("player"):
                             names[("", a)] = "player"
@@ -472,20 +482,20 @@ def cmd_room(args, game: Game):
         for n, a, c in i.get("costume", []):
             if c != "0":  # costume 0 takes the costume off
                 actors[a]["costumes"].add(c)
-        for n, a, x, y, r, el in i.get("put", []):
+        for n, a, x, y, r, el, sc in i.get("put", []):
             if r in ("current-room", str(room.no)):
-                actors[a]["put"].append(f"{place_text(x, y, el)} ({rel.split('/', 2)[-1]}:{n})")
+                actors[a]["put"].append(f"{place_text(x, y, el, sc)} ({rel.split('/', 2)[-1]}:{n})")
         for s in i.get("say", []):
             actors[s[1] or "?"]["lines"] += 1
     for rel, i in game.scripts.items():
         if i["room"] != room.folder:
-            for n, a, x, y, r, el in i.get("put", []):
+            for n, a, x, y, r, el, sc in i.get("put", []):
                 if r == str(room.no):
-                    actors[a]["put"].append(f"{place_text(x, y, el)} ({rel}:{n})")
+                    actors[a]["put"].append(f"{place_text(x, y, el, sc)} ({rel}:{n})")
     if d:
         for c in d.get("costumes", []):
-            for p in c.get("placed", []):
-                actors[str(p["actor"])]["costumes"].add(str(c["costume"]))
+            for a in [p["actor"] for p in c.get("placed", []) if "actor" in p] + c.get("worn_by", []):
+                actors[str(a)]["costumes"].add(str(c["costume"]))
     numbered = {a: v for a, v in actors.items() if not a.startswith("local") and a != "?"}
     out(f"\nActors ({len(numbered)})")
     for a in sorted(numbered, key=lambda a: (not a.isdigit(), int(a) if a.isdigit() else 0, a))[:limit]:
@@ -549,11 +559,14 @@ def cmd_room(args, game: Game):
     return 0
 
 
-def place_text(x: str, y: str, elevation: str) -> str:
-    """'320,792 elevation 300 (drawn at 320,492)'."""
-    if not elevation or elevation == "0":
-        return f"{x},{y}"
-    return f"{x},{y} elevation {elevation} (drawn at {x},{evaluate(f'{y} - {elevation}')})"
+def place_text(x: str, y: str, elevation: str, scale: str = "") -> str:
+    """'320,792 elevation 300 (drawn at 320,492)', with ', scale 150' when it isn't full size."""
+    text = f"{x},{y}"
+    if elevation and elevation != "0":
+        text += f" elevation {elevation} (drawn at {x},{evaluate(f'{y} - {elevation}')})"
+    if scale and scale != "255":
+        text += f", scale {scale}"
+    return text
 
 
 def cmd_costume(args, game: Game):
@@ -569,10 +582,18 @@ def cmd_costume(args, game: Game):
         out(f"Costume {c}: stored in room {room.label} (AKOS {entry['akos']})" +
             (f", belongs to {entry['object']}" if entry.get("object") else ""))
         for p in entry.get("placed", []):
-            el = str(p.get("elevation", ""))
-            out(f"  MMUCS places it: actor {p['actor']} at {place_text(str(p.get('x', '?')), str(p.get('y', '?')), el)}")
-        if not entry.get("placed"):
-            out("  MMUCS found no placement it could read")
+            el, sc = str(p.get("elevation", "")), str(p.get("scale", ""))
+            who = f"actor {p['actor']}" if "actor" in p else "an actor kept in a variable"
+            by = f", dressed by script {p['dressed_by']}" if "dressed_by" in p else ""
+            out(f"  MMUCS places it: {who} at {place_text(str(p.get('x', '?')), str(p.get('y', '?')), el, sc)}{by}")
+        worn = entry.get("worn_by", [])
+        if worn:
+            who = f"actor{'s' if len(worn) > 1 else ''} {', '.join(map(str, worn))}"
+            out(f"  worn by {who}, placed at runtime (the script's position isn't a constant)")
+        if entry.get("dressed_by") is not None and not entry.get("placed"):
+            out(f"  offered by script {entry['dressed_by']}, which a script here starts, but placed nowhere MMUCS can read")
+        elif not entry.get("placed") and not entry.get("worn_by"):
+            out("  MMUCS found no script that dresses an actor in it with a constant")
     elif game.has_data:
         out(f"Costume {c}: not in any room's data")
     else:
@@ -588,12 +609,15 @@ def cmd_costume(args, game: Game):
         later = [x for x, act, cc in i.get("costume", []) if act == a and x > n]
         until = min(later) if later else 10 ** 9
         out(f"  {rel}:{n}  actor {game.actor_label(a, i['room'])} costume {c}")
-        for k, act, el in i.get("elevation", []):
-            if act == a and n < k < until:
-                out(f"    :{k}  elevation {el}")
+        if re.fullmatch(r"local\d+", a) and i["kind"] == "global":
+            out(f"    (actor {a} is passed in by whoever starts it: mscripts calls {int(i['name'][7:11])})")
+        sets = [(k, f"elevation {v}") for k, act, v in i.get("elevation", []) if act == a and n < k < until]
+        sets += [(k, f"scale {v}") for k, act, v in i.get("scale", []) if act == a and n < k < until]
+        for k, text in sorted(sets):
+            out(f"    :{k}  {text}")
         puts = [p for p in i.get("put", []) if p[1] == a and n < p[0] < until]
-        for k, act, x, y, r, el in puts[:args.limit]:
-            out(f"    :{k}  put-actor at {place_text(x, y, el)} in-room {r}")
+        for k, act, x, y, r, el, sc in puts[:args.limit]:
+            out(f"    :{k}  put-actor at {place_text(x, y, el, sc)} in-room {r}")
         if len(puts) > args.limit:
             out(f"    … {len(puts) - args.limit} more")
         if not puts:
@@ -606,9 +630,9 @@ def cmd_costume(args, game: Game):
         for rel in sorted(room.scripts):
             if any(rel == w[0] for w in wearers):
                 continue
-            for k, act, x, y, r, el in game.scripts[rel].get("put", []):
+            for k, act, x, y, r, el, sc in game.scripts[rel].get("put", []):
                 if act in actors:
-                    moves.append(f"  {rel}:{k}  put-actor {act} at {place_text(x, y, el)} in-room {r}")
+                    moves.append(f"  {rel}:{k}  put-actor {act} at {place_text(x, y, el, sc)} in-room {r}")
         if moves:
             out(f"\nThe same actors placed by other scripts in {room.label}:")
             for line in moves[:args.limit]:
@@ -762,7 +786,7 @@ def cmd_actor(args, game: Game):
         for _, x, c in i.get("costume", []):
             if x == a and c != "0":
                 rooms[where]["costumes"].add(c)
-        for _, x, _, _, r, _ in i.get("put", []):
+        for _, x, _, _, r, *_ in i.get("put", []):
             if x == a:
                 target = where if r == "current-room" else next((f for f in game.rooms if game.rooms[f].no == (int(r) if r.isdigit() else -1)), where)
                 rooms[target]["put"] += 1

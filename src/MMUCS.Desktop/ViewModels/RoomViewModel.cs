@@ -30,9 +30,21 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
     public string Name => Object.ToString();
     /// <summary>A costume no object claims, listed on its own (its object is a stand-in for its frame).</summary>
     public bool IsActorOnly { get; init; }
-    public string Summary => IsActorOnly
-        ? Costume is { HasPosition: true } a ? $"{a.X},{a.Y}   no object" : "not placed by a script"
+    public string Summary => IsActorOnly ? ActorSummary(Costume)
         : Costume != null ? $"{Object.Summary}   costume {Costume.Costume}{(Costume.IsLinked ? " (linked)" : "")}" : Object.Summary;
+    /// <summary>
+    /// Where the scripts put a costume no object claims: its position as the script writes it (with the
+    /// elevation that lifts it), or why it has none.
+    /// </summary>
+    private static string ActorSummary(RoomActor a) => a switch
+    {
+        null => "",
+        { HasPosition: true, Elevation: 0 } => $"placed at {a.X},{a.Y}",
+        { HasPosition: true } => $"placed at {a.X},{a.Y}, elevation {a.Elevation} (drawn at {a.X},{a.DrawY})",
+        { Actor: > 0 } => "placed at runtime (the script's position isn't a constant)",
+        _ => "dressed at runtime (no script sets this costume with a constant)",
+    };
+
     [ObservableProperty] private bool _isVisible = true;
     /// <summary>False for objects with no image (or a fully transparent one).</summary>
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasToggle))] private bool _hasImage;
@@ -291,7 +303,8 @@ public sealed partial class RoomViewModel : ObservableObject
             int ox, oy;
             // The room's own parse of the costume, in the room's current palette.
             lock (actor.Data) rgba = AkosFrames.Render(actor.Data, frame, out ox, out oy);
-            LiveCostume = new LiveCostume(placed.Value, rgba?.ToSkImage(), actor.X - ox, actor.Y - oy);
+            float f = actor.ScaleFactor;
+            LiveCostume = new LiveCostume(placed.Value, rgba?.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), f);
         }
         catch (Exception ex)
         {
@@ -388,10 +401,10 @@ public sealed partial class RoomViewModel : ObservableObject
     }
 
     /// <summary>Renders the actors' frames in palette <paramref name="palette"/>, keyed by where they're shown.</summary>
-    private Dictionary<RoomObject, (SKImage Image, int X, int Y)> RenderActors(
+    private Dictionary<RoomObject, (SKImage Image, int X, int Y, int Depth, int Actor, float Scale)> RenderActors(
         Dictionary<RoomActor, RoomObject> targets, int palette, CancellationToken token)
     {
-        var result = new Dictionary<RoomObject, (SKImage, int, int)>();
+        var result = new Dictionary<RoomObject, (SKImage, int, int, int, int, float)>();
         foreach (var (actor, target) in targets)
         {
             if (token.IsCancellationRequested) break;
@@ -399,7 +412,9 @@ public sealed partial class RoomViewModel : ObservableObject
             {
                 _akosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
                 var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, token);
-                if (rgba != null) result[target] = (rgba.ToSkImage(), actor.X - ox, actor.DrawY - oy);
+                // Scaled about the actor's origin: the frame's offset from it shrinks with the frame.
+                float f = actor.ScaleFactor;
+                if (rgba != null) result[target] = (rgba.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), actor.Y, actor.Actor, f);
             }
         }
         return result;
@@ -450,7 +465,7 @@ public sealed partial class RoomViewModel : ObservableObject
                     image = rgba?.ToSkImage();
                 }
                 costumes.TryGetValue(obj, out var costume);
-                layers.Add(new RoomObjectLayer(obj, image, costume.Image, costume.X, costume.Y));
+                layers.Add(new RoomObjectLayer(obj, image, costume.Image, costume.X, costume.Y, CostumeDepth: costume.Depth, CostumeActor: costume.Actor, CostumeScale: costume.Scale == 0 ? 1 : costume.Scale));
                 hasImage[obj] = rgba != null && !IsFullyTransparent(rgba);
                 if (image != null && image.Width >= FullWidth) fullWidth.Add(new BackgroundChoice(obj.ToString(), image, rgba, obj));
             }
@@ -458,7 +473,7 @@ public sealed partial class RoomViewModel : ObservableObject
             // Stand-ins for costumes no object claims.
             foreach (var item in Objects.Where(o => o.IsActorOnly))
                 if (costumes.TryGetValue(item.Object, out var c))
-                    layers.Add(new RoomObjectLayer(item.Object, null, c.Image, c.X, c.Y, IsActorOnly: true));
+                    layers.Add(new RoomObjectLayer(item.Object, null, c.Image, c.X, c.Y, IsActorOnly: true, CostumeDepth: c.Depth, CostumeActor: c.Actor, CostumeScale: c.Scale));
 
             // Background choices: the room's own image first, then every full-width object image.
             var choices = new List<BackgroundChoice>();

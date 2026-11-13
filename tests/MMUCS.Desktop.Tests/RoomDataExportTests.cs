@@ -61,6 +61,42 @@ public class RoomActorsScanTests
         Assert.Equal((320, 240, 0), (found.X, found.Y, found.Elevation));
     }
 
+    private static byte[] PushVar(int var) { var b = new byte[5]; b[0] = 0x02; BitConverter.GetBytes(var).CopyTo(b, 1); return b; }
+    private static byte[] Jump(byte op, int offset) { var b = new byte[5]; b[0] = op; BitConverter.GetBytes(offset).CopyTo(b, 1); return b; }
+    private const int Local0 = 0x40000000, Local1 = 0x40000001, Local2 = 0x40000002;
+
+    /// <summary>Like script 88: actor local0 gets costume 69 when local2 is nonzero, else 67, then animation 16 and scale local1.</summary>
+    private static byte[] Dresser() => Script(
+        PushVar(Local0), SetActor,          // 24: actor local0
+        PushVar(Local2), Jump(0x65, 12),    // 31: if (local2) { → else at 53
+        69, SetCostume, Jump(0x66, 7),      // 41:   costume 69 } → end at 60
+        67, SetCostume,                     // 53: else costume 67
+        PushVar(Local0), 16, new byte[] { 0xA4 },  // 60: do-animation local0 16
+        PushVar(Local1), new byte[] { 0xAC, 0x73 }); // actor local0 scale local1
+
+    [Fact]
+    public void A_script_that_dresses_its_parameter_is_read_with_the_test_choosing_the_costume()
+    {
+        var found = RoomActors.ParamCostumes(Dresser());
+        Assert.Equal(2, found.Count);
+        Assert.Contains(new RoomActors.ParamCostume(0, 69, 16, 180, 2, true, -1, 1), found);
+        Assert.Contains(new RoomActors.ParamCostume(0, 67, 16, 180, 2, false, -1, 1), found);
+    }
+
+    [Theory]
+    [InlineData(0, 67)]
+    [InlineData(1, 69)]
+    public void A_call_dresses_the_actor_passed_and_the_next_placement_of_it_places_the_costume(int third, int costume)
+    {
+        // start-script 88(local2, 150, third); put-actor local2 at 36,155 in-room current-room
+        var dresser = RoomActors.ParamCostumes(Dresser());
+        var caller = Script(0, 88, PushVar(Local2), 150, third, 3, new byte[] { 0x79 },
+                            PushVar(Local2), 36, 155, PushVar(4), Put);
+        var found = Assert.Single(RoomActors.ScanScript(caller, 14, no => no == 88 ? dresser : null));
+        Assert.Equal((costume, 36, 155, 16, 88, 150), (found.Costume, found.X, found.Y, found.Anim, found.Via, found.Scale));
+        Assert.True(found.Actor < 0); // an actor kept in a variable
+    }
+
     [Fact]
     public void Constant_expressions_nest()
     {

@@ -11,7 +11,10 @@ namespace MMUCS.Core.Scumm;
 /// </summary>
 public sealed class RoomActor
 {
-    /// <summary>Actor number from the scripts, or 0 when no script sets this costume with literals.</summary>
+    /// <summary>
+    /// Actor number from the scripts, or 0 when no script sets this costume with literals. A costume can
+    /// have an actor and no position: a script dresses the actor but places it through variables.
+    /// </summary>
     public int Actor { get; init; }
     /// <summary>
     /// Every actor this entry stands for, when one script dresses several actors in this costume on
@@ -30,6 +33,9 @@ public sealed class RoomActor
     public int Elevation { get; init; }
     /// <summary>Where the actor's origin is drawn: <see cref="Y"/> lifted by <see cref="Elevation"/>.</summary>
     public int DrawY => Y - Elevation;
+    /// <summary>actorOps scale: 255 is full size. The frame is scaled about the actor's origin.</summary>
+    public int Scale { get; init; } = 255;
+    public float ScaleFactor => Math.Clamp(Scale, 1, 255) / 255f;
     public bool HasPosition { get; init; }
     public AkosData Data { get; init; }
     /// <summary>The frame shown in the room (the stand/init chore), or null when it draws nothing.</summary>
@@ -43,6 +49,11 @@ public sealed class RoomActor
     /// plays). It names this costume too, without claiming the hotspot.
     /// </summary>
     public RoomObject Character { get; set; }
+    /// <summary>
+    /// The script that dressed it, when the room's script passed the actor to another script that sets
+    /// the costume (start-script 88(local2, …)); -1 when the costume is set where it's placed.
+    /// </summary>
+    public int DressedBy { get; init; } = -1;
     /// <summary>The player's actor (dressed in most rooms): never matched to a hotspot by overlap.</summary>
     public bool IsPlayer { get; init; }
 
@@ -58,13 +69,14 @@ public sealed class RoomActor
         {
             if (!CanDraw) return null;
             var b = Frame.Bounds;
-            return (b.Left + X, b.Top + DrawY, b.Right + X, b.Bottom + DrawY);
+            float f = ScaleFactor;
+            return ((int)(b.Left * f) + X, (int)(b.Top * f) + DrawY, (int)Math.Ceiling(b.Right * f) + X, (int)Math.Ceiling(b.Bottom * f) + DrawY);
         }
     }
 
     private string ActorText => Actors is { Count: > 1 } all ? $"actors {string.Join(", ", all)}" : $"actor {Actor}";
 
-    public string Label => Actor <= 0 ? $"costume {Costume}"
+    public string Label => Actor <= 0 ? $"costume {Costume}{(DressedBy >= 0 ? $"  (dressed by script {DressedBy})" : "")}"
         : IsPlayer ? $"costume {Costume}  (player, {ActorText})"
         : Character != null && Object == null ? $"costume {Costume}  ({ActorText}, {Character.Name})"
         : $"costume {Costume}  ({ActorText})";
@@ -82,7 +94,7 @@ public sealed class RoomActor
 public static class RoomActors
 {
     private const byte OpPushWord = 0x01, OpPushVar = 0x02, OpPutActorAtXY = 0xA1, OpAnimateActor = 0xA4, OpActorOps = 0xAC;
-    private const byte SubSetCostume = 0x64, SubElevation = 0x6E, SubSetCurActor = 0x7A, SubFace = 0x81;
+    private const byte SubSetCostume = 0x64, SubElevation = 0x6E, SubScale = 0x73, SubSetCurActor = 0x7A, SubFace = 0x81;
     private const byte OpAdd = 0x0E, OpSub = 0x0F, OpMul = 0x10, OpDiv = 0x11;
 
     private static readonly object Sync = new();
@@ -203,6 +215,26 @@ public static class RoomActors
         return b;
     }
 
+    private static readonly ConditionalWeakTable<ScummBlock, Dictionary<int, IReadOnlyList<ParamCostume>>> Dressers = new();
+
+    /// <summary>Global script number → the costumes it dresses its parameters in, for every such script in the game.</summary>
+    private static Dictionary<int, IReadOnlyList<ParamCostume>> DressersFor(ScummBlock any)
+    {
+        lock (Sync)
+            return Dressers.GetValue(Root(any), root =>
+            {
+                var map = new Dictionary<int, IReadOnlyList<ParamCostume>>();
+                foreach (var b in Walk(root, 4).Where(b => b.Tag == ScummTag.SCRP))
+                {
+                    if (ParamCostumes(b.DataSpan) is not { Count: > 0 } pcs) continue;
+                    var title = RoomScripts.For(b)?.Title;
+                    if (title != null && title.StartsWith("Global script ") && int.TryParse(title[14..], out int no))
+                        map.TryAdd(no, pcs);
+                }
+                return map;
+            });
+    }
+
     private static CostumeDirectory DirectoryFor(ScummBlock b)
     {
         lock (Sync) return Directories.GetValue(Root(b), r => new CostumeDirectory(r));
@@ -227,7 +259,8 @@ public static class RoomActors
             var actors = new HashSet<int>();
             foreach (var script in Walk(lflf, 4))
                 if (IsScriptTag(script.Tag))
-                    foreach (var c in CostumeSets(script.DataSpan)) actors.Add(c.Actor);
+                    foreach (var c in CostumeSets(script.DataSpan))
+                        if (c.Actor > 0) actors.Add(c.Actor);
             foreach (int a in actors) rooms[a] = rooms.GetValueOrDefault(a) + 1;
         }
         var ranked = rooms.OrderByDescending(kv => kv.Value).ToList();
@@ -288,20 +321,37 @@ public static class RoomActors
         // Script pairs (actor, costume, position) for the room's own costumes.
         int player = PlayerActor(lflf);
         var scripts = Walk(lflf, 4).Where(b => IsScriptTag(b.Tag)).ToList();
-        var scans = scripts.Select(b => ScanScript(b.DataSpan, room.RoomNo)).ToList();
+        // Scripts that dress the actor passed to them: the game's global ones and this room's local ones.
+        var globalDressers = DressersFor(lflf);
+        var localDressers = new Dictionary<int, IReadOnlyList<ParamCostume>>();
+        foreach (var b in scripts.Where(b => b.Tag == ScummTag.LSCR && b.DataLength >= 4))
+            if (ParamCostumes(b.DataSpan) is { Count: > 0 } pcs) localDressers[(int)b.DataSpan.U32LE(0)] = pcs;
+        IReadOnlyList<ParamCostume> Dresser(int no) =>
+            (no >= 2000 ? localDressers : globalDressers).TryGetValue(no, out var pcs) ? pcs : null;
+        var scans = scripts.Select(b => ScanScript(b.DataSpan, room.RoomNo, Dresser)).ToList();
         // Animations the room's scripts play on each actor, and which costumes each actor wears here.
         var roomAnims = new Dictionary<int, List<int>>();
         foreach (var b in scripts)
             foreach (var (_, actor, anim) in Animations(b.DataSpan))
                 if (anim is >= 0 and < 1000) (roomAnims.TryGetValue(actor, out var l) ? l : roomAnims[actor] = new()).Add(anim);
         var wears = scans.SelectMany(x => x).GroupBy(x => x.Actor).ToDictionary(g => g.Key, g => g.Select(x => x.Costume).Distinct().Count());
+        // Every actor a script dresses in each costume, placed or not.
+        var wearers = new Dictionary<int, List<int>>();
+        foreach (var b in scripts)
+            foreach (var c in CostumeSets(b.DataSpan).Where(c => c.Actor > 0))
+            {
+                var list = wearers.TryGetValue(c.Costume, out var l) ? l : wearers[c.Costume] = new();
+                if (!list.Contains(c.Actor)) list.Add(c.Actor);
+            }
 
         var placed = new List<RoomActor>();
         var scriptOf = new Dictionary<RoomActor, int>();
-        var seen = new HashSet<(int, int)>();
-        foreach (var (si, (actor, costume, x, y, elevation, anim, dir)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
+        var seen = new HashSet<(int, int, int, int)>();
+        foreach (var (si, (actor, costume, x, y, elevation, anim, dir, via, scale)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
         {
-            if (!seen.Add((actor, costume))) continue;
+            // An actor number wears a costume once; an actor in a variable is a different actor at
+            // each spot it's put (the fortbase chickens), so each spot is kept.
+            if (!seen.Add(actor > 0 ? (actor, costume, 0, 0) : (actor, costume, x, y))) continue;
             var akos = directory.Resolve(costume, lflf);
             if (akos == null || !ReferenceEquals(akos.Parent, lflf)) continue;
             var (d, f) = Load(akos);
@@ -312,7 +362,11 @@ public static class RoomActors
             if (Animated(d, anim, dir) is { } started) f = started;
             else if (f == null && wears.GetValueOrDefault(actor) == 1 && roomAnims.TryGetValue(actor, out var others))
                 f = others.Distinct().Select(o => Animated(d, o, dir)).FirstOrDefault(x => x != null);
-            var entry = new RoomActor { Actor = actor, Costume = costume, Akos = akos, X = x, Y = y, Elevation = elevation, HasPosition = true, Data = d, Frame = f, IsPlayer = actor == player };
+            var entry = new RoomActor
+            {
+                Actor = Math.Max(0, actor), Costume = costume, Akos = akos, X = x, Y = y, Elevation = elevation, HasPosition = true,
+                Data = d, Frame = f, IsPlayer = actor == player, DressedBy = via, Scale = scale,
+            };
             placed.Add(entry);
             scriptOf[entry] = si;
         }
@@ -323,18 +377,41 @@ public static class RoomActors
         var candidates = room.Objects.Where(o => o.ImageCount == 0 && !IsExit(o)).ToList();
         MatchObjects(placed.Where(p => !p.IsPlayer).ToList(), candidates, a => a.RoomBounds);
 
-        // One entry per AKOS: its matched placements, else its first placement, else an unplaced entry.
+        // Spots: an actor kept in a variable is a different actor at each spot it's put (the fortbase
+        // chickens), and an actor dressed by a call may get one of several costumes (script 88 picks one
+        // at random). Each spot shows one, preferring one that matched a hotspot.
+        static bool AtSpot(RoomActor p) => p.Actor == 0 || p.DressedBy >= 0;
+        var spots = placed.Where(AtSpot)
+            .GroupBy(p => (p.Actor, p.X, p.Y, p.DressedBy))
+            .Select(g => g.FirstOrDefault(p => p.Object != null) ?? g.First())
+            .ToHashSet();
+        foreach (var dropped in placed.Where(p => AtSpot(p) && !spots.Contains(p))) dropped.Object = null;
+        // Costumes a script called from this room may dress an actor in, for those placed nowhere.
+        var offeredBy = new Dictionary<int, int>();
+        foreach (var b in scripts)
+            foreach (var call in DressingCalls(b.DataSpan, Dresser))
+                offeredBy.TryAdd(call.Costume.Costume, call.Script);
+
+        // One entry per AKOS: its matched placements, else its first placement, else an unplaced entry;
+        // plus the spots where an actor in a variable wears it.
         var result = new List<RoomActor>();
         foreach (var akos in akosBlocks)
         {
-            var mine = placed.Where(p => ReferenceEquals(p.Akos, akos)).ToList();
+            var mine = placed.Where(p => ReferenceEquals(p.Akos, akos) && !AtSpot(p)).ToList();
             var matched = mine.Where(p => p.Object != null).ToList();
+            var atSpots = placed.Where(p => ReferenceEquals(p.Akos, akos) && spots.Contains(p)).ToList();
             if (matched.Count > 0) result.AddRange(matched);
             else if ((mine.FirstOrDefault(p => p.CanDraw) ?? mine.FirstOrDefault()) is { } first) result.Add(first);
-            else if (directory.CostumeOf(akos) is int costume)
+            result.AddRange(atSpots);
+            if (mine.Count == 0 && atSpots.Count == 0 && directory.CostumeOf(akos) is int costume)
             {
                 var (d, f) = Load(akos);
-                result.Add(new RoomActor { Costume = costume, Akos = akos, Data = d, Frame = f });
+                var worn = wearers.GetValueOrDefault(costume);
+                result.Add(new RoomActor
+                {
+                    Actor = worn?[0] ?? 0, Actors = worn, Costume = costume, Akos = akos, Data = d, Frame = f,
+                    DressedBy = offeredBy.TryGetValue(costume, out int by) ? by : -1,
+                });
             }
         }
 
@@ -428,25 +505,189 @@ public static class RoomActors
 
     internal static bool Const(ReadOnlySpan<byte> s, int end, out int v) => Const(s, end, out v, out _);
 
+    /// <summary>A variable as an actor key: always negative, so it can't meet a literal actor number.</summary>
+    private static int VarKey(int var) => int.MinValue + (var & 0x7FFFFFFF);
+
+    private const int LocalVar = 0x40000000;
+
     /// <summary>
-    /// The script's costume placements: actor, costume, position, and the animation the script
-    /// starts for it (do-animation after the costume is set; -1 for none) with the facing in degrees
-    /// (south unless a face op says otherwise) that picks its chore. Positions may be constant
-    /// expressions ("320,492 + 300"); the elevation is the last one set between the costume and the placement.
+    /// An actor argument ending just before <paramref name="end"/>: a constant (the actor number) or a
+    /// pushed variable (its <see cref="VarKey"/>). A script that keeps an actor number in a variable
+    /// uses the same variable for the costume and the placement, so the key pairs them.
     /// </summary>
-    internal static List<(int Actor, int Costume, int X, int Y, int Elevation, int Anim, int Dir)> ScanScript(ReadOnlySpan<byte> s, int roomNo)
+    private static bool ActorArg(ReadOnlySpan<byte> s, int end, out int key, out int start)
     {
-        var costumes = CostumeSets(s);
-        var anims = Animations(s);
-        var faces = new List<(int Pos, int Actor, int Dir)>(); // Dir in degrees
-        var elevations = new List<(int Pos, int Actor, int Elevation)>();
-        int curActor = -1;
+        if (Const(s, end, out key, out start)) return true;
+        start = end - 5;
+        if (start >= 0 && end <= s.Length && s[start] == OpPushVar)
+        {
+            key = VarKey(s.S32LE(start + 1));
+            return true;
+        }
+        key = 0;
+        start = end;
+        return false;
+    }
+
+    private static bool ActorArg(ReadOnlySpan<byte> s, int end, out int key) => ActorArg(s, end, out key, out _);
+
+    /// <summary>
+    /// What a script does to the actor passed in one of its parameters: the costumes it may dress it in,
+    /// each with the facing set before it and the first animation played after. COMI's fortbase chickens
+    /// are dressed this way by global script 88, which picks one of four costumes at random.
+    /// </summary>
+    /// <param name="WhenParam">A parameter the costume depends on (-1 for none): the script sets it only when
+    /// that parameter is nonzero (<paramref name="WhenTrue"/>) or zero. Script 88 picks costumes 69/70 for a
+    /// nonzero third argument and 67/68 for zero.</param>
+    /// <param name="Scale">The scale it sets after the costume (-1 for none), or <paramref name="ScaleParam"/>, the
+    /// parameter it takes the scale from (script 88: "actor local0 scale local1").</param>
+    internal readonly record struct ParamCostume(int Param, int Costume, int Anim, int Dir, int WhenParam = -1, bool WhenTrue = false,
+        int Scale = -1, int ScaleParam = -1);
+
+    private const byte OpIf = 0x64, OpIfNot = 0x65, OpJump = 0x66, OpNot = 0x07;
+
+    /// <summary>
+    /// The parameter test that decides whether code at <paramref name="at"/> runs: the nearest
+    /// "if (localK)" / "if (!localK)" whose then-part holds it, or whose else-part does (reached by the
+    /// jump, with the then-part ending in a jump over it). Null when no such test guards it.
+    /// </summary>
+    private static (int Param, bool WhenTrue)? Guard(ReadOnlySpan<byte> s, int at)
+    {
+        for (int j = at - 1; j >= 6; j--)
+        {
+            if (s[j] is not (OpIf or OpIfNot) || j + 5 > s.Length) continue;
+            int target = j + 5 + s.S32LE(j + 1);
+            if (target <= j || target > s.Length) continue;
+            bool negated = s[j - 1] == OpNot;
+            int condEnd = negated ? j - 1 : j;
+            if (condEnd < 5 || s[condEnd - 5] != OpPushVar) continue;
+            int var = s.S32LE(condEnd - 4);
+            if ((var & LocalVar) == 0 || (var & ~LocalVar) > 15) continue;
+            // if jumps when its condition is true, ifNot when it's false.
+            bool jumpsWhenTrue = (s[j] == OpIf) != negated;
+            if (at < target) return (var & ~LocalVar, !jumpsWhenTrue);            // the part the jump skips
+            if (target - 5 > j && s[target - 5] == OpJump && target + s.S32LE(target - 4) > at)
+                return (var & ~LocalVar, jumpsWhenTrue);                            // the else part it jumps to
+        }
+        return null;
+    }
+
+    /// <summary>Calls that start a script with arguments: start-script, start-script-quick, chain-script.</summary>
+    private const byte OpStartScript = 0x79, OpStartScriptQuick = 0x7A, OpChainScript = 0x7D;
+
+    /// <summary>The costumes a script's code dresses its parameters in (empty when it doesn't).</summary>
+    internal static List<ParamCostume> ParamCostumes(ReadOnlySpan<byte> s)
+    {
+        var result = new List<ParamCostume>();
+        var sets = CostumeSets(s);
+        var faces = new List<(int Pos, int Actor, int Dir)>();
+        // Scale ops on an actor: a constant, or a parameter (its VarKey) to take it from.
+        var scales = new List<(int Pos, int Actor, bool IsConst, int Value)>();
+        int cur = 0;
         for (int p = 5; p + 1 < s.Length; p++)
         {
             if (s[p] != OpActorOps) continue;
-            if (s[p + 1] == SubSetCurActor && Const(s, p, out int ca)) curActor = ca;
-            else if (s[p + 1] == SubFace && curActor > 0 && Const(s, p, out int degrees)) faces.Add((p, curActor, degrees));
-            else if (s[p + 1] == SubElevation && curActor > 0 && Const(s, p, out int elevation)) elevations.Add((p, curActor, elevation));
+            if (s[p + 1] == SubSetCurActor) cur = ActorArg(s, p, out int a) ? a : 0;
+            else if (s[p + 1] == SubFace && cur != 0 && Const(s, p, out int degrees)) faces.Add((p, cur, degrees));
+            else if (s[p + 1] == SubScale && cur != 0 && ActorArg(s, p, out int sc))
+                scales.Add((p, cur, Const(s, p, out _), sc));
+        }
+        var anims = Animations(s);
+        foreach (var c in sets)
+        {
+            if (c.Actor >= 0) continue;
+            int var = c.Actor - int.MinValue;
+            if ((var & LocalVar) == 0) continue;           // a global variable, not a parameter
+            int param = var & ~LocalVar;
+            if (param > 15) continue;
+            // The script branches between costumes, so the facing is the last one set before this costume
+            // and the animation the first one played after it, whichever branch they're in.
+            int dir = faces.Where(f => f.Actor == c.Actor && f.Pos < c.Pos).Select(f => f.Dir).DefaultIfEmpty(180).Last();
+            int anim = anims.Where(x => x.Actor == c.Actor && x.Pos > c.Pos && x.Anim is >= 0 and < 1000).Select(x => x.Anim).DefaultIfEmpty(-1).First();
+            var guard = Guard(s, c.Pos);
+            // The first scale set on it after the costume, whichever branch it's in.
+            int scale = -1, scaleParam = -1;
+            if (scales.FirstOrDefault(x => x.Actor == c.Actor && x.Pos > c.Pos) is { Pos: > 0 } sc)
+            {
+                if (sc.IsConst) scale = sc.Value;
+                else if (((sc.Value - int.MinValue) & LocalVar) != 0) scaleParam = (sc.Value - int.MinValue) & ~LocalVar;
+            }
+            if (!result.Any(r => r.Param == param && r.Costume == c.Costume))
+                result.Add(new ParamCostume(param, c.Costume, anim, dir, guard?.Param ?? -1, guard?.WhenTrue ?? false, scale, scaleParam));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Calls in a script to scripts that dress a parameter: (position, script number, the actor key passed
+    /// for that parameter, what the callee does with it). Only calls whose script number and arguments
+    /// are constants or variables can be read.
+    /// </summary>
+    private static List<(int Pos, int Script, int Actor, ParamCostume Costume, int? Scale)> DressingCalls(
+        ReadOnlySpan<byte> s, Func<int, IReadOnlyList<ParamCostume>> dressers)
+    {
+        var calls = new List<(int, int, int, ParamCostume, int?)>();
+        if (dressers == null) return calls;
+        for (int p = 10; p < s.Length; p++)
+        {
+            if (s[p] is not (OpStartScript or OpStartScriptQuick or OpChainScript)) continue;
+            // Pushed: [flags,] script, the arguments, their count; read back to front.
+            if (!Const(s, p, out int count, out int end) || count is < 1 or > 16) continue;
+            var args = new int[count];
+            var constant = new bool[count];
+            bool ok = true;
+            for (int i = count - 1; i >= 0 && ok; i--)
+            {
+                constant[i] = Const(s, end, out args[i], out int start);
+                ok = constant[i] ? (end = start) >= 0 : ActorArg(s, end, out args[i], out end);
+            }
+            if (!ok || !Const(s, end, out int script) || script <= 0) continue;
+            var dressed = dressers(script);
+            if (dressed == null) continue;
+            foreach (var pc in dressed)
+            {
+                if (pc.Param >= count) continue;
+                // A costume the callee only sets for some value of an argument we can see isn't this one.
+                if (pc.WhenParam >= 0 && pc.WhenParam < count && constant[pc.WhenParam] && (args[pc.WhenParam] != 0) != pc.WhenTrue) continue;
+                // The scale: the callee's constant, or the argument it takes it from when that's a constant.
+                // A 0 there means "no scale" (script 88 then sets 255), as 0 would draw nothing.
+                int? scale = pc.Scale >= 0 ? pc.Scale
+                    : pc.ScaleParam >= 0 && pc.ScaleParam < count && constant[pc.ScaleParam] ? (args[pc.ScaleParam] > 0 ? args[pc.ScaleParam] : 255)
+                    : null;
+                calls.Add((p, script, args[pc.Param], pc, scale));
+            }
+        }
+        return calls;
+    }
+
+    /// <summary>
+    /// The script's costume placements: actor key (an actor number, or a variable's <see cref="VarKey"/>),
+    /// costume, position, elevation, the animation the script starts for it (do-animation after the
+    /// costume is set; -1 for none) with the facing in degrees (south unless a face op says otherwise)
+    /// that picks its chore, and the script that dressed it when that was a call (-1 otherwise).
+    /// Positions may be constant expressions ("320,492 + 300"); the elevation is the last one set
+    /// between the costume and the placement. With <paramref name="dressers"/>, a call to a script that
+    /// dresses its parameter (start-script 88(local2, …)) counts as dressing the actor passed.
+    /// </summary>
+    internal static List<(int Actor, int Costume, int X, int Y, int Elevation, int Anim, int Dir, int Via, int Scale)> ScanScript(
+        ReadOnlySpan<byte> s, int roomNo, Func<int, IReadOnlyList<ParamCostume>> dressers = null)
+    {
+        var costumes = CostumeSets(s).Select(c => (c.Pos, c.Actor, c.Costume, Anim: (int?)null, Dir: (int?)null, Via: -1, Scale: (int?)null)).ToList();
+        foreach (var (pos, script, actor, pc, scale) in DressingCalls(s, dressers))
+            costumes.Add((pos, actor, pc.Costume, pc.Anim, pc.Dir, script, scale));
+        costumes.Sort((a, b) => a.Pos.CompareTo(b.Pos));
+        var anims = Animations(s);
+        var faces = new List<(int Pos, int Actor, int Dir)>(); // Dir in degrees
+        var elevations = new List<(int Pos, int Actor, int Elevation)>();
+        var scales = new List<(int Pos, int Actor, int Scale)>();
+        int curActor = 0;
+        for (int p = 5; p + 1 < s.Length; p++)
+        {
+            if (s[p] != OpActorOps) continue;
+            if (s[p + 1] == SubSetCurActor) curActor = ActorArg(s, p, out int ca) ? ca : 0;
+            else if (s[p + 1] == SubFace && curActor != 0 && Const(s, p, out int degrees)) faces.Add((p, curActor, degrees));
+            else if (s[p + 1] == SubElevation && curActor != 0 && Const(s, p, out int elevation)) elevations.Add((p, curActor, elevation));
+            else if (s[p + 1] == SubScale && curActor != 0 && Const(s, p, out int scale) && scale > 0) scales.Add((p, curActor, scale));
         }
         var places = new List<(int Pos, int Actor, int X, int Y)>();
 
@@ -461,28 +702,31 @@ public static class RoomActors
                 else continue;
                 // 0,0 counts too: full-room overlays (waterlines) sit at the room's origin. Parking an
                 // actor out of the way is done with room 0, which the room check already rejects.
-                if (Const(s, yEnd, out int y, out int xEnd) && Const(s, xEnd, out int x, out int aEnd) && Const(s, aEnd, out int a) && a > 0)
+                if (Const(s, yEnd, out int y, out int xEnd) && Const(s, xEnd, out int x, out int aEnd)
+                    && ActorArg(s, aEnd, out int a) && a != 0)
                     places.Add((p, a, x, y));
             }
         }
 
-        var pairs = new List<(int, int, int, int, int, int, int)>();
+        var pairs = new List<(int, int, int, int, int, int, int, int, int)>();
         foreach (var c in costumes)
         {
-            // Until the actor's next costume change in this script.
+            // Until the actor's next costume change in this script (a call offering several costumes
+            // changes it once).
             int until = costumes.Where(o => o.Actor == c.Actor && o.Pos > c.Pos).Select(o => o.Pos).DefaultIfEmpty(int.MaxValue).Min();
             // Below 1000 an animation number is a chore; 1000 and up are turn/stop commands.
-            int anim = anims.Where(a => a.Actor == c.Actor && a.Pos > c.Pos && a.Pos < until && a.Anim is >= 0 and < 1000)
-                            .Select(a => a.Anim).DefaultIfEmpty(-1).First();
-            int dir = faces.Where(f => f.Actor == c.Actor && f.Pos > c.Pos && f.Pos < until).Select(f => f.Dir).DefaultIfEmpty(180).First();
+            int anim = c.Anim ?? anims.Where(a => a.Actor == c.Actor && a.Pos > c.Pos && a.Pos < until && a.Anim is >= 0 and < 1000)
+                                      .Select(a => a.Anim).DefaultIfEmpty(-1).First();
+            int dir = c.Dir ?? faces.Where(f => f.Actor == c.Actor && f.Pos > c.Pos && f.Pos < until).Select(f => f.Dir).DefaultIfEmpty(180).First();
 
             // The first placement of the actor while it wears this costume (after the costume is set,
-            // before its next change); otherwise the nearest one, preferring those after.
+            // before its next change); otherwise, for an actor number, the nearest one, preferring
+            // those after. A variable holds different actors at different times, so it needs the former.
             (int Pos, int Actor, int X, int Y)? best = places
                 .Where(pl => pl.Actor == c.Actor && pl.Pos > c.Pos && pl.Pos < until)
                 .Select(pl => ((int, int, int, int)?)pl).FirstOrDefault();
             int bestDist = int.MaxValue;
-            if (best == null)
+            if (best == null && c.Actor > 0)
                 foreach (var pl in places)
                 {
                     if (pl.Actor != c.Actor) continue;
@@ -497,7 +741,11 @@ public static class RoomActors
                 bool inWindow = b.Pos > c.Pos && b.Pos < until;
                 int elevation = !inWindow ? 0 : elevations.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < b.Pos)
                                                           .Select(e => e.Elevation).DefaultIfEmpty(0).Last();
-                pairs.Add((c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir));
+                // Scale the same way: set while it wears this costume, before this placement; or what the
+                // call that dressed it passes.
+                int scale = !inWindow ? 255 : scales.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < b.Pos)
+                                                    .Select(e => e.Scale).DefaultIfEmpty(c.Scale ?? 255).Last();
+                pairs.Add((c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir, c.Via, scale));
             }
         }
         return pairs;
@@ -534,7 +782,7 @@ public static class RoomActors
             result.Add(new RoomActor
             {
                 Actor = p.Actor, Actors = layers.Select(l => l.Actor).Distinct().ToList(), Costume = p.Costume, Akos = p.Akos,
-                X = p.X, Y = p.Y, Elevation = p.Elevation, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
+                X = p.X, Y = p.Y, Elevation = p.Elevation, Scale = p.Scale, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
             });
         }
         return result;
@@ -552,27 +800,27 @@ public static class RoomActors
         return AkosFrames.HasChore(d, chore) && AkosFrames.Compose(d, chore) is { IsEmpty: false } f ? f : null;
     }
 
-    /// <summary>do-animation ops with literal arguments: (position, actor, animation).</summary>
+    /// <summary>do-animation ops with a constant animation: (position, actor key, animation).</summary>
     private static List<(int Pos, int Actor, int Anim)> Animations(ReadOnlySpan<byte> s)
     {
         var anims = new List<(int Pos, int Actor, int Anim)>();
         for (int p = 10; p < s.Length; p++)
-            if (s[p] == OpAnimateActor && Const(s, p, out int anim, out int animStart) && Const(s, animStart, out int actor))
+            if (s[p] == OpAnimateActor && Const(s, p, out int anim, out int animStart) && ActorArg(s, animStart, out int actor))
                 anims.Add((p, actor, anim));
         return anims;
     }
 
-    /// <summary>actorOps setCurActor / setCostume pairs with literal arguments.</summary>
+    /// <summary>actorOps setCurActor / setCostume pairs with a constant costume: (position, actor key, costume).</summary>
     private static List<(int Pos, int Actor, int Costume)> CostumeSets(ReadOnlySpan<byte> s)
     {
         var costumes = new List<(int Pos, int Actor, int Costume)>();
-        int curActor = -1;
+        int curActor = 0;
         for (int p = 5; p + 1 < s.Length; p++)
         {
             if (s[p] != OpActorOps) continue;
             byte sub = s[p + 1];
-            if (sub == SubSetCurActor && Const(s, p, out int a)) curActor = a;
-            else if (sub == SubSetCostume && curActor > 0 && Const(s, p, out int c) && c > 0)
+            if (sub == SubSetCurActor) curActor = ActorArg(s, p, out int a) ? a : 0;
+            else if (sub == SubSetCostume && curActor != 0 && Const(s, p, out int c) && c > 0)
                 costumes.Add((p, curActor, c));
         }
         return costumes;
