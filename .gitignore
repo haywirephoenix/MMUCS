@@ -1,10 +1,8 @@
 # ==========================================
 # Local notes and settings
 # ==========================================
-TODO.MD
+notes/
 layout.user.json
-# Agent instructions, kept local
-CLAUDE.md
 
 # ==========================================
 # C# / .NET / Mono Specific
