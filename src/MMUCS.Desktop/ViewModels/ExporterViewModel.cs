@@ -42,6 +42,7 @@ public sealed partial class ExporterViewModel : ObservableObject
     [ObservableProperty] private bool _allBackgroundPalettes;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportScripts;
     [ObservableProperty] private bool _scriptOffsets;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportRoomData;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private string _outputFolder;
 
     [ObservableProperty] private CostumeChoice _selectedCostume;
@@ -77,6 +78,7 @@ public sealed partial class ExporterViewModel : ObservableObject
         _allBackgroundPalettes = settings.ExportAllBackgroundPalettes;
         _exportScripts = settings.ExportScripts;
         _scriptOffsets = settings.ExportScriptOffsets;
+        _exportRoomData = settings.ExportRoomData;
         _outputFolder = settings.LastExportFolder;
 
         Preview.AlphaEnabled = settings.CelAlphaEnabled;
@@ -108,7 +110,7 @@ public sealed partial class ExporterViewModel : ObservableObject
 
     public bool CanGoNext => Step switch
     {
-        ExportStep.Start => ExportBackgrounds || ExportObjects || ExportCostumes || ExportScripts,
+        ExportStep.Start => ExportBackgrounds || ExportObjects || ExportCostumes || ExportScripts || ExportRoomData,
         ExportStep.Customize => true,
         ExportStep.Path => !string.IsNullOrWhiteSpace(OutputFolder),
         _ => false,
@@ -186,6 +188,7 @@ public sealed partial class ExporterViewModel : ObservableObject
             AllBackgroundPalettes = AllBackgroundPalettes,
             Scripts = ExportScripts,
             ScriptOffsets = ScriptOffsets,
+            RoomData = ExportRoomData,
             CelConfig = new CelExportConfig
             {
                 AlphaEnabled = Preview.AlphaEnabled,
@@ -223,6 +226,7 @@ public sealed partial class ExporterViewModel : ObservableObject
         _settings.ExportAllBackgroundPalettes = AllBackgroundPalettes;
         _settings.ExportScripts = ExportScripts;
         _settings.ExportScriptOffsets = ScriptOffsets;
+        _settings.ExportRoomData = ExportRoomData;
         _settings.LastExportFolder = OutputFolder;
         _settings.CelAlphaEnabled = Preview.AlphaEnabled;
         _settings.CelShadowColorEnabled = Preview.ShadowColorEnabled;

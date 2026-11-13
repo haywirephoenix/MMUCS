@@ -399,7 +399,7 @@ public sealed partial class RoomViewModel : ObservableObject
             {
                 _akosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
                 var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, token);
-                if (rgba != null) result[target] = (rgba.ToSkImage(), actor.X - ox, actor.Y - oy);
+                if (rgba != null) result[target] = (rgba.ToSkImage(), actor.X - ox, actor.DrawY - oy);
             }
         }
         return result;

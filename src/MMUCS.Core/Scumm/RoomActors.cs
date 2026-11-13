@@ -23,6 +23,13 @@ public sealed class RoomActor
     /// <summary>Actor origin in the room (valid when <see cref="HasPosition"/>).</summary>
     public int X { get; init; }
     public int Y { get; init; }
+    /// <summary>
+    /// How far above <see cref="Y"/> the actor is drawn (actorOps elevation). Scripts use it to draw an
+    /// actor high on screen while a large Y keeps it in front of the others (cannon-v's cannon).
+    /// </summary>
+    public int Elevation { get; init; }
+    /// <summary>Where the actor's origin is drawn: <see cref="Y"/> lifted by <see cref="Elevation"/>.</summary>
+    public int DrawY => Y - Elevation;
     public bool HasPosition { get; init; }
     public AkosData Data { get; init; }
     /// <summary>The frame shown in the room (the stand/init chore), or null when it draws nothing.</summary>
@@ -51,7 +58,7 @@ public sealed class RoomActor
         {
             if (!CanDraw) return null;
             var b = Frame.Bounds;
-            return (b.Left + X, b.Top + Y, b.Right + X, b.Bottom + Y);
+            return (b.Left + X, b.Top + DrawY, b.Right + X, b.Bottom + DrawY);
         }
     }
 
@@ -62,7 +69,7 @@ public sealed class RoomActor
         : Character != null && Object == null ? $"costume {Costume}  ({ActorText}, {Character.Name})"
         : $"costume {Costume}  ({ActorText})";
 
-    public override string ToString() => HasPosition ? $"{Label} at {X},{Y}" : Label;
+    public override string ToString() => HasPosition ? $"{Label} at {X},{Y}{(Elevation != 0 ? $" elevation {Elevation}" : "")}" : Label;
 }
 
 /// <summary>
@@ -75,7 +82,8 @@ public sealed class RoomActor
 public static class RoomActors
 {
     private const byte OpPushWord = 0x01, OpPushVar = 0x02, OpPutActorAtXY = 0xA1, OpAnimateActor = 0xA4, OpActorOps = 0xAC;
-    private const byte SubSetCostume = 0x64, SubSetCurActor = 0x7A, SubFace = 0x81;
+    private const byte SubSetCostume = 0x64, SubElevation = 0x6E, SubSetCurActor = 0x7A, SubFace = 0x81;
+    private const byte OpAdd = 0x0E, OpSub = 0x0F, OpMul = 0x10, OpDiv = 0x11;
 
     private static readonly object Sync = new();
     private static readonly ConditionalWeakTable<ScummBlock, CostumeDirectory> Directories = new();
@@ -291,7 +299,7 @@ public static class RoomActors
         var placed = new List<RoomActor>();
         var scriptOf = new Dictionary<RoomActor, int>();
         var seen = new HashSet<(int, int)>();
-        foreach (var (si, (actor, costume, x, y, anim, dir)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
+        foreach (var (si, (actor, costume, x, y, elevation, anim, dir)) in scans.SelectMany((list, i) => list.Select(e => (i, e))))
         {
             if (!seen.Add((actor, costume))) continue;
             var akos = directory.Resolve(costume, lflf);
@@ -304,7 +312,7 @@ public static class RoomActors
             if (Animated(d, anim, dir) is { } started) f = started;
             else if (f == null && wears.GetValueOrDefault(actor) == 1 && roomAnims.TryGetValue(actor, out var others))
                 f = others.Distinct().Select(o => Animated(d, o, dir)).FirstOrDefault(x => x != null);
-            var entry = new RoomActor { Actor = actor, Costume = costume, Akos = akos, X = x, Y = y, HasPosition = true, Data = d, Frame = f, IsPlayer = actor == player };
+            var entry = new RoomActor { Actor = actor, Costume = costume, Akos = akos, X = x, Y = y, Elevation = elevation, HasPosition = true, Data = d, Frame = f, IsPlayer = actor == player };
             placed.Add(entry);
             scriptOf[entry] = si;
         }
@@ -374,51 +382,91 @@ public static class RoomActors
         }
     }
 
-    /// <summary>
-    /// Pairs costume assignments with placements of the same actor within one script. Only literal
-    /// arguments are understood; the room argument of putActorAtXY may be a variable (usually the
-    /// current room) but not another literal room.
-    /// </summary>
-    private static bool Lit(ReadOnlySpan<byte> s, int p, out int v)
+    /// <summary>A pushed literal ending just before <paramref name="end"/>: push-word is 5 bytes.</summary>
+    private static bool Lit(ReadOnlySpan<byte> s, int end, out int v)
     {
         v = 0;
-        if (p < 0 || p + 5 > s.Length || s[p] != OpPushWord) return false;
+        int p = end - 5;
+        if (p < 0 || end > s.Length || s[p] != OpPushWord) return false;
         v = s.S32LE(p + 1);
         return true;
     }
 
     /// <summary>
+    /// A constant expression whose code ends just before <paramref name="end"/>: a literal, or literals
+    /// joined by + - * / (the scripts write "492 + 300"). <paramref name="start"/> is where its code begins,
+    /// i.e. where the argument before it ends.
+    /// </summary>
+    internal static bool Const(ReadOnlySpan<byte> s, int end, out int v, out int start, int depth = 0)
+    {
+        v = 0;
+        start = end;
+        if (end <= 0 || end > s.Length || depth > 8) return false;
+        byte op = s[end - 1];
+        if (op is OpAdd or OpSub or OpMul or OpDiv
+            && Const(s, end - 1, out int right, out int mid, depth + 1)
+            && Const(s, mid, out int left, out int first, depth + 1))
+        {
+            int? r = op switch
+            {
+                OpAdd => left + right,
+                OpSub => left - right,
+                OpMul => left * right,
+                _ => right != 0 ? left / right : null,
+            };
+            if (r is int value)
+            {
+                v = value;
+                start = first;
+                return true;
+            }
+        }
+        if (!Lit(s, end, out v)) return false;
+        start = end - 5;
+        return true;
+    }
+
+    internal static bool Const(ReadOnlySpan<byte> s, int end, out int v) => Const(s, end, out v, out _);
+
+    /// <summary>
     /// The script's costume placements: actor, costume, position, and the animation the script
     /// starts for it (do-animation after the costume is set; -1 for none) with the facing in degrees
-    /// (south unless a face op says otherwise) that picks its chore.
+    /// (south unless a face op says otherwise) that picks its chore. Positions may be constant
+    /// expressions ("320,492 + 300"); the elevation is the last one set between the costume and the placement.
     /// </summary>
-    private static List<(int Actor, int Costume, int X, int Y, int Anim, int Dir)> ScanScript(ReadOnlySpan<byte> s, int roomNo)
+    internal static List<(int Actor, int Costume, int X, int Y, int Elevation, int Anim, int Dir)> ScanScript(ReadOnlySpan<byte> s, int roomNo)
     {
         var costumes = CostumeSets(s);
         var anims = Animations(s);
         var faces = new List<(int Pos, int Actor, int Dir)>(); // Dir in degrees
+        var elevations = new List<(int Pos, int Actor, int Elevation)>();
         int curActor = -1;
         for (int p = 5; p + 1 < s.Length; p++)
         {
             if (s[p] != OpActorOps) continue;
-            if (s[p + 1] == SubSetCurActor && Lit(s, p - 5, out int ca)) curActor = ca;
-            else if (s[p + 1] == SubFace && curActor > 0 && Lit(s, p - 5, out int degrees)) faces.Add((p, curActor, degrees));
+            if (s[p + 1] == SubSetCurActor && Const(s, p, out int ca)) curActor = ca;
+            else if (s[p + 1] == SubFace && curActor > 0 && Const(s, p, out int degrees)) faces.Add((p, curActor, degrees));
+            else if (s[p + 1] == SubElevation && curActor > 0 && Const(s, p, out int elevation)) elevations.Add((p, curActor, elevation));
         }
         var places = new List<(int Pos, int Actor, int X, int Y)>();
 
-        for (int p = 20; p + 1 < s.Length; p++)
+        for (int p = 20; p < s.Length; p++)
         {
             if (s[p] == OpPutActorAtXY)
             {
-                bool roomOk = Lit(s, p - 5, out int r) ? r == roomNo : s[p - 5] == OpPushVar;
+                // Arguments are pushed actor, x, y, room: read them back to front.
+                int yEnd;
+                if (Const(s, p, out int r, out int roomStart)) { if (r != roomNo) continue; yEnd = roomStart; }
+                else if (s[p - 5] == OpPushVar) yEnd = p - 5; // usually the current room
+                else continue;
                 // 0,0 counts too: full-room overlays (waterlines) sit at the room's origin. Parking an
-                // actor out of the way is done with room 0, which roomOk already rejects.
-                if (roomOk && Lit(s, p - 10, out int y) && Lit(s, p - 15, out int x) && Lit(s, p - 20, out int a) && a > 0)
+                // actor out of the way is done with room 0, which the room check already rejects.
+                if (Const(s, yEnd, out int y, out int xEnd) && Const(s, xEnd, out int x, out int aEnd) && Const(s, aEnd, out int a) && a > 0)
                     places.Add((p, a, x, y));
             }
         }
 
-        var pairs = new List<(int, int, int, int, int, int)>();
+        var pairs = new List<(int, int, int, int, int, int, int)>();
         foreach (var c in costumes)
         {
             // Until the actor's next costume change in this script.
@@ -441,7 +489,16 @@ public static class RoomActors
                     int dist = pl.Pos >= c.Pos ? pl.Pos - c.Pos : (c.Pos - pl.Pos) * 2;
                     if (dist < bestDist) { bestDist = dist; best = pl; }
                 }
-            if (best is { } b) pairs.Add((c.Actor, c.Costume, b.X, b.Y, anim, dir));
+            if (best is { } b)
+            {
+                // Only an elevation set while it wears this costume, before this placement, moves the
+                // picture. The common "elevation E, then put-actor at x-of(a), y-of(a) + E" re-places the
+                // actor after the literal placement so it's drawn where it was (only its depth changes).
+                bool inWindow = b.Pos > c.Pos && b.Pos < until;
+                int elevation = !inWindow ? 0 : elevations.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < b.Pos)
+                                                          .Select(e => e.Elevation).DefaultIfEmpty(0).Last();
+                pairs.Add((c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir));
+            }
         }
         return pairs;
     }
@@ -459,7 +516,7 @@ public static class RoomActors
         {
             if (done.Contains(p)) continue;
             var layers = p.IsPlayer ? new List<RoomActor> { p } : placed
-                .Where(o => !o.IsPlayer && scriptOf[o] == scriptOf[p] && ReferenceEquals(o.Akos, p.Akos) && o.X == p.X && o.Y == p.Y)
+                .Where(o => !o.IsPlayer && scriptOf[o] == scriptOf[p] && ReferenceEquals(o.Akos, p.Akos) && o.X == p.X && o.DrawY == p.DrawY)
                 .ToList();
             foreach (var l in layers) done.Add(l);
             // Only layers that show different frames build a picture together; actors showing the same
@@ -477,7 +534,7 @@ public static class RoomActors
             result.Add(new RoomActor
             {
                 Actor = p.Actor, Actors = layers.Select(l => l.Actor).Distinct().ToList(), Costume = p.Costume, Akos = p.Akos,
-                X = p.X, Y = p.Y, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
+                X = p.X, Y = p.Y, Elevation = p.Elevation, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
             });
         }
         return result;
@@ -500,7 +557,7 @@ public static class RoomActors
     {
         var anims = new List<(int Pos, int Actor, int Anim)>();
         for (int p = 10; p < s.Length; p++)
-            if (s[p] == OpAnimateActor && Lit(s, p - 5, out int anim) && Lit(s, p - 10, out int actor))
+            if (s[p] == OpAnimateActor && Const(s, p, out int anim, out int animStart) && Const(s, animStart, out int actor))
                 anims.Add((p, actor, anim));
         return anims;
     }
@@ -514,8 +571,8 @@ public static class RoomActors
         {
             if (s[p] != OpActorOps) continue;
             byte sub = s[p + 1];
-            if (sub == SubSetCurActor && Lit(s, p - 5, out int a)) curActor = a;
-            else if (sub == SubSetCostume && curActor > 0 && Lit(s, p - 5, out int c) && c > 0)
+            if (sub == SubSetCurActor && Const(s, p, out int a)) curActor = a;
+            else if (sub == SubSetCostume && curActor > 0 && Const(s, p, out int c) && c > 0)
                 costumes.Add((p, curActor, c));
         }
         return costumes;
