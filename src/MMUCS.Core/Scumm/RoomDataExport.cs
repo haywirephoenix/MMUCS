@@ -261,18 +261,24 @@ public static class RoomDataExport
             var uses = actors.Where(a => ReferenceEquals(a.Akos, akos)).ToList();
             var owner = uses.Select(a => a.Owner?.Name).FirstOrDefault(n => !string.IsNullOrEmpty(n));
             if (owner != null) w.WriteString("object", owner);
+            // An actor a script dresses in it but places through variables: worn, never placed.
+            var worn = uses.Where(a => a.Actor > 0 && !a.HasPosition).SelectMany(a => a.Actors ?? new[] { a.Actor }).Distinct().ToList();
+            if (worn.Count > 0) WriteInts(w, "worn_by", worn);
+            // Offered by a script a script here starts (script 88's chickens), but placed nowhere readable.
+            if (!uses.Any(a => a.HasPosition) && uses.FirstOrDefault(a => a.DressedBy >= 0) is { } offered)
+                w.WriteNumber("dressed_by", offered.DressedBy);
             w.WriteStartArray("placed");
-            foreach (var a in uses.Where(a => a.Actor > 0))
+            foreach (var a in uses.Where(a => a.HasPosition))
             {
                 w.WriteStartObject();
-                w.WriteNumber("actor", a.Actor);
-                if (a.HasPosition)
-                {
-                    w.WriteNumber("x", a.X);
-                    w.WriteNumber("y", a.Y);
-                    // Drawn this far above y: the picture's origin is at y - elevation.
-                    if (a.Elevation != 0) w.WriteNumber("elevation", a.Elevation);
-                }
+                // No actor number when the script keeps it in a variable (the fortbase chickens).
+                if (a.Actor > 0) w.WriteNumber("actor", a.Actor);
+                if (a.DressedBy >= 0) w.WriteNumber("dressed_by", a.DressedBy);
+                w.WriteNumber("x", a.X);
+                w.WriteNumber("y", a.Y);
+                // Drawn this far above y: the picture's origin is at y - elevation.
+                if (a.Elevation != 0) w.WriteNumber("elevation", a.Elevation);
+                if (a.Scale != 255) w.WriteNumber("scale", a.Scale);
                 if (a.IsPlayer) w.WriteBoolean("player", true);
                 w.WriteEndObject();
             }

@@ -38,7 +38,7 @@ SCRIPTS = {
     # cannon-v's cannon: placed with a sum, lifted by an elevation.
     "rooms/009_cannon/local_2019.scumm": header("9 cannon", "Local script 2019") +
         "actor 3 default\nactor 3 costume 35\nactor 3 elevation 300\nput-actor 3 at 320,492 + 300 in-room 9\n"
-        "put-actor 3 at x-of(3),y-of(3) in-room current-room\nend-script\n",
+        "actor 3 scale 128\nput-actor 3 at x-of(3),y-of(3) in-room current-room\nend-script\n",
     "rooms/016_chkn-int/local_2000.scumm": header("16 chkn-int", "Local script 2000") +
         "verb dialog-choice-verb name \"/CIGT001/I'd like some chicken.\"\nsay-line 1 \"/CIGT002/Hello?\"\n"
         "if (town-chicken-door == 0) {\n}\nend-script\n",
@@ -60,6 +60,8 @@ TOWN = {
         {"costume": 75, "akos": "0x0192B7D8", "object": "kenny-object", "placed": [{"actor": 4, "x": 552, "y": 268}]},
         {"costume": 79, "akos": "0x01AD8505", "placed": [{"actor": 1, "x": 0, "y": 0, "player": True}]},
         {"costume": 35, "akos": "0x01125269", "placed": [{"actor": 3, "x": 320, "y": 792, "elevation": 300}]},
+        {"costume": 36, "akos": "0x01184801", "worn_by": [4], "placed": []},
+        {"costume": 67, "akos": "0x0172562C", "placed": [{"dressed_by": 88, "x": 36, "y": 155, "scale": 150}]},
     ],
     "global_scripts_stored": [],
 }
@@ -126,7 +128,7 @@ class MroomTests(unittest.TestCase):
         self.assertRegex(text, r'397 town-chicken-door\s+"door"\s+1288,168 48x144\s+look walk-to')
         self.assertIn("[untouchable]", text)
         self.assertIn("town-scenery", text)
-        self.assertRegex(text, r"4 \(kenny-object\)\s+costumes 75;  1 lines;  put at 552,268")
+        self.assertRegex(text, r"4 \(kenny-object\)\s+costumes 36, 75;  1 lines;  put at 552,268")
         self.assertIn("Dialogue: 2 lines", text)
         self.assertIn("Variables: 1 used here: 1 unnamed", text)
         self.assertIn("var4999 (2)", text)
@@ -177,7 +179,18 @@ class MroomTests(unittest.TestCase):
         self.assertIn("rooms/009_cannon/local_2019.scumm:5  actor 3 costume 35", text)
         self.assertIn(":6  elevation 300", text)
         self.assertIn(":7  put-actor at 320,792 elevation 300 (drawn at 320,492) in-room 9", text)
-        self.assertIn(":8  put-actor at x-of(3),y-of(3) elevation 300 (drawn at x-of(3),y-of(3) - 300) in-room current-room", text)
+        self.assertIn(":8  scale 128", text)
+        self.assertIn(":9  put-actor at x-of(3),y-of(3) elevation 300 (drawn at x-of(3),y-of(3) - 300), scale 128 in-room current-room", text)
+
+    def test_costume_worn_but_placed_at_runtime(self):
+        text = self.mroom("costume", "36")
+        self.assertIn("worn by actor 4, placed at runtime", text)
+        self.assertRegex(self.mroom("room", "15"), r"4 \(kenny-object\)\s+costumes 36, 75")
+
+    def test_costume_on_an_actor_kept_in_a_variable(self):
+        text = self.mroom("costume", "67")
+        self.assertIn("MMUCS places it: an actor kept in a variable at 36,155, scale 150, dressed by script 88", text)
+        self.assertIn("Actors (", self.mroom("room", "15"))  # no actor number doesn't break the room page
 
     def test_evaluate_and_split(self):
         self.assertEqual(mroom.evaluate("492 + 300"), "792")

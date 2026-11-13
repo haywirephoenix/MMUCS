@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Input;
@@ -12,9 +13,13 @@ namespace MMUCS.Desktop.Controls;
 /// costumed actor that stands there, with its top-left corner in room coordinates.
 /// </summary>
 /// <summary>A costume frame being played elsewhere (the Costume viewer), drawn in place of <paramref name="Target"/>'s costume.</summary>
-public sealed record LiveCostume(RoomObject Target, SKImage Image, int X, int Y);
+public sealed record LiveCostume(RoomObject Target, SKImage Image, int X, int Y, float Scale = 1);
 
-public sealed record RoomObjectLayer(RoomObject Object, SKImage Image, SKImage CostumeImage = null, int CostumeX = 0, int CostumeY = 0, bool IsActorOnly = false);
+/// <param name="CostumeDepth">The actor's y before elevation: SCUMM draws actors in order of it, lowest first.</param>
+/// <param name="CostumeActor">The actor number, which breaks ties in that order.</param>
+/// <param name="CostumeScale">The actor's scale as a factor; <see cref="CostumeX"/>/<see cref="CostumeY"/> are the scaled image's corner.</param>
+public sealed record RoomObjectLayer(RoomObject Object, SKImage Image, SKImage CostumeImage = null, int CostumeX = 0, int CostumeY = 0,
+    bool IsActorOnly = false, int CostumeDepth = 0, int CostumeActor = 0, float CostumeScale = 1);
 
 /// <summary>
 /// Room viewer: background, object images, object bounds (hotspots), walkbox polygons and room bounds.
@@ -224,6 +229,12 @@ public sealed class RoomCanvas : SkiaViewport
         private static readonly SKPaint BoxLabelPaint = new() { Color = new SKColor(160, 255, 200), IsAntialias = true };
         private static readonly SKFont LabelFont = new(SKTypeface.Default, 11) { Subpixel = true, Edging = SKFontEdging.SubpixelAntialias };
 
+        private static void DrawScaled(SKCanvas canvas, SKImage image, int x, int y, float scale, SKSamplingOptions sampling)
+        {
+            if (scale == 1) canvas.DrawImage(image, x, y, sampling);
+            else canvas.DrawImage(image, SKRect.Create(x, y, image.Width * scale, image.Height * scale), sampling);
+        }
+
         public void Render(SKCanvas canvas, in ViewTransform view, SKRect viewBounds)
         {
             // ── Content-space pass (pixel art) ──
@@ -248,15 +259,17 @@ public sealed class RoomCanvas : SkiaViewport
                     canvas.DrawImage(layer.Image, layer.Object.X, layer.Object.Y, sampling);
                 }
 
-                // Actors are drawn over the objects.
-                foreach (var layer in _drawLayers)
+                // Actors are drawn over the objects, in SCUMM's order: by y before elevation, then actor
+                // number, so an actor lifted by elevation still sorts by where it stands (cannon-v's cannon
+                // stands at y 792 to be drawn in front of the water).
+                foreach (var layer in _drawLayers.Where(l => l.CostumeImage != null).OrderBy(l => l.CostumeDepth).ThenBy(l => l.CostumeActor))
                 {
                     if (layer.CostumeImage == null || _visible == null || !_visible.Contains(layer.Object)) continue;
                     if (_live != null && ReferenceEquals(layer.Object, _live.Target)) continue; // replaced by the playing frame
-                    canvas.DrawImage(layer.CostumeImage, layer.CostumeX, layer.CostumeY, sampling);
+                    DrawScaled(canvas, layer.CostumeImage, layer.CostumeX, layer.CostumeY, layer.CostumeScale, sampling);
                 }
                 // Played in place even when its entry is hidden: it was asked for from the Costume viewer.
-                if (_live?.Image != null) canvas.DrawImage(_live.Image, _live.X, _live.Y, sampling);
+                if (_live?.Image != null) DrawScaled(canvas, _live.Image, _live.X, _live.Y, _live.Scale, sampling);
             }
             canvas.Restore();
 
