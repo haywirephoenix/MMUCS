@@ -20,6 +20,14 @@
       "Name": "dialog-choice-verb",
       "Note": "Verb id of the dialogue choice being laid out. Each choice in a dialogue script sets it to 500 + n - 1 and builds that verb: 'verb var208 at var594,var256', 'verb var208 name \"...\"', 'verb var208 on', then records it in var254 (global/script_0142.scumm:113-117, :399-403). Dialogue verbs are 500-539 (global/script_0005.scumm:13-19). Also used as a plain loop counter over 500-539 to turn them off (global/script_0005.scumm:5-8, global/script_0013.scumm:13-16)."
     },
+    "213": {
+      "Name": "script-result",
+      "Note": "Return value of small helper scripts, which set it and end so the caller can test it: global/script_0063.scumm:4-9 sets 1 when the point is inside one action-popup button (relative to var318/var319); global/script_0054.scumm:4-5 returns local0 * local1 / 100; global/script_0017.scumm:4 returns the squared distance between two points. Callers start the helper and read it straight after, e.g. global/script_0039.scumm:231-232 and global/script_0034.scumm:59-60 (an inventory arrow hit test via script 57). The end credits use it the same way: rooms/093_endcred/local_2007.scumm:4-16 returns whether a line may move, read at rooms/093_endcred/local_2005.scumm:9-10."
+    },
+    "215": {
+      "Name": "popup-verb",
+      "Note": "The verb picked from the action popup, run by global/script_0036.scumm on the clicked object (var216). While the popup is open over the inventory (interface-mode 4), global/script_0039.scumm:226-248 sets it from the button under the mouse: 7, 6 or 8 for the three buttons hit-tested by scripts 63, 64 and 62, else 0. A quick click on an exit sets 12 or 9 (global/script_0034.scumm:15-26). global/script_0036.scumm:5-53 acts on it: 13 uses the held item on the object, 14 picks it up onto the cursor, 0 walks there, 7 uses an owned item, and anything else becomes 'do-sentence var215 var216'."
+    },
     "216": {
       "Name": "",
       "Note": "Unconfirmed: looks like the object the player last clicked to act on, room object or inventory icon. It is set from var333, the object under the mouse, only in the click handlers: when the action popup opens (global/script_0034.scumm:45, before script 42 starts), on a quick click (global/script_0034.scumm:20 and global/script_0034.scumm:25), when picking from the inventory (global/script_0035.scumm:27), and in global/script_0038.scumm:14 and global/script_0038.scumm:33. global/script_0036.scumm:5-53 runs the popup's chosen verb var215 on it, then clears it at global/script_0036.scumm:56. But object scripts read it in verb 219 (the hover label) and compare it with inventory icons, e.g. rooms/009_cannon/objects/0288_sane-wally-object.scumm:43 'var216 in [178, 122, 117]' (ventriloquism-book, ramrod and cutlass icons). So it outlives the click and seems to be the held item's icon there; I couldn't tell which meaning to name."
@@ -30,19 +38,19 @@
     },
     "234": {
       "Name": "room-var234",
-      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:10), so it never carries state between rooms. It's used in 15 rooms with a different meaning in each: a flag in rooms/021_brbr-int/local_2009.scumm:51, a counter in rooms/039_shipmap/local_2006.scumm:18, a saved verb-script in rooms/017_cu-elpol/local_2003.scumm:4, a palette-intensity value in rooms/080_smglcave/local_2019.scumm:10, and hover state in rooms/092_saveload/local_2005.scumm:7. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:10), so it never carries state between rooms. It's used in 15 rooms with a different meaning in each: a flag in rooms/021_brbr-int/local_2009.scumm:51, a counter in rooms/039_shipmap/local_2006.scumm:18, a saved verb-script in rooms/017_cu-elpol/local_2003.scumm:4, a palette-intensity value in rooms/080_smglcave/local_2019.scumm:10, and hover state in rooms/092_saveload/local_2005.scumm:7. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there.\nroom 80: cave-glow-red — red intensity for palette slots 230-255: starts at 260 (rooms/080_smglcave/local_2019.scumm:5), is dimmed by local0 / 2 and by the room's light level, and is applied with 'room palette-intensity var234,var235,var236 slots 230 to 255' (rooms/080_smglcave/local_2019.scumm:41)"
     },
     "235": {
       "Name": "room-var235",
-      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:11), so it never carries state between rooms. It's used in 7 rooms, mostly 009_cannon and 030_voodoo-i, e.g. rooms/009_cannon/local_2004.scumm:368. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:11), so it never carries state between rooms. It's used in 7 rooms, mostly 009_cannon and 030_voodoo-i, e.g. rooms/009_cannon/local_2004.scumm:368. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there.\nroom 80: cave-glow-green — green intensity for palette slots 230-255, next to room-var234 (rooms/080_smglcave/local_2019.scumm:6, rooms/080_smglcave/local_2019.scumm:41)\nroom 9: cannon-anim-loop — loop counter for repeating Wally's gesture: 'var235 = 1; while (var235 <= 2) { do-animation 2 20 ... var235++ }' (rooms/009_cannon/local_2004.scumm:1158-1163, and the same at rooms/009_cannon/local_2004.scumm:368-372)"
     },
     "236": {
       "Name": "room-var236",
-      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:12), so it never carries state between rooms. It's used in 6 rooms, e.g. rooms/021_brbr-int/local_2007.scumm:145 var236 = 500. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:12), so it never carries state between rooms. It's used in 6 rooms, e.g. rooms/021_brbr-int/local_2007.scumm:145 var236 = 500. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there.\nroom 80: cave-glow-blue — blue intensity for palette slots 230-255, next to room-var234 (rooms/080_smglcave/local_2019.scumm:7, rooms/080_smglcave/local_2019.scumm:41)"
     },
     "237": {
       "Name": "room-var237",
-      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:13), so it never carries state between rooms. It's used in 4 rooms (021_brbr-int, 080_smglcave, 092_saveload, 010_cannon-v), e.g. rooms/010_cannon-v/local_2002.scumm:25 and rooms/010_cannon-v/local_2008.scumm:12. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there."
+      "Note": "Room scratch variable, one of var234-var253 (all but var248): global/script_0010.scumm, the entry-script (entry-script = 10 at global/script_0001.scumm:84), clears it on every room entry (global/script_0010.scumm:13), so it never carries state between rooms. It's used in 4 rooms (021_brbr-int, 080_smglcave, 092_saveload, 010_cannon-v), e.g. rooms/010_cannon-v/local_2002.scumm:25 and rooms/010_cannon-v/local_2008.scumm:12. Named generically by choice, since each room gives it its own meaning; see each room's scripts for what it holds there.\nroom 80: cave-light-level — brightness of the cave, applied with 'room palette-intensity var237,var237,var237 slots 24 to 161' (rooms/080_smglcave/local_2015.scumm:102-104, set to 180 + local0 * 15 at rooms/080_smglcave/local_2020.scumm:6-8), which also dims slots 230-255 (rooms/080_smglcave/local_2019.scumm:27-28)"
     },
     "238": {
       "Name": "room-var238",
@@ -148,6 +156,10 @@
       "Name": "previous-cursor-item",
       "Note": "Copy of cursor-item (var291) taken just before the cursor changes: all 223 writes are 'var292 = var291' right before var291 is reassigned (e.g. global/script_0011.scumm:26, global/script_0012.scumm:8, global/script_0039.scumm:97). No script reads it."
     },
+    "296": {
+      "Name": "saved-timer-next",
+      "Note": "A saved copy of timer-next, the engine's frame delay, so a cut-scene can change the game speed and put it back: global/script_0453.scumm:5-6 saves it and sets timer-next = 2 for the end credits, and global/script_0457.scumm:10680 restores it. Also used the same way in global/script_0406.scumm:4 and global/script_0406.scumm:107, rooms/080_smglcave/local_2005.scumm:300 and rooms/080_smglcave/local_2005.scumm:362, and rooms/080_smglcave/local_2033.scumm:4 and rooms/080_smglcave/local_2033.scumm:35."
+    },
     "300": {
       "Name": "icon-item",
       "Note": "The world object an inventory icon stands for. Each icon in room 3 sets it in verb 93, e.g. rooms/003_icons/objects/0122_ramrod-icon-object.scumm:6 var300 = 279 (0279_ramrod-object); 169 such writes, 134 values 100-1340. Callers run 'start-object rec ICON verb 93' then read it: global/script_0035.scumm:29-35 (cursor-item = var300), global/script_0034.scumm:84-86, global/script_0039.scumm:10-16 (owner-of(var300) == ego), :161 (its name in the sentence line)."
@@ -180,9 +192,25 @@
       "Name": "carnival-dinghy-dog-hits",
       "Note": "How many times Guybrush has hit Dinghy Dog (actor 12, CLDD lines) while he still has his hair: rooms/086_carnival/local_2010.scumm:4-5 adds 1. Each count gets a warning, from \"(Hyuk!) Now that's not very nice, little boy.\" at 1 (rooms/086_carnival/local_2010.scumm:41-43) to \"You're really starting to bug me, kid.\" at 5 (rooms/086_carnival/local_2010.scumm:56-58). After 5 (context, not mentioning var339: the line tests whether the hair is gone), \"All right, (hyuk!), that does it.\" (rooms/086_carnival/local_2010.scumm:62-64). Starts at 0 (global/script_0001.scumm:134)."
     },
+    "428": {
+      "Name": "banjo-tune-length",
+      "Note": "Room 25 (banjo duel). Length of this round's tune, the index of its last note: starts at 3 (global/script_0216.scumm:6) and grows by 1 each round (global/script_0216.scumm:31) while it's at most banjo-max-tune-length (global/script_0216.scumm:15). Passed to script 217 to play that many notes (global/script_0216.scumm:18)."
+    },
+    "429": {
+      "Name": "banjo-tune-strings",
+      "Note": "Room 25 (banjo duel). Array with the tune the opponent plays this round, as string numbers 1-5: rooms/025_banjo/local_2004.scumm:4-7 picks each note with random-between(1, 5) for entries 0 to banjo-max-tune-length. global/script_0217.scumm:21-60 plays them, one animation and sound per string (e.g. sound 458 for string 1). rooms/025_banjo/local_2012.scumm:4-12 compares Guybrush's notes (banjo-played-strings) against it and starts script 214 on a mismatch."
+    },
+    "430": {
+      "Name": "banjo-riff-sounds",
+      "Note": "Room 25 (banjo duel). Array with the sound to play after each note of the tune: rooms/025_banjo/local_2004.scumm:8-50 picks sound ids 432-446 for each entry, avoiding the same one twice in a row, with the final note of the last round always 446 (rooms/025_banjo/local_2004.scumm:19-20). rooms/025_banjo/local_2009.scumm:49-58 plays 'start-sound var430[var686]' while the players animate."
+    },
     "431": {
       "Name": "spotlight-sequence-step",
       "Note": "How far Guybrush has got pressing the spotlight buttons in the right order. The master lever starts it at 1 (context, not mentioning var431: rooms/020_spotlght/local_2009.scumm:17 runs rooms/020_spotlght/local_2002.scumm with 8, which sets 1 at rooms/020_spotlght/local_2002.scumm:48-50). While Guybrush has lc-qurtr-treasure-map, each button press adds 1 when the button fits the current step (rooms/020_spotlght/local_2002.scumm:8-39, e.g. button 4 at step 1, button 0 at step 2) and resets it to 0 otherwise (rooms/020_spotlght/local_2002.scumm:43-47). It is set to 10 when the lever is pulled with bit65 set, which chains to global script 178 (rooms/020_spotlght/local_2009.scumm:12-15). It also picks the light pattern shown (rooms/020_spotlght/local_2006.scumm:17)."
+    },
+    "432": {
+      "Name": "banjo-played-strings",
+      "Note": "Room 25 (banjo duel). Array with the strings Guybrush has played back this round: each string click stores its number at the current note, e.g. 'var432[var686] = 1' (rooms/025_banjo/local_2011.scumm:7), and = 2-5 for the other strings (rooms/025_banjo/local_2011.scumm:16, rooms/025_banjo/local_2011.scumm:25, rooms/025_banjo/local_2011.scumm:34). rooms/025_banjo/local_2012.scumm:4-12 checks it against banjo-tune-strings; rooms/025_banjo/local_2006.scumm:113 clears it."
     },
     "433": {
       "Name": "spotlight-lights",
@@ -212,6 +240,10 @@
       "Name": "hotelbar-tarot-cards-dealt",
       "Note": "Tarot cards Madame Xima has laid on the table in this reading: each reading adds 1, or sets 5 when bit65 is set (rooms/061_hotelbar/local_2024.scumm:902-906). It names hotel-bar-cards-on-table \"tarot card\" or \"tarot cards\" (rooms/061_hotelbar/local_2024.scumm:907-910), and the table cards' look-at branches on 1-4 (rooms/061_hotelbar/objects/0985_hotel-bar-cards-on-table.scumm:11). When Guybrush takes the cards, it is added to var458 and cleared (rooms/061_hotelbar/local_2008.scumm:77-79)."
     },
+    "466": {
+      "Name": "cave-poker-hands",
+      "Note": "Room 80 (smugglers' cave). How many poker hands Guybrush has played with King Andre (actor 3, KA lines), 0-6: rooms/080_smglcave/local_2004.scumm:153-154 adds 1 after each hand. It picks what is said: at 0 \"You will have to pay to enter the game.\" (rooms/080_smglcave/local_2004.scumm:14-15) and \"Have you ever played poker before, Mister Threepwood?\" (rooms/080_smglcave/local_2005.scumm:10-11). Guybrush's look at his hand changes from \"I've got a whole lot of nothing.\" to \"Oh, shoot. I got aces and eights.\" (rooms/080_smglcave/local_2006.scumm:6-65), and so does the showdown (rooms/080_smglcave/local_2007.scumm:11-67)."
+    },
     "467": {
       "Name": "cannon-v-boats-hit",
       "Note": "Array of 4 flags, one per rowboat (actors 5, 8, 12 and 18) Guybrush's cannon shot has hit: set in rooms/010_cannon-v/local_2012.scumm:9-10 (actor 5), rooms/010_cannon-v/local_2012.scumm:18-19 (8), rooms/010_cannon-v/local_2012.scumm:27-28 (12), rooms/010_cannon-v/local_2012.scumm:37-38 (18). When the view is set up, a hit boat is drawn as a wreck ('do-animation 5 11') instead of being started (rooms/010_cannon-v/local_2001.scumm:22-36, rooms/010_cannon-v/local_2001.scumm:38-51, rooms/010_cannon-v/local_2001.scumm:53-67, rooms/010_cannon-v/local_2001.scumm:69-71), and rooms/010_cannon-v/local_2006.scumm:4-10 counts how many are set."
@@ -219,6 +251,10 @@
     "468": {
       "Name": "",
       "Note": "Unconfirmed: a table of 13 walk-box numbers for room 10: rooms/010_cannon-v/local_2002.scumm:4-15 sets var468[0-12] to 1, 4, 2, 3, 5-8 and 9-12 (index 8 is never set). rooms/010_cannon-v/local_2008.scumm:115-122 looks for the first one that actor 4 is in ('actor-in-box(4, var468[local12])') and remaps 9 and 10 to other values. Actor 4 seems to be the cannonball, so the box may decide where the shot lands, but I didn't trace what local13 is used for."
+    },
+    "474": {
+      "Name": "",
+      "Note": "Unconfirmed: room 80 (smugglers' cave). A frame number for the card players' hands: every write (7 or 11) is followed by 'set-actor-chore-limb-frame 4, 4, 1, var474' or 'set-actor-chore-limb-frame 3, 4, 1, var474' (e.g. rooms/080_smglcave/local_2000.scumm:539-541, rooms/080_smglcave/local_2000.scumm:1001-1003). It sets limb 1 of chore 4 on actors 3 (King Andre) and 4, so it is probably a cards-in-hand frame, but I couldn't confirm what 7 and 11 show."
     },
     "488": {
       "Name": "carnival-snowcone-ingredients",
@@ -236,9 +272,29 @@
       "Name": "carnival-pie-cannon-shots",
       "Note": "How many times the cannon booth worker has fired the pie cannon for Guybrush: rooms/086_carnival/local_2016.scumm:41 adds 1 at the end of the firing cut-scene (context, not mentioning var491: it is started from rooms/086_carnival/local_2015.scumm:685). At 0 the choice is \"I want to shoot the cannon!\" and later \"Fire the cannon again!\" (rooms/086_carnival/local_2015.scumm:242-281). The worker refuses at 0, \"Sorry, little boy, you're too young.\" (rooms/086_carnival/local_2015.scumm:665-666), and from 3 on, \"you've already seen it enough times.\" (rooms/086_carnival/local_2015.scumm:659-660)."
     },
+    "492": {
+      "Name": "cannon-door-calls",
+      "Note": "Room 9 (cannon deck). How many times Guybrush has called through the treasure door, 0-4: rooms/009_cannon/local_2007.scumm is that door's verb (context, not mentioning var492: started from rooms/009_cannon/objects/0275_cannon-treasure-door.scumm:14) and adds 1 at rooms/009_cannon/local_2007.scumm:66-67. Each count is a different speech: \"If there are any of you stinking, wretched fiends of the damned in there...\" at 0 (rooms/009_cannon/local_2007.scumm:8-9), \"Hey!\" at 1, \"Is there anybody in there who's not evil or dead?\" at 2, \"There's no point calling out.\" from 3 (rooms/009_cannon/local_2007.scumm:41-42)."
+    },
+    "493": {
+      "Name": "cannon-wally-warning-line",
+      "Note": "Room 9 (cannon deck). Which warning Wally (actor 2, WY lines) gives next when Guybrush comes near him, 0-5: rooms/009_cannon/local_2008.scumm is started (context, not mentioning var493) from rooms/009_cannon/objects/0277_cannon-wally-object.scumm:38 and adds 1 at rooms/009_cannon/local_2008.scumm:127-128. Lines run from \"Any closer and it's curtains for you!\" at 0 (rooms/009_cannon/local_2008.scumm:37-38) to \"Ya better fear!\" at 4 (rooms/009_cannon/local_2008.scumm:61-62)."
+    },
+    "494": {
+      "Name": "cannon-wally-toughness-step",
+      "Note": "Room 9 (cannon deck). How far Guybrush has got asking Wally how tough he is, 0-3: the choice is \"You sound pretty tough.\" at 0 and \"How tough are you again?\" after (rooms/009_cannon/local_2004.scumm:666-710), and no longer offered from 3 (rooms/009_cannon/local_2004.scumm:666). Wally's answer depends on it, e.g. \"I'm so tough, in junior high, I stuffed Davy Jones in his locker.\" at 0 (rooms/009_cannon/local_2004.scumm:1151-1156) and \"...or three cats o' five-tails for eighteen minutes.\" at 1 (rooms/009_cannon/local_2004.scumm:1166-1184). Adds 1 at rooms/009_cannon/local_2004.scumm:1243."
+    },
     "496": {
       "Name": "cannon-v-near-miss-line",
       "Note": "Which complaint a rowboat crew shouts next when Guybrush's shot lands close to them, 0-10. rooms/010_cannon-v/local_2011.scumm:99-130 picks the line for a shot within 180 of a boat, from \"Hey! You're gettin' a little close there, pal!\" at 0 to \"Aim farther out, you idiot!\" at 8 and \"Stop it!\" at 9, with one set of lines per boat crew (rooms/010_cannon-v/local_2011.scumm:136-145). It then adds 1, up to 10 (rooms/010_cannon-v/local_2011.scumm:269-270)."
+    },
+    "497": {
+      "Name": "cannon-guybrush-toughness-step",
+      "Note": "Room 9 (cannon deck). How far Guybrush has got claiming to be tough himself, 0-3: the choice is \"Well, I'm pretty tough myself!\" at 0, \"I am so tough!\" at 1 and \"Yes, I am!\" at 2 (rooms/009_cannon/local_2004.scumm:744-827). Wally answers \"Pirate's intuition.\", \"You are not!\" and \"No, you're not!\" (rooms/009_cannon/local_2004.scumm:1575-1634). Adds 1, up to 3 (rooms/009_cannon/local_2004.scumm:1658-1659)."
+    },
+    "498": {
+      "Name": "cannon-wally-battle-line",
+      "Note": "Room 9 (cannon deck). Which battle cry Wally (actor 2) shouts next while firing at the fort, 0-10: rooms/009_cannon/local_2006.scumm:18-38 goes from \"Blast ye scurvy dogs!\" at 0 to \"Somehow, I find all this violence desensitizing.\" at 9, and adds 1 after each, up to 10 (rooms/009_cannon/local_2006.scumm:43-44). Context, not mentioning var498: started from rooms/009_cannon/local_2002.scumm:93."
     },
     "500": {
       "Name": "barber-jawbreaker-step",
@@ -259,6 +315,18 @@
     "515": {
       "Name": "barber-scissors-step",
       "Note": "How far Guybrush has got with asking Haggis about his scissors (local_2020, HGSO lines), 0-5. It picks the choice offered: 0 \"Those sure are nice scissors.\" (rooms/021_brbr-int/local_2020.scumm:715-722), 1 \"Could I borrow those scissors for a minute?\" (rooms/021_brbr-int/local_2020.scumm:789-796), 2 \"When I think of all I could do with those scissors...\" (rooms/021_brbr-int/local_2020.scumm:863-870), 3 \"Did I mention how nice those scissors are?\" (rooms/021_brbr-int/local_2020.scumm:938-945). Picking it adds 1 (up to 5, rooms/021_brbr-int/local_2020.scumm:2936-2937) and picks the reply (rooms/021_brbr-int/local_2020.scumm:2939-2974)."
+    },
+    "523": {
+      "Name": "cave-door-openings",
+      "Note": "Room 80 (smugglers' cave). How many times Lafitte (actor 2, LF lines) has opened the cave door during the poker game, 0-9: rooms/080_smglcave/local_2015.scumm:39-40 adds 1 (context, not mentioning var523: the script is started from rooms/080_smglcave/local_2014.scumm:8). Each count has its own exchange, from \"Keep that door closed!\" at 1 to \"Does anyone have twenty pieces of eight I can borrow for the vending machine?\" / \"Beat it!\" at 6 (rooms/080_smglcave/local_2015.scumm:48-72)."
+    },
+    "528": {
+      "Name": "cave-lechuckie-nice-lines-said",
+      "Note": "Room 80 (smugglers' cave). Array of 11 flags, one per sweet line the LeChuckie doll (actor 16, object 1285_little-lechuck-object in room 80) has said: global/script_0411.scumm:72-75 picks a random line not yet said and sets its flag, then (context, not mentioning var528: the lines go by its index local7) says it, from \"My name's LeChuckie!\" to \"Let's build a sand castle!\" (global/script_0411.scumm:76-98). Once all 11 are set it clears them (global/script_0411.scumm:57-71). Used for the first 3 squeezes (context, not mentioning var528: local6 < 4 at global/script_0411.scumm:56). Also cleared by rooms/080_smglcave/local_2023.scumm:6."
+    },
+    "529": {
+      "Name": "cave-lechuckie-mean-lines-said",
+      "Note": "Room 80 (smugglers' cave). Array of 11 flags, one per nasty line the LeChuckie doll (actor 16) has said, used once it has been squeezed more than 3 times: global/script_0411.scumm:119-122 picks a random line not yet said and sets its flag, starting (context, not mentioning var529: the lines go by its index local7) with \"I'll rip out your lungs, ya swab!\" (global/script_0411.scumm:123-124). Once all 11 are set it clears them (global/script_0411.scumm:104-118). Also cleared by rooms/080_smglcave/local_2023.scumm:7."
     },
     "549": {
       "Name": "cannon-v-volley-points",
@@ -396,6 +464,14 @@
       "Name": "",
       "Note": "Unconfirmed: looks like an id for Guybrush's current talk/stand animation set. Scripts only ever write it (381 refs, all writes), so if anything reads it, it is the engine. It is set to 47 right after 'do-animation 1 3' when Guybrush's normal look is restored (global/script_0001.scumm:114-115, global/script_0089.scumm:76-77), and global/script_0107.scumm:4-38 and global/script_0109.scumm:8-29 pair each 'actor 1 talk-animation A,B' with one value: (4,5) 47, (15,14) 48, (18,17) 49, (20,19) 50, (24,23) 51, (26,25) 52, (29,28) 53. It is 4 when Guybrush is given a special costume (global/script_0114.scumm:16-18, rooms/071_crakwall/local_2014.scumm:8-10)."
     },
+    "645": {
+      "Name": "cave-andre-facing",
+      "Note": "Room 80 (smugglers' cave). Which way King Andre (actor 3) is turned: 135, 180 or 225. When he goes back to his standing pose, rooms/080_smglcave/local_2032.scumm:4-12 turns him back from 135 or 225 first, then sets 180 (rooms/080_smglcave/local_2032.scumm:29). It is set to 135 when he picks up the cards (rooms/080_smglcave/local_2012.scumm:93-95) and 225 at rooms/080_smglcave/local_2032.scumm:160. The room's objects use the same prefix, e.g. cave-andres-cards-anim-object."
+    },
+    "646": {
+      "Name": "cave-andre-pose",
+      "Note": "Room 80 (smugglers' cave). Which pose King Andre (actor 3) is in, so rooms/080_smglcave/local_2032.scumm:13-30 can play the right animation back to standing: 1 plays 24, 3 plays 28 then counts as 2, and 2 plays 35, before resetting to 0. Set to 2 when he lays down his cards (rooms/080_smglcave/local_2012.scumm:365-368), and to 1 and 3 at rooms/080_smglcave/local_2032.scumm:131 and rooms/080_smglcave/local_2032.scumm:144."
+    },
     "649": {
       "Name": "saveload-slot1-name",
       "Note": "String array with the save name in slot 1 of the save/load page shown. rooms/092_saveload/local_2010.scumm:6 clears it. Context, not mentioning var649: rooms/092_saveload/local_2010.scumm:34-38 reads each slot's name for page saveload-page with 'save-game-read-name local2, var657', and rooms/092_saveload/local_2010.scumm:42 copies slot 1's into it. Shown with blast-text at rooms/092_saveload/local_2011.scumm:30; rooms/092_saveload/local_2015.scumm:8 tests whether the slot is empty. Space-filled at start (global/script_0001.scumm:181)."
@@ -431,6 +507,126 @@
     "657": {
       "Name": "saveload-read-buffer",
       "Note": "String buffer for reading a save's name: rooms/092_saveload/local_2010.scumm:37-38 sets it to \" \" and runs 'save-game-read-name local2, var657' for each slot on the page, then copies it into saveload-slot1-name to saveload-slot6-name (rooms/092_saveload/local_2010.scumm:39-75). It's used nowhere else."
+    },
+    "660": {
+      "Name": "credits-line-active",
+      "Note": "Room 93 (end credits). Array, one flag per credits line slot 1-19: set while that slot's line is scrolling. rooms/093_endcred/local_2006.scumm:4 sets it when a line starts; rooms/093_endcred/local_2005.scumm:14-16 clears it when the line has scrolled past y -30, and the scroller only moves active slots (rooms/093_endcred/local_2005.scumm:7-8). The credits scripts look for a free slot with 'if (var660[local1] == 0)' before starting the next line (global/script_0454.scumm:7-9), 569 times."
+    },
+    "661": {
+      "Name": "credits-line-x",
+      "Note": "Room 93 (end credits). Array with the x position of each credits line slot 1-19: 320, the screen centre, when the line starts (rooms/093_endcred/local_2006.scumm:6) and when it is reset (rooms/093_endcred/local_2005.scumm:17). rooms/093_endcred/local_2005.scumm:24-28 draws the line at it, or at 80 when credits-line-left-aligned is set."
+    },
+    "662": {
+      "Name": "credits-line-y",
+      "Note": "Room 93 (end credits). Array with the y position of each credits line slot 1-19: 485, just below the screen, when the line starts (rooms/093_endcred/local_2006.scumm:7). rooms/093_endcred/local_2005.scumm:11-13 moves it up 2 a frame, and below -30 the slot is freed and reset (rooms/093_endcred/local_2005.scumm:14-18). rooms/093_endcred/local_2007.scumm:12 only lets the next line move once the one before is 30 above the start."
+    },
+    "663": {
+      "Name": "credits-line-color",
+      "Note": "Room 93 (end credits). Array with the text colour of each credits line slot 1-19: rooms/093_endcred/local_2006.scumm:5 sets it from the script's second argument (context, not mentioning var663: e.g. 15 in 'start-script-quick 2006(local1, 15)', global/script_0454.scumm:9), and rooms/093_endcred/local_2005.scumm:30-35 draws with 'blast-text color local3'."
+    },
+    "664": {
+      "Name": "credits-line-left-aligned",
+      "Note": "Room 93 (end credits). Array, one flag per credits line slot 1-19: when set, rooms/093_endcred/local_2005.scumm:24-28 draws that line at x 80 without 'center', instead of centred at credits-line-x (e.g. rooms/093_endcred/local_2005.scumm:32-41). Each of its 567 writes clears it when a line starts (e.g. global/script_0454.scumm:10), so in this export every line is centred."
+    },
+    "665": {
+      "Name": "credits-line1-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 1: the credits scripts set it when a line starts in slot 1 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:36 draws it with 'blast-text ... \"%s{var665}\"' while the slot scrolls."
+    },
+    "666": {
+      "Name": "credits-line2-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 2: the credits scripts set it when a line starts in slot 2 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:48 draws it with 'blast-text ... \"%s{var666}\"' while the slot scrolls."
+    },
+    "667": {
+      "Name": "credits-line3-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 3: the credits scripts set it when a line starts in slot 3 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:60 draws it with 'blast-text ... \"%s{var667}\"' while the slot scrolls."
+    },
+    "668": {
+      "Name": "credits-line4-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 4: the credits scripts set it when a line starts in slot 4 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:72 draws it with 'blast-text ... \"%s{var668}\"' while the slot scrolls."
+    },
+    "669": {
+      "Name": "credits-line5-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 5: the credits scripts set it when a line starts in slot 5 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:84 draws it with 'blast-text ... \"%s{var669}\"' while the slot scrolls."
+    },
+    "670": {
+      "Name": "credits-line6-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 6: the credits scripts set it when a line starts in slot 6 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:96 draws it with 'blast-text ... \"%s{var670}\"' while the slot scrolls."
+    },
+    "671": {
+      "Name": "credits-line7-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 7: the credits scripts set it when a line starts in slot 7 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:108 draws it with 'blast-text ... \"%s{var671}\"' while the slot scrolls."
+    },
+    "672": {
+      "Name": "credits-line8-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 8: the credits scripts set it when a line starts in slot 8 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:120 draws it with 'blast-text ... \"%s{var672}\"' while the slot scrolls."
+    },
+    "673": {
+      "Name": "credits-line9-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 9: the credits scripts set it when a line starts in slot 9 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:132 draws it with 'blast-text ... \"%s{var673}\"' while the slot scrolls."
+    },
+    "674": {
+      "Name": "credits-line10-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 10: the credits scripts set it when a line starts in slot 10 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:144 draws it with 'blast-text ... \"%s{var674}\"' while the slot scrolls."
+    },
+    "675": {
+      "Name": "credits-line11-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 11: the credits scripts set it when a line starts in slot 11 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:156 draws it with 'blast-text ... \"%s{var675}\"' while the slot scrolls."
+    },
+    "676": {
+      "Name": "credits-line12-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 12: the credits scripts set it when a line starts in slot 12 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:168 draws it with 'blast-text ... \"%s{var676}\"' while the slot scrolls."
+    },
+    "677": {
+      "Name": "credits-line13-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 13: the credits scripts set it when a line starts in slot 13 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:180 draws it with 'blast-text ... \"%s{var677}\"' while the slot scrolls."
+    },
+    "678": {
+      "Name": "credits-line14-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 14: the credits scripts set it when a line starts in slot 14 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:192 draws it with 'blast-text ... \"%s{var678}\"' while the slot scrolls."
+    },
+    "679": {
+      "Name": "credits-line15-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 15: the credits scripts set it when a line starts in slot 15 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:204 draws it with 'blast-text ... \"%s{var679}\"' while the slot scrolls."
+    },
+    "680": {
+      "Name": "credits-line16-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 16: the credits scripts set it when a line starts in slot 16 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:216 draws it with 'blast-text ... \"%s{var680}\"' while the slot scrolls."
+    },
+    "681": {
+      "Name": "credits-line17-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 17: the credits scripts set it when a line starts in slot 17 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:228 draws it with 'blast-text ... \"%s{var681}\"' while the slot scrolls."
+    },
+    "682": {
+      "Name": "credits-line18-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 18: the credits scripts set it when a line starts in slot 18 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:240 draws it with 'blast-text ... \"%s{var682}\"' while the slot scrolls."
+    },
+    "683": {
+      "Name": "credits-line19-text",
+      "Note": "Room 93 (end credits). String with the text of credits line slot 19: the credits scripts set it when a line starts in slot 19 (e.g. global/script_0454.scumm with \"/EC__110/THE END\"), and rooms/093_endcred/local_2005.scumm:253 draws it with 'blast-text ... \"%s{var683}\"' while the slot scrolls."
+    },
+    "684": {
+      "Name": "",
+      "Note": "Unconfirmed: room 93 (end credits). Set to 1 when a credits line scrolls off the top (rooms/093_endcred/local_2005.scumm:14-15) and never cleared or read by any script, so perhaps a leftover 'a line has finished' flag."
+    },
+    "685": {
+      "Name": "credits-lead-line",
+      "Note": "Room 93 (end credits). The slot (1-19) of the line at the head of the scroll, the one that moves without waiting. Starts at 1 (rooms/093_endcred/local_2005.scumm:4), and moves to the next slot, wrapping after 19, each time a line scrolls off (rooms/093_endcred/local_2005.scumm:19-22). rooms/093_endcred/local_2007.scumm:4-6 lets that slot always move; any other slot (context, not mentioning var685) waits until the slot before it has risen 30 (rooms/093_endcred/local_2007.scumm:8-16)."
+    },
+    "686": {
+      "Name": "banjo-note-index",
+      "Note": "Room 25 (banjo duel). Which note of the tune is being played or answered: global/script_0217.scumm:11 resets it to 0 and global/script_0217.scumm:69 adds 1 after each opponent note; each of Guybrush's string clicks adds 1 too (rooms/025_banjo/local_2011.scumm:7-9). global/script_0216.scumm:28-30 waits for the player's turn to end with 'while (var686 <= var428)'. Indexes banjo-played-strings and banjo-riff-sounds (rooms/025_banjo/local_2009.scumm:49)."
+    },
+    "687": {
+      "Name": "banjo-max-tune-length",
+      "Note": "Room 25 (banjo duel). Length of the final round's tune: 4 when bit65 is set, else 5 (global/script_0216.scumm:7-13). global/script_0216.scumm:15 ends the duel after that round; rooms/025_banjo/local_2004.scumm:5 picks notes up to it and gives the last note of the final round sound 446 (rooms/025_banjo/local_2004.scumm:19-20)."
+    },
+    "688": {
+      "Name": "banjo-answer-time",
+      "Note": "Room 25 (banjo duel). How many frames Guybrush has to play the tune back: 75 when bit65 is set, else 60 (global/script_0216.scumm:7-12). rooms/025_banjo/local_2013.scumm:4-8 counts frames up to it, then starts script 213."
+    },
+    "689": {
+      "Name": "",
+      "Note": "Unconfirmed: room 25 (banjo duel). Set to 5 before the opponent plays (global/script_0216.scumm:14, global/script_0217.scumm:12) and to 1 once Guybrush's turn starts (global/script_0216.scumm:24). Its only read is global/script_0217.scumm:4-8, which re-enters room 25 in a cut-scene unless it is 5, so it may mean 'already in the duel view'. I couldn't tell why the values are 1 and 5."
     },
     "696": {
       "Name": "hotelbar-xima-animation",
