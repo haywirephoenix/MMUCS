@@ -34,16 +34,22 @@ It also finds the export from `--root DIR`, the `MSCRIPTS_ROOT` variable, or the
 |---|---|
 | `use [DIR]` | Remembers the export to read, or shows it |
 | `rooms` | Lists rooms and their script counts |
-| `script WHERE` | Prints a script with line numbers: `global 6`, `9 local_2006`, `9 entry`, or part of a path (`--plain` drops the numbers) |
+| `script WHERE` | Prints a script with line numbers: `global 6`, `9 local_2006`, `9 entry`, or part of a path (`--plain` drops the numbers). Prints part of it with `--lines A-B`, `--at N` (`-C K` lines either side, default 10) or `--block N`, the brace block around line N (`--levels K` for K blocks out) |
 | `search REGEX` | Finds lines. `--in ROOM` (number or part of the name, repeatable), `--global`, `--rooms`, `-C N` for context, `-i`, `--count` per script, `-l` for scripts only, `--limit N` |
 | `calls N` | Lists who starts, calls or chains to script `N`, with `--in ROOM` |
+| `progress` | How many variables are named, noted (Unconfirmed, Unclear) or left, what changed since git `--ref` (default `HEAD`), and where the rest are used, room by room. `--left [ROOM]` lists them, `--all` lists every room, `--bits` |
 | `vars` | Ranks variables by how many scripts use them, with their status. `--unnamed`, `--tracked`, `--bits`, `--sort scripts\|refs\|num`, `--top N` |
 | `var V` | One variable's evidence (see below). `--top N` rows per section, `--examples N` |
+| `refs V` | Every line that uses a variable, from the index. `--writes` for the lines that write it, `-C N` for context, `--in ROOM`, `--global`, `--by-room` or `--count` for counts, `--limit N` |
 | `name V NAME --note TEXT` | Checks the name and writes it to `variables.json`. `--local` writes the app data copy instead, `--map FILE` another file. `""` as the name clears it |
 | `note V TEXT` | Tracks a variable with a note, without naming it |
 | `review [REF]` | Checks the entries changed in `variables.json` since git `REF` (default `HEAD`): their citations, names and evidence. `--all` checks every entry, `-v` lists good citations too |
 
 `V` is a number (`266`), `varN`, `bitN` or a name (`item-icon`). Results are written as `path:line`, relative to `scripts/`, so they open in an editor.
+
+### The index
+
+The first command that needs it reads the whole export and saves a map of where every variable is used to `scripts/.mscripts-index.json`. `refs`, `vars`, `progress`, `var` and `review` use it, so they only read the scripts a variable is in. It's rebuilt by itself when a script is added, removed or changed, or `variables.index.json` changes. Delete it to force a rebuild.
 
 ### Status
 
@@ -81,8 +87,10 @@ Tested as true/false: 36x   e.g. global/script_0039.scumm:61 (+35)
 
 ```bash
 mscripts vars --unnamed               # pick one near the top
+mscripts progress --left              # or see what's left, room by room
 mscripts var 630                      # read the evidence
-mscripts search "var630" -C 3         # read it in context
+mscripts refs 630 --writes -C 8       # each write with the code around it
+mscripts script 9 local_2006 --block 120   # the block around one line, if that isn't enough
 mscripts name 630 some-name --note "how you know"
 ```
 

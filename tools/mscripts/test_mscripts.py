@@ -123,6 +123,57 @@ class MscriptsTests(unittest.TestCase):
         _, text = self.cli("script", "global", "6")
         self.assertIn("var261 = var261 + 1", text)
 
+    def test_script_snippets(self):
+        _, text = self.cli("script", "9", "local_2006", "--lines", "9-11")
+        self.assertIn("local_2006.scumm:9-11 of 4-12", text)
+        self.assertIn("var498 = var498 + 1", text)
+        self.assertNotIn("say-line", text)
+        _, text = self.cli("script", "9", "local_2006", "--at", "10", "-C", "1")
+        self.assertEqual([l.split()[0] for l in text.splitlines()[1:]], ["9", "10", "11"])
+        _, text = self.cli("script", "9", "local_2006", "--block", "5")
+        self.assertIn("4-6", text)  # the if, up to its } else if {
+        _, text = self.cli("script", "9", "local_2006", "--block", "10")
+        self.assertIn("9-11", text)
+        _, text = self.cli("script", "9", "local_2006", "--block", "10", "--levels", "2")
+        self.assertIn("the whole script", text)
+        with self.assertRaises(SystemExit) as e:
+            self.cli("script", "9", "local_2006", "--lines", "50-60")
+        self.assertIn("no lines 50-60", str(e.exception))
+
+    def test_refs_lists_lines_and_writes(self):
+        _, text = self.cli("refs", "498", "--map", str(self.map))
+        self.assertIn("rooms/009_cannon/local_2006.scumm:10: var498 = var498 + 1", text)
+        self.assertIn("rooms/009_cannon/local_2004.scumm:5:", text)
+        self.assertIn("5 lines in 2 scripts, 1 writing it", text)  # line 10 uses it twice, but counts once
+        _, text = self.cli("refs", "498", "--writes", "-C", "1", "--map", str(self.map))
+        self.assertIn("local_2006.scumm-9- if (var498 < 10) {", text)
+        self.assertNotIn("local_2004", text)
+        _, text = self.cli("refs", "item-icon", "--by-room", "--map", str(self.map))
+        self.assertIn("     5      1  009_cannon", text)
+        self.assertIn("     1      1  011_waterln", text)
+        _, text = self.cli("refs", "266", "--in", "11", "--map", str(self.map))
+        self.assertNotIn("009_cannon", text)
+
+    def test_index_is_saved_and_rebuilt_when_the_export_changes(self):
+        self.cli("refs", "498", "--map", str(self.map))
+        saved = self.root / "scripts" / mscripts.INDEX_FILE
+        self.assertTrue(saved.exists())
+        p = self.root / "scripts" / "global" / "script_0006.scumm"
+        p.write_text(p.read_text(encoding="utf-8") + "var498 = 3\n", encoding="utf-8")
+        _, text = self.cli("refs", "498", "--writes", "--map", str(self.map))
+        self.assertIn("global/script_0006.scumm:6: var498 = 3", text)
+
+    def test_progress_counts_and_groups(self):
+        _, text = self.cli("progress", "--no-git", "--map", str(self.map))
+        self.assertIn("5 globals used in scripts", text)
+        for row in ("engine           1", "named            1", "noted            1", "untouched        2"):
+            self.assertIn(row, text)
+        self.assertIn("    2     0     0     2  009_cannon", text)
+        _, text = self.cli("progress", "--no-git", "--left", "9", "--map", str(self.map))
+        self.assertIn("var290", text)
+        self.assertIn("var498", text)
+        self.assertNotIn("var261 ", text)
+
     def test_name_checks_and_writes_the_map(self):
         def name(*a):
             try:

@@ -34,13 +34,16 @@ USAGE = """usage: mscripts COMMAND [options]
 Find your way around:
   use [DIR]                     Remember the export to read (the folder holding scripts/)
   rooms                         List rooms with their script counts
-  script WHERE...               Print a script: "global 6", "9 local_2006", "9 entry", a path
+  script WHERE...               Print a script: "global 6", "9 local_2006", "9 entry", a path.
+                                Part of one: --lines A-B, --at N [-C K], --block N [--levels K]
   search REGEX [--in ROOM]...   Find lines, with -C for context and --count per script
   calls N [--in ROOM]           List who starts, calls or chains to script N
 
 Name variables:
   vars [--unnamed] [--top N]    Rank variables by how many scripts use them, with their status
+  progress [--left [ROOM]]      How many variables are named, noted and left, and where the rest are
   var V                         Evidence for one variable: writes, comparisons, commands, rooms
+  refs V [--writes] [-C N]      Every line using a variable (from the index), --by-room for counts
   name V NAME --note TEXT       Name a variable in variables.json (checks the name first)
   note V TEXT                   Track a variable in variables.json without naming it
   review [REF] [--all]          Check changed names: their notes' citations, against the evidence
@@ -129,6 +132,12 @@ class Names:
         # Names added to the map since the export: the files still say varN, but the name resolves too.
         self.mapped_globals = {int(k): (e or {}).get("Name") or "" for k, e in self.map["Globals"].items() if k.isdigit()}
         self.mapped_bits = {int(k): (e or {}).get("Name") or "" for k, e in self.map["Bits"].items() if k.isdigit()}
+        # The names the exported files use: what the refs index reads them with.
+        self.file_by_name: Dict[str, Tuple[str, int]] = {}
+        for n, name in self.globals.items():
+            self.file_by_name.setdefault(name, ("var", n))
+        for n, name in self.bits.items():
+            self.file_by_name.setdefault(name, ("bit", n))
         self.by_name: Dict[str, Tuple[str, int]] = {}
         for n, name in list(self.globals.items()) + [(n, s) for n, s in self.mapped_globals.items() if s]:
             self.by_name.setdefault(name, ("var", n))
@@ -179,20 +188,133 @@ class Names:
             return None if m.group(1) == "local" else (m.group(1), int(m.group(2)))
         return self.by_name.get(word)
 
+    def number_in_file(self, word: str) -> Optional[Tuple[str, int]]:
+        """Like number_of_word, but only with the names the export's files use (when it lists them)."""
+        if not self.has_index:
+            return self.number_of_word(word)
+        m = NUMBERED.match(word)
+        if m:
+            return None if m.group(1) == "local" else (m.group(1), int(m.group(2)))
+        return self.file_by_name.get(word)
+
+
+def room_of(rel: str) -> Optional[str]:
+    parts = rel.split("/")
+    return parts[1] if parts[0] == "rooms" and len(parts) > 2 else None
+
+
+WRITE_AFTER = re.compile(r"(?:\[[^\]]*\])*\s*(?:=(?!=)|(?:\+\+|--)$)")
+INDEX_FILE = ".mscripts-index.json"
+INDEX_VERSION = 1
+
+
+class RefIndex:
+    """Where every variable is used: for each varN/bitN, the (script, line) of every reference and
+    whether the line writes it. Built from the whole export once and saved beside it, then rebuilt
+    only when the export changes."""
+
+    def __init__(self, scripts: List[str], refs: Dict[str, List[int]]):
+        self.scripts = scripts  # script paths, by id
+        self.refs = refs        # "var266" -> [script id, line, ...]; a negative line writes it
+
+    @staticmethod
+    def build(export: "Export") -> "RefIndex":
+        names = export.names
+        rels, refs = [], defaultdict(list)
+        for sid, s in enumerate(export.scripts):
+            rels.append(s.rel)
+            for line in s.lines:
+                t = line.text.strip()
+                seen = set()
+                for m in WORD.finditer(t):
+                    key = names.number_in_file(m.group(0))
+                    if not key:
+                        continue
+                    k = f"{key[0]}{key[1]}"
+                    wr = m.start() == 0 and k not in seen and WRITE_AFTER.match(t, m.end())
+                    refs[k] += [sid, -line.no if wr else line.no]
+                    seen.add(k)
+        return RefIndex(rels, dict(refs))
+
+    def places(self, kind: str, n: int) -> List[Tuple[str, int, bool]]:
+        """Every reference as (script, line, writes it); a line using it twice is listed twice."""
+        flat = self.refs.get(f"{kind}{n}", [])
+        return [(self.scripts[flat[i]], abs(flat[i + 1]), flat[i + 1] < 0) for i in range(0, len(flat), 2)]
+
+    def keys(self, kind: str) -> List[int]:
+        return [int(k[len(kind):]) for k in self.refs if k.startswith(kind) and k[len(kind):].isdigit()]
+
 
 class Export:
     def __init__(self, scripts_root: Path, map_path: Optional[Path]):
         self.root = scripts_root
         self.names = Names(scripts_root, map_path)
         self._scripts: Optional[List[Script]] = None
+        self._loaded: Dict[str, Script] = {}
+        self._paths: Optional[List[Path]] = None
+        self._index: Optional[RefIndex] = None
+
+    @property
+    def paths(self) -> List[Path]:
+        if self._paths is None:
+            self._paths = sorted(self.root.rglob("*.scumm"))
+            if not self._paths:
+                raise SystemExit(f"mscripts: no .scumm files under {self.root}")
+        return self._paths
 
     @property
     def scripts(self) -> List[Script]:
         if self._scripts is None:
-            self._scripts = [Script(self.root, p) for p in sorted(self.root.rglob("*.scumm"))]
-            if not self._scripts:
-                raise SystemExit(f"mscripts: no .scumm files under {self.root}")
+            self._scripts = [self._loaded.get(p.relative_to(self.root).as_posix()) or Script(self.root, p) for p in self.paths]
+            self._loaded = {s.rel: s for s in self._scripts}
         return self._scripts
+
+    def load(self, rel: str) -> Optional[Script]:
+        """One script by its path under scripts/, read only when it's needed."""
+        if rel not in self._loaded:
+            p = self.root / rel
+            if not p.is_file():
+                return None
+            self._loaded[rel] = Script(self.root, p)
+        return self._loaded[rel]
+
+    def signature(self) -> List:
+        """Changes whenever a script is added, removed or rewritten, or the export's names change."""
+        count = size = latest = 0
+        for p in self.paths:
+            st = p.stat()
+            count, size, latest = count + 1, size + st.st_size, max(latest, st.st_mtime_ns)
+        names = self.root / "variables.index.json"
+        if names.exists():
+            extra = names.stat().st_mtime_ns
+        else:  # names come from the map instead
+            mp = self.names.map_path
+            extra = mp.stat().st_mtime_ns if mp and mp.exists() else 0
+        return [INDEX_VERSION, count, size, latest, extra]
+
+    @property
+    def index(self) -> RefIndex:
+        if self._index is None:
+            path = self.root / INDEX_FILE
+            sig = self.signature()
+            try:
+                doc = json.loads(path.read_text(encoding="utf-8"))
+                if doc.get("signature") == sig:
+                    self._index = RefIndex(doc["scripts"], doc["refs"])
+            except (OSError, ValueError, KeyError):
+                pass
+            if self._index is None:
+                self._index = RefIndex.build(self)
+                try:
+                    path.write_text(json.dumps({"signature": sig, "scripts": self._index.scripts, "refs": self._index.refs},
+                                               separators=(",", ":")), encoding="utf-8")
+                except OSError:
+                    pass  # a read-only export: work without saving it
+        return self._index
+
+    def scripts_using(self, kind: str, n: int) -> List[Script]:
+        rels = dict.fromkeys(rel for rel, _, _ in self.index.places(kind, n))
+        return [s for s in (self.load(r) for r in rels) if s]
 
     def select(self, rooms: List[str], only_global: bool = False, only_rooms: bool = False) -> Iterable[Script]:
         for s in self.scripts:
@@ -309,7 +431,7 @@ def collect(export: Export, kind: str, n: int) -> Uses:
     assign = re.compile(r"^([\w$-]+)(?:\[[^\]]*\])*\s*=(?!=)")
     flip = {"<": ">", ">": "<", "<=": ">=", ">=": "<="}
     u = Uses()
-    for s in export.scripts:
+    for s in export.scripts_using(kind, n):
         for line in s.lines:
             t = line.text.strip()
             hits = len(var.findall(t))
@@ -412,12 +534,204 @@ def cmd_script(args, export: Export):
             out(f"  {s.rel}")
         return 1
     s = matches[0]
-    for h in s.header:
-        out(h)
-    out(f"// {s.rel}")
-    out()
-    for line in s.lines:
+    lines, why = s.lines, ""
+    if args.lines or args.at is not None or args.block is not None:
+        if not s.lines:
+            raise SystemExit(f"mscripts: {s.rel} has no code lines")
+        if args.lines:
+            m = re.fullmatch(r"(\d+)(?:-(\d+))?", args.lines.strip())
+            if not m:
+                raise SystemExit("mscripts: --lines takes N or A-B")
+            lo, hi = int(m.group(1)), int(m.group(2) or m.group(1))
+        elif args.at is not None:
+            lo, hi = args.at - args.context, args.at + args.context
+        else:
+            lo, hi, why = enclosing_block(s, args.block, args.levels)
+        lines = [l for l in s.lines if lo <= l.no <= hi]
+        if not lines:
+            raise SystemExit(f"mscripts: {s.rel} has no lines {lo}-{hi} (its code is {s.lines[0].no}-{s.lines[-1].no})")
+        out(f"// {s.rel}:{lines[0].no}-{lines[-1].no} of {s.lines[0].no}-{s.lines[-1].no}" + (f"  ({why})" if why else ""))
+    else:
+        for h in s.header:
+            out(h)
+        out(f"// {s.rel}")
+        out()
+    for line in lines:
         out(line.text if args.plain else f"{line.no:5}  {line.text}")
+    return 0
+
+
+STRING = re.compile(r'"(?:[^"\\]|\\.)*"')
+
+
+def enclosing_block(s: Script, line_no: int, levels: int = 1) -> Tuple[int, int, str]:
+    """The lines of the brace block around line_no, `levels` blocks out: (first, last, what it is)."""
+    if not any(l.no == line_no for l in s.lines):
+        raise SystemExit(f"mscripts: {s.rel} has no line {line_no} (its code is {s.lines[0].no}-{s.lines[-1].no})")
+    pairs, stack = [], []
+    for l in s.lines:
+        for ch in re.findall(r"[{}]", STRING.sub("", l.text)):
+            if ch == "{":
+                stack.append(l.no)
+            elif stack:
+                pairs.append((stack.pop(), l.no))
+    around = sorted((p for p in pairs if p[0] <= line_no <= p[1]), key=lambda p: p[1] - p[0])
+    if len(around) < max(1, levels):
+        return s.lines[0].no, s.lines[-1].no, "the whole script: no block that far out"
+    lo, hi = around[max(1, levels) - 1]
+    return lo, hi, f"the block around line {line_no}" + (f", {levels} levels out" if levels > 1 else "")
+
+
+def room_matches_rel(rel: str, wanted: str) -> bool:
+    room = room_of(rel)
+    if room is None:
+        return False
+    if wanted.isdigit():
+        return room[:3].isdigit() and int(room.split("_")[0]) == int(wanted)
+    return wanted.lower() in room.lower()
+
+
+def cmd_refs(args, export: Export):
+    names = export.names
+    kind, n = names.resolve(args.var)
+    places = export.index.places(kind, n)
+    if args.writes:
+        places = [p for p in places if p[2]]
+    if args.only_global:
+        places = [p for p in places if not room_of(p[0])]
+    if args.room:
+        places = [p for p in places if any(room_matches_rel(p[0], r) for r in args.room)]
+    name = names.name_of(kind, n)
+    title = f"{kind}{n}" + (f"  {name}" if name else "")
+    if not places:
+        out(f"{title}: no {'writes' if args.writes else 'references'}" + (" there." if args.room or args.only_global else "."))
+        return 0
+    # One row per line, marked as a write if any reference on it writes.
+    by_script: Dict[str, Dict[int, bool]] = {}
+    for rel, no, wr in places:
+        rows = by_script.setdefault(rel, {})
+        rows[no] = rows.get(no, False) or wr
+    nlines = sum(len(v) for v in by_script.values())
+    nwrites = sum(1 for rows in by_script.values() for w in rows.values() if w)
+    if args.by_room or args.count:
+        per, wcount = Counter(), Counter()
+        for rel, rows in by_script.items():
+            key = (room_of(rel) or "global") if args.by_room else rel
+            per[key] += len(rows)
+            wcount[key] += sum(1 for w in rows.values() if w)
+        out(f"{'lines':>6} {'writes':>6}  {'room' if args.by_room else 'script'}")
+        for key, c in per.most_common():
+            out(f"{c:6} {wcount[key]:6}  {key}")
+    else:
+        shown = 0
+        for rel, rows in by_script.items():
+            s = export.load(rel)
+            if s is None:
+                continue
+            at = {l.no: i for i, l in enumerate(s.lines)}
+            hits = sorted(at[no] for no in rows if no in at)
+            hit_set, done = set(hits), set()
+            for i in hits:
+                lo, hi = max(0, i - args.context), min(len(s.lines), i + args.context + 1)
+                if args.context and done and lo > max(done) + 1:
+                    out("  --")
+                for j in range(lo, hi):
+                    if j in done:
+                        continue
+                    done.add(j)
+                    mark = ":" if j in hit_set else "-"
+                    out(f"{s.rel}{mark}{s.lines[j].no}{mark} {s.lines[j].text.strip()}")
+                shown += 1
+                if args.limit and shown >= args.limit:
+                    out(f"... stopped at {args.limit} lines (--limit)")
+                    return 0
+    out(f"\n{title}: {nlines} lines in {len(by_script)} scripts" + ("" if args.writes else f", {nwrites} writing it"))
+    return 0
+
+
+STATES = ["engine", "named", "unconfirmed", "unclear", "noted", "untouched"]
+
+
+def entry_state(names: Names, kind: str, n: int, doc: Optional[dict] = None) -> str:
+    """engine, named, unconfirmed, unclear, noted (another kind of note) or untouched.
+    With doc, reads that map (an older variables.json) instead of the current one."""
+    if kind == "var" and n in names.engine:
+        return "engine"
+    e = ((doc or names.map)[names.section(kind)].get(str(n))) or {}
+    if e.get("Name") or (doc is None and names.name_of(kind, n)):
+        return "named"
+    note = (e.get("Note") or "").lstrip().lower()
+    if note.startswith("unconfirmed"):
+        return "unconfirmed"
+    if note.startswith("unclear"):
+        return "unclear"
+    return "noted" if note else "untouched"
+
+
+def usage_group(rooms: set) -> str:
+    """Where a variable is used: its room, "global scripts only" or "several rooms"."""
+    rs = rooms - {"global"}
+    if len(rs) == 1:
+        return next(iter(rs))
+    return "global scripts only" if not rs else "several rooms"
+
+
+def cmd_progress(args, export: Export):
+    names = export.names
+    kind = "bit" if args.bits else "var"
+    refs, scripts, writes, rooms = var_usage(export, kind)
+    used = sorted(refs)
+    state = {n: entry_state(names, kind, n) for n in used}
+    totals = Counter(state.values())
+    out(f"{len(used)} {'bits' if args.bits else 'globals'} used in scripts")
+    for st in STATES:
+        if totals[st] or st in ("named", "untouched"):
+            out(f"  {st:<12} {totals[st]:5}  {100 * totals[st] / max(1, len(used)):5.1f}%")
+    notes = totals["unconfirmed"] + totals["unclear"] + totals["noted"]
+    out(f"  done (named or engine) {totals['named'] + totals['engine']}, notes only {notes}, left {totals['untouched']}")
+
+    if names.map_path and names.map_path.exists() and not args.no_git:
+        try:
+            base = map_at_ref(names.map_path, args.ref) or {}
+        except SystemExit:
+            base = None
+        if base is not None:
+            base.setdefault("Globals", {})
+            base.setdefault("Bits", {})
+            moved = Counter(state[n] for n in used if entry_state(names, kind, n, base) != state[n])
+            out(f"  since {args.ref}: " + (", ".join(f"{c} now {st}" for st, c in moved.most_common()) if moved else "no change"))
+
+    groups: Dict[str, Counter] = defaultdict(Counter)
+    for n in used:
+        g = usage_group(rooms[n])
+        groups[g][state[n]] += 1
+        if state[n] == "untouched" and "global" in rooms[n] and len(rooms[n]) == 2:
+            groups[g]["also-global"] += 1
+    rows = [(g, c) for g, c in groups.items() if args.all or c["untouched"]]
+    rows.sort(key=lambda r: (-r[1]["untouched"], r[0]))
+    out(f"\n{'left':>5} {'notes':>5} {'done':>5} {'total':>5}  where they're used")
+    for g, c in rows[:args.top]:
+        total = sum(c[st] for st in STATES)
+        also = c["also-global"]
+        out(f"{c['untouched']:5} {c['unconfirmed'] + c['unclear'] + c['noted']:5} {c['named'] + c['engine']:5} {total:5}  {g}"
+            + (f"  ({also} of those left also in global scripts)" if also else ""))
+    if len(rows) > args.top:
+        out(f"  ... {len(rows) - args.top} more (--top)")
+    out("A room's row counts the variables no other room uses; global scripts may use them too.")
+
+    if args.left is not None:
+        want = args.left
+        out()
+        for n in used:
+            if state[n] != "untouched":
+                continue
+            g = usage_group(rooms[n])
+            rs = rooms[n] - {"global"}
+            if want and not (want.lower() in g.lower() or
+                             (want.isdigit() and len(rs) == 1 and room_matches_rel(f"rooms/{next(iter(rs))}/x", want))):
+                continue
+            out(f"  {kind + str(n):<8} {len(scripts[n]):4} scripts {refs[n]:5} refs {writes[n]:4} writes  {g}"
+                + (" + global scripts" if "global" in rooms[n] and len(rs) == 1 else ""))
     return 0
 
 
@@ -483,25 +797,23 @@ def cmd_calls(args, export: Export):
     return 0
 
 
+def var_usage(export: Export, kind: str):
+    """From the index: per variable, its refs, scripts, rooms and writes."""
+    refs, scripts, writes, rooms = Counter(), defaultdict(set), Counter(), defaultdict(set)
+    for n in export.index.keys(kind):
+        for rel, _, wr in export.index.places(kind, n):
+            refs[n] += 1
+            scripts[n].add(rel)
+            rooms[n].add(room_of(rel) or "global")
+            if wr:
+                writes[n] += 1
+    return refs, scripts, writes, rooms
+
+
 def cmd_vars(args, export: Export):
     names = export.names
     want = "bit" if args.bits else "var"
-    refs, scripts, writes, rooms = Counter(), defaultdict(set), Counter(), defaultdict(set)
-    for s in export.scripts:
-        for line in s.lines:
-            t = line.text.strip()
-            seen_here = set()
-            for m in WORD.finditer(t):
-                key = names.number_of_word(m.group(0))
-                if not key or key[0] != want:
-                    continue
-                n = key[1]
-                refs[n] += 1
-                scripts[n].add(s.rel)
-                rooms[n].add(s.room or "global")
-                if m.start() == 0 and n not in seen_here and re.match(r"(?:\[[^\]]*\])*\s*(?:=(?!=)|(?:\+\+|--)$)", t[m.end():]):
-                    writes[n] += 1
-                seen_here.add(n)
+    refs, scripts, writes, rooms = var_usage(export, want)
     rows = []
     for n in refs:
         status = names.status(want, n)
@@ -760,11 +1072,10 @@ def check_citations(export: Export, note: str, aliases: List[str]) -> List[Tuple
     """Each citation in a note, as (status, text). "wrong": the script or line doesn't exist.
     "check": the line exists but doesn't mention the variable, which may be fine (it shows context)
     but is worth reading. "ok": it mentions the variable, or another variable the note cites it for."""
-    by_rel = {sc.rel: sc for sc in export.scripts}
     own = re.compile(alias_pattern(aliases))
     results = []
     for text, rel, spans, pos in citations(note):
-        sc = by_rel.get(rel)
+        sc = export.load(rel)
         if sc is None:
             results.append(("wrong", f"{text}  no such script ({rel})"))
             continue
@@ -894,6 +1205,12 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("script", help="print a script")
     s.add_argument("where", nargs="+")
     s.add_argument("--plain", action="store_true", help="no line numbers")
+    part = s.add_mutually_exclusive_group()
+    part.add_argument("--lines", help="only lines N or A-B")
+    part.add_argument("--at", type=int, help="only the lines around line N (see -C)")
+    part.add_argument("--block", type=int, help="only the brace block around line N")
+    s.add_argument("-C", "--context", type=int, default=10, help="lines either side for --at (default 10)")
+    s.add_argument("--levels", type=int, default=1, help="for --block: how many blocks out (default 1)")
 
     s = sub.add_parser("search", help="find lines matching a regex")
     s.add_argument("pattern")
@@ -916,6 +1233,27 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--bits", action="store_true", help="bit variables instead of globals")
     s.add_argument("--sort", choices=["scripts", "refs", "num"], default="scripts")
     s.add_argument("--top", type=int, default=40)
+    s.add_argument("--map", help="variables.json to read status from")
+
+    s = sub.add_parser("refs", help="every line using a variable")
+    s.add_argument("var")
+    s.add_argument("--writes", action="store_true", help="only lines that write it")
+    s.add_argument("--in", dest="room", action="append", default=[], help="room number or part of its name (repeatable)")
+    s.add_argument("--global", dest="only_global", action="store_true", help="only global scripts")
+    s.add_argument("-C", "--context", type=int, default=0, help="lines of context")
+    s.add_argument("--by-room", action="store_true", help="lines and writes per room")
+    s.add_argument("--count", action="store_true", help="lines and writes per script")
+    s.add_argument("--limit", type=int, default=0, help="stop after N lines")
+    s.add_argument("--map", help="variables.json to read names from")
+
+    s = sub.add_parser("progress", help="how many variables are done and left")
+    s.add_argument("--bits", action="store_true", help="bit variables instead of globals")
+    s.add_argument("--all", action="store_true", help="list every room, not just those with variables left")
+    s.add_argument("--top", type=int, default=30, help="rows of rooms (default 30)")
+    s.add_argument("--left", nargs="?", const="", help="list the variables left: all, or in ROOM (number or part of a name, "
+                                                    "'global' or 'several')")
+    s.add_argument("--ref", default="HEAD", help="git ref to compare with (default HEAD)")
+    s.add_argument("--no-git", action="store_true", help="skip the comparison with git")
     s.add_argument("--map", help="variables.json to read status from")
 
     s = sub.add_parser("var", help="evidence for one variable")
@@ -964,7 +1302,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     export = Export(scripts_root, map_path)
     handler = {
         "rooms": cmd_rooms, "script": cmd_script, "search": cmd_search, "calls": cmd_calls,
-        "vars": cmd_vars, "var": cmd_var, "name": cmd_name, "note": cmd_note, "review": cmd_review,
+        "vars": cmd_vars, "var": cmd_var, "refs": cmd_refs, "progress": cmd_progress, "name": cmd_name, "note": cmd_note, "review": cmd_review,
     }[args.command]
     try:
         return handler(args, export)
