@@ -19,10 +19,10 @@ public class VariableNamesTests
     public void Engine_and_mapped_names_are_used_and_the_rest_stay_numbered()
     {
         Assert.Equal("have-msg", ScummScript.VarName(15));
-        Assert.Equal("cursor-object", ScummScript.VarName(266));
+        Assert.Equal("item-icon", ScummScript.VarName(266));
         Assert.Equal("var99999", ScummScript.VarName(99999));
         Assert.Equal("local3", ScummScript.VarName(0x40000003));
-        Assert.True(VariableNames.IsName("cursor-object"));
+        Assert.True(VariableNames.IsName("item-icon"));
     }
 
     [Theory]

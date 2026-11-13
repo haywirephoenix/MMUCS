@@ -23,17 +23,17 @@ FILES = {
     "rooms/009_cannon/local_2004.scumm": HEADER.format(title="Local script 2004") +
         "start-script bak rec 2005(1, 2)\nlocal0 = call-script 77(var498)\n",
     "rooms/009_cannon/objects/0279_ramrod-object.scumm": HEADER.format(title="ramrod") +
-        "cursor-object = 122\ncursor image cursor-object frame 1\nload-object cursor-object\n"
-        "if (class-of(cursor-object) is [146]) {\n    var290 = cursor-object\n}\n",
+        "item-icon = 122\ncursor image item-icon frame 1\nload-object item-icon\n"
+        "if (class-of(item-icon) is [146]) {\n    var290 = item-icon\n}\n",
     # Exported with offsets: the gutter is removed before matching.
     "rooms/011_waterln/entry.scumm": HEADER.format(title="Room entry") +
-        "0000  cursor-object = 117\n      }\n0010  end-script\n",
+        "0000  item-icon = 117\n      }\n0010  end-script\n",
 }
 
 INDEX = {
     "Globals": {
         "15": {"Name": "have-msg", "Source": "engine"},
-        "266": {"Name": "cursor-object", "Source": "map"},
+        "266": {"Name": "item-icon", "Source": "map"},
     },
     "Bits": {},
 }
@@ -41,7 +41,7 @@ INDEX = {
 MAP = {
     "Globals": {
         "261": {"Name": "", "Note": "busy counter?"},
-        "266": {"Name": "cursor-object", "Note": "cursor"},
+        "266": {"Name": "item-icon", "Note": "cursor"},
     },
     "Bits": {},
 }
@@ -89,7 +89,7 @@ class MscriptsTests(unittest.TestCase):
         self.assertIn("Tested as true/false: 1x", text)
 
     def test_names_and_numbers_find_the_same_variable(self):
-        _, by_name = self.cli("var", "cursor-object", "--map", str(self.map), "--examples", "0")
+        _, by_name = self.cli("var", "item-icon", "--map", str(self.map), "--examples", "0")
         _, by_number = self.cli("var", "266", "--map", str(self.map), "--examples", "0")
         self.assertEqual(by_name, by_number)
         self.assertIn("cursor image", by_name)
@@ -101,11 +101,11 @@ class MscriptsTests(unittest.TestCase):
 
     def test_vars_ranks_and_shows_status(self):
         _, text = self.cli("vars", "--map", str(self.map))
-        self.assertIn("cursor-object", text)
+        self.assertIn("item-icon", text)
         self.assertIn("engine", text)  # have-msg
         self.assertIn("tracked", text)  # var261
         _, unnamed = self.cli("vars", "--unnamed", "--map", str(self.map))
-        self.assertNotIn("cursor-object", unnamed)
+        self.assertNotIn("item-icon", unnamed)
 
     def test_calls_match_flags_and_arguments(self):
         _, text = self.cli("calls", "2005")
@@ -132,7 +132,7 @@ class MscriptsTests(unittest.TestCase):
         self.assertIn("kebab-case", name("261", "Busy Count", "--note", "x")[1])
         self.assertIn("numbered variable", name("261", "var12", "--note", "x")[1])
         self.assertIn("engine variable", name("15", "message", "--note", "x")[1])
-        self.assertIn("already", name("261", "cursor-object", "--note", "x")[1])
+        self.assertIn("already", name("261", "item-icon", "--note", "x")[1])
         self.assertIn("keyword", name("261", "while", "--note", "x")[1])
         # The tracked entry's note is kept when no new one is given.
         code, text = name("261", "busy-count")
@@ -153,6 +153,96 @@ class MscriptsTests(unittest.TestCase):
         doc = json.loads(self.map.read_text(encoding="utf-8"))
         self.assertEqual(doc["Globals"]["498"], {"Name": "", "Note": "Wally's cannon lines, 0-10"})
         self.assertEqual(list(doc["Globals"]), ["261", "266", "498"])  # kept in number order
+
+
+class CitationTests(unittest.TestCase):
+    def parse(self, note):
+        return [(rel, spans) for _, rel, spans, _ in mscripts.citations(note)]
+
+    def test_forms(self):
+        self.assertEqual(self.parse("a (global/script_0034.scumm:5/58, rooms/009_cannon/local_2006.scumm:18-20)"), [
+            ("global/script_0034.scumm", [(5, 5), (58, 58)]),
+            ("rooms/009_cannon/local_2006.scumm", [(18, 20)]),
+        ])
+
+    def test_bare_line_means_the_script_before(self):
+        self.assertEqual(self.parse("global/script_0142.scumm:109-110 sets it, and later (:112)"),
+                         [("global/script_0142.scumm", [(109, 110)]), ("global/script_0142.scumm", [(112, 112)])])
+
+    def test_a_script_named_without_a_line_counts(self):
+        note = "Written by global/script_0040.scumm (sentence-script = 40, global/script_0001.scumm:193): at :118"
+        self.assertEqual(self.parse(note)[-1], ("global/script_0040.scumm", [(118, 118)]))
+
+    def test_bare_line_in_parentheses_continues_the_latest(self):
+        note = "global/script_0014.scumm:4-9 shows it. Skipped (global/script_0142.scumm:93-94), and grows (:124-125)."
+        self.assertEqual(self.parse(note)[-1], ("global/script_0142.scumm", [(124, 125)]))
+
+    def test_times_and_ratios_are_not_citations(self):
+        self.assertEqual(self.parse("at 10:30, a 4:3 picture"), [])
+
+
+class ReviewTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        scripts = self.root / "scripts"
+        for rel, text in FILES.items():
+            p = scripts / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(text, encoding="utf-8")
+        (scripts / "variables.index.json").write_text(json.dumps(INDEX), encoding="utf-8")
+        self.map = self.root / "variables.json"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def review(self, doc, *extra):
+        self.map.write_text(json.dumps(doc), encoding="utf-8")
+        try:
+            return run("--root", str(self.root), "review", "--all", "--map", str(self.map), *extra)
+        except SystemExit as e:
+            return 2, str(e)
+
+    def test_citation_statuses(self):
+        doc = {"Globals": {"498": {"Name": "wally-line", "Note":
+            "Counts up (rooms/009_cannon/local_2006.scumm:10), checked at :4 "
+            "(rooms/009_cannon/local_2004.scumm:4), not in global/script_0999.scumm:1 "
+            "or rooms/009_cannon/local_2006.scumm:99."}}, "Bits": {}}
+        code, text = self.review(doc)
+        self.assertEqual(code, 1)  # a wrong citation fails
+        self.assertIn("2 ok, 1 to check, 2 wrong", text)
+        self.assertIn("no such script", text)
+        self.assertIn("has no line 99", text)
+        self.assertIn("check rooms/009_cannon/local_2004.scumm:4", text)
+
+    def test_evidence_and_name_checks(self):
+        doc = {"Globals": {"261": {"Name": "item-icon", "Note": "global/script_0006.scumm:4"}}, "Bits": {}}
+        code, text = self.review(doc)
+        self.assertIn("! name:", text)  # item-icon is var266 in the export
+        self.assertIn("written in: global/script_0006.scumm, global/script_0007.scumm", text)
+
+    def test_against_a_git_ref(self):
+        import shutil
+        import subprocess
+        if not shutil.which("git"):
+            self.skipTest("git isn't installed")
+        repo = self.root / "repo"
+        repo.mkdir()
+        git = lambda *a: subprocess.run(["git", "-C", str(repo), *a], check=True, capture_output=True)
+        git("init", "-q")
+        git("config", "user.email", "test@example.com")
+        git("config", "user.name", "test")
+        m = repo / "variables.json"
+        m.write_text(json.dumps({"Globals": {"261": {"Name": "", "Note": "busy?"}}, "Bits": {}}), encoding="utf-8")
+        git("add", ".")
+        git("commit", "-q", "-m", "base")
+        m.write_text(json.dumps({"Globals": {"261": {"Name": "cutscene-depth", "Note": "global/script_0006.scumm:4"},
+                                             "498": {"Name": "", "Note": "unchanged later"}}, "Bits": {}}), encoding="utf-8")
+        code, text = run("--root", str(self.root), "review", "--map", str(m))
+        self.assertEqual(code, 0, text)
+        self.assertIn("var261  cutscene-depth  (new)", text)
+        self.assertIn("var498  unnamed", text)
+        self.assertIn("2 entries", text)
 
 
 if __name__ == "__main__":

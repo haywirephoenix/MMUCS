@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -42,8 +43,9 @@ Name variables:
   var V                         Evidence for one variable: writes, comparisons, commands, rooms
   name V NAME --note TEXT       Name a variable in variables.json (checks the name first)
   note V TEXT                   Track a variable in variables.json without naming it
+  review [REF] [--all]          Check changed names: their notes' citations, against the evidence
 
-V is a number (266), varN, bitN or a name (cursor-object). The export is found from --root,
+V is a number (266), varN, bitN or a name (item-icon). The export is found from --root,
 the MSCRIPTS_ROOT variable, the folder saved with `use`, or the current folder and its parents.
 """
 
@@ -299,6 +301,7 @@ def collect(export: Export, kind: str, n: int) -> Uses:
     a = alias_pattern(aliases)
     var = re.compile(a)
     write = re.compile(rf"^{a}((?:\[[^\]]*\])*)\s*=(?!=)\s*(.*)$")
+    incdec = re.compile(rf"^{a}((?:\[[^\]]*\])*)\s*(\+\+|--)$")  # the decompiler's var++ / var--
     cmp_after = re.compile(rf"{a}\s*(==|!=|<=|>=|<|>)\s*(-?\w[\w-]*)")
     cmp_before = re.compile(rf"(-?\w[\w-]*)\s*(==|!=|<=|>=|<|>)\s*{a}")
     in_list = re.compile(rf"{a}\s+in\s+\[([^\]]*)\]")
@@ -316,6 +319,10 @@ def collect(export: Export, kind: str, n: int) -> Uses:
             u.scripts.add(s.rel)
             u.rooms[s.room or "global"] += 1
             u.lines.append((s, line))
+            m = incdec.match(t)
+            if m:
+                u.writes["+ 1 (increment)" if m.group(2) == "++" else "- 1 (decrement)"].append((s, line))
+                continue
             m = write.match(t)
             if m:
                 rhs = m.group(2).strip()
@@ -492,7 +499,7 @@ def cmd_vars(args, export: Export):
                 refs[n] += 1
                 scripts[n].add(s.rel)
                 rooms[n].add(s.room or "global")
-                if m.start() == 0 and n not in seen_here and re.match(r"(?:\[[^\]]*\])*\s*=(?!=)", t[m.end():]):
+                if m.start() == 0 and n not in seen_here and re.match(r"(?:\[[^\]]*\])*\s*(?:=(?!=)|(?:\+\+|--)$)", t[m.end():]):
                     writes[n] += 1
                 seen_here.add(n)
     rows = []
@@ -611,7 +618,7 @@ def save_map(path: Path, doc: dict):
 
 def check_name(names: Names, doc: dict, kind: str, n: int, name: str) -> Optional[str]:
     if not VALID_NAME.match(name):
-        return "names are lower-case kebab-case, each part starting with a letter (e.g. cursor-object, timer2)"
+        return "names are lower-case kebab-case, each part starting with a letter (e.g. item-icon, timer2)"
     if RESERVED.match(name):
         return f"'{name}' would read as a numbered variable"
     if name in KEYWORDS:
@@ -671,6 +678,206 @@ def cmd_note(args, export: Export):
     return 0
 
 
+
+# ── Review ──────────────────────────────────────────────────────────────────────────────────────
+
+# A citation in a note: global/script_0039.scumm:61, rooms/009_cannon/local_2006.scumm:44, or :109-110.
+SCRIPT_PATH = re.compile(r"(?:scripts/)?((?:global|rooms)/[\w./-]+?\.scumm)")
+CITATION = re.compile(r"(?:(?:scripts/)?((?:global|rooms)/[\w./-]+?\.scumm)|(?<![\w/:]))"
+                      r":(\d+)(?:-(\d+))?((?:/\d+)*)(?![\w])")
+
+
+def map_at_ref(path: Path, ref: str) -> Optional[dict]:
+    """The map file as it was at git REF, or None when it didn't exist there."""
+    try:
+        top = subprocess.run(["git", "-C", str(path.parent), "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        raise SystemExit(f"mscripts: {path} isn't in a git repository; use --all to review every entry")
+    rel = path.resolve().relative_to(Path(top).resolve()).as_posix()
+    r = subprocess.run(["git", "-C", top, "show", f"{ref}:{rel}"], capture_output=True, encoding="utf-8")
+    if r.returncode != 0:
+        if "exists on disk, but not in" in r.stderr or "does not exist in" in r.stderr:
+            return None
+        raise SystemExit(f"mscripts: git couldn't read {rel} at {ref}: {r.stderr.strip()}")
+    return json.loads(r.stdout)
+
+
+def closed_before(text: str, pos: int, end: int) -> bool:
+    """True when pos is inside a parenthesis that closes before end."""
+    depth = 0
+    for i in range(pos - 1, -1, -1):  # the innermost unmatched '(' before pos
+        if text[i] == ")":
+            depth += 1
+        elif text[i] == "(":
+            if depth == 0:
+                break
+            depth -= 1
+    else:
+        return False  # not inside a parenthesis
+    depth = 0
+    for j in range(i + 1, len(text)):
+        if text[j] == "(":
+            depth += 1
+        elif text[j] == ")":
+            if depth == 0:
+                return j < end
+            depth -= 1
+    return False
+
+
+def citations(note: str) -> List[Tuple[str, str, List[Tuple[int, int]], int]]:
+    """The path:line citations in a note, as (text, script, [(first, last)], position).
+
+    Understands path:61, path:109-110 and path:5/58/124, and a bare :112 after one, meaning the
+    same script again."""
+    found, last = [], None
+    # A script named without a line ("global/script_0040.scumm (…): = local1 at :118") sets the
+    # script a bare :N refers to, as much as one cited with a line does.
+    named = [(m.start(), m.group(1)) for m in SCRIPT_PATH.finditer(note)]
+    for m in CITATION.finditer(note):
+        rel = m.group(1)
+        before = [(p, r) for p, r in named if p < m.start()]
+        if rel is None and before:
+            # Skip scripts named inside a parenthesis that closed before this citation, as a reader
+            # would: "script_0040.scumm (… script_0001.scumm:193): … at :118" means script 40.
+            # A bare citation in parentheses itself, "(… :124-125)", continues the latest script named.
+            in_parens = closed_before(note, m.start(), len(note) + 1)
+            open_here = [r for p, r in before if in_parens or not closed_before(note, p, m.start())]
+            last = (open_here or [r for _, r in before])[-1]
+        if rel is None:
+            if last is None:
+                continue  # a bare :N with no script before it (a time, a ratio)
+            rel = last
+        last = rel
+        spans = [(int(m.group(2)), int(m.group(3) or m.group(2)))]
+        spans += [(int(x), int(x)) for x in re.findall(r"\d+", m.group(4) or "")]
+        found.append((m.group(0).strip(), rel, spans, m.start()))
+    return found
+
+
+def check_citations(export: Export, note: str, aliases: List[str]) -> List[Tuple[str, str]]:
+    """Each citation in a note, as (status, text). "wrong": the script or line doesn't exist.
+    "check": the line exists but doesn't mention the variable, which may be fine (it shows context)
+    but is worth reading. "ok": it mentions the variable, or another variable the note cites it for."""
+    by_rel = {sc.rel: sc for sc in export.scripts}
+    own = re.compile(alias_pattern(aliases))
+    results = []
+    for text, rel, spans, pos in citations(note):
+        sc = by_rel.get(rel)
+        if sc is None:
+            results.append(("wrong", f"{text}  no such script ({rel})"))
+            continue
+        lines = {l.no: l for l in sc.lines}
+        span = [lines[i] for a, b in spans for i in range(a, b + 1) if i in lines]
+        missing = [a for a, b in spans if not any(i in lines for i in range(a, b + 1))]
+        if missing:
+            have = f"lines {sc.lines[0].no}-{sc.lines[-1].no}" if sc.lines else "no lines"
+            results.append(("wrong", f"{text}  {rel} has no line {missing[0]} (its code is {have})"))
+            continue
+        if any(own.search(l.text) for l in span):
+            results.append(("ok", f"{text}"))
+            continue
+        # Cited for another variable the note names just before it ("var595 (= 330, path:line)").
+        before = note[max(0, pos - 80):pos]
+        others = [w for w in WORD.findall(before) if export.names.number_of_word(w) and w not in aliases]
+        if others and any(re.search(alias_pattern([o]), l.text) for o in others for l in span):
+            results.append(("ok", f"{text}  (about {others[-1]})"))
+            continue
+        results.append(("check", f"{text}  doesn't mention it: {span[0].text.strip()[:70]}"))
+    return results
+
+
+def evidence_lines(u: "Uses") -> List[str]:
+    """The evidence in a few lines, to read beside a note's claims."""
+    def top(counter: Counter, k: int = 4) -> str:
+        return ", ".join(f"{key} x{c}" for key, c in counter.most_common(k))
+    out_lines = [f"{u.refs} refs in {len(u.scripts)} scripts, {len([r for r in u.rooms if r != 'global'])} rooms"]
+    writes = Counter({form: len(p) for form, p in u.writes.items()})
+    if u.constants:
+        values = sorted(u.constants)
+        label = f"= {values[0]}" if len(values) == 1 else f"= constants {values[0]}..{values[-1]} ({len(values)} values)"
+        writes[label] = sum(len(p) for p in u.constants.values())
+    writers = sorted({sc.rel for p in list(u.writes.values()) + list(u.constants.values()) for sc, _ in p})
+    if writes:
+        out_lines.append(f"writes: {top(writes, 3)}")
+        out_lines.append(f"written in: {', '.join(writers)}" if len(writers) <= 4 else f"written in {len(writers)} scripts")
+    else:
+        out_lines.append("never written by a script")
+    for title, counter in (("compared", u.compares), ("commands", u.commands), ("calls", u.calls), ("copied into", u.copied_into)):
+        if counter:
+            out_lines.append(f"{title}: {top(counter)}")
+    if u.tests:
+        out_lines.append(f"tested true/false x{len(u.tests)}")
+    return out_lines
+
+
+def cmd_review(args, export: Export):
+    names = export.names
+    path = export.names.map_path
+    if path is None or not path.exists():
+        raise SystemExit("mscripts: no variables.json to review (pass --map FILE)")
+    doc = load_map(path)
+    base = {"Globals": {}, "Bits": {}} if args.all else (map_at_ref(path, args.ref) or {"Globals": {}, "Bits": {}})
+    base.setdefault("Globals", {})
+    base.setdefault("Bits", {})
+
+    entries = []
+    for section, kind in (("Globals", "var"), ("Bits", "bit")):
+        for key, e in doc[section].items():
+            if not key.isdigit():
+                continue
+            e = e or {}
+            old = base[section].get(key)
+            if not args.all and old == e:
+                continue
+            entries.append((kind, int(key), e, old or {}))
+    if not entries:
+        out(f"No variable names changed since {args.ref}." if not args.all else "The map is empty.")
+        return 0
+
+    problems = 0
+    no_citations = []
+    totals = Counter()
+    for kind, n, e, old in sorted(entries, key=lambda t: (t[0], t[1])):
+        name, old_name = e.get("Name") or "", old.get("Name") or ""
+        if name and old_name and name != old_name:
+            change = f"{old_name} -> {name}  (renamed)"
+        elif name and not old_name:
+            change = f"{name}  (new)"
+        elif name:
+            change = f"{name}  (note changed)"
+        else:
+            change = "unnamed" + ("  (name removed: " + old_name + ")" if old_name else "")
+        out(f"{kind}{n}  {change}")
+        note = e.get("Note") or ""
+        out(f"  note: {note}" if note else "  note: (none)")
+        issue = check_name(names, doc, kind, n, name) if name else None
+        if issue:
+            out(f"  ! name: {issue}")
+            problems += 1
+        aliases = sorted(set(names.aliases(kind, n) + [x for x in (name, old_name) if x]))
+        for line in evidence_lines(collect(export, kind, n)):
+            out(f"  | {line}")
+        cites = check_citations(export, note, aliases)
+        if not cites:
+            no_citations.append(f"{kind}{n}")
+            out("  ? cites no path:line")
+        for status, text in cites:
+            totals[status] += 1
+            if status == "wrong":
+                problems += 1
+            if status != "ok" or args.verbose:
+                out(f"  {'ok   ' if status == 'ok' else 'WRONG' if status == 'wrong' else 'check'} {text}")
+        out()
+
+    out(f"{len(entries)} entries; citations: {totals['ok']} ok, {totals['check']} to check, {totals['wrong']} wrong"
+        + (f"; no citations: {', '.join(no_citations)}" if no_citations else ""))
+    out("ok: mentions the variable. check: exists but doesn't mention it (may be context). wrong: no such script or line.")
+    if not names.has_index:
+        out("This export has no variables.index.json, so engine-variable checks were skipped. Re-export from a current MMUCS.")
+    return 1 if problems else 0
+
 # ── Command line ────────────────────────────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
@@ -728,6 +935,11 @@ def build_parser() -> argparse.ArgumentParser:
         where = s.add_mutually_exclusive_group()
         where.add_argument("--map", help="variables.json to change (default: the repo's)")
         where.add_argument("--local", action="store_true", help="change the app data copy MMUCS reads on top")
+    s = sub.add_parser("review", help="check changed names against the evidence")
+    s.add_argument("ref", nargs="?", default="HEAD", help="git ref to compare variables.json with (default HEAD)")
+    s.add_argument("--all", action="store_true", help="review every entry, not just changed ones")
+    s.add_argument("-v", "--verbose", action="store_true", help="list good citations too")
+    s.add_argument("--map", help="variables.json to review (default: the repo's)")
     return p
 
 
@@ -752,7 +964,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     export = Export(scripts_root, map_path)
     handler = {
         "rooms": cmd_rooms, "script": cmd_script, "search": cmd_search, "calls": cmd_calls,
-        "vars": cmd_vars, "var": cmd_var, "name": cmd_name, "note": cmd_note,
+        "vars": cmd_vars, "var": cmd_var, "name": cmd_name, "note": cmd_note, "review": cmd_review,
     }[args.command]
     try:
         return handler(args, export)

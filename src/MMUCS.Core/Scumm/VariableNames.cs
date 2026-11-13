@@ -51,7 +51,7 @@ public static class VariableNames
         [175] = "saveload-page", [176] = "object-label-flag",
     };
 
-    /// <summary>A variable name: lower-case kebab-case, each part starting with a letter (e.g. cursor-object, timer2).</summary>
+    /// <summary>A variable name: lower-case kebab-case, each part starting with a letter (e.g. item-icon, timer2).</summary>
     private static readonly Regex ValidName = new(@"^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*$", RegexOptions.Compiled);
     /// <summary>Names that would read as a numbered variable.</summary>
     private static readonly Regex Reserved = new(@"^(var|local|bit)\d+$", RegexOptions.Compiled);

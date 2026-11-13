@@ -41,8 +41,9 @@ It also finds the export from `--root DIR`, the `MSCRIPTS_ROOT` variable, or the
 | `var V` | One variable's evidence (see below). `--top N` rows per section, `--examples N` |
 | `name V NAME --note TEXT` | Checks the name and writes it to `variables.json`. `--local` writes the app data copy instead, `--map FILE` another file. `""` as the name clears it |
 | `note V TEXT` | Tracks a variable with a note, without naming it |
+| `review [REF]` | Checks the entries changed in `variables.json` since git `REF` (default `HEAD`): their citations, names and evidence. `--all` checks every entry, `-v` lists good citations too |
 
-`V` is a number (`266`), `varN`, `bitN` or a name (`cursor-object`). Results are written as `path:line`, relative to `scripts/`, so they open in an editor.
+`V` is a number (`266`), `varN`, `bitN` or a name (`item-icon`). Results are written as `path:line`, relative to `scripts/`, so they open in an editor.
 
 ### Status
 
@@ -88,6 +89,27 @@ mscripts name 630 some-name --note "how you know"
 `name` checks that the name is lower-case kebab-case with each part starting with a letter, isn't `varN`/`localN`/`bitN` or a decompiler keyword, isn't an engine variable's number, and isn't already used. It needs a note, or keeps the one the entry already has. New names resolve in mscripts straight away. To see them in the exported files and the Script viewer, rebuild MMUCS and export again.
 
 To try names in MMUCS without changing the repo, use `--local`: MMUCS reads `%LocalAppData%/MMUCS/variables.json` (`~/.local/share/MMUCS` on Linux) on top of the built-in file when it starts.
+
+## Reviewing names
+
+Before committing new names, check them:
+
+```bash
+mscripts review              # entries changed since the last commit
+mscripts review origin/main  # or since another ref
+```
+
+For each changed entry, `review` shows the old and new name, the note, and the variable's evidence in a few lines (writes, the scripts that write it, comparisons, commands), so the note's claims can be read against it. It also checks every citation in the note:
+
+| Result | Meaning |
+|---|---|
+| ok | The line exists and mentions the variable, or another variable the note cites it for |
+| check | The line exists but doesn't mention the variable. It may show context (where a script is started), so read it |
+| WRONG | The script or the line doesn't exist |
+
+Citations are written `global/script_0039.scumm:61`, `:109-110` for a range or `:5/58/124` for several lines. A bare `:112` means the script cited just before. A script named without a line also counts, except inside a parenthesis that has closed, so `script_0040.scumm (… script_0001.scumm:193): … at :118` means script 40. Write the script in full when it could be read either way.
+
+`review` also flags names that break the rules, and entries whose notes cite nothing. It exits with 1 when anything is wrong.
 
 ## Tests
 

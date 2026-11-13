@@ -1,72 +1,72 @@
 {
   "Globals": {
     "200": {
-      "Name": "",
-      "Note": ""
+      "Name": "sentence-object",
+      "Note": "First object of the sentence being run. Only written by the sentence script, global/script_0040.scumm (sentence-script = 40, global/script_0001.scumm:193): = local1 at :118 and :125 just before 'start-object local1 verb local0(local2, ...)' or the actor's script, and = the object at :25/:31 for verb 11. Object scripts pass it on: 'do-sentence 61 var201 with var200' (rooms/016_chkn-int/objects/0452_pie-pan-object.scumm:9)."
     },
     "201": {
-      "Name": "",
-      "Note": ""
+      "Name": "sentence-with-object",
+      "Note": "Second ('with') object of the sentence being run, 0 when there is none. Written only in global/script_0040.scumm:119 and :126 (= local2) next to sentence-object. Object verb scripts test it (323x, e.g. rooms/016_chkn-int/objects/0452_pie-pan-object.scumm:7 'if (var201)'), check its class (151/157, e.g. rooms/031_snake/objects/0721_reservation-slip.scumm:9) and chain on it (161 do-sentence uses)."
     },
     "208": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-choice-verb",
+      "Note": "Verb id of the dialogue choice being laid out. Each choice in a dialogue script sets it to 500 + n - 1 and builds that verb: 'verb var208 at var594,var256', 'verb var208 name \"...\"', 'verb var208 on', then records it in var254 (global/script_0142.scumm:113-117, :399-403). Dialogue verbs are 500-539 (global/script_0005.scumm:13-19). Also used as a plain loop counter over 500-539 to turn them off (global/script_0005.scumm:5-8, global/script_0013.scumm:13-16)."
     },
     "234": {
       "Name": "",
       "Note": ""
     },
     "254": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-choice-verbs",
+      "Note": "Array of the dialogue choice verbs shown, in order: cleared for 0-50 at the start of each menu (global/script_0142.scumm:71-74) and filled with 'var254[var268] = var208' as each choice is laid out (:117, :403)."
     },
     "255": {
       "Name": "",
       "Note": ""
     },
     "256": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-choice-y",
+      "Note": "Y position for the next dialogue choice. Reset to var595 (= 330, global/script_0001.scumm:70) per menu (global/script_0142.scumm:86); each choice is placed with 'verb var208 at var594,var256' and it then grows by var596 (= 24, the line height, global/script_0001.scumm:71) for every line the choice wraps to (global/script_0142.scumm:114, :119-122)."
     },
     "261": {
       "Name": "cutscene-depth",
       "Note": "Cutscene nesting depth: global script 1 sets cutscene-start-script = 6 and cutscene-end-script = 7; the engine runs 6 at each cut-scene (var261 + 1, cursor and userput soft-off) and 7 at its end (var261 - 1, back on). Scripts wait while it is non-zero, e.g. Wally in 009_cannon local_2006."
     },
     "266": {
-      "Name": "cursor-object",
-      "Note": "The inventory object on the cursor: set to object ids (117-274) in object scripts, used with 'cursor image', 'load-object' and 'class-of'."
+      "Name": "item-icon",
+      "Note": "The inventory icon object for an item: each item's verb 91 sets it to its icon, e.g. rooms/009_cannon/objects/0279_ramrod-object.scumm:36 = 122 (0122_ramrod-icon-object) and rooms/001_logo/objects/0100_string-balloon-object.scumm:109/111 = 120 or 119 by class. Global script 2 runs verb 91 just after pick-up-object and loads the icon (global/script_0002.scumm:67-71); script 36 runs it when an item is selected and sets cursor-image (var290) from it (global/script_0036.scumm:10-12). The reverse of icon-item (var300)."
     },
     "268": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-choice-count",
+      "Note": "Number of dialogue choices laid out so far in the current menu, and the next index into dialog-choice-verbs (var254): reset to 0 per menu (global/script_0142.scumm:87), used as 'var254[var268] = var208' and incremented after each choice (:117, :123, :403, :409)."
     },
     "290": {
-      "Name": "",
-      "Note": ""
+      "Name": "cursor-image",
+      "Note": "The object whose image is the mouse cursor. Set to system-cursor-icon 105 when nothing is held (global/script_0011.scumm:25-28), system-wait-icon 257 on room exit (global/script_0012.scumm:7-10), an inventory icon when one is picked up (global/script_0035.scumm:33, global/script_0036.scumm:12 = cursor-object) or a door's arrow icon var301 (global/script_0039.scumm:96-99). 82 'cursor image var290' commands; 'var290 != 105' (221x) tests whether something is held."
     },
     "291": {
-      "Name": "",
-      "Note": ""
+      "Name": "cursor-item",
+      "Note": "The inventory item the cursor stands for, as opposed to its icon (cursor-image). Set alongside var290: = icon-item var300 (global/script_0035.scumm:34), = var216 (global/script_0036.scumm:13), reset to 105 when the cursor empties (global/script_0011.scumm:29). Used as the held item in 'do-sentence 5 var291 with var333' (global/script_0034.scumm:9, :86). Copied into var292 before every change."
     },
     "292": {
-      "Name": "",
-      "Note": ""
+      "Name": "previous-cursor-item",
+      "Note": "Copy of cursor-item (var291) taken just before the cursor changes: all 223 writes are 'var292 = var291' right before var291 is reassigned (e.g. global/script_0011.scumm:26, global/script_0012.scumm:8, global/script_0039.scumm:97). No script reads it."
     },
     "300": {
-      "Name": "",
-      "Note": ""
+      "Name": "icon-item",
+      "Note": "The world object an inventory icon stands for. Each icon in room 3 sets it in verb 93, e.g. rooms/003_icons/objects/0122_ramrod-icon-object.scumm:6 var300 = 279 (0279_ramrod-object); 169 such writes, 134 values 100-1340. Callers run 'start-object rec ICON verb 93' then read it: global/script_0035.scumm:29-35 (cursor-item = var300), global/script_0034.scumm:84-86, global/script_0039.scumm:10-16 (owner-of(var300) == ego), :161 (its name in the sentence line)."
     },
     "301": {
-      "Name": "",
-      "Note": ""
+      "Name": "exit-cursor-icon",
+      "Note": "The arrow icon the cursor turns into over an exit. Door objects set it in verb 94, e.g. rooms/009_cannon/objects/0278_cannon-waterline-door.scumm:10 = 106 (west-arrow-icon); values are 106-113 (the eight direction arrows in room 3) and 245/246 (page arrows). global/script_0039.scumm:52-55 sets it for class 156 objects (falling back to 109 south-arrow) and :96-100 makes it the cursor-image."
     },
     "312": {
-      "Name": "",
-      "Note": ""
+      "Name": "interface-mode",
+      "Note": "Which input mode the interface is in; the click handlers branch on it (global/script_0033.scumm:4-32, global/script_0034.scumm:5/58/124/127, global/script_0035.scumm:4-22). 1 = normal room play (global/script_0001.scumm:195, global/script_0045.scumm:10); 2 = action popup over the room (global/script_0042.scumm:32, started from a room click at global/script_0034.scumm:46); 3 = inventory open (global/script_0046.scumm:11 with bit9); 4 = action popup over the inventory (global/script_0043.scumm:30, started at global/script_0034.scumm:108); 5 = a dialogue menu (rooms/070_famcrypt/local_2003.scumm:68, rooms/081_gondola/local_2005.scumm:33)."
     },
     "315": {
-      "Name": "",
-      "Note": ""
+      "Name": "inventory-page-start",
+      "Note": "Index of the first inventory item on the current inventory page; pages hold (4 + 1) * (2 + 1) = 15 items. global/script_0034.scumm:64-68 adds 15 on the next-page arrow (capped at inventory-count), :74-77 subtracts 15 on the previous one (not below 1). global/script_0067.scumm:4-9 moves it to the last page. Reset to 1 when it passes inventory-count(ego) (global/script_0114.scumm:114-115, 144 'var315 > inventory-count' checks)."
     },
     "329": {
       "Name": "",
@@ -81,32 +81,32 @@
       "Note": ""
     },
     "602": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-lines-used",
+      "Note": "Text lines used by the dialogue choices laid out so far. Reset to 0 per menu (global/script_0142.scumm:89); each choice adds its wrapped line count var600 (worked out from string-width at :96-103) at :104, and past 6 lines dialog-more-below (var603) is set and no more choices are shown (:109-112)."
     },
     "603": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-more-below",
+      "Note": "Set when the dialogue menu has more choices than fit: global/script_0142.scumm:109-110 sets it once dialog-lines-used passes 6, and later choices are skipped while it is set (:112). global/script_0014.scumm:10-15 shows the dialog-increment-icon (189) only while it is set. Reset to 0 at each menu (global/script_0142.scumm:61, :91, :422)."
     },
     "604": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-scroll",
+      "Note": "How many dialogue choice lines are scrolled off the top of the menu. Reset to 0 per dialogue (global/script_0142.scumm:60). Clicking dialog-decrement-icon 188 subtracts 1 and dialog-increment-icon 189 adds 1 (global/script_0013.scumm:33-41); global/script_0014.scumm:4-9 shows the up arrow only while it is > 0. While laying out, choices are skipped while var605 is below it (global/script_0142.scumm:93-94), and after scrolling down it grows by a skipped choice's extra wrapped lines (:124-125)."
     },
     "605": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-lines-skipped",
+      "Note": "Dialogue choice lines skipped so far while laying out a scrolled menu: reset to 0 per menu (global/script_0142.scumm:90), and each choice is skipped and counted with 'var605 = var605 + 1' while dialog-scroll (var604) is greater (:93-94, :130-131)."
     },
     "607": {
-      "Name": "",
-      "Note": ""
+      "Name": "dialog-scrolled-down",
+      "Note": "Set to 1 when the player clicks the dialogue down arrow (dialog-increment-icon 189, global/script_0013.scumm:38-40). For the next layout pass, a skipped choice that wraps over several lines adds its extra lines to dialog-scroll ('else if (var607 == 1) var604 = var604 + (var600 - 1)', global/script_0142.scumm:124-125), so scrolling moves by whole choices; it is cleared after that pass (:417-419)."
     },
     "609": {
       "Name": "",
-      "Note": ""
+      "Note": "Unconfirmed: set to 1 when the first visible dialogue choice is laid out, and var608 then keeps that choice's wrapped line count (global/script_0142.scumm:105-108); cleared when the player scrolls up (global/script_0013.scumm:35-36). Nothing reads var608, so what the pair is for is unclear."
     },
     "611": {
-      "Name": "",
-      "Note": ""
+      "Name": "guybrush-voice-pitch",
+      "Note": "Speech frequency of actor 1 (Guybrush): every write is followed by 'actor 1 frequency var611' (371 uses). Normal is 256 (global/script_0001.scumm:51, global/script_0090.scumm:12). The helium balloon raises it to 256 + 340 / 2 (global/script_0089.scumm:86, then \"That's made my voice sound funny.\" at :92) and script 90 slides it back to 256 (global/script_0090.scumm:6-12). The drowsy drink lowers it to 256 - 30/50/100 (rooms/061_hotelbar/local_2025.scumm:94-105)."
     },
     "624": {
       "Name": "",
@@ -117,12 +117,12 @@
       "Note": ""
     },
     "630": {
-      "Name": "",
-      "Note": ""
+      "Name": "sentence-verb-text",
+      "Note": "String array holding the verb word of the action sentence on screen. global/script_0039.scumm:166/169 sets it to \"/PU_M023/give\" or \"/PU_M004/use\" (var631 gets \"to\"/\"with\") and :176/181 blast-text it as \"%s{var630} %s{var635} %s{var631} %n{object}\". Object scripts set their own verb word in verb 218, e.g. rooms/009_cannon/objects/0281_gaff-object.scumm:48 \"/PU_M005/eat\" or :50 \"talk to\"."
     },
     "643": {
       "Name": "",
-      "Note": ""
+      "Note": "Unconfirmed: looks like an id for Guybrush's current talk/stand animation set. Scripts only ever write it (381 refs, all writes), so if anything reads it, it is the engine. It is set to 47 right after 'do-animation 1 3' when Guybrush's normal look is restored (global/script_0001.scumm:114-115, global/script_0089.scumm:76-77), and global/script_0107.scumm:4-38 and global/script_0109.scumm:8-29 pair each 'actor 1 talk-animation A,B' with one value: (4,5) 47, (15,14) 48, (18,17) 49, (20,19) 50, (24,23) 51, (26,25) 52, (29,28) 53. It is 4 when Guybrush is given a special costume (global/script_0114.scumm:16-18, rooms/071_crakwall/local_2014.scumm:8-10)."
     }
   },
   "Bits": {}
