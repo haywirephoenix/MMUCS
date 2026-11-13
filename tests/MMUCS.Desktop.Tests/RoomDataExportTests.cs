@@ -118,6 +118,48 @@ public class RoomActorsScanTests
         Assert.Equal(RoomActors.ClipByBox, Assert.Single(RoomActors.ScanScript(s255, 10)).Clip);
     }
 
+    private static readonly byte[] FollowBoxes = { 0xAC, 0x77 };
+
+    [Fact]
+    public void Always_zclip_minus_one_is_by_box_as_the_engine_keeps_the_clip_in_a_byte()
+    {
+        // logo's actor 11, McMutton: always-zclip -1
+        var s = Script(3, SetActor, 35, SetCostume, -1, AlwaysZClip, 3, 320, 240, 10, Put);
+        Assert.Equal(RoomActors.ClipByBox, Assert.Single(RoomActors.ScanScript(s, 10)).Clip);
+    }
+
+    [Fact]
+    public void Follow_boxes_after_the_placement_does_not_undo_the_clip_it_was_put_with()
+    {
+        // lc-deck's captain: ignore-boxes, always-zclip 5, put-actor 7 at 144,387 … follow-boxes once the scene is done
+        var s = Script(7, SetActor, 191, SetCostume, IgnoreBoxes, 5, AlwaysZClip, 7, 144, 387, 35, Put, 7, SetActor, FollowBoxes);
+        var found = Assert.Single(RoomActors.ScanScript(s, 35));
+        Assert.Equal((5, true, false), (found.Clip, found.IgnoreBoxes, found.FollowsAtPut));
+        // A close-up put while it ignores the boxes keeps box 0 (its mask) though follow-boxes comes later.
+        var closeUp = Script(1, SetActor, 173, SetCostume, IgnoreBoxes, 1, 0, 0, 31, Put, 1, SetActor, FollowBoxes);
+        var c = Assert.Single(RoomActors.ScanScript(closeUp, 31));
+        Assert.Equal((RoomActors.ClipByBox, true, false), (c.Clip, c.IgnoreBoxes, c.FollowsAtPut));
+    }
+
+    [Fact]
+    public void Only_a_follow_boxes_or_default_before_the_put_says_the_engine_moves_it_into_a_box()
+    {
+        var follows = Script(1, SetActor, 110, SetCostume, FollowBoxes, 1, 478, 455, 21, Put);
+        Assert.True(Assert.Single(RoomActors.ScanScript(follows, 21)).FollowsAtPut);
+        // Nothing said here: a room's setup script may have set ignore-boxes (town's Kenny, put at 0,0 by a cutscene).
+        var unknown = Script(4, SetActor, 84, SetCostume, 4, 0, 0, 15, Put);
+        Assert.False(Assert.Single(RoomActors.ScanScript(unknown, 15)).FollowsAtPut);
+    }
+
+    [Fact]
+    public void A_costume_set_on_one_branch_gets_the_clip_set_after_both_branches()
+    {
+        // barber: if (…) costume 114 else costume 112; always-zclip 3; put-actor 4 at 196,329
+        var s = Script(4, SetActor, 114, SetCostume, Jump(0x66, 15), 112, SetCostume, 3, AlwaysZClip, 4, 196, 329, 21, Put);
+        var found = RoomActors.ScanScript(s, 21);
+        Assert.Equal(new[] { (112, 3), (114, 3) }, found.Select(f => (f.Costume, f.Clip)).OrderBy(x => x).ToArray());
+    }
+
     [Fact]
     public void Constant_expressions_nest()
     {
@@ -239,5 +281,54 @@ public class ReviewMarksTests : IDisposable
         var target = Assert.Single(mark.Targets);
         Assert.Equal(("object", "fortbase-sign", 8), (target.Kind, target.Object, target.Snapshot.X));
         Assert.Null(mark.LegacyKind);
+    }
+}
+
+/// <summary>Where the engine puts an actor that follows the boxes: ScummVM's Actor::adjustXYToBeInBox.</summary>
+public class PutInBoxTests
+{
+    private static Walkbox Box(int index, int left, int top, int right, int bottom, uint mask, uint flags = 0) =>
+        new(index, new(left, top), new(right, top), new(right, bottom), new(left, bottom), mask, flags, 0, 255);
+
+    private static readonly Walkbox Placeholder = new(0, new(-32000, -32000), new(-32000, -32000), new(-32000, -32000), new(-32000, -32000), 0, 0, 0, 255);
+
+    [Fact]
+    public void Of_two_boxes_holding_the_point_the_last_one_wins()
+    {
+        // cannon: boxes 1 (mask 1) and 11 (mask 0) both hold 116,424; the engine searches from the last box down
+        var boxes = new List<Walkbox> { Placeholder, Box(1, 100, 400, 200, 440, 1), Box(2, 110, 410, 130, 430, 0) };
+        Assert.Equal((116, 424, 2), RoomActors.PutInBox(boxes, 116, 424, isPlayer: false));
+    }
+
+    [Fact]
+    public void Invisible_boxes_are_skipped_unless_player_only_for_another_actor()
+    {
+        var invisible = new List<Walkbox> { Placeholder, Box(1, 100, 400, 200, 440, 1), Box(2, 110, 410, 130, 430, 5, 0x80) };
+        Assert.Equal(1, RoomActors.PutInBox(invisible, 116, 424, isPlayer: true).Box);
+        var playerOnly = new List<Walkbox> { Placeholder, Box(1, 100, 400, 200, 440, 1), Box(2, 110, 410, 130, 430, 5, 0xA0) };
+        Assert.Equal(2, RoomActors.PutInBox(playerOnly, 116, 424, isPlayer: false).Box);
+        Assert.Equal(1, RoomActors.PutInBox(playerOnly, 116, 424, isPlayer: true).Box);
+    }
+
+    [Fact]
+    public void A_point_outside_every_box_moves_to_the_closest_edge()
+    {
+        var boxes = new List<Walkbox> { Placeholder, Box(1, 100, 400, 200, 440, 1), Box(2, 300, 400, 400, 440, 2) };
+        Assert.Equal((150, 400, 1), RoomActors.PutInBox(boxes, 150, 380, isPlayer: false));
+        Assert.Equal((300, 420, 2), RoomActors.PutInBox(boxes, 280, 420, isPlayer: false));
+    }
+
+    [Fact]
+    public void A_line_box_holds_the_points_on_it()
+    {
+        // town's walk paths: boxes whose corners pair up into a line (912,213 → 932,257)
+        var line = new Walkbox(1, new(912, 213), new(912, 213), new(932, 257), new(932, 257), 1, 2, 0, 255);
+        Assert.Equal((925, 241, 1), RoomActors.PutInBox(new List<Walkbox> { Placeholder, line }, 925, 241, isPlayer: false));
+    }
+
+    [Fact]
+    public void With_no_boxes_the_actor_stays_where_it_is_put()
+    {
+        Assert.Equal((5, 6, 0), RoomActors.PutInBox(new List<Walkbox> { Placeholder }, 5, 6, isPlayer: false));
     }
 }
