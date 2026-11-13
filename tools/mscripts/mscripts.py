@@ -203,9 +203,9 @@ def room_of(rel: str) -> Optional[str]:
     return parts[1] if parts[0] == "rooms" and len(parts) > 2 else None
 
 
-WRITE_AFTER = re.compile(r"(?:\[[^\]]*\])*\s*(?:=(?!=)|(?:\+\+|--)$)")
+WRITE_AFTER = re.compile(r"(?:\[(?:[^\[\]]|\[[^\]]*\])*\])*\s*(?:=(?!=)|(?:\+\+|--)$)")
 INDEX_FILE = ".mscripts-index.json"
-INDEX_VERSION = 1
+INDEX_VERSION = 2
 
 
 class RefIndex:
@@ -422,13 +422,13 @@ def collect(export: Export, kind: str, n: int) -> Uses:
     aliases = names.aliases(kind, n)
     a = alias_pattern(aliases)
     var = re.compile(a)
-    write = re.compile(rf"^{a}((?:\[[^\]]*\])*)\s*=(?!=)\s*(.*)$")
-    incdec = re.compile(rf"^{a}((?:\[[^\]]*\])*)\s*(\+\+|--)$")  # the decompiler's var++ / var--
+    write = re.compile(rf"^{a}((?:\[(?:[^\[\]]|\[[^\]]*\])*\])*)\s*=(?!=)\s*(.*)$")
+    incdec = re.compile(rf"^{a}((?:\[(?:[^\[\]]|\[[^\]]*\])*\])*)\s*(\+\+|--)$")  # the decompiler's var++ / var--
     cmp_after = re.compile(rf"{a}\s*(==|!=|<=|>=|<|>)\s*(-?\w[\w-]*)")
     cmp_before = re.compile(rf"(-?\w[\w-]*)\s*(==|!=|<=|>=|<|>)\s*{a}")
     in_list = re.compile(rf"{a}\s+in\s+\[([^\]]*)\]")
-    copy = re.compile(rf"^([\w$-]+(?:\[[^\]]*\])*)\s*=\s*{a}$")
-    assign = re.compile(r"^([\w$-]+)(?:\[[^\]]*\])*\s*=(?!=)")
+    copy = re.compile(rf"^([\w$-]+(?:\[(?:[^\[\]]|\[[^\]]*\])*\])*)\s*=\s*{a}$")
+    assign = re.compile(r"^([\w$-]+)(?:\[(?:[^\[\]]|\[[^\]]*\])*\])*\s*=(?!=)")
     flip = {"<": ">", ">": "<", "<=": ">=", ">=": "<="}
     u = Uses()
     for s in export.scripts_using(kind, n):
