@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using MMUCS.Core.Diagnostics;
@@ -69,6 +70,7 @@ public static class ScriptNames
             if (string.IsNullOrEmpty(name)) continue;
             if (!int.TryParse(key, out int no) || no < 0) problems.Add($"global script \"{key}\" isn't a number");
             else if (!ValidName.IsMatch(name)) problems.Add($"global script {no}: \"{name}\" isn't a valid name");
+            else if (maps.Globals.Any(g => g.Key != no && g.Value == name)) problems.Add($"global script {no}: \"{name}\" is already used");
             else maps.Globals[no] = name;
         }
         foreach (var (key, entry) in file.Locals ?? new())
@@ -79,6 +81,8 @@ public static class ScriptNames
             if (parts.Length != 2 || !int.TryParse(parts[0], out int room) || !int.TryParse(parts[1], out int no))
                 problems.Add($"local script \"{key}\" isn't ROOM:NUMBER");
             else if (!ValidName.IsMatch(name)) problems.Add($"local script {key}: \"{name}\" isn't a valid name");
+            // Local scripts are numbered per room, so a name needs to be unique only there.
+            else if (maps.Locals.Any(l => l.Key.Room == room && l.Key.No != no && l.Value == name)) problems.Add($"local script {key}: \"{name}\" is already used in room {room}");
             else maps.Locals[(room, no)] = name;
         }
         foreach (var p in problems) Log.Warn($"{source}: {p}");
