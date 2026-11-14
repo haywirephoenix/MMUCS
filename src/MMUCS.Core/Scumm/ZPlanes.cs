@@ -125,8 +125,9 @@ public static class ZPlanes
 
     /// <summary>
     /// The mask as the engine has it once the room is drawn: the background's planes, with each shown
-    /// object's planes written over its strips (an empty object strip clears the room's there; a plane
-    /// the object doesn't have leaves the room's). Index 0 = plane 1; <paramref name="count"/> planes.
+    /// object's planes ORed onto its strips (<see cref="RoomObject.MaskOr"/>, nearly every COMI object) or
+    /// else written over them (an empty strip then clears the room's there); a plane the object doesn't
+    /// have leaves the room's. Index 0 = plane 1; <paramref name="count"/> planes.
     /// </summary>
     public static ZPlane[] Compose(ZPlane[] room, int count, int width, int height, IEnumerable<(RoomObject Object, ZPlane[] Planes)> objects)
     {
@@ -149,7 +150,10 @@ public static class ZPlanes
                     for (int s = 0; s < src.Strips; s++)
                     {
                         int x = sx + s;
-                        if (x >= 0 && x < strips) dst.Data[y * strips + x] = src.Data[row * src.Strips + s];
+                        if (x < 0 || x >= strips) continue;
+                        byte bits = src.Data[row * src.Strips + s];
+                        if (obj.MaskOr) dst.Data[y * strips + x] |= bits;
+                        else dst.Data[y * strips + x] = bits;
                     }
                 }
             }

@@ -269,12 +269,24 @@ public class ZPlanesTests
     }
 
     [Fact]
-    public void Shown_objects_write_their_planes_over_the_rooms()
+    public void Shown_objects_or_their_planes_onto_the_rooms()
+    {
+        // fortbase's glowing ember: its empty planes mustn't take away the room's masking behind it.
+        var room = new ZPlane(4, 2);
+        room.Data[1 * 4 + 1] = 0xF0;
+        var objPlane = new ZPlane(1, 1);
+        objPlane.Data[0] = 0x0F;
+        var composed = ZPlanes.Compose(new[] { room }, 1, 32, 2, new[] { (new RoomObject { X = 8, Y = 1, Width = 8, Height = 1 }, new[] { objPlane }) });
+        Assert.Equal(0xFF, composed[0].Data[1 * 4 + 1]);
+    }
+
+    [Fact]
+    public void Objects_without_mask_or_write_their_planes_over_the_rooms()
     {
         var room = new ZPlane(4, 2);
         Array.Fill(room.Data, (byte)0xFF);
         var objPlane = new ZPlane(1, 1); // one empty strip: clears the room's mask there
-        var obj = new RoomObject { X = 8, Y = 1, Width = 8, Height = 1 };
+        var obj = new RoomObject { X = 8, Y = 1, Width = 8, Height = 1, MaskOr = false };
         var composed = ZPlanes.Compose(new[] { room, room }, 2, 32, 2, new[] { (obj, new[] { objPlane, null }) });
         Assert.False(composed[0].IsSet(8, 1));  // plane 1: the object's empty strip
         Assert.True(composed[0].IsSet(8, 0));   // above the object: the room's

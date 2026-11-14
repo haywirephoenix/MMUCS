@@ -13,6 +13,12 @@ public sealed class RoomObject
     public int Width { get; init; }
     public int Height { get; init; }
     public int ImageCount { get; init; }
+    /// <summary>
+    /// Whether its z-planes are ORed onto the room's (the engine's dbAllowMaskOr): COMI treats every strip
+    /// as transparent, so such an object only adds masking and its empty strips leave the room's alone.
+    /// Otherwise (IMHD flags bit 16, version 801) its planes overwrite the room's, empty strips included.
+    /// </summary>
+    public bool MaskOr { get; init; } = true;
     public ScummBlock Block { get; init; }
 
     public string Summary => $"{X},{Y}   {Width}×{Height}   frames {ImageCount}";
@@ -81,6 +87,8 @@ public sealed class RoomModel
                 Y = s.S32LE(52),
                 Width = (int)s.U32LE(56),
                 Height = (int)s.U32LE(60),
+                // v8 IMHD: version at 40, flags at 68 (ScummVM's resetRoomObject).
+                MaskOr = s.Length < 72 || s.U32LE(40) != 801 || (s.U32LE(68) & 16) == 0,
                 Block = child,
             });
         }
