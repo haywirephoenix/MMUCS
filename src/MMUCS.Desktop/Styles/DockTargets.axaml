@@ -134,6 +134,18 @@
     <Style Selector="^:preview /template/ Panel#PART_CenterIndicator">
       <Setter Property="IsVisible" Value="False" />
     </Style>
+    <!-- A short delay before the drop zones (and their preview) appear, so a panel dragged out of the
+         layout floats instead of docking straight back where it was: until then the zones aren't laid
+         out, so Dock finds no drop target under the pointer. -->
+    <Style Selector="^/template/ Grid#PART_IndicatorGrid">
+      <Style.Animations>
+        <Animation Duration="0:0:0.4" FillMode="Forward">
+          <KeyFrame Cue="0%"><Setter Property="IsVisible" Value="False" /></KeyFrame>
+          <KeyFrame Cue="99%"><Setter Property="IsVisible" Value="False" /></KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="IsVisible" Value="True" /></KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
   </ControlTheme>
 
   <ControlTheme x:Key="{x:Type GlobalDockTarget}" TargetType="GlobalDockTarget">
@@ -255,6 +267,18 @@
     </Style>
     <Style Selector="^:preview /template/ Panel#PART_RightIndicator">
       <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <!-- A short delay before the drop zones (and their preview) appear, so a panel dragged out of the
+         layout floats instead of docking straight back where it was: until then the zones aren't laid
+         out, so Dock finds no drop target under the pointer. -->
+    <Style Selector="^/template/ Grid#PART_IndicatorGrid">
+      <Style.Animations>
+        <Animation Duration="0:0:0.4" FillMode="Forward">
+          <KeyFrame Cue="0%"><Setter Property="IsVisible" Value="False" /></KeyFrame>
+          <KeyFrame Cue="99%"><Setter Property="IsVisible" Value="False" /></KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="IsVisible" Value="True" /></KeyFrame>
+        </Animation>
+      </Style.Animations>
     </Style>
   </ControlTheme>
 </ResourceDictionary>
