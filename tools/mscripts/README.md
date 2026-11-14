@@ -1,6 +1,6 @@
 # mscripts
 
-mscripts reads the scripts MMUCS decompiles and helps work out names for the game's variables. It searches the code, prints scripts, lists who calls what, and gathers the evidence for one variable in a single report. Names go into [variables.json](../../src/MMUCS.Core/Names/variables.json), which MMUCS builds in.
+mscripts reads the scripts MMUCS decompiles and helps work out names for the game's variables and scripts. It searches the code, prints scripts, lists who calls what, and gathers the evidence for one variable in a single report. Names go into [variables.json](../../src/MMUCS.Core/Names/variables.json), which MMUCS builds in.
 
 ## Requirements
 
@@ -36,9 +36,11 @@ It also finds the export from `--root DIR`, the `MSCRIPTS_ROOT` variable, or the
 |---|---|
 | `use [DIR]` | Remembers the export to read, or shows it |
 | `rooms` | Lists rooms and their script counts |
-| `script WHERE` | Prints a script with line numbers: `global 6`, `9 local_2006`, `9 entry`, or part of a path (`--plain` drops the numbers). Prints part of it with `--lines A-B`, `--at N` (`-C K` lines either side, default 10) or `--block N`, the brace block around line N (`--levels K` for K blocks out) |
+| `script WHERE` | Prints a script with line numbers: `global 6`, `9 local_2006`, `9 entry`, a script's name (`dress-chicken`), or part of a path (`--plain` drops the numbers). Prints part of it with `--lines A-B`, `--at N` (`-C K` lines either side, default 10) or `--block N`, the brace block around line N (`--levels K` for K blocks out) |
 | `search REGEX` | Finds lines. `--in ROOM` (number or part of the name, repeatable), `--global`, `--rooms`, `-C N` for context, `-i`, `--count` per script, `-l` for scripts only, `--limit N` |
-| `calls N` | Lists who starts, calls or chains to script `N`, with `--in ROOM` |
+| `calls N` | Lists who starts, calls or chains to script `N`, with `--in ROOM` (and names global script `N` when it has a name) |
+| `scripts` | Lists scripts with their names. `--in ROOM`, `--global`, `--unnamed`, `--named` |
+| `name-script WHERE NAME --note TEXT` | Names a script in [scripts.json](../../src/MMUCS.Core/Names/scripts.json): `global 88`, `14 local_2013` or `14 2013`. `--local` and `--map FILE` as for `name`, `""` clears it |
 | `progress` | How many variables are named, noted (Unconfirmed, Unclear) or left, what changed since git `--ref` (default `HEAD`), and where the rest are used, room by room. `--left [ROOM]` lists them, `--all` lists every room, `--bits` |
 | `vars` | Ranks variables by how many scripts use them, with their status. `--unnamed`, `--tracked`, `--bits`, `--sort scripts\|refs\|num`, `--top N` |
 | `var V` | One variable's evidence (see below). `--top N` rows per section, `--examples N` |
@@ -99,6 +101,18 @@ mscripts name 630 some-name --note "how you know"
 `name` checks that the name is lower-case kebab-case with each part starting with a letter, isn't `varN`/`localN`/`bitN` or a decompiler keyword, isn't an engine variable's number, and isn't already used. It needs a note, or keeps the one the entry already has. New names resolve in mscripts straight away. To see them in the exported files and the Script viewer, rebuild MMUCS and export again.
 
 To try names in MMUCS without changing the repo, use `--local`: MMUCS reads `%LocalAppData%/MMUCS/variables.json` (`~/.local/share/MMUCS` on Linux) on top of the built-in file when it starts.
+
+## Naming a script
+
+SCUMM knows scripts only by number: global scripts by theirs, local scripts by room and number (2013 in one room is a different script from 2013 in another). `name-script` gives one a name in `scripts.json`, with a note on what it does:
+
+```bash
+mscripts scripts --in fortbase --unnamed
+mscripts script 14 local_2013
+mscripts name-script 14 2013 place-chicken-flock --note "grows the flock by 2 and puts that many chickens at random spots (rooms/014_fortbase/local_2013.scumm:4)"
+```
+
+Names are lower-case kebab-case. A global script's name is unique; a local one only within its room. Files keep their numbers (`local_2013.scumm`), so citations stay valid; MMUCS shows the name beside the number in the Script viewer and in each exported script's header line.
 
 ## Reviewing names
 

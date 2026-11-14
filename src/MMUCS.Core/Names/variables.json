@@ -889,5 +889,22 @@
       "Note": "Unclear: room 69 (Stan's crypt). The only use in the export is rooms/069_stancrpt/local_2010.scumm:8 var1150 = 0, next to set-box calls that switch the room's walk boxes (:5-7); nothing reads it. Cited for context and not mentioning var1150: the set-box lines (:5-7)."
     }
   },
-  "Bits": {}
+  "Bits": {
+    "67": {
+      "Name": "got-hangover-cure",
+      "Note": "Set when Goodsoup hands over the hangover cure (rooms/061_hotelbar/local_2002.scumm:166-167, pick-up-object hotel-bar-hangover-cure); from then on he's at 429,253 in costume 309 instead of hungover at the bar (rooms/061_hotelbar/local_2012.scumm:4). The debug room jumps set it too (global/script_0071.scumm:3164)."
+    },
+    "145": {
+      "Name": "volcano-erupted",
+      "Note": "Set at the end of the eruption cutscene (global/script_0338.scumm:128), which floods the hotel's barbecue with lava. Then hotel-ex shows the lit barbecue and the boiling pot (rooms/060_hotel-ex/local_2001.scumm:4, rooms/060_hotel-ex/local_2002.scumm:9), and the village volcano door, bloodmap and altar rooms change (rooms/055_village/objects/0897_village-volcano-door.scumm:6, rooms/057_altar/local_2001.scumm:6)."
+    },
+    "146": {
+      "Name": "cheese-in-pot",
+      "Note": "Set when Guybrush puts the nacho cheese in the hotel's pot (rooms/060_hotel-ex/local_2004.scumm:154). With it the pot shows the cheese (states 2-4, rooms/060_hotel-ex/local_2002.scumm:19) and, once the volcano has erupted, the boiling pot costume (rooms/060_hotel-ex/local_2001.scumm:12, global/script_0338.scumm:80)."
+    },
+    "149": {
+      "Name": "took-pot-of-cheese",
+      "Note": "Set when Guybrush takes the pot of melted cheese away (global/script_0342.scumm:64): the hotel's pot object goes (state 0, untouchable) and the shipwreck's pot-o-cheese becomes usable (global/script_0342.scumm:65-67). hotel-ex then stops showing it (rooms/060_hotel-ex/local_2001.scumm:12, rooms/060_hotel-ex/local_2002.scumm:16)."
+    }
+  }
 }

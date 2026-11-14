@@ -17,6 +17,7 @@ public sealed class MetadataTool(MainWindowViewModel main) : Tool { public MainW
 public sealed class HexTool(MainWindowViewModel main) : Tool { public MainWindowViewModel Main { get; } = main; }
 public sealed class RoomDocument(MainWindowViewModel main) : Document { public MainWindowViewModel Main { get; } = main; }
 public sealed class CostumeDocument(MainWindowViewModel main) : Document { public MainWindowViewModel Main { get; } = main; }
+public sealed class ObjectDocument(MainWindowViewModel main) : Document { public MainWindowViewModel Main { get; } = main; }
 public sealed class ScriptDocument(MainWindowViewModel main) : Document { public MainWindowViewModel Main { get; } = main; }
 
 /// <summary>
@@ -27,10 +28,10 @@ public sealed class ScriptDocument(MainWindowViewModel main) : Document { public
 public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayoutBuilder
 {
     public const string BlocksId = "Blocks", MetadataId = "Metadata", HexId = "Hex";
-    public const string RoomId = "Room", CostumeId = "Costume", ScriptId = "Script";
+    public const string RoomId = "Room", CostumeId = "Costume", ObjectId = "Object", ScriptId = "Script";
 
-    public static readonly string[] PanelIds = { BlocksId, MetadataId, HexId, RoomId, CostumeId, ScriptId };
-    public static readonly string[] ViewerIds = { RoomId, CostumeId, ScriptId };
+    public static readonly string[] PanelIds = { BlocksId, MetadataId, HexId, RoomId, CostumeId, ObjectId, ScriptId };
+    public static readonly string[] ViewerIds = { RoomId, CostumeId, ObjectId, ScriptId };
 
     /// <summary>The panels of the current layout, placed or hidden (set whenever panels are created).</summary>
     public Dictionary<string, IDockable> Panels { get; private set; } = new();
@@ -56,6 +57,7 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
             [HexId] = Panel(new HexTool(main), HexId, "Hex"),
             [RoomId] = Panel(new RoomDocument(main), RoomId, "Room"),
             [CostumeId] = Panel(new CostumeDocument(main), CostumeId, "Costume"),
+            [ObjectId] = Panel(new ObjectDocument(main), ObjectId, "Object"),
             [ScriptId] = Panel(new ScriptDocument(main), ScriptId, "Script"),
         };
     }
@@ -139,7 +141,7 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
             VisibleDockables = CreateList<IDockable>(blocksDock, new ProportionalDockSplitter(), metadataDock, new ProportionalDockSplitter(), hexDock),
         };
 
-        var documents = NewDocumentDock("Documents", CreateList(p[RoomId], p[CostumeId], p[ScriptId]));
+        var documents = NewDocumentDock("Documents", CreateList(p[RoomId], p[CostumeId], p[ObjectId], p[ScriptId]));
         documents.Proportion = 0.69;
 
         var mainDock = new ProportionalDock
@@ -162,7 +164,7 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
         left.Proportion = 0.21;
         left.Alignment = Alignment.Left;
 
-        var documents = NewDocumentDock("Documents", CreateList(p[RoomId], p[CostumeId], p[ScriptId]));
+        var documents = NewDocumentDock("Documents", CreateList(p[RoomId], p[CostumeId], p[ObjectId], p[ScriptId]));
 
         var metadataDock = NewToolDock("MetadataDock", CreateList(p[MetadataId]));
         metadataDock.Proportion = 0.35;
@@ -238,6 +240,29 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
         base.RemoveDockable(dockable, collapse);
     }
 
+
+    /// <summary>
+    /// Puts a panel added in a later version beside <paramref name="besideId"/> when a saved layout
+    /// doesn't have it (neither placed nor hidden), so it isn't lost.
+    /// </summary>
+    public void PlaceNewPanel(string id, string besideId, IRootDock layout)
+    {
+        if (FindPanel(id, layout) != null || _hiddenAt.ContainsKey(id) || !Panels.TryGetValue(id, out var panel)) return;
+        if (FindPanel(besideId, layout) is { Owner: IDock dock } beside)
+            InsertDockable(dock, panel, (dock.VisibleDockables?.IndexOf(beside) ?? 0) + 1);
+    }
+
+    /// <summary>
+    /// Brings <paramref name="id"/> to the front only where it shares a dock with <paramref name="otherId"/>
+    /// and that one is in front (the Costume and Object viewers swap as the selection changes, without
+    /// covering the Room viewer or anything else).
+    /// </summary>
+    public void BringForwardOver(string id, string otherId, IRootDock layout)
+    {
+        if (FindPanel(id, layout) is not { Owner: IDock dock } panel) return;
+        if (dock.ActiveDockable is { } active && active.Id == otherId && !ReferenceEquals(active, panel))
+            SetActiveDockable(panel);
+    }
 
     /// <summary>Brings a panel to the front, wherever it is docked or floating (no-op when hidden).</summary>
     public void Activate(string id, IRootDock layout)

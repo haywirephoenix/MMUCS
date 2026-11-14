@@ -252,7 +252,7 @@ public class ScummExporters
             var room = job.Room;
             string where = room.RoomNo > 0 ? $"Room {room.RoomNo}{(string.IsNullOrEmpty(room.Name) ? "" : " " + room.Name)}" : job.BaseName;
             var sb = new StringBuilder();
-            sb.Append("// ").Append(where).Append(" - ").Append(entry.Title).Append('\n');
+            sb.Append("// ").Append(where).Append(" - ").Append(entry.Heading).Append('\n');
             sb.Append("// ").Append(entry.Block.TagName).Append(" @0x").Append(entry.Block.Offset.ToString("X8"))
               .Append(" in ").Append(FileRootName(entry.Block)).Append(", ").Append(entry.Block.DataLength.ToString("N0")).Append(" bytes");
             if (entry.Group == "Object") sb.Append(", object ").Append(entry.Detail?.Replace("  ", ", "));

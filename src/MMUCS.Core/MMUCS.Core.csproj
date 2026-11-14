@@ -15,5 +15,7 @@
   <ItemGroup>
     <!-- Names for the game's script variables (contributed over time; see the README). -->
     <EmbeddedResource Include="Names\variables.json" LogicalName="variables.json" />
+    <!-- Names for global and local scripts (see Scumm/ScriptNames.cs). -->
+    <EmbeddedResource Include="Names\scripts.json" LogicalName="scripts.json" />
   </ItemGroup>
 </Project>

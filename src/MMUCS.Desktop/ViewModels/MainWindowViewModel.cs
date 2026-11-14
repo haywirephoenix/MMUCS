@@ -57,6 +57,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public RoomViewModel Room { get; } = new();
     public ScriptViewModel Script { get; } = new();
     public AkosViewModel Costume { get; } = new();
+    /// <summary>The Object viewer: the selected object's image and states.</summary>
+    public ObjectImageViewModel ObjectImage { get; }
 
     /// <summary>Docking layout: panels are views over this view model (see Docking/DockLayout.cs).</summary>
     public MmucsDockFactory DockFactory { get; }
@@ -79,6 +81,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel()
     {
+        ObjectImage = new ObjectImageViewModel(Room);
         Settings = AppSettings.Load();
         foreach (var f in Settings.RecentFiles) RecentFiles.Add(f);
         _reopenLastFileOnStartup = Settings.ReopenLastFileOnStartup;
@@ -93,9 +96,25 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _layout = DockLayoutStore.TryRestore(DockFactory, saved) ?? DockFactory.CreateLayout();
         Costume.RestoreLayout(saved?.Costume);
         DockFactory.InitLayout(_layout);
+        DockFactory.PlaceNewPanel(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, _layout);
 
         DockFactory.ActiveDockableChanged += (_, e) => { if (e.Dockable is { IsModified: true } d) d.IsModified = false; };
         Room.BlockFocusRequested += RevealFromViewer;
+        // The Object viewer follows the room's selection; it and the Costume viewer swap places (where they
+        // share a dock) to show what the selection is: an object image or a costume.
+        Room.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(RoomViewModel.PaletteIndex)) { _ = ObjectImage.ReloadAsync(); return; }
+            if (e.PropertyName != nameof(RoomViewModel.SelectedObjectItem) || Room.SelectedObjectItem is not { } item) return;
+            if (item.Costume != null)
+                DockFactory.BringForwardOver(MmucsDockFactory.CostumeId, MmucsDockFactory.ObjectId, Layout);
+            else if (item.Object.ImageCount > 0)
+            {
+                _ = ObjectImage.LoadAsync(item.Object);
+                MarkUpdated(MmucsDockFactory.ObjectId);
+                DockFactory.BringForwardOver(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, Layout);
+            }
+        };
         Script.BlockFocusRequested += RevealFromViewer;
         Script.ShowScumm = Settings.ScriptShowScumm;
         Script.ShowOffsets = Settings.ScriptShowOffsets;

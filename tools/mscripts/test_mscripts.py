@@ -206,6 +206,31 @@ class MscriptsTests(unittest.TestCase):
         self.assertEqual(list(doc["Globals"]), ["261", "266", "498"])  # kept in number order
 
 
+    def test_name_script_writes_scripts_json_per_room(self):
+        smap = self.root / "scripts.json"
+
+        def name(*a):
+            try:
+                return self.cli("name-script", *a, "--map", str(smap))
+            except SystemExit as e:
+                return 1, str(e)
+        self.assertIn("kebab-case", name("9", "2006", "Count Shots", "--note", "x")[1])
+        self.assertIn("--note", name("9", "2006", "count-shots")[1])
+        code, text = name("9", "local_2006", "count-shots", "--note", "rooms/009_cannon/local_2006.scumm:4")
+        self.assertEqual(code, 0)
+        self.assertIn("named count-shots", text)
+        # A local name is taken only within its room; a global one everywhere.
+        self.assertIn("already", name("9", "2004", "count-shots", "--note", "x")[1])
+        self.assertEqual(name("global", "6", "count-shots", "--note", "x")[0], 0)
+        self.assertIn("already", name("7", "count-shots", "--note", "x")[1])
+        doc = json.loads(smap.read_text(encoding="utf-8"))
+        self.assertEqual(doc["Locals"]["9:2006"]["Name"], "count-shots")
+        self.assertEqual(doc["Globals"]["6"]["Name"], "count-shots")
+        _, listing = self.cli("scripts", "--in", "cannon", "--map", str(smap))
+        self.assertIn("count-shots", listing)
+        self.assertIn("1 named", listing)
+
+
 class CitationTests(unittest.TestCase):
     def parse(self, note):
         return [(rel, spans) for _, rel, spans, _ in mscripts.citations(note)]

@@ -1227,7 +1227,8 @@ def start_rows(game: "Game", room: "Room") -> List[dict]:
             elif p.get("first_visit") is False:
                 why = "not on a first visit (a condition around it fails with every bit at 0)"
             elif p.get("when") in ("entry", "entry-if"):
-                why = f"another costume of actor {actor} starts" if actor else "another costume starts here"
+                why = (f"another costume of actor {actor} starts" if actor else
+                       "an actor kept in a variable: the game picks its spots at random, and this one wasn't picked this time")
             else:
                 why = "not worked out"
             # The script line that places it: a put-actor of the same actor at the same spot (by

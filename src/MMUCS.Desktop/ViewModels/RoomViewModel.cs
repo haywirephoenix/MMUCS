@@ -180,6 +180,39 @@ public sealed partial class RoomViewModel : ObservableObject
     public void SetAllVisible(bool visible) => SetVisibility(_ => visible);
 
     private Dictionary<RoomObject, int> _initialStates = new();
+    /// <summary>States picked in the Object viewer, drawn instead of the state on entry.</summary>
+    private readonly Dictionary<RoomObject, int> _shownStates = new();
+
+    /// <summary>The state an object is drawn in: the one picked in the Object viewer, else its state on entry.</summary>
+    public int StateOf(RoomObject obj) =>
+        obj == null ? 0 : _shownStates.TryGetValue(obj, out int s) ? s : _initialStates.GetValueOrDefault(obj, 1);
+
+    /// <summary>The state an object is in when the room opens.</summary>
+    public int InitialStateOf(RoomObject obj) => obj == null ? 0 : _initialStates.GetValueOrDefault(obj, 1);
+
+    /// <summary>
+    /// Draws an object in another state (the Object viewer's state list): its image for that state, and
+    /// its z-planes; state 0 hides it, any other shows it.
+    /// </summary>
+    public async Task ShowObjectStateAsync(RoomObject obj, int state)
+    {
+        if (obj == null || Room == null || !Room.Objects.Contains(obj)) return;
+        _shownStates[obj] = state;
+        _objectPlanes.Remove(obj);
+        _zMaskKey = null;
+        if (state > 0 && obj.ImageCount > 0 && ObimDecoders.TryGetObimInfo(obj.Block, out var info))
+        {
+            int frame = RoomObjectStates.FrameFor(state, info.TotalFrames > 0 ? info.TotalFrames : 1);
+            var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteIndex, bakeImage: true, CancellationToken.None);
+            if (Room?.Objects.Contains(obj) != true) return; // another room opened meanwhile
+            var image = result.ExecutedImage?.ToSkImage();
+            if (ObjectLayers != null)
+                ObjectLayers = ObjectLayers.Select(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly ? l with { Image = image } : l).ToList();
+        }
+        if (Objects.FirstOrDefault(o => ReferenceEquals(o.Object, obj)) is { HasToggle: true } item && item.IsVisible != state > 0)
+            item.IsVisible = state > 0; // refreshes the masks too
+        else UpdateZMasks();
+    }
     private bool _startVisibilityApplied;
 
     /// <summary>Puts every entry's visibility back to what the Show mode starts a room with.</summary>
@@ -268,14 +301,15 @@ public sealed partial class RoomViewModel : ObservableObject
                                        && (ReferenceEquals(o.Object, BackgroundObject)
                                            || (o.IsVisible && (ShowFullScreenObjects || o.Object.Width < 640))))
             .Select(o => o.Object).ToList();
-        string key = room.Room.Offset + ":" + string.Join(",", shown.Select(o => o.Index));
+        shown = room.InDrawOrder(shown).ToList(); // an object drawn later writes its planes over an earlier one's
+        string key = room.Room.Offset + ":" + string.Join(",", shown.Select(o => $"{o.Index}/{StateOf(o)}"));
         if (key == _zMaskKey && ZMasks != null) return; // a costume or hotspot toggled: the masks are the same
         _zMaskKey = key;
         var planes = ZPlanes.Compose(_roomPlanes, _planeCount, room.Width, room.Height, shown.Select(o =>
         {
             if (!_objectPlanes.TryGetValue(o, out var p))
             {
-                try { p = ZPlanes.Object(o, Math.Max(0, _initialStates.GetValueOrDefault(o, 1) - 1)); }
+                try { p = ZPlanes.Object(o, Math.Max(0, StateOf(o) - 1)); }
                 catch (Exception ex) { Log.Warn($"Z-planes of {o}: {ex.Message}"); p = Array.Empty<ZPlane>(); }
                 _objectPlanes[o] = p;
             }
@@ -365,6 +399,7 @@ public sealed partial class RoomViewModel : ObservableObject
         try { states = RoomObjectStates.Initial(room); }
         catch (Exception ex) { Log.Warn($"Object states for room {room.RoomNo}: {ex.Message}"); states = new(); }
         _initialStates = states;
+        _shownStates.Clear();
         _startVisibilityApplied = false;
         _objectPlanes.Clear();
         _zMaskKey = null;
@@ -436,7 +471,7 @@ public sealed partial class RoomViewModel : ObservableObject
             RgbaImage rgba;
             int ox, oy;
             // The room's own parse of the costume, in the room's current palette.
-            lock (actor.Data) rgba = AkosFrames.Render(actor.Data, frame, out ox, out oy);
+            lock (actor.Data) rgba = AkosFrames.Render(actor.Data, frame, out ox, out oy, mirror: actor.Mirrored);
             float f = actor.ScaleFactor;
             LiveCostume = new LiveCostume(placed.Value, rgba?.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), f, actor.ZPlane);
         }
@@ -670,7 +705,7 @@ public sealed partial class RoomViewModel : ObservableObject
             lock (actor.Data)
             {
                 _akosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
-                var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, token);
+                var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, token, actor.Mirrored);
                 // Scaled about the actor's origin: the frame's offset from it shrinks with the frame.
                 float f = actor.ScaleFactor;
                 if (rgba != null) result[target] = (rgba.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), actor.SortY, actor.Actor, f, actor.ZPlane);
@@ -710,7 +745,8 @@ public sealed partial class RoomViewModel : ObservableObject
             var layers = new List<RoomObjectLayer>(room.Objects.Count + targets.Count);
             var fullWidth = new List<BackgroundChoice>();
             var hasImage = new Dictionary<RoomObject, bool>();
-            foreach (var obj in room.Objects)
+            // In the engine's draw order: the canvas draws the layers in list order, later ones on top.
+            foreach (var obj in room.InDrawOrder(room.Objects))
             {
                 SKImage image = null;
                 RgbaImage rgba = null;
@@ -719,7 +755,7 @@ public sealed partial class RoomViewModel : ObservableObject
                     // Objects use the room's current palette: SCUMM v8 has no per-object palette, the
                     // game switches the room palette from scripts.
                     // The image for its state on entry (state N shows image N); the first when it starts hidden.
-                    int frame = RoomObjectStates.FrameFor(_initialStates.GetValueOrDefault(obj, 1), info.TotalFrames > 0 ? info.TotalFrames : 1);
+                    int frame = RoomObjectStates.FrameFor(StateOf(obj), info.TotalFrames > 0 ? info.TotalFrames : 1);
                     var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteIndex, bakeImage: true, token);
                     if (token.IsCancellationRequested) return;
                     rgba = result.ExecutedImage;

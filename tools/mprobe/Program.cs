@@ -173,7 +173,7 @@ async Task<int> DrawRoom(RoomModel room, string outDir, bool debug, bool start, 
 
     // The mask as the viewer builds it: the room's planes with the objects shown on entry over them.
     var states = RoomObjectStates.Initial(room);
-    var shown = room.Objects.Where(o => o.ImageCount > 0 && states[o] != 0).ToList();
+    var shown = room.InDrawOrder(room.Objects.Where(o => o.ImageCount > 0 && states[o] != 0)).ToList();
     var planes = ZPlanes.Compose(ZPlanes.Room(room), ZPlanes.Count(room), room.Width, room.Height,
         shown.Select(o => (o, ZPlanes.Object(o, Math.Max(0, states[o] - 1)))));
 
@@ -185,7 +185,7 @@ async Task<int> DrawRoom(RoomModel room, string outDir, bool debug, bool start, 
     var lines = new List<string>();
     foreach (var actor in actors)
     {
-        var frame = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy);
+        var frame = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, mirror: actor.Mirrored);
         if (frame == null) continue;
         float f = actor.ScaleFactor;
         int w = (int)(frame.Width * f), h = (int)(frame.Height * f);
@@ -219,7 +219,7 @@ async Task<int> DrawRoom(RoomModel room, string outDir, bool debug, bool start, 
         }
         lines.Add($"  costume {actor.Costume,4}  {who,-22} at {actor.X},{actor.Y}" +
                       (actor.Elevation != 0 ? $" elevation {actor.Elevation}" : "") +
-                      (actor.Scale != 255 ? $" scale {actor.Scale}" : "") + $"  z-plane {actor.ZPlane}" +
+                      (actor.Scale != 255 ? $" scale {actor.Scale}" : "") + (actor.Mirrored ? " mirrored" : "") + $"  z-plane {actor.ZPlane}" +
                       $"  {RoomDataExport.WhenText(actor.When) ?? "?"}{(actor.IsPlayer ? ", player" : "")}" +
                       (actor.Owner != null ? $"  ({actor.Owner.Name})" : "") + box);
     }

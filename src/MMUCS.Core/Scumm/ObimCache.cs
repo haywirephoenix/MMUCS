@@ -20,7 +20,8 @@ public static class ObimCache
 
     public static long BuildObimCacheKey(ScummBlock objectBlock, int frameIndex)
     {
-        return StableHash.Of(objectBlock.SourceKey, objectBlock.Offset, frameIndex);
+        // 2: SMAP objects used to decode their first image for every frame; don't reuse those files.
+        return StableHash.Of(objectBlock.SourceKey, objectBlock.Offset, frameIndex, 2);
     }
 
     public static async Task<ObimDecoders.ObimResult> GetCachedObimAsync(

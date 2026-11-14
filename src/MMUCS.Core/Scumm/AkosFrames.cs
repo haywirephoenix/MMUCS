@@ -76,6 +76,17 @@ public static class AkosFrames
         return 3;
     }
 
+    /// <summary>
+    /// Whether the engine draws the costume mirrored for this facing: ScummVM's AkosRenderer::setFacing
+    /// draws "to the right" unless the actor faces west (newDirToOldDir 0), or the costume says it's
+    /// never mirrored (AKHD flags bit 0); west-facing frames are the others flipped.
+    /// </summary>
+    public static bool IsMirrored(AkosData d, int degrees)
+    {
+        degrees = ((degrees % 360) + 360) % 360;
+        return degrees is >= 251 and <= 289 && !d.Header.MirroredCostume;
+    }
+
     /// <summary>Names of the costume's directions, by direction index.</summary>
     public static IReadOnlyList<string> DirectionNames(AkosData d) => d.DirectionCount == 8
         ? ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
@@ -256,7 +267,8 @@ public static class AkosFrames
     /// Renders a frame with the costume's resolved colours. Shadow indices (1–7) become translucent
     /// black. <paramref name="originX"/>/<paramref name="originY"/> give the actor origin within the image.
     /// </summary>
-    public static RgbaImage Render(AkosData d, AkosFrame frame, out int originX, out int originY, CancellationToken token = default)
+    /// <param name="mirror">Flip it about the actor's origin (<see cref="IsMirrored"/>).</param>
+    public static RgbaImage Render(AkosData d, AkosFrame frame, out int originX, out int originY, CancellationToken token = default, bool mirror = false)
     {
         originX = originY = 0;
         if (frame == null || frame.IsEmpty) return null;
@@ -301,6 +313,14 @@ public static class AkosFrames
                     rgba[o + 3] = 255;
                 }
             }
+        }
+        if (mirror)
+        {
+            for (int y = 0; y < h; y++)
+                for (int i = y * w, j = i + w - 1; i < j; i++, j--)
+                    for (int k = 0; k < 4; k++)
+                        (rgba[i * 4 + k], rgba[j * 4 + k]) = (rgba[j * 4 + k], rgba[i * 4 + k]);
+            originX = w - originX;
         }
         return new RgbaImage(w, h, rgba);
     }

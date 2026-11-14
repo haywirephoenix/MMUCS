@@ -202,6 +202,7 @@ public partial class MainWindow : Window
         }
         PanelItem(MmucsDockFactory.RoomId, "Room", Key.D1);
         PanelItem(MmucsDockFactory.CostumeId, "Costume", Key.D2);
+        PanelItem(MmucsDockFactory.ObjectId, "Object", Key.D4);
         PanelItem(MmucsDockFactory.ScriptId, "Script", Key.D3);
         window.Items.Add(new NativeMenuItemSeparator());
         PanelItem(MmucsDockFactory.BlocksId, "Blocks");

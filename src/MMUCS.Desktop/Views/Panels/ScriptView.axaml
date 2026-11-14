@@ -34,7 +34,7 @@
         <ListBox.ItemTemplate>
           <DataTemplate DataType="scumm:ScriptEntry">
             <StackPanel>
-              <TextBlock Text="{Binding Title}" FontSize="12" />
+              <TextBlock Text="{Binding Heading}" FontSize="12" />
               <TextBlock Text="{Binding Detail}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
             </StackPanel>
           </DataTemplate>

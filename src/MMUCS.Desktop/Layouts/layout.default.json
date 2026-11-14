@@ -25,7 +25,7 @@
         "Proportion": 0.7944,
         "Children": [
           { "Kind": "documents", "Id": "Documents", "Proportion": 0.6064, "Active": "Room", "Panels": [ "Room", "Script" ] },
-          { "Kind": "documents", "Id": "CostumeDocuments", "Proportion": 0.3936, "Active": "Costume", "Panels": [ "Costume" ] }
+          { "Kind": "documents", "Id": "CostumeDocuments", "Proportion": 0.3936, "Active": "Costume", "Panels": [ "Costume", "Object" ] }
         ]
       }
     ]

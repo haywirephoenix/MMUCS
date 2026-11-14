@@ -64,6 +64,9 @@
     <DataTemplate DataType="dvm:RoomDocument">
       <views:RoomView DataContext="{Binding Main.Room}" />
     </DataTemplate>
+    <DataTemplate DataType="dvm:ObjectDocument">
+      <views:ObjectImageView DataContext="{Binding Main.ObjectImage}" />
+    </DataTemplate>
     <!-- One long-lived Costume viewer: it hosts its own docking area (see CostumeViewTemplate). -->
     <views:CostumeViewTemplate />
     <!-- The Costume viewer's own panels. -->

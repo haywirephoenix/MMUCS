@@ -57,6 +57,8 @@ public sealed class RoomActor
     public AkosData Data { get; init; }
     /// <summary>The frame shown in the room (the stand/init chore), or null when it draws nothing.</summary>
     public AkosFrame Frame { get; init; }
+    /// <summary>Drawn flipped, as the engine draws a costume facing west (<see cref="AkosFrames.IsMirrored"/>).</summary>
+    public bool Mirrored { get; init; }
     /// <summary>The object this costume belongs to, if any.</summary>
     public RoomObject Object { get; set; }
     /// <summary>True when <see cref="Object"/> comes from a manual link rather than overlap.</summary>
@@ -631,7 +633,7 @@ public static class RoomActors
                 Actor = Math.Max(0, actor), Costume = costume, Akos = akos, X = x, Y = y, Elevation = elevation, HasPosition = true,
                 // An actor in a box is drawn at the box's scale, whatever its script set: the engine
                 // works it out again at every draw (setupActorScale). Only ignoring the boxes keeps it.
-                Data = d, Frame = f, IsPlayer = actor == player, DressedBy = via, SortY = y,
+                Data = d, Frame = f, Mirrored = AkosFrames.IsMirrored(d, dir), IsPlayer = actor == player, DressedBy = via, SortY = y,
                 Scale = box > 0 ? Walkboxes.ScaleAt(room.Walkboxes, room.ScaleSlots, box, x, y) : scale,
                 Removes = removes ?? Array.Empty<int>(),
                 When = earliest.GetValueOrDefault(Key(actor, costume, sx, sy)),
@@ -659,9 +661,16 @@ public static class RoomActors
         // chickens), and an actor dressed by a call may get one of several costumes (script 88 picks one
         // at random). Each spot shows one, preferring one that matched a hotspot.
         static bool AtSpot(RoomActor p) => p.Actor == 0 || p.DressedBy >= 0;
+        // A dresser that picks the facing at random (script 88: face 90 or 270, a costume for each) shows
+        // the one drawn as it's stored, its first branch; the hotspot matched to any of them goes with it.
         var spots = placed.Where(AtSpot)
             .GroupBy(p => (p.Actor, p.X, p.Y, p.DressedBy))
-            .Select(g => g.FirstOrDefault(p => p.Object != null) ?? g.First())
+            .Select(g =>
+            {
+                var pick = g.Where(p => p.CanDraw).OrderBy(p => p.Mirrored).FirstOrDefault() ?? g.First();
+                pick.Object ??= g.FirstOrDefault(p => p.Object != null)?.Object;
+                return pick;
+            })
             .ToHashSet();
         foreach (var dropped in placed.Where(p => AtSpot(p) && !spots.Contains(p))) dropped.Object = null;
         // Costumes a script called from this room may dress an actor in, for those placed nowhere.
@@ -696,12 +705,17 @@ public static class RoomActors
         ApplyLinks(room, result, directory, Load);
 
         // What's there as the room opens: costumes placed on entry, on a fresh game's first visit, the
-        // player aside, one per actor (an unconditional one first). An actor in a variable is a different
-        // actor at each spot.
-        foreach (var g in result.Select((r, i) => (r, i))
-                     .Where(x => x.r.HasPosition && !x.r.IsPlayer && x.r.FirstVisit && !x.r.Passing && !x.r.StartsBlank && x.r.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf)
-                     .GroupBy(x => x.r.Actor > 0 ? x.r.Actor : -1 - x.i))
-            g.OrderBy(x => x.r.When).First().r.StartsShown = true;
+        // player aside, one per actor (an unconditional one first).
+        bool OnEntry(RoomActor r) =>
+            r.HasPosition && !r.IsPlayer && r.FirstVisit && !r.Passing && !r.StartsBlank && r.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf;
+        foreach (var g in result.Where(r => r.Actor > 0 && OnEntry(r)).GroupBy(r => r.Actor))
+            g.OrderBy(r => r.When).First().StartsShown = true;
+        // An actor kept in a variable goes to spots picked as the game runs: show as many as a first visit
+        // puts, at random (fortbase's chickens: "flock-size = flock-size + 2", then that many of 16 spots).
+        var fresh = FreshGame.For(lflf);
+        foreach (var g in result.Where(r => r.Actor == 0 && r.Actors == null && OnEntry(r) && scriptOf.ContainsKey(r)).GroupBy(r => scriptOf[r]))
+            foreach (var r in g.OrderBy(_ => Random.Shared.Next()).Take(FirstVisitCount(scripts[g.Key].DataSpan, fresh)))
+                r.StartsShown = true;
 
         lock (Sync)
         {
@@ -1002,6 +1016,7 @@ public static class RoomActors
         var faces = new List<(int Pos, int Actor, int Dir)>(); // Dir in degrees
         var elevations = new List<(int Pos, int Actor, int Elevation)>();
         var scales = new List<(int Pos, int Actor, int Scale)>();
+        var defaults = new List<(int Pos, int Actor)>();
         int curActor = 0;
         for (int p = 5; p + 1 < s.Length; p++)
         {
@@ -1010,6 +1025,7 @@ public static class RoomActors
             else if (s[p + 1] == SubFace && curActor != 0 && Const(s, p, out int degrees)) faces.Add((p, curActor, degrees));
             else if (s[p + 1] == SubElevation && curActor != 0 && Const(s, p, out int elevation)) elevations.Add((p, curActor, elevation));
             else if (s[p + 1] == SubScale && curActor != 0 && Const(s, p, out int scale) && scale > 0) scales.Add((p, curActor, scale));
+            else if (s[p + 1] == SubDefault && curActor != 0) defaults.Add((p, curActor));
         }
         var places = new List<(int Pos, int Actor, int X, int Y)>();
         // Re-placements relative to where the actor is: put-actor A at x-of(A) + dx, y-of(A) + dy.
@@ -1067,13 +1083,33 @@ public static class RoomActors
             // Until the actor's next costume change in this script (a call offering several costumes
             // changes it once). A change on a sibling branch doesn't end it: "if … { costume 166; goto L }
             // else { costume 12 }  L: scale 140; put-actor" scales and places both (voodoo-e's skull).
-            int until = int.MaxValue;
+            int until = int.MaxValue, untilCostume = -1;
             foreach (var o in costumes)
-                if (o.Actor == c.Actor && o.Pos > c.Pos && o.Pos < until && !JumpedOver(s, c.Pos, o.Pos)) until = o.Pos;
+                if (o.Actor == c.Actor && o.Pos > c.Pos && o.Pos < until && !JumpedOver(s, c.Pos, o.Pos)) (until, untilCostume) = (o.Pos, o.Costume);
+            // The same costume set again before the actor is put: that later set is the one the put wears
+            // (brbr-int's Rottingham: costume 124, always-zclip 2, costume 124, ignore-boxes, put, then
+            // always-zclip 2 again; read from the first, the window ends before the last z-clip).
+            if (untilCostume == c.Costume && !places.Any(pl => pl.Actor == c.Actor && pl.Pos > c.Pos && pl.Pos < until)) continue;
             // Below 1000 an animation number is a chore; 1000 and up are turn/stop commands.
             int anim = c.Anim ?? anims.Where(a => a.Actor == c.Actor && a.Pos > c.Pos && a.Pos < until && OnPath(a.Pos) && a.Anim is >= 0 and < 1000)
                                       .Select(a => a.Anim).DefaultIfEmpty(-1).First();
-            int dir = c.Dir ?? faces.Where(f => f.Actor == c.Actor && f.Pos > c.Pos && f.Pos < until && OnPath(f.Pos)).Select(f => f.Dir).DefaultIfEmpty(180).First();
+            // A costume change keeps the actor's facing and scale; only "actor A default" resets them (to
+            // 180 and 255). So what this script set before the costume, on the way to it, still holds:
+            // quiksand's chicken, dressed by script 88 at scale 160, then face 270, then costume 185.
+            bool Before(int pos) => pos < c.Pos && !JumpedOver(code, pos, c.Pos);
+            int since = defaults.Where(d => d.Actor == c.Actor && Before(d.Pos)).Select(d => d.Pos).DefaultIfEmpty(-1).Max();
+            bool Inherits(int pos) => pos > since && Before(pos);
+            var dressedBefore = c.Via < 0
+                ? costumes.Where(o => o.Actor == c.Actor && o.Via >= 0 && Inherits(o.Pos)).ToList()
+                : new();
+            int lastDress = dressedBefore.Select(o => o.Pos).DefaultIfEmpty(-1).Max();
+            var dressAt = dressedBefore.Where(o => o.Pos == lastDress).ToList();
+            int? priorDir = faces.Where(f => f.Actor == c.Actor && f.Pos > lastDress && Inherits(f.Pos)).Select(f => (int?)f.Dir).LastOrDefault()
+                            ?? (dressAt.Select(o => o.Dir).Distinct().Count() == 1 ? dressAt[0].Dir : null);
+            int? priorScale = scales.Where(e => e.Actor == c.Actor && e.Pos > lastDress && Inherits(e.Pos)).Select(e => (int?)e.Scale).LastOrDefault()
+                              ?? dressAt.Select(o => o.Scale).FirstOrDefault(x => x != null);
+            int dir = c.Dir ?? faces.Where(f => f.Actor == c.Actor && f.Pos > c.Pos && f.Pos < until && OnPath(f.Pos)).Select(f => (int?)f.Dir)
+                .FirstOrDefault() ?? priorDir ?? 180;
 
             // The first placement of the actor while it wears this costume (after the costume is set,
             // before its next change); otherwise, for an actor number, the nearest one, preferring
@@ -1119,8 +1155,9 @@ public static class RoomActors
                                                           .Select(e => e.Elevation).DefaultIfEmpty(0).Last();
                 // Scale the same way: set while it wears this costume, before this placement; or what the
                 // call that dressed it passes.
-                int scale = !inWindow ? 255 : scales.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < b.Pos && OnPath(e.Pos))
-                                                    .Select(e => e.Scale).DefaultIfEmpty(c.Scale ?? 255).Last();
+                int scale = !inWindow ? c.Scale ?? priorScale ?? 255
+                    : scales.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < b.Pos && OnPath(e.Pos))
+                            .Select(e => e.Scale).DefaultIfEmpty(c.Scale ?? priorScale ?? 255).Last();
                 // The z-clip it's drawn with: what this script sets on it until its next costume (it applies
                 // whenever it's drawn, so after the placement too). A dressing call starts from what the
                 // callee set up; otherwise from the start of the script, from the engine's default.
@@ -1195,12 +1232,31 @@ public static class RoomActors
             result.Add(new RoomActor
             {
                 Actor = p.Actor, Actors = layers.Select(l => l.Actor).Distinct().ToList(), Costume = p.Costume, Akos = p.Akos,
-                X = p.X, Y = p.Y, Elevation = p.Elevation, Scale = p.Scale, ZPlane = p.ZPlane, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame,
+                X = p.X, Y = p.Y, Elevation = p.Elevation, Scale = p.Scale, ZPlane = p.ZPlane, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame, Mirrored = p.Mirrored,
                 SortY = p.SortY, Removes = layers.SelectMany(l => l.Removes).Distinct().ToList(),
                 When = layers.Min(l => l.When), FirstVisit = layers.Any(l => l.FirstVisit), Passing = layers.All(l => l.Passing), StartsBlank = layers.All(l => l.StartsBlank),
             });
         }
         return result;
+    }
+
+    /// <summary>
+    /// How many spots a script that places actors in a loop fills on a first visit: the N of a
+    /// "count = count + N" on a global the boot script leaves at 0 (fortbase's chicken flock grows by 2 a
+    /// visit). 0 when the script has no such count.
+    /// </summary>
+    internal static int FirstVisitCount(ReadOnlySpan<byte> s, FreshGame fresh)
+    {
+        // push-var V, push-word N, add, write V
+        for (int p = 0; p + 21 <= s.Length; p++)
+        {
+            if (s[p] != OpPushVar || s[p + 5] != OpPushWord || s[p + 10] != 0x0E || s[p + 11] != 0x6D) continue;
+            uint v = (uint)s.S32LE(p + 1);
+            if ((uint)s.S32LE(p + 12) != v || (v & 0xC0000000) != 0 || fresh?.Vars.ContainsKey(v) == true) continue;
+            int n = s.S32LE(p + 6);
+            if (n is > 0 and <= 16) return n;
+        }
+        return 0;
     }
 
     /// <summary>An exit hotspot: COMI names them "…-door" (optionally numbered: "town-plndrmap-door-1", "town-door-1a").</summary>

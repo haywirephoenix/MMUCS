@@ -120,4 +120,44 @@ public sealed class RoomModel
         };
         return true;
     }
+
+    private Dictionary<RoomObject, int> _drawSlots;
+
+    /// <summary>
+    /// The objects in the order the engine draws them, later ones over earlier ones: ScummVM's
+    /// drawRoomObjects goes from the last local object slot down to the first, and the slots follow the
+    /// room's OBCD order (each OBIM joins its object's slot by id). So the room's first object is drawn
+    /// last, on top (hotel-ex's pot over the barbecue animation behind it).
+    /// </summary>
+    public IEnumerable<RoomObject> InDrawOrder(IEnumerable<RoomObject> objects)
+    {
+        var slots = _drawSlots ??= DrawSlots();
+        return System.Linq.Enumerable.OrderByDescending(objects, o => slots.TryGetValue(o, out int s) ? s : int.MaxValue - o.Index);
+    }
+
+    private Dictionary<RoomObject, int> DrawSlots()
+    {
+        var slots = new Dictionary<RoomObject, int>();
+        try
+        {
+            var root = Lflf ?? Room;
+            while (root.Parent != null) root = root.Parent;
+            var idOf = new Dictionary<string, int>();
+            foreach (var o in RoomDataExport.ReadObjectTable(root)) idOf.TryAdd(o.Name, o.Id);
+            var slotOf = new Dictionary<int, int>();
+            int slot = 0;
+            // In file order (the parser may group them under a container).
+            foreach (var obcd in (Lflf ?? Room).FindChildrenRecursive(ScummTag.OBCD))
+            {
+                var cdhd = obcd.FindChild(ScummTag.CDHD);
+                // v8 CDHD: version (u32), then the object id (u16).
+                if (cdhd != null && cdhd.DataLength >= 6) slotOf.TryAdd(cdhd.DataSpan[4] | (cdhd.DataSpan[5] << 8), slot);
+                slot++;
+            }
+            foreach (var o in Objects)
+                if (o.Name != null && idOf.TryGetValue(o.Name, out int id) && slotOf.TryGetValue(id, out int s)) slots[o] = s;
+        }
+        catch { /* falls back to the OBIM order */ }
+        return slots;
+    }
 }

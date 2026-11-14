@@ -15,6 +15,10 @@ public sealed class ScriptEntry
     public string Title { get; init; }
     public string Detail { get; init; }
     public string Group { get; init; }
+    /// <summary>What the script is called (<see cref="ScriptNames"/>), or null when it has no name yet.</summary>
+    public string Name { get; init; }
+    /// <summary>The title with the name beside it: "Local script 2013 · place-chicken-flock".</summary>
+    public string Heading => Name == null ? Title : $"{Title} · {Name}";
     public ScummBlock Block { get; init; }
     /// <summary>The code ranges in <see cref="Block"/>'s data: one, or one per verb.</summary>
     public IReadOnlyList<ScriptPart> Parts { get; init; } = Array.Empty<ScriptPart>();
@@ -144,15 +148,19 @@ public static class RoomScripts
             case ScummTag.LSCR:
             {
                 int no = len >= 4 ? (int)b.DataSpan.U32LE(0) : -1;
-                return new ScriptEntry { Title = $"Local script {no}", Detail = $"LSCR  {len:N0} bytes", Group = "Local", Block = b, Parts = new[] { new ScriptPart(null, 4, len) } };
+                string name = RoomNo(b.FindParent(ScummTag.LFLF)) is int room ? ScriptNames.Local(room, no) : null;
+                return new ScriptEntry { Title = $"Local script {no}", Name = name, Detail = $"LSCR  {len:N0} bytes", Group = "Local", Block = b, Parts = new[] { new ScriptPart(null, 4, len) } };
             }
             case ScummTag.SCRP:
             {
                 var lflf = b.FindParent(ScummTag.LFLF);
-                string title = "Global script";
+                string title = "Global script", name = null;
                 if (RoomNo(lflf) is int room && IndexFor(b).ScriptAt.TryGetValue((room, b.Offset - lflf.Offset), out int no))
+                {
                     title = $"Global script {no}";
-                return new ScriptEntry { Title = title, Detail = $"SCRP  {len:N0} bytes", Group = "Global", Block = b, Parts = new[] { new ScriptPart(null, 0, len) } };
+                    name = ScriptNames.Global(no);
+                }
+                return new ScriptEntry { Title = title, Name = name, Detail = $"SCRP  {len:N0} bytes", Group = "Global", Block = b, Parts = new[] { new ScriptPart(null, 0, len) } };
             }
             case ScummTag.OBCD:
                 return ObjectEntry(b);

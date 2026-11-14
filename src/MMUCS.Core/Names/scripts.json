@@ -1,0 +1,66 @@
+{
+  "Globals": {
+    "1": {
+      "Name": "boot",
+      "Note": "Runs first: turns the cursor and userput off, reads the starting room from local0 and sets the game's starting variables (global/script_0001.scumm). MMUCS reads its top-level constant writes as a fresh game's values."
+    },
+    "88": {
+      "Name": "dress-chicken",
+      "Note": "start-script bak rec 88(actor, scale, kind): dresses the actor as a chicken facing 90 (costume 67, or 69 when kind is 1) or 270 (68 / 70) at random, ignoring the boxes, never z-clipped, at the scale given; then pecks and clucks in a loop (global/script_0088.scumm). Used by fortbase (local 2007, 2013) and quiksand (local 2008)."
+    },
+    "338": {
+      "Name": "volcano-erupts",
+      "Note": "The eruption cutscene: lava reaches the hotel's barbecue (hotel-ex objects to state 0, the fire costume 305, the pot boiling if the cheese is in it), then the bloodmap; sets volcano-erupted (global/script_0338.scumm:4-128)."
+    },
+    "342": {
+      "Name": "take-pot-of-cheese",
+      "Note": "Guybrush takes the pot of melted cheese: the hotel's pot object goes, the shipwreck's pot-o-cheese becomes usable, sets took-pot-of-cheese (global/script_0342.scumm:64-68)."
+    }
+  },
+  "Locals": {
+    "14:2007": {
+      "Name": "setup-chickens",
+      "Note": "Puts chicken 5 (actor 18, dress-chicken scale 175) at 1065,365, then starts local 2013 for the rest of the flock; also turns the player when arriving from room 378 and starts script 94 when bit102 is set (rooms/014_fortbase/local_2007.scumm)."
+    },
+    "14:2013": {
+      "Name": "place-chicken-flock",
+      "Note": "Grows fortbase-chicken-flock-size by 2 (to 15 at most) and puts that many chickens (actors 19 up) at random spots out of 16, each with dress-chicken; spots 3-12 are skipped while script 141 runs (rooms/014_fortbase/local_2013.scumm)."
+    },
+    "21:2013": {
+      "Name": "setup-barbers",
+      "Note": "Sets up the barber shop's pirates on entry: the barber chair (actor 13), McMutton (3), Rottingham (2), Cutthroat Bill (4) and Van Helgen (5), each by whether they've left yet (rooms/021_brbr-int/local_2013.scumm)."
+    },
+    "32:2008": {
+      "Name": "setup-actors",
+      "Note": "Puts actor 7 (costume 182) and the quicksand chicken (actor 18: dress-chicken, then costume 185 facing 270) in the room (rooms/032_quiksand/local_2008.scumm)."
+    },
+    "60:2001": {
+      "Name": "setup-barbecue",
+      "Note": "Once the volcano has erupted (volcano-erupted): the barbecue's fire (actor 15, costume 305) and its animation loop (local 2008); with the cheese melting in the pot (cheese-in-pot, not took-pot-of-cheese) the boiling pot (actor 14, costume 306) and its bubbling (local 2007) (rooms/060_hotel-ex/local_2001.scumm)."
+    },
+    "60:2002": {
+      "Name": "set-entry-states",
+      "Note": "On entry: the column and barbecue animation objects by volcano-erupted, and the pot's state: 0 once taken (took-pot-of-cheese), 4 or 2 with the cheese in it (cheese-in-pot) by volcano-erupted, else 5 or 1 (rooms/060_hotel-ex/local_2002.scumm)."
+    },
+    "60:2004": {
+      "Name": "cook-cheese",
+      "Note": "The cutscene where Guybrush puts the nacho cheese in the pot: pot states 2-4, and with the volcano erupted the boiling pot costume (306); sets cheese-in-pot at the end (rooms/060_hotel-ex/local_2004.scumm)."
+    },
+    "60:2006": {
+      "Name": "light-by-player",
+      "Note": "Loops: brightens palette slots 230-255 as the player nears 396,196 (box 15) or 569,196 (boxes 16, 18) (rooms/060_hotel-ex/local_2006.scumm)."
+    },
+    "60:2007": {
+      "Name": "bubble-pot",
+      "Note": "Loops: every 10-30 frames plays one of the boiling pot's animations 7-9 on actor 14, with one of sounds 610-614 when the player is near (rooms/060_hotel-ex/local_2007.scumm)."
+    },
+    "61:2012": {
+      "Name": "setup-goodsoup-and-xima",
+      "Note": "Goodsoup (actor 2) hungover at the bar (costume 308) until he's handed over the hangover cure (got-hangover-cure), then at 429,253 (309) with the glass and hand objects' states to match; and the fortune teller Xima (actor 3, costume 311) (rooms/061_hotelbar/local_2012.scumm)."
+    },
+    "71:2001": {
+      "Name": "setup-light-and-skull",
+      "Note": "Sets up actor 42 (costume 360) and, with the lantern on the ledge, the light animation object (state 1) and its loop (local 2016); then the skull (actor 5) by where it is (rooms/071_crakwall/local_2001.scumm)."
+    }
+  }
+}

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Imaging;
@@ -35,6 +37,15 @@ public static class ObimDecoders
         public readonly int DefaultPaletteIndex = defaultPaletteIndex;
     }
     
+    /// <summary>An object image's SMAPs, one per image, in order.</summary>
+    private static List<ScummBlock> Smaps(ScummBlock imag)
+    {
+        var wrap = imag.FindChild(ScummTag.WRAP);
+        var list = wrap?.Children.Where(c => c.Tag == ScummTag.SMAP).ToList() ?? new List<ScummBlock>();
+        if (list.Count == 0 && imag.FindChildRecursive(ScummTag.SMAP) is { } one) list.Add(one);
+        return list;
+    }
+
     public static bool TryGetObimInfo(ScummBlock obimBlock, out ObimDecoders.ObimInfo info)
     {
         info = default;
@@ -51,8 +62,10 @@ public static class ObimDecoders
         int totalFrames = 0;
         if (imag != null)
         {
-            foreach (var child in imag.FindChildrenRecursive(ScummTag.BOMP))
-                if (child.Tag == ScummTag.BOMP) totalFrames++;
+            totalFrames = Smaps(imag).Count;
+            if (totalFrames == 0)
+                foreach (var child in imag.FindChildrenRecursive(ScummTag.BOMP))
+                    if (child.Tag == ScummTag.BOMP) totalFrames++;
         }
 
         int width = (int)imhd.DataSpan.U32LE(56);
@@ -87,7 +100,9 @@ public static class ObimDecoders
         var imag = objectBlock.FindChild(ScummTag.IMAG);
         if (imag == null) return false;
 
-        ScummBlock smap = imag.FindChildRecursive(ScummTag.SMAP);
+        // One SMAP per image under IMAG → WRAP; state N shows image N (hotel-ex's pot has 5).
+        var smaps = Smaps(imag);
+        ScummBlock smap = smaps.Count > 0 ? smaps[Math.Clamp(frameIndex, 0, smaps.Count - 1)] : null;
         ScummBlock bomp = null;
 
         if (smap == null)

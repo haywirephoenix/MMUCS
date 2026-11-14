@@ -52,7 +52,12 @@ public static class RoomObjectStates
             catch { return; } // a script that doesn't decompile sets nothing we can read
             var part = e.Parts.FirstOrDefault();
             var branches = PlacementTiming.Branches(e.Block.DataSpan, part.Start, part.End, room.RoomNo, fresh);
-            foreach (var line in lines.Where(l => l.Indent == 0 || (l.Offset >= 0 && PlacementTiming.Surely(branches, l.Offset))))
+            // A line at the top of the decompiled script may still sit inside a condition written with goto
+            // ("if (!(class-of(crakwall-lantern-on-ledge) is [32] && …)) goto L0095"): skip it when a fresh
+            // game surely jumps over it.
+            foreach (var line in lines.Where(l => l.Offset >= 0
+                         ? l.Indent == 0 ? PlacementTiming.Reached(branches, l.Offset) : PlacementTiming.Surely(branches, l.Offset)
+                         : l.Indent == 0))
             {
                 string t = line.Text.Trim();
                 if (SetState.Match(t) is { Success: true } m)

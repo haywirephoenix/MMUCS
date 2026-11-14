@@ -16,6 +16,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 TOOL_DIR = Path(__file__).resolve().parent
 REPO_MAP = TOOL_DIR.parent.parent / "src" / "MMUCS.Core" / "Names" / "variables.json"
+REPO_SCRIPT_MAP = TOOL_DIR.parent.parent / "src" / "MMUCS.Core" / "Names" / "scripts.json"
 SAVED_ROOT = TOOL_DIR / ".export"
 
 # Same rules as MMUCS (VariableNames.cs), plus the decompiler's keywords.
@@ -38,6 +39,12 @@ Find your way around:
                                 Part of one: --lines A-B, --at N [-C K], --block N [--levels K]
   search REGEX [--in ROOM]...   Find lines, with -C for context and --count per script
   calls N [--in ROOM]           List who starts, calls or chains to script N
+
+Name scripts:
+  scripts [--in ROOM] [--unnamed]  List scripts with their names (global and local)
+  name-script WHERE NAME --note TEXT
+                                Name a script in scripts.json: "global 88", "14 local_2013" or "14 2013".
+                                Local scripts are named per room. A name also works as WHERE for `script`
 
 Name variables:
   vars [--unnamed] [--top N]    Rank variables by how many scripts use them, with their status
@@ -491,6 +498,125 @@ def out(text: str = ""):
     print(text)
 
 
+# ── Script names ────────────────────────────────────────────────────────────────────────────────
+
+def script_key(s: Script) -> Optional[Tuple[str, str]]:
+    """Where a script's name lives in scripts.json: ("Globals", "88") or ("Locals", "14:2013")."""
+    m = re.fullmatch(r"script_(\d+)(?:_\d+)?", s.name)
+    if s.kind == "global" and m:
+        return "Globals", str(int(m.group(1)))
+    m = re.fullmatch(r"local_(\d+)", s.name)
+    if s.kind == "room" and m and s.room_no is not None:
+        return "Locals", f"{s.room_no}:{int(m.group(1))}"
+    return None
+
+
+def script_map_path_for(args) -> Path:
+    if getattr(args, "map", None):
+        return Path(args.map)
+    if getattr(args, "local", False):
+        base = os.environ.get("LOCALAPPDATA") or str(Path.home() / ".local" / "share")
+        return Path(base) / "MMUCS" / "scripts.json"
+    return REPO_SCRIPT_MAP
+
+
+def load_script_map(path: Path) -> dict:
+    doc = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    doc.setdefault("Globals", {})
+    doc.setdefault("Locals", {})
+    return doc
+
+
+def save_script_map(path: Path, doc: dict):
+    def order(key: str):
+        parts = key.split(":")
+        return tuple(int(p) for p in parts) if all(p.isdigit() for p in parts) else (1 << 30,)
+    for section in ("Globals", "Locals"):
+        doc[section] = {k: doc[section][k] for k in sorted(doc[section], key=order)}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:  # LF, like the rest of the repo
+        f.write(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
+
+
+def script_name(doc: dict, s: Script) -> str:
+    key = script_key(s)
+    return ((doc[key[0]].get(key[1]) or {}).get("Name") or "") if key else ""
+
+
+def scripts_named(export: "Export", doc: dict, name: str) -> List[Script]:
+    return [s for s in export.scripts if name and script_name(doc, s) == name]
+
+
+def cmd_scripts(args, export: "Export"):
+    doc = load_script_map(script_map_path_for(args))
+    rows = []
+    for s in export.select(args.room):
+        if script_key(s) is None or (args.only_global and s.kind != "global"):
+            continue
+        name = script_name(doc, s)
+        if (args.unnamed and name) or (args.named and not name):
+            continue
+        rows.append((s, name))
+    for s, name in rows:
+        out(f"{s.label:<44} {name}")
+    out(f"\n{len(rows)} scripts, {sum(1 for _, n in rows if n)} named")
+    return 0
+
+
+def resolve_script(export: "Export", doc: dict, where: List[str]) -> Script:
+    where = [w.strip("/") for w in where]
+    if len(where) == 2 and where[0] == "global" and where[1].isdigit():
+        found = [s for s in export.scripts if script_key(s) == ("Globals", str(int(where[1])))]
+    elif len(where) == 1 and where[0].isdigit():
+        found = [s for s in export.scripts if script_key(s) == ("Globals", str(int(where[0])))]
+    elif len(where) == 2:
+        room, name = where
+        name = f"local_{name}" if name.isdigit() else name
+        found = [s for s in export.scripts if s.kind == "room" and room_matches(s, room) and s.name == name]
+    elif len(where) == 1:
+        found = scripts_named(export, doc, where[0])
+    else:
+        found = []
+    found = [s for s in found if script_key(s)]
+    if not found:
+        raise SystemExit('mscripts: no such script. Try: "global 88", "14 local_2013" or "14 2013"')
+    if len({script_key(s) for s in found}) > 1:
+        raise SystemExit("mscripts: several scripts match: " + ", ".join(s.rel for s in found[:10]))
+    return found[0]
+
+
+def cmd_name_script(args, export: "Export"):
+    path = script_map_path_for(args)
+    doc = load_script_map(path)
+    s = resolve_script(export, doc, args.where)
+    section, key = script_key(s)
+    name = args.name.strip()
+    if name:
+        if not re.fullmatch(r"[a-z][a-z0-9]*(-[a-z0-9]+)*", name):
+            raise SystemExit("mscripts: not named: names are lower-case kebab-case (e.g. place-chicken-flock)")
+        # Global names are unique; a local name only within its room.
+        for other_key, e in doc[section].items():
+            if other_key == key or (e or {}).get("Name") != name:
+                continue
+            if section == "Globals" or other_key.split(":")[0] == key.split(":")[0]:
+                raise SystemExit(f"mscripts: not named: '{name}' is already {section[:-1].lower()} script {other_key}")
+    entry = dict(doc[section].get(key) or {})
+    note = args.note if args.note is not None else entry.get("Note")
+    if name and not note:
+        raise SystemExit("mscripts: give a --note saying what the script does (with citations)")
+    old = entry.get("Name") or ""
+    entry["Name"] = name
+    if note:
+        entry["Note"] = note
+    doc[section][key] = entry
+    save_script_map(path, doc)
+    change = f"{old} -> {name}" if old and name else (f"named {name}" if name else f"name cleared (was {old})" if old else "tracked")
+    out(f"{s.label}: {change}  ({path})")
+    if name:
+        out("Re-export scripts from MMUCS to see the name in the files' headers; `script` already finds it by name.")
+    return 0
+
+
 def cmd_use(args, export_root_arg):
     if not args.dir:
         if SAVED_ROOT.exists():
@@ -516,7 +642,10 @@ def cmd_rooms(args, export: Export):
 def cmd_script(args, export: Export):
     where = [w.strip("/") for w in args.where]
     matches = []
-    if len(where) == 2 and where[0] == "global" and where[1].isdigit():
+    named = scripts_named(export, load_script_map(REPO_SCRIPT_MAP), where[0]) if len(where) == 1 else []
+    if named:
+        matches = named
+    elif len(where) == 2 and where[0] == "global" and where[1].isdigit():
         matches = [s for s in export.scripts if s.kind == "global" and s.name == f"script_{int(where[1]):04d}"]
     elif len(where) == 1 and where[0].isdigit():
         matches = [s for s in export.scripts if s.kind == "global" and s.name == f"script_{int(where[0]):04d}"]
@@ -790,6 +919,8 @@ def cmd_calls(args, export: Export):
         return 0
     if n >= 2000:
         out(f"Local scripts are numbered per room: {n} in one room is a different script from {n} in another.\n")
+    elif (load_script_map(REPO_SCRIPT_MAP)["Globals"].get(str(n)) or {}).get("Name"):
+        out(f"Global script {n} is {load_script_map(REPO_SCRIPT_MAP)['Globals'][str(n)]['Name']}.\n")
     for room in sorted(by_room):
         for s, line, verb in by_room[room]:
             out(f"{s.where(line)}  {line.text.strip()}")
@@ -1227,6 +1358,21 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("script", type=int)
     s.add_argument("--in", dest="room", action="append", default=[])
 
+    s = sub.add_parser("scripts", help="list scripts with their names")
+    s.add_argument("--in", dest="room", action="append", default=[], help="room number or part of its name (repeatable)")
+    s.add_argument("--global", dest="only_global", action="store_true", help="only global scripts")
+    s.add_argument("--unnamed", action="store_true", help="only scripts without a name")
+    s.add_argument("--named", action="store_true", help="only named scripts")
+    s.add_argument("--map", help="scripts.json to read names from")
+
+    s = sub.add_parser("name-script", help="name a script")
+    s.add_argument("where", nargs="+", help='"global 88", "14 local_2013", "14 2013", or its current name')
+    s.add_argument("name", help='the name ("" clears it)')
+    s.add_argument("--note", help="what the script does, with citations")
+    where = s.add_mutually_exclusive_group()
+    where.add_argument("--map", help="scripts.json to change (default: the repo's)")
+    where.add_argument("--local", action="store_true", help="change the app data copy MMUCS reads on top")
+
     s = sub.add_parser("vars", help="rank variables")
     s.add_argument("--unnamed", action="store_true", help="only variables without a name")
     s.add_argument("--tracked", action="store_true", help="only variables listed in the map without a name")
@@ -1295,13 +1441,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         return cmd_use(args, args.root)
     scripts_root = find_scripts_root(args.root)
     map_arg = getattr(args, "map", None)
-    if args.command in ("name", "note"):
+    if args.command in ("scripts", "name-script"):
+        map_path = REPO_MAP if REPO_MAP.exists() else None
+    elif args.command in ("name", "note"):
         map_path = map_path_for(args)
     else:
         map_path = Path(map_arg) if map_arg else (REPO_MAP if REPO_MAP.exists() else None)
     export = Export(scripts_root, map_path)
     handler = {
-        "rooms": cmd_rooms, "script": cmd_script, "search": cmd_search, "calls": cmd_calls,
+        "rooms": cmd_rooms, "script": cmd_script, "scripts": cmd_scripts, "name-script": cmd_name_script, "search": cmd_search, "calls": cmd_calls,
         "vars": cmd_vars, "var": cmd_var, "refs": cmd_refs, "progress": cmd_progress, "name": cmd_name, "note": cmd_note, "review": cmd_review,
     }[args.command]
     try:
