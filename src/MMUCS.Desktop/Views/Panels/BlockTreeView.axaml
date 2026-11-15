@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             xmlns:conv="using:MMUCS.Desktop.Converters"
              x:Class="MMUCS.Desktop.Views.Panels.BlockTreeView"
              x:DataType="vm:MainWindowViewModel">
   <DockPanel>
@@ -24,14 +25,14 @@
     </Grid>
     <TextBlock DockPanel.Dock="Top" Text="{Binding FilterSummary}"
                IsVisible="{Binding FilterSummary, Converter={x:Static ObjectConverters.IsNotNull}}"
-               FontSize="11" Margin="9,0,6,2" Foreground="{StaticResource SubtleTextBrush}" />
+               FontSize="11" Margin="9,0,6,2" Foreground="{DynamicResource SubtleTextBrush}" />
 
     <TreeView x:Name="BlockTree" ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
               Classes.colorized="{Binding TreeOptions.ColorizeTags}">
       <TreeView.Styles>
         <!-- Colour applies only while the option is on, and only to tags that have a colour. -->
         <Style Selector="TreeView.colorized TextBlock.label.tinted" x:DataType="vm:BlockNodeViewModel">
-          <Setter Property="Foreground" Value="{Binding TagBrush}" />
+          <Setter Property="Foreground" Value="{Binding TagBrushKey, Converter={x:Static conv:ThemeResourceConverter.Instance}}" />
         </Style>
         <Style Selector="TreeViewItem" x:DataType="vm:BlockNodeViewModel">
           <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
@@ -44,7 +45,7 @@
             <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" FontSize="12"
                        Classes="label" Classes.tinted="{Binding HasTagColor}" />
             <TextBlock Grid.Column="1" Text="{Binding SizeText}" Margin="8,0,4,0" FontSize="11"
-                       Foreground="{StaticResource SubtleTextBrush}" />
+                       Foreground="{DynamicResource SubtleTextBrush}" />
           </Grid>
         </TreeDataTemplate>
       </TreeView.ItemTemplate>

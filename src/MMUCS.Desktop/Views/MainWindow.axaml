@@ -15,7 +15,7 @@
     <NativeMenuBar DockPanel.Dock="Top" />
 
     <!-- Status bar -->
-    <Border DockPanel.Dock="Bottom" Background="{StaticResource PanelHeaderBrush}" Padding="8,3">
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelHeaderBrush}" Padding="8,3">
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock Text="{Binding Status}" FontSize="12" TextTrimming="CharacterEllipsis" />
         <ProgressBar Grid.Column="1" IsIndeterminate="True" Width="120" Height="4"

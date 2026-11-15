@@ -31,7 +31,7 @@ public sealed class CodeView : Control
     public static readonly StyledProperty<FontFamily> FontFamilyProperty = TextElement.FontFamilyProperty.AddOwner<CodeView>();
     public static readonly StyledProperty<double> FontSizeProperty = TextElement.FontSizeProperty.AddOwner<CodeView>();
     public static readonly StyledProperty<IBrush> SelectionBrushProperty =
-        AvaloniaProperty.Register<CodeView, IBrush>(nameof(SelectionBrush), new SolidColorBrush(Color.FromArgb(0x80, 0x26, 0x4F, 0x78)));
+        AvaloniaProperty.Register<CodeView, IBrush>(nameof(SelectionBrush)); // set in ControlStyles.axaml
 
     public IReadOnlyList<ScriptToken> Tokens { get => GetValue(TokensProperty); set => SetValue(TokensProperty, value); }
     public string Text { get => GetValue(TextProperty); set => SetValue(TextProperty, value); }
@@ -73,6 +73,8 @@ public sealed class CodeView : Control
         var all = new MenuItem { Header = "Select all", InputGesture = new KeyGesture(Key.A, KeyModifiers.Control) };
         all.Click += (_, _) => SelectAll();
         ContextMenu = new ContextMenu { Items = { copy, all } };
+        // Syntax colours come from Styles/Colors.axaml: look them up again on a theme change.
+        this.OnThemeChanged(() => { _brushes = null; _cache.Clear(); InvalidateVisual(); });
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -230,7 +232,7 @@ public sealed class CodeView : Control
             {
                 int c0 = i == s.Line ? s.Col : 0;
                 int c1 = i == e.Line ? e.Col : _lines[i].Text.Length + 1; // +1: the line break
-                if (c1 > c0) context.FillRectangle(SelectionBrush, new Rect(c0 * _charWidth, y, (c1 - c0) * _charWidth, _lineHeight));
+                if (c1 > c0 && SelectionBrush != null) context.FillRectangle(SelectionBrush, new Rect(c0 * _charWidth, y, (c1 - c0) * _charWidth, _lineHeight));
             }
             if (_lines[i].Text.Length > 0) context.DrawText(Layout(i), new Point(0, y));
         }

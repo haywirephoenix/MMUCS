@@ -1,5 +1,5 @@
 <!-- App-wide control styles. Loaded after FluentTheme and DockFluentTheme (see App.axaml), so these
-     override the themes. Resource keys come from AppResources.axaml; they are DynamicResource because
+     override the themes. Resource keys come from AppResources.axaml and Colors.axaml; they are DynamicResource because
      this file is compiled on its own and can't see App's resources at compile time. -->
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -23,14 +23,14 @@
     <Setter Property="Margin" Value="0,-10,0,0" />
   </Style>
 
-  <!-- Blue text selection highlight for both dark and light modes. -->
+  <!-- Text selection highlight. -->
   <Style Selector="TextBox">
-    <Setter Property="SelectionBrush" Value="#2563EB" />
-    <Setter Property="SelectionForegroundBrush" Value="White" />
+    <Setter Property="SelectionBrush" Value="{DynamicResource TextSelectionBrush}" />
+    <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextSelectionForegroundBrush}" />
   </Style>
   <Style Selector="SelectableTextBlock">
-    <Setter Property="SelectionBrush" Value="#2563EB" />
-    <Setter Property="SelectionForegroundBrush" Value="White" />
+    <Setter Property="SelectionBrush" Value="{DynamicResource TextSelectionBrush}" />
+    <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextSelectionForegroundBrush}" />
   </Style>
 
   <!-- Splitters (the theme leaves them transparent) show as thin lines: the only lines between
@@ -52,14 +52,14 @@
   <Style Selector="dockCtl|DocumentControl">
     <Setter Property="ModifiedTemplate">
       <DataTemplate DataType="dockCore:IDockable">
-        <Ellipse Width="6" Height="6" Fill="White" VerticalAlignment="Center" Margin="2,0,4,0" />
+        <Ellipse Width="6" Height="6" Fill="{DynamicResource TabModifiedDotBrush}" VerticalAlignment="Center" Margin="2,0,4,0" />
       </DataTemplate>
     </Setter>
   </Style>
   <Style Selector="dockCtl|ToolControl">
     <Setter Property="ModifiedTemplate">
       <DataTemplate DataType="dockCore:IDockable">
-        <Ellipse Width="6" Height="6" Fill="White" VerticalAlignment="Center" Margin="2,0,4,0" />
+        <Ellipse Width="6" Height="6" Fill="{DynamicResource TabModifiedDotBrush}" VerticalAlignment="Center" Margin="2,0,4,0" />
       </DataTemplate>
     </Setter>
   </Style>
@@ -84,11 +84,16 @@
     <Setter Property="Background" Value="{DynamicResource ListBackgroundBrush}" />
   </Style>
 
-  <!-- Room viewer: the outline drawn around the selected object(s). Colour may include alpha
-       (#AARRGGBB); thickness is in screen pixels, the same at every zoom. -->
+  <!-- Room viewer: the outline drawn around the selected object(s). Its colour is in Colors.axaml;
+       thickness is in screen pixels, the same at every zoom. -->
   <Style Selector="controls|RoomCanvas">
-    <Setter Property="SelectionOutlineColor" Value="#50C8FF" />
-    <Setter Property="SelectionOutlineThickness" Value="2" />
+    <Setter Property="SelectionOutlineColor" Value="{DynamicResource RoomSelectionOutlineColor}" />
+    <Setter Property="SelectionOutlineThickness" Value="1" />
+  </Style>
+
+  <!-- Script viewer: selection highlight (its syntax colours are looked up by name, see Colors.axaml). -->
+  <Style Selector="controls|CodeView">
+    <Setter Property="SelectionBrush" Value="{DynamicResource ScriptSelectionBrush}" />
   </Style>
 
   <Style Selector="TextBlock.mono">

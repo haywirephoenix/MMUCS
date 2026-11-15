@@ -21,13 +21,13 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Margin="8"
-                      Background="#80000000">
+                      Background="{DynamicResource OverlayBackgroundBrush}">
             <TextBlock Text="{Binding CelInfo}"
                        Classes="mono"
                        FontSize="11"
                        Margin="8,4"
                        TextWrapping="Wrap"
-                       Foreground="{StaticResource SubtleTextBrush}" />
+                       Foreground="{DynamicResource SubtleTextBrush}" />
         </ScrollViewer>
     </Grid>
 </UserControl>

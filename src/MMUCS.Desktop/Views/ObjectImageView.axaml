@@ -9,18 +9,18 @@
     <Grid>
       <c:CelCanvas RawImage="{Binding PreviewImage}" Mode="Raw" AlphaEnabled="True" />
       <ScrollViewer VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="8"
-                    VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="#80000000">
+                    VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="{DynamicResource OverlayBackgroundBrush}">
         <StackPanel Margin="8,4">
           <TextBlock Text="{Binding Title}" Classes="mono" FontSize="11" />
           <TextBlock Text="{Binding Info}" Classes="mono" FontSize="11" TextWrapping="Wrap"
-                     Foreground="{StaticResource SubtleTextBrush}" />
+                     Foreground="{DynamicResource SubtleTextBrush}" />
         </StackPanel>
       </ScrollViewer>
     </Grid>
     <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
     <DockPanel Grid.Column="2">
       <TextBlock DockPanel.Dock="Top" Text="States" FontSize="11" Margin="8,6,8,2"
-                 Foreground="{StaticResource SubtleTextBrush}"
+                 Foreground="{DynamicResource SubtleTextBrush}"
                  ToolTip.Tip="Pick a state to preview its image here and draw the object in that state in the Room viewer" />
       <ListBox ItemsSource="{Binding States}" SelectedItem="{Binding SelectedState, Mode=TwoWay}">
         <ListBox.Styles>
@@ -31,12 +31,12 @@
         <ListBox.ItemTemplate>
           <DataTemplate DataType="vm:ObjectStateItem">
             <Grid ColumnDefinitions="64,8,*">
-              <Border Width="64" Height="40" Background="#20000000">
+              <Border Width="64" Height="40" Background="{DynamicResource ThumbnailBackgroundBrush}">
                 <Image Source="{Binding Thumbnail}" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="None" />
               </Border>
               <StackPanel Grid.Column="2" VerticalAlignment="Center">
                 <TextBlock Text="{Binding Label}" FontSize="12" />
-                <TextBlock Text="{Binding Detail}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
+                <TextBlock Text="{Binding Detail}" FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" />
               </StackPanel>
             </Grid>
           </DataTemplate>

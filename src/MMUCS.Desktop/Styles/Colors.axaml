@@ -1,0 +1,130 @@
+<!--
+  Every colour the app draws with, by name. Views, styles and the custom-drawn controls (hex view,
+  room canvas, viewport checkerboard, palette grid, script view) all look colours up here, so a
+  theme only has to change this file.
+
+  Theming: everything is in the "Default" theme dictionary, which every theme variant falls back to.
+  To give a variant its own colours, add a sibling dictionary (x:Key="Light" or "Dark") holding just
+  the keys that differ. Colours are looked up with DynamicResource (or from code on theme change), so
+  a variant switch repaints live.
+
+  Colours may include alpha as #AARRGGBB.
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Default">
+
+      <!-- ── General UI ─────────────────────────────────────────────────────────── -->
+      <SolidColorBrush x:Key="PanelHeaderBrush" Color="#000000" />
+      <SolidColorBrush x:Key="ListBackgroundBrush" Color="#000000" />
+      <!-- Secondary text: sizes, hints, headings. -->
+      <SolidColorBrush x:Key="SubtleTextBrush" Color="#99FFFFFF" />
+      <!-- Emphasised text, e.g. the Exporter's current step. -->
+      <SolidColorBrush x:Key="StrongTextBrush" Color="#FFFFFF" />
+      <!-- Text selection in text boxes and selectable text. -->
+      <SolidColorBrush x:Key="TextSelectionBrush" Color="#2563EB" />
+      <SolidColorBrush x:Key="TextSelectionForegroundBrush" Color="#FFFFFF" />
+      <!-- The dot on a tab whose panel got new content while hidden. -->
+      <SolidColorBrush x:Key="TabModifiedDotBrush" Color="#FFFFFF" />
+      <!-- Info boxes drawn over an image (Costume and Object viewers). -->
+      <SolidColorBrush x:Key="OverlayBackgroundBrush" Color="#80000000" />
+      <!-- Behind the state thumbnails in the Object viewer. -->
+      <SolidColorBrush x:Key="ThumbnailBackgroundBrush" Color="#20000000" />
+      <!-- The ⚑ on objects marked for review. -->
+      <SolidColorBrush x:Key="ReviewMarkBrush" Color="#E06C75" />
+
+      <!-- ── Block tags (Blocks panel; the Room viewer's object list reuses some) ── -->
+      <!-- LECF, LFLF; Room viewer: objects with an image. -->
+      <SolidColorBrush x:Key="TagContainerBrush" Color="#E8C07D" />
+      <!-- ROOM, RMHD, RMIM. -->
+      <SolidColorBrush x:Key="TagRoomBrush" Color="#7DCFE8" />
+      <!-- BMAP. -->
+      <SolidColorBrush x:Key="TagBitmapBrush" Color="#7DE8A0" />
+      <!-- AKOS, AKCD, AKPL; Room viewer: hotspots with a costumed actor. -->
+      <SolidColorBrush x:Key="TagCostumeBrush" Color="#E8817D" />
+      <!-- CHAR. -->
+      <SolidColorBrush x:Key="TagCharsetBrush" Color="#C87DE8" />
+      <!-- SCRP. -->
+      <SolidColorBrush x:Key="TagScriptBrush" Color="#E8D77D" />
+      <!-- OBCD, OBIM. -->
+      <SolidColorBrush x:Key="TagObjectBrush" Color="#D0D0D0" />
+
+      <!-- ── Script viewer syntax ───────────────────────────────────────────────── -->
+      <!-- Keys are Script{ScriptTokenKind}Brush; CodeView looks them up by name. -->
+      <SolidColorBrush x:Key="ScriptOffsetBrush" Color="#5C6370" />
+      <SolidColorBrush x:Key="ScriptBytesBrush" Color="#7F848E" />
+      <SolidColorBrush x:Key="ScriptCommentBrush" Color="#6A9955" />
+      <SolidColorBrush x:Key="ScriptKeywordBrush" Color="#C586C0" />
+      <SolidColorBrush x:Key="ScriptCommandBrush" Color="#569CD6" />
+      <SolidColorBrush x:Key="ScriptFunctionBrush" Color="#DCDCAA" />
+      <SolidColorBrush x:Key="ScriptVariableBrush" Color="#9CDCFE" />
+      <SolidColorBrush x:Key="ScriptNumberBrush" Color="#B5CEA8" />
+      <SolidColorBrush x:Key="ScriptStringBrush" Color="#CE9178" />
+      <SolidColorBrush x:Key="ScriptLabelBrush" Color="#4EC9B0" />
+      <SolidColorBrush x:Key="ScriptSelectionBrush" Color="#80264F78" />
+
+      <!-- ── Hex view ───────────────────────────────────────────────────────────── -->
+      <SolidColorBrush x:Key="HexOffsetBrush" Color="#96FFFFFF" />
+      <SolidColorBrush x:Key="HexTextBrush" Color="#DCDCE1" />
+      <!-- Rows that are all zero bytes. -->
+      <SolidColorBrush x:Key="HexZeroBrush" Color="#5AFFFFFF" />
+      <SolidColorBrush x:Key="HexAsciiBrush" Color="#96C8FF" />
+      <!-- Behind the block's 8-byte header. -->
+      <SolidColorBrush x:Key="HexHeaderBackgroundBrush" Color="#32FFAA00" />
+      <!-- Selection in the active column, and its mirror in the other column. -->
+      <SolidColorBrush x:Key="HexSelectionBrush" Color="#8C3C8CFF" />
+      <SolidColorBrush x:Key="HexSelectionMirrorBrush" Color="#463C8CFF" />
+      <!-- Every other row. -->
+      <SolidColorBrush x:Key="HexStripeBrush" Color="#0AFFFFFF" />
+      <SolidColorBrush x:Key="HexCaretBrush" Color="#C88CBEFF" />
+
+      <!-- ── Palette grid ───────────────────────────────────────────────────────── -->
+      <!-- The small square drawn in an unused palette slot. -->
+      <SolidColorBrush x:Key="PaletteEmptySlotBrush" Color="#3CFFFFFF" />
+
+      <!-- ── Image viewports (Room, Costume, Object) ────────────────────────────── -->
+      <!-- The checkerboard behind transparent pixels. -->
+      <SolidColorBrush x:Key="ViewportCheckerDarkBrush" Color="#2A2A2E" />
+      <SolidColorBrush x:Key="ViewportCheckerLightBrush" Color="#343439" />
+
+      <!-- ── Room viewer overlays ───────────────────────────────────────────────── -->
+      <!-- Outline around the selected object(s). A Color, since RoomCanvas.SelectionOutlineColor is one. -->
+      <Color x:Key="RoomSelectionOutlineColor">#50C8FF</Color>
+      <SolidColorBrush x:Key="RoomHotspotFillBrush" Color="#26FFDC00" />
+      <SolidColorBrush x:Key="RoomHotspotStrokeBrush" Color="#AAFFDC00" />
+      <SolidColorBrush x:Key="RoomWalkboxFillBrush" Color="#2800FF8C" />
+      <SolidColorBrush x:Key="RoomWalkboxStrokeBrush" Color="#D200FF8C" />
+      <SolidColorBrush x:Key="RoomWalkboxLabelBrush" Color="#A0FFC8" />
+      <!-- Object name labels, and the shadow drawn under them. -->
+      <SolidColorBrush x:Key="RoomLabelBrush" Color="#FFEB78" />
+      <SolidColorBrush x:Key="RoomLabelShadowBrush" Color="#C8000000" />
+      <!-- The room's outline (View ▸ Bounds). -->
+      <SolidColorBrush x:Key="RoomBoundsBrush" Color="#FFA500" />
+      <!-- Z-plane overlay tints, plane 1 to 7; half see-through. -->
+      <SolidColorBrush x:Key="RoomZPlane1Brush" Color="#6EFF0000" />
+      <SolidColorBrush x:Key="RoomZPlane2Brush" Color="#6E00FF00" />
+      <SolidColorBrush x:Key="RoomZPlane3Brush" Color="#6E0000FF" />
+      <SolidColorBrush x:Key="RoomZPlane4Brush" Color="#6EFFFF00" />
+      <SolidColorBrush x:Key="RoomZPlane5Brush" Color="#6EFF00FF" />
+      <SolidColorBrush x:Key="RoomZPlane6Brush" Color="#6E00FFFF" />
+      <SolidColorBrush x:Key="RoomZPlane7Brush" Color="#6EFFFFFF" />
+
+      <!-- ── Dock theme overrides ───────────────────────────────────────────────── -->
+      <!-- These keys replace the Dock theme's own (app resources win). Tabs use neutral greys
+           instead of the theme's blue; drop targets and splitter hover keep the blue accent. -->
+      <SolidColorBrush x:Key="DockTabHoverBackgroundBrush" Color="#3A3A3F" />
+      <SolidColorBrush x:Key="DockTabActiveBackgroundBrush" Color="#4A4A50" />
+      <SolidColorBrush x:Key="DockTabActiveIndicatorBrush" Color="#707078" />
+      <SolidColorBrush x:Key="DockTabSelectedForegroundBrush" Color="#F0F0F0" />
+      <SolidColorBrush x:Key="DockTabCloseHoverBackgroundBrush" Color="#5A5A62" />
+      <!-- No outlines around panels: the only lines are the splitters, where panels can be resized. -->
+      <SolidColorBrush x:Key="DockBorderSubtleBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="DockBorderStrongBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="DockDocumentContentBorderBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="DockSplitterIdleBrush" Color="#2E2E33" />
+      <SolidColorBrush x:Key="DockSeparatorBrush" Color="Transparent" />
+
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

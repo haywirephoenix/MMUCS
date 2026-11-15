@@ -68,15 +68,21 @@ public sealed class HexView : Control
     private bool _dragging;
 
     private static readonly FontFamily Mono = new("Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace");
-    private static readonly IBrush OffsetBrush = new SolidColorBrush(Color.FromArgb(150, 255, 255, 255));
-    private static readonly IBrush HexBrush = new SolidColorBrush(Color.FromRgb(220, 220, 225));
-    private static readonly IBrush ZeroBrush = new SolidColorBrush(Color.FromArgb(90, 255, 255, 255));
-    private static readonly IBrush AsciiBrush = new SolidColorBrush(Color.FromRgb(150, 200, 255));
-    private static readonly IBrush HeaderBg = new SolidColorBrush(Color.FromArgb(50, 255, 170, 0));
-    private static readonly IBrush SelectBg = new SolidColorBrush(Color.FromArgb(140, 60, 140, 255));
-    private static readonly IBrush MirrorBg = new SolidColorBrush(Color.FromArgb(70, 60, 140, 255));
-    private static readonly IBrush StripeBg = new SolidColorBrush(Color.FromArgb(10, 255, 255, 255));
-    private static readonly IPen CaretPen = new Pen(new SolidColorBrush(Color.FromArgb(200, 140, 190, 255)), 1);
+    // Colours from Styles/Colors.axaml; rebuilt when the theme or resources change.
+    private Palette _palette;
+
+    private sealed class Palette(Control c)
+    {
+        public readonly IBrush Offset = c.FindBrush("HexOffsetBrush");
+        public readonly IBrush Hex = c.FindBrush("HexTextBrush");
+        public readonly IBrush Zero = c.FindBrush("HexZeroBrush");
+        public readonly IBrush Ascii = c.FindBrush("HexAsciiBrush");
+        public readonly IBrush HeaderBg = c.FindBrush("HexHeaderBackgroundBrush");
+        public readonly IBrush SelectBg = c.FindBrush("HexSelectionBrush");
+        public readonly IBrush MirrorBg = c.FindBrush("HexSelectionMirrorBrush");
+        public readonly IBrush StripeBg = c.FindBrush("HexStripeBrush");
+        public readonly IPen Caret = new Pen(c.FindBrush("HexCaretBrush"), 1);
+    }
 
     static HexView()
     {
@@ -88,6 +94,7 @@ public sealed class HexView : Control
     public HexView()
     {
         ContextMenu = BuildContextMenu();
+        this.OnThemeChanged(() => { _palette = null; InvalidateVisual(); });
     }
 
     private long TotalRows => (Data.Length + BytesPerRow - 1) / BytesPerRow;
@@ -480,8 +487,9 @@ public sealed class HexView : Control
 
         bool hasSel = HasSelection;
         int selStart = hasSel ? SelStart : -1, selEnd = hasSel ? SelEnd : -1;
-        IBrush hexSelBg = _activeColumn == Column.Hex ? SelectBg : MirrorBg;
-        IBrush asciiSelBg = _activeColumn == Column.Ascii ? SelectBg : MirrorBg;
+        var pal = _palette ??= new Palette(this);
+        IBrush hexSelBg = _activeColumn == Column.Hex ? pal.SelectBg : pal.MirrorBg;
+        IBrush asciiSelBg = _activeColumn == Column.Ascii ? pal.SelectBg : pal.MirrorBg;
 
         for (int r = 0; r < rows; r++)
         {
@@ -491,13 +499,13 @@ public sealed class HexView : Control
             int count = (int)Math.Min(BytesPerRow, span.Length - start);
             double y = r * lh;
 
-            if ((row & 1) == 1) ctx.FillRectangle(StripeBg, new Rect(0, y, Bounds.Width, lh));
+            if ((row & 1) == 1) ctx.FillRectangle(pal.StripeBg, new Rect(0, y, Bounds.Width, lh));
 
             // Header tint (per byte, only in the first row or so).
             for (int c = 0; c < count && start + c < HeaderLength; c++)
             {
-                ctx.FillRectangle(HeaderBg, new Rect(ByteX(hexX, cw, c) - cw * 0.25, y, cw * 2.5, lh));
-                ctx.FillRectangle(HeaderBg, new Rect(asciiX + c * cw, y, cw, lh));
+                ctx.FillRectangle(pal.HeaderBg, new Rect(ByteX(hexX, cw, c) - cw * 0.25, y, cw * 2.5, lh));
+                ctx.FillRectangle(pal.HeaderBg, new Rect(asciiX + c * cw, y, cw, lh));
             }
 
             // Selection: one continuous run per row in each column (the hex run spans the group gap).
@@ -515,11 +523,11 @@ public sealed class HexView : Control
             if (hasSel && _caret >= start && _caret < start + count)
             {
                 int c = (int)(_caret - start);
-                ctx.DrawRectangle(null, CaretPen, new Rect(ByteX(hexX, cw, c) - cw * 0.5 + 0.5, y + 0.5, cw * 3 - 1, lh - 1));
-                ctx.DrawRectangle(null, CaretPen, new Rect(asciiX + c * cw + 0.5, y + 0.5, cw - 1, lh - 1));
+                ctx.DrawRectangle(null, pal.Caret, new Rect(ByteX(hexX, cw, c) - cw * 0.5 + 0.5, y + 0.5, cw * 3 - 1, lh - 1));
+                ctx.DrawRectangle(null, pal.Caret, new Rect(asciiX + c * cw + 0.5, y + 0.5, cw - 1, lh - 1));
             }
 
-            DrawText(ctx, (BaseOffset + start).ToString("X8"), offsetX, y, tf, OffsetBrush);
+            DrawText(ctx, (BaseOffset + start).ToString("X8"), offsetX, y, tf, pal.Offset);
 
             hex.Clear(); ascii.Clear();
             bool allZero = true;
@@ -530,8 +538,8 @@ public sealed class HexView : Control
                 hex.Append(b.ToString("X2")).Append(c == 7 ? "  " : " ");
                 ascii.Append(b >= 0x20 && b < 0x7F ? (char)b : '·');
             }
-            DrawText(ctx, hex.ToString(), hexX, y, tf, allZero ? ZeroBrush : HexBrush);
-            DrawText(ctx, ascii.ToString(), asciiX, y, tf, AsciiBrush);
+            DrawText(ctx, hex.ToString(), hexX, y, tf, allZero ? pal.Zero : pal.Hex);
+            DrawText(ctx, ascii.ToString(), asciiX, y, tf, pal.Ascii);
         }
     }
 

@@ -13,10 +13,10 @@
     <Style Selector="TextBlock.step">
       <Setter Property="FontSize" Value="13" />
       <Setter Property="Margin" Value="14,7" />
-      <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
     </Style>
     <Style Selector="TextBlock.step.current">
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource StrongTextBrush}" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="TextBlock.h1">
@@ -26,7 +26,7 @@
     </Style>
     <Style Selector="TextBlock.hint">
       <Setter Property="FontSize" Value="12" />
-      <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
       <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
   </Window.Styles>
@@ -34,7 +34,7 @@
   <Grid ColumnDefinitions="190,*" RowDefinitions="*,Auto">
 
     <!-- Step rail -->
-    <Border Grid.RowSpan="2" Background="{StaticResource PanelHeaderBrush}" Padding="0,14">
+    <Border Grid.RowSpan="2" Background="{DynamicResource PanelHeaderBrush}" Padding="0,14">
       <ItemsControl ItemsSource="{Binding Steps}">
         <ItemsControl.ItemTemplate>
           <DataTemplate DataType="vm:StepItem">
@@ -74,7 +74,7 @@
           <ComboBox Grid.Column="2" ItemsSource="{Binding Preview.Cels}" SelectedItem="{Binding Preview.SelectedCel}"
                     HorizontalAlignment="Stretch" />
         </Grid>
-        <Border Grid.Row="3" BorderBrush="{StaticResource PanelHeaderBrush}" BorderThickness="1">
+        <Border Grid.Row="3" BorderBrush="{DynamicResource PanelHeaderBrush}" BorderThickness="1">
           <c:CelCanvas DataImage="{Binding Preview.DataImage}"
                        RawImage="{Binding Preview.RawImage}"
                        PaletteImage="{Binding Preview.PaletteImage}"
@@ -128,7 +128,7 @@
     </Panel>
 
     <!-- Navigation -->
-    <Border Grid.Row="1" Grid.Column="1" Padding="24,10" BorderBrush="{StaticResource PanelHeaderBrush}" BorderThickness="0,1,0,0">
+    <Border Grid.Row="1" Grid.Column="1" Padding="24,10" BorderBrush="{DynamicResource PanelHeaderBrush}" BorderThickness="0,1,0,0">
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
         <Button Content="Back" Command="{Binding BackCommand}" IsVisible="{Binding ShowBack}" MinWidth="80" />
         <Button Content="{Binding NextLabel}" Command="{Binding NextCommand}" IsVisible="{Binding ShowNext}"

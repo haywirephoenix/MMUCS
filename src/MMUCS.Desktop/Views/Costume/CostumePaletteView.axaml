@@ -8,7 +8,7 @@
     <StackPanel>
       <c:PaletteGrid x:Name="Palette" Colors="{Binding PaletteColors}" Margin="6" />
       <TextBlock Text="{Binding #Palette.HoverText}" Classes="mono" FontSize="11" Margin="8,0,8,6"
-                 Foreground="{StaticResource SubtleTextBrush}" />
+                 Foreground="{DynamicResource SubtleTextBrush}" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

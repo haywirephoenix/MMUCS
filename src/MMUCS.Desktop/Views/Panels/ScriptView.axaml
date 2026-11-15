@@ -19,7 +19,7 @@
         <CheckBox Content="Offsets" IsChecked="{Binding ShowOffsets}" Margin="0,0,12,0" FontSize="11"
                   ToolTip.Tip="Show each line's byte offset (hex, from the start of the block's data)" />
         <TextBlock Text="{Binding Info}" VerticalAlignment="Center" FontSize="11"
-                   Foreground="{StaticResource SubtleTextBrush}" />
+                   Foreground="{DynamicResource SubtleTextBrush}" />
       </WrapPanel>
     </Border>
 
@@ -35,7 +35,7 @@
           <DataTemplate DataType="scumm:ScriptEntry">
             <StackPanel>
               <TextBlock Text="{Binding Heading}" FontSize="12" />
-              <TextBlock Text="{Binding Detail}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
+              <TextBlock Text="{Binding Detail}" FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" />
             </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>

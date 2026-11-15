@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MMUCS.Core.Scumm;
@@ -54,28 +53,27 @@ public sealed partial class BlockNodeViewModel : ObservableObject
         foreach (var c in _children) c.RefreshLabels();
     }
 
-    private static readonly Dictionary<uint, IBrush> TagBrushes = new()
+    /// <summary>Tag colours, as resource keys in Styles/Colors.axaml (same palette as the Godot tree).</summary>
+    private static readonly Dictionary<uint, string> TagBrushKeys = new()
     {
-        { ScummTag.LECF, Brush("#E8C07D") },
-        { ScummTag.LFLF, Brush("#E8C07D") },
-        { ScummTag.ROOM, Brush("#7DCFE8") },
-        { ScummTag.RMHD, Brush("#7DCFE8") },
-        { ScummTag.RMIM, Brush("#7DCFE8") },
-        { ScummTag.BMAP, Brush("#7DE8A0") },
-        { ScummTag.AKOS, Brush("#E8817D") },
-        { ScummTag.AKCD, Brush("#E8817D") },
-        { ScummTag.AKPL, Brush("#E8817D") },
-        { ScummTag.CHAR, Brush("#C87DE8") },
-        { ScummTag.SCRP, Brush("#E8D77D") },
-        { ScummTag.OBCD, Brush("#D0D0D0") },
-        { ScummTag.OBIM, Brush("#D0D0D0") },
+        { ScummTag.LECF, "TagContainerBrush" },
+        { ScummTag.LFLF, "TagContainerBrush" },
+        { ScummTag.ROOM, "TagRoomBrush" },
+        { ScummTag.RMHD, "TagRoomBrush" },
+        { ScummTag.RMIM, "TagRoomBrush" },
+        { ScummTag.BMAP, "TagBitmapBrush" },
+        { ScummTag.AKOS, "TagCostumeBrush" },
+        { ScummTag.AKCD, "TagCostumeBrush" },
+        { ScummTag.AKPL, "TagCostumeBrush" },
+        { ScummTag.CHAR, "TagCharsetBrush" },
+        { ScummTag.SCRP, "TagScriptBrush" },
+        { ScummTag.OBCD, "TagObjectBrush" },
+        { ScummTag.OBIM, "TagObjectBrush" },
     };
 
-    private static IBrush Brush(string hex) => new SolidColorBrush(Color.Parse(hex)).ToImmutable();
-
-    /// <summary>Tag colour (same palette as the Godot tree); null for uncoloured tags.</summary>
-    public IBrush TagBrush => TagBrushes.TryGetValue(Block.Tag, out var b) ? b : null;
-    public bool HasTagColor => TagBrushes.ContainsKey(Block.Tag);
+    /// <summary>Resource key of the tag's colour; null for uncoloured tags.</summary>
+    public string TagBrushKey => TagBrushKeys.TryGetValue(Block.Tag, out var k) ? k : null;
+    public bool HasTagColor => TagBrushKeys.ContainsKey(Block.Tag);
 
     public string Tag => Block.TagName ?? ScummTag.ToString(Block.Tag);
 

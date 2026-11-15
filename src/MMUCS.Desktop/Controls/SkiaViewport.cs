@@ -66,6 +66,19 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
     protected Vector Offset => _offset;
     protected ViewTransform View => new(Zoom, _offset.X, _offset.Y);
 
+    protected SkiaViewport()
+    {
+        this.OnThemeChanged(() =>
+        {
+            _checkerPaint = null;
+            OnThemeColorsChanged();
+            InvalidateVisual();
+        });
+    }
+
+    /// <summary>The theme or resources changed: drop anything built from the named colours.</summary>
+    protected virtual void OnThemeColorsChanged() { }
+
     static SkiaViewport()
     {
         AffectsRender<SkiaViewport>(ZoomProperty, ShowCheckerboardProperty);
@@ -237,7 +250,7 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         context.FillRectangle(Brushes.Transparent, bounds);
         if (!HoldFrame || _lastFrame is not { } frame)
             _lastFrame = frame = (View, ContentSize, CreateScene());
-        context.Custom(new SceneDrawOperation(bounds, frame.View, ShowCheckerboard, frame.Size, frame.Scene));
+        context.Custom(new SceneDrawOperation(bounds, frame.View, ShowCheckerboard ? CheckerPaint : null, frame.Size, frame.Scene));
     }
 
     /// <summary>
@@ -247,14 +260,36 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
     protected virtual bool HoldFrame => false;
     private (ViewTransform View, Size Size, IViewportScene Scene)? _lastFrame;
 
+    // The checkerboard behind transparent pixels, in the colours from Styles/Colors.axaml. Rebuilt on a
+    // theme change; not disposed when replaced, since a draw operation already handed out may use it.
+    private SKPaint _checkerPaint;
+    private SKPaint CheckerPaint => _checkerPaint ??= CreateCheckerPaint(
+        this.FindSKColor("ViewportCheckerDarkBrush"), this.FindSKColor("ViewportCheckerLightBrush"));
+
+    private static SKPaint CreateCheckerPaint(SKColor dark, SKColor light)
+    {
+        using var bmp = new SKBitmap(16, 16);
+        using (var c = new SKCanvas(bmp))
+        {
+            c.Clear(dark);
+            using var p = new SKPaint { Color = light };
+            c.DrawRect(0, 0, 8, 8, p);
+            c.DrawRect(8, 8, 8, 8, p);
+        }
+        return new SKPaint
+        {
+            Shader = SKShader.CreateBitmap(bmp, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat),
+        };
+    }
+
     private sealed class SceneDrawOperation : ICustomDrawOperation
     {
         private readonly ViewTransform _view;
-        private readonly bool _checker;
+        private readonly SKPaint _checker;
         private readonly Size _contentSize;
         private readonly IViewportScene _scene;
 
-        public SceneDrawOperation(Rect bounds, ViewTransform view, bool checker, Size contentSize, IViewportScene scene)
+        public SceneDrawOperation(Rect bounds, ViewTransform view, SKPaint checker, Size contentSize, IViewportScene scene)
         {
             Bounds = bounds;
             _view = view;
@@ -279,31 +314,11 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
             var clip = new SKRect(0, 0, (float)Bounds.Width, (float)Bounds.Height);
             canvas.ClipRect(clip);
 
-            if (_checker && _contentSize.Width > 0)
-                DrawCheckerboard(canvas, _view.Map(new SKRect(0, 0, (float)_contentSize.Width, (float)_contentSize.Height)));
+            if (_checker != null && _contentSize.Width > 0)
+                canvas.DrawRect(_view.Map(new SKRect(0, 0, (float)_contentSize.Width, (float)_contentSize.Height)), _checker);
 
             _scene?.Render(canvas, _view, clip);
             canvas.Restore();
         }
-
-        private static readonly SKPaint CheckerPaint = CreateCheckerPaint();
-
-        private static SKPaint CreateCheckerPaint()
-        {
-            using var bmp = new SKBitmap(16, 16);
-            using (var c = new SKCanvas(bmp))
-            {
-                c.Clear(new SKColor(0x2A, 0x2A, 0x2E));
-                using var p = new SKPaint { Color = new SKColor(0x34, 0x34, 0x39) };
-                c.DrawRect(0, 0, 8, 8, p);
-                c.DrawRect(8, 8, 8, 8, p);
-            }
-            return new SKPaint
-            {
-                Shader = SKShader.CreateBitmap(bmp, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat),
-            };
-        }
-
-        private static void DrawCheckerboard(SKCanvas canvas, SKRect rect) => canvas.DrawRect(rect, CheckerPaint);
     }
 }

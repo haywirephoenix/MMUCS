@@ -55,6 +55,7 @@ public sealed class PaletteGrid : Control
         double cell = Math.Min(Bounds.Width, Bounds.Height) / 16;
         ctx.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
         if (colors == null) return;
+        IPen emptyPen = null;
 
         for (int i = 0; i < 256; i++)
         {
@@ -66,7 +67,7 @@ public sealed class PaletteGrid : Control
             }
             else
             {
-                ctx.DrawRectangle(null, new Pen(new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)), 1), rect.Deflate(cell * 0.3));
+                ctx.DrawRectangle(null, emptyPen ??= new Pen(this.FindBrush("PaletteEmptySlotBrush"), 1), rect.Deflate(cell * 0.3));
             }
         }
     }

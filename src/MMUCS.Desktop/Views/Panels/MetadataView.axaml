@@ -13,7 +13,7 @@
     <ListBox.ItemTemplate>
       <DataTemplate DataType="vm:MetadataRow">
         <Grid ColumnDefinitions="110,*">
-          <TextBlock Text="{Binding Key}" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+          <TextBlock Text="{Binding Key}" FontSize="12" Foreground="{DynamicResource SubtleTextBrush}" />
           <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12" TextWrapping="Wrap" />
         </Grid>
       </DataTemplate>

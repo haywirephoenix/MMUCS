@@ -55,7 +55,7 @@ public sealed class RoomCanvas : SkiaViewport
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(ShowSelectionOutline), true);
     /// <summary>The selection outline's colour (alpha included); styled in App.axaml.</summary>
     public static readonly StyledProperty<Color> SelectionOutlineColorProperty =
-        AvaloniaProperty.Register<RoomCanvas, Color>(nameof(SelectionOutlineColor), Color.FromRgb(80, 200, 255));
+        AvaloniaProperty.Register<RoomCanvas, Color>(nameof(SelectionOutlineColor)); // set in ControlStyles.axaml
     /// <summary>The selection outline's width in screen pixels (not scaled by zoom); styled in App.axaml.</summary>
     public static readonly StyledProperty<double> SelectionOutlineThicknessProperty =
         AvaloniaProperty.Register<RoomCanvas, double>(nameof(SelectionOutlineThickness), 2);
@@ -226,7 +226,37 @@ public sealed class RoomCanvas : SkiaViewport
         ZPlaneOverlay >= 0 ? ZMasks : null,
         ZPlaneOverlay,
         ShowSelectionOutline ? SelectedObjects : null,
-        SelectStroke);
+        SelectStroke,
+        _paints ??= new OverlayPaints(this));
+
+    private OverlayPaints _paints;
+
+    protected override void OnThemeColorsChanged() => _paints = null;
+
+    /// <summary>
+    /// The overlay colours from Styles/Colors.axaml, as paints. Rebuilt on a theme change; not disposed
+    /// when replaced, since a scene already handed out may still draw with them.
+    /// </summary>
+    private sealed class OverlayPaints
+    {
+        public readonly SKPaint HotspotFill, HotspotStroke, BoxFill, BoxStroke, BoundsStroke, LabelPaint, LabelShadow, BoxLabelPaint;
+        /// <summary>Plane 1 to 7.</summary>
+        public readonly SKColor[] PlaneColors;
+
+        public OverlayPaints(Avalonia.Controls.Control c)
+        {
+            HotspotFill = new() { Color = c.FindSKColor("RoomHotspotFillBrush"), Style = SKPaintStyle.Fill };
+            HotspotStroke = new() { Color = c.FindSKColor("RoomHotspotStrokeBrush"), Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = false };
+            BoxFill = new() { Color = c.FindSKColor("RoomWalkboxFillBrush"), Style = SKPaintStyle.Fill, IsAntialias = true };
+            BoxStroke = new() { Color = c.FindSKColor("RoomWalkboxStrokeBrush"), Style = SKPaintStyle.Stroke, StrokeWidth = 1.25f, IsAntialias = true };
+            BoundsStroke = new() { Color = c.FindSKColor("RoomBoundsBrush"), Style = SKPaintStyle.Stroke, StrokeWidth = 2 };
+            LabelPaint = new() { Color = c.FindSKColor("RoomLabelBrush"), IsAntialias = true };
+            LabelShadow = new() { Color = c.FindSKColor("RoomLabelShadowBrush"), IsAntialias = true };
+            BoxLabelPaint = new() { Color = c.FindSKColor("RoomWalkboxLabelBrush"), IsAntialias = true };
+            PlaneColors = new SKColor[7];
+            for (int i = 0; i < PlaneColors.Length; i++) PlaneColors[i] = c.FindSKColor($"RoomZPlane{i + 1}Brush");
+        }
+    }
 
     protected override void OnContentClicked(Point p, PointerPressedEventArgs e)
     {
@@ -332,30 +362,26 @@ public sealed class RoomCanvas : SkiaViewport
 
         public Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
             IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
-            IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke)
+            IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke, OverlayPaints paints)
         {
             _bg = bg; _drawLayers = drawLayers; _allLayers = allLayers; _boxes = boxes;
             _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject; _visible = visible; _live = live; _zMasks = zMasks;
-            _overlayMasks = overlayMasks; _overlayPlane = overlayPlane; _selectedAll = selectedAll; _selectStroke = selectStroke;
+            _overlayMasks = overlayMasks; _overlayPlane = overlayPlane; _selectedAll = selectedAll; _selectStroke = selectStroke; _paints = paints;
         }
 
-        private static readonly SKPaint HotspotFill = new() { Color = new SKColor(255, 220, 0, 38), Style = SKPaintStyle.Fill };
-        private static readonly SKPaint HotspotStroke = new() { Color = new SKColor(255, 220, 0, 170), Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = false };
-        private static readonly SKPaint BoxFill = new() { Color = new SKColor(0, 255, 140, 40), Style = SKPaintStyle.Fill, IsAntialias = true };
-        private static readonly SKPaint BoxStroke = new() { Color = new SKColor(0, 255, 140, 210), Style = SKPaintStyle.Stroke, StrokeWidth = 1.25f, IsAntialias = true };
-        private static readonly SKPaint BoundsStroke = new() { Color = SKColors.Orange, Style = SKPaintStyle.Stroke, StrokeWidth = 2 };
-        private static readonly SKPaint LabelPaint = new() { Color = new SKColor(255, 235, 120), IsAntialias = true };
-        private static readonly SKPaint LabelShadow = new() { Color = new SKColor(0, 0, 0, 200), IsAntialias = true };
-        private static readonly SKPaint BoxLabelPaint = new() { Color = new SKColor(160, 255, 200), IsAntialias = true };
+        private readonly OverlayPaints _paints;
+        private SKPaint HotspotFill => _paints.HotspotFill;
+        private SKPaint HotspotStroke => _paints.HotspotStroke;
+        private SKPaint BoxFill => _paints.BoxFill;
+        private SKPaint BoxStroke => _paints.BoxStroke;
+        private SKPaint BoundsStroke => _paints.BoundsStroke;
+        private SKPaint LabelPaint => _paints.LabelPaint;
+        private SKPaint LabelShadow => _paints.LabelShadow;
+        private SKPaint BoxLabelPaint => _paints.BoxLabelPaint;
+        private SKColor[] PlaneColors => _paints.PlaneColors;
         private static readonly SKFont LabelFont = new(SKTypeface.Default, 11) { Subpixel = true, Edging = SKFontEdging.SubpixelAntialias };
 
         private static readonly SKPaint MaskOut = new() { BlendMode = SKBlendMode.DstOut };
-        /// <summary>Plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan, 7 white; half see-through.</summary>
-        private static readonly SKColor[] PlaneColors =
-        {
-            new(255, 0, 0, 110), new(0, 255, 0, 110), new(0, 0, 255, 110), new(255, 255, 0, 110),
-            new(255, 0, 255, 110), new(0, 255, 255, 110), new(255, 255, 255, 110),
-        };
         // An alpha-only image is drawn in the paint's colour.
         private static readonly SKPaint PlanePaint = new();
 

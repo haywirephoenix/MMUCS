@@ -6,7 +6,7 @@
              x:DataType="vm:MainWindowViewModel">
   <DockPanel>
     <TextBlock DockPanel.Dock="Bottom" Text="{Binding #Hex.SelectionInfo}" Classes="mono" FontSize="11" Margin="8,3"
-               TextWrapping="Wrap" Foreground="{StaticResource SubtleTextBrush}" />
+               TextWrapping="Wrap" Foreground="{DynamicResource SubtleTextBrush}" />
     <Grid ColumnDefinitions="*,Auto">
       <c:HexView x:Name="Hex" FontSize="11" Data="{Binding HexData}" BaseOffset="{Binding HexBaseOffset}"
                  TopRow="{Binding #HexScroll.Value, Mode=TwoWay}" />

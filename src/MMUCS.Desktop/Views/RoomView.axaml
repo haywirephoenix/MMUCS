@@ -45,7 +45,7 @@
                        IsEnabled="{Binding HasBackgroundChoices}" Increment="1" FormatString="0" Width="96" Margin="0,0,4,0"
                        ToolTip.Tip="The room's own background, then each full-width (640px) object image" />
         <TextBlock Text="{Binding BackgroundLabel}" VerticalAlignment="Center" FontSize="11" MaxWidth="160"
-                   TextTrimming="CharacterEllipsis" Foreground="{StaticResource SubtleTextBrush}" Margin="0,0,12,0" />
+                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SubtleTextBrush}" Margin="0,0,12,0" />
         <TextBlock Text="Palette" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
         <NumericUpDown Value="{Binding PaletteIndex}" Minimum="0" Maximum="{Binding MaxPaletteIndex}"
                        IsEnabled="{Binding HasPaletteChoices}" Increment="1" FormatString="0" Width="96" Margin="0,0,12,0" />
@@ -61,7 +61,7 @@
     <!-- Hover readout -->
     <Border DockPanel.Dock="Bottom" Padding="8,2">
       <TextBlock Text="{Binding #Canvas.HoverText}" FontSize="11" Classes="mono"
-                 Foreground="{StaticResource SubtleTextBrush}" />
+                 Foreground="{DynamicResource SubtleTextBrush}" />
     </Border>
 
     <Grid x:Name="ContentGrid" ColumnDefinitions="*,4,220">
@@ -111,14 +111,14 @@
             <!-- Objects without an image read as plain entries; ones with an image use the
                  hierarchy's room (LFLF) colour. -->
             <Style Selector="TextBlock.objname">
-              <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+              <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
             </Style>
             <Style Selector="TextBlock.objname.hasImage">
-              <Setter Property="Foreground" Value="#E8C07D" />
+              <Setter Property="Foreground" Value="{DynamicResource TagContainerBrush}" />
             </Style>
             <!-- Hotspots with a costumed actor: the hierarchy's AKOS colour. -->
             <Style Selector="TextBlock.objname.hasCostume">
-              <Setter Property="Foreground" Value="#E8817D" />
+              <Setter Property="Foreground" Value="{DynamicResource TagCostumeBrush}" />
             </Style>
           </ListBox.Styles>
           <ListBox.ItemTemplate>
@@ -129,11 +129,11 @@
                           Padding="0" VerticalAlignment="Center" Focusable="False" ToolTip.Tip="Visible (Space)" />
                 <StackPanel Grid.Column="1">
                   <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Text="⚑" FontSize="11" Foreground="#E06C75" IsVisible="{Binding IsMarked}"
+                    <TextBlock Text="⚑" FontSize="11" Foreground="{DynamicResource ReviewMarkBrush}" IsVisible="{Binding IsMarked}"
                                ToolTip.Tip="{Binding MarkText}" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding Name}" FontSize="12" Classes="objname" Classes.hasImage="{Binding HasImage}" Classes.hasCostume="{Binding HasCostume}" />
                   </StackPanel>
-                  <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
+                  <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" />
                 </StackPanel>
               </Grid>
             </DataTemplate>
