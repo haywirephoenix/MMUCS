@@ -7,6 +7,8 @@
     <ResourceInclude Source="/Styles/Colors.axaml" />
     <!-- Drop targets as invisible edge zones instead of icons. -->
     <ResourceInclude Source="/Styles/DockTargets.axaml" />
+    <!-- The viewers' shared preview panel (toolbar, canvas, overlay, footer). -->
+    <ResourceInclude Source="/Styles/ViewerPreview.axaml" />
   </ResourceDictionary.MergedDictionaries>
 
   <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace</FontFamily>

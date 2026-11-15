@@ -1,0 +1,42 @@
+<!-- The template of the viewers' shared preview panel (Controls/ViewerPreview.cs). -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:c="using:MMUCS.Desktop.Controls">
+  <ControlTheme x:Key="{x:Type c:ViewerPreview}" TargetType="c:ViewerPreview">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid RowDefinitions="Auto,*,Auto">
+          <!-- Toolbar -->
+          <Border Grid.Row="0" Classes="panel-header" Padding="6,3">
+            <WrapPanel Orientation="Horizontal" ItemSpacing="0" LineSpacing="4">
+              <TextBlock Text="{TemplateBinding Title}" VerticalAlignment="Center" FontSize="12" Margin="2,0,14,0"
+                         MaxWidth="320" TextTrimming="CharacterEllipsis"
+                         IsVisible="{TemplateBinding Title, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <ContentPresenter Content="{TemplateBinding Tools}" VerticalAlignment="Center"
+                                IsVisible="{TemplateBinding Tools, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              <Button x:Name="PART_Fit" Content="Fit" Margin="0,0,4,0" VerticalAlignment="Center"
+                      ToolTip.Tip="Zoom to fit (F / double-click)" />
+              <Button x:Name="PART_Actual" Content="1:1" VerticalAlignment="Center"
+                      ToolTip.Tip="Actual pixels (1)" />
+              <TextBlock Text="{TemplateBinding Info}" VerticalAlignment="Center" FontSize="12" Margin="12,0,12,0"
+                         TextWrapping="Wrap"
+                         IsVisible="{TemplateBinding Info, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <ContentPresenter Content="{TemplateBinding TrailingTools}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                IsVisible="{TemplateBinding TrailingTools, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </WrapPanel>
+          </Border>
+
+          <!-- Canvas, with anything drawn over it -->
+          <Grid Grid.Row="1">
+            <ContentPresenter x:Name="PART_ContentPresenter" Content="{TemplateBinding Content}" />
+            <ContentPresenter Content="{TemplateBinding Overlay}"
+                              IsVisible="{TemplateBinding Overlay, Converter={x:Static ObjectConverters.IsNotNull}}" />
+          </Grid>
+
+          <ContentPresenter Grid.Row="2" Content="{TemplateBinding Footer}"
+                            IsVisible="{TemplateBinding Footer, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </ControlTheme>
+</ResourceDictionary>

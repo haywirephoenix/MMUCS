@@ -22,9 +22,6 @@ public partial class CostumePreviewView : UserControl
     }
 
     public CelCanvas CelCanvas => Canvas;
-    
-    private void OnFitClick(object sender, RoutedEventArgs e) => CelCanvas?.ZoomToFit();
-    private void OnActualClick(object sender, RoutedEventArgs e) => CelCanvas?.ZoomToActual();
 
     private void Subscribe()
     {
