@@ -112,7 +112,11 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
         root.ActiveDockable = content;
         root.DefaultDockable = content;
 
+        // Dock finds drop targets through the layout's factory and starts drags through the window's;
+        // a window built here (opened from the Window menu or restored) has to be given both.
+        root.Factory = this;
         var window = CreateDockWindow();
+        window.Factory = this;
         window.Id = nameof(IDockWindow);
         window.Title = "";
         window.X = x;
@@ -199,7 +203,7 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
 
     public override void InitLayout(IDockable layout)
     {
-        DefaultHostWindowLocator = () => new HostWindow();
+        DefaultHostWindowLocator = () => new Controls.FloatingHostWindow();
         base.InitLayout(layout);
     }
 

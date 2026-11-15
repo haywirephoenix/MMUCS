@@ -68,6 +68,10 @@
   <Style Selector="dockCtl|HostWindow">
     <Setter Property="Icon" Value="/Assets/mmucs.ico" />
   </Style>
+  <!-- In a floating window a viewer's tab strip is the title bar (see Controls/FloatingHostWindow.cs). -->
+  <Style Selector="dockCtl|HostWindow dockCtl|DocumentTabStrip">
+    <Setter Property="EnableWindowDrag" Value="True" />
+  </Style>
   <!-- Docked panels close from their header menu; the close button is for floating windows. -->
   <!-- (Its visibility is set in the template, which a style can't override, so it's shrunk away.) -->
   <Style Selector="dockCtl|ToolChromeControl:not(:floating) /template/ Button#PART_CloseButton">

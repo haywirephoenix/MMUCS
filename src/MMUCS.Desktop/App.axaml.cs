@@ -14,6 +14,9 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
         Controls.DockCollapseBehavior.Install();
         Controls.ToolTabPlacement.Install();
+        // A floating viewer dragged by its tab strip can dock anywhere in the main window, like a floating
+        // tool panel (Dock's default only offers other tab strips and title bars).
+        Dock.Settings.DockSettings.DocumentWindowDragScope = Dock.Settings.WindowDragDockScope.FullWindow;
     // #if DEBUG
     //     this.AttachDeveloperTools();
     // #endif
