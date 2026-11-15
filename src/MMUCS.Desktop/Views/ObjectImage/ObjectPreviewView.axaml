@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             xmlns:c="using:MMUCS.Desktop.Controls"
+             x:Class="MMUCS.Desktop.Views.ObjectImage.ObjectPreviewView"
+             x:DataType="vm:ObjectImageViewModel">
+  <!-- The shared preview panel (Controls/ViewerPreview.cs): title, Fit / 1:1, info, canvas. -->
+  <c:ViewerPreview Title="{Binding Title}" Info="{Binding Info}">
+    <c:CelCanvas RawImage="{Binding PreviewImage}" Mode="Raw" AlphaEnabled="True" />
+  </c:ViewerPreview>
+</UserControl>

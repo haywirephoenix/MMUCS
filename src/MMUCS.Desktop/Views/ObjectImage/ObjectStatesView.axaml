@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             x:Class="MMUCS.Desktop.Views.ObjectImage.ObjectStatesView"
+             x:DataType="vm:ObjectImageViewModel">
+  <ListBox ItemsSource="{Binding States}" SelectedItem="{Binding SelectedState, Mode=TwoWay}"
+           ToolTip.Tip="Pick a state to preview its image here and draw the object in that state in the Room viewer">
+    <ListBox.Styles>
+      <Style Selector="ListBoxItem">
+        <Setter Property="Padding" Value="8,3" />
+      </Style>
+    </ListBox.Styles>
+    <ListBox.ItemTemplate>
+      <DataTemplate DataType="vm:ObjectStateItem">
+        <Grid ColumnDefinitions="64,8,*">
+          <Border Width="64" Height="40" Background="{DynamicResource ThumbnailBackgroundBrush}">
+            <Image Source="{Binding Thumbnail}" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="None" />
+          </Border>
+          <StackPanel Grid.Column="2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Label}" FontSize="12" />
+            <TextBlock Text="{Binding Detail}" FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" />
+          </StackPanel>
+        </Grid>
+      </DataTemplate>
+    </ListBox.ItemTemplate>
+  </ListBox>
+</UserControl>

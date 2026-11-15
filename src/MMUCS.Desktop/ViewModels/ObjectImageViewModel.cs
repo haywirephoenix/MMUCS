@@ -31,7 +31,14 @@ public sealed partial class ObjectImageViewModel : ObservableObject
     private CancellationTokenSource _cts;
     private bool _loading;
 
-    public ObjectImageViewModel(RoomViewModel room) => _room = room;
+    public ObjectImageViewModel(RoomViewModel room)
+    {
+        _room = room;
+        ViewerLayout = new Docking.ViewerDock(new Docking.ObjectDockFactory(this));
+    }
+
+    /// <summary>The viewer's own panels (States, Preview).</summary>
+    public Docking.ViewerDock ViewerLayout { get; }
 
     [ObservableProperty] private RoomObject _object;
     [ObservableProperty] private string _title = "No object selected";
