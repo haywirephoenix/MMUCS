@@ -214,6 +214,19 @@ public partial class MainWindow : Window
         // Layout templates will join this menu later.
         var layout = new NativeMenu();
         layout.Items.Add(Item("Reset to default", new RelayCommand(Vm.ResetLayout)));
+        layout.Items.Add(new NativeMenuItemSeparator());
+        var headers = new NativeMenuItem("Show viewer panel headers")
+        {
+            ToggleType = MenuItemToggleType.CheckBox,
+            IsChecked = Vm.ShowViewerPanelHeaders,
+            ToolTip = "Title bars and Preview tabs inside the Room, Costume and Object viewers: show them to drag those panels around",
+        };
+        headers.Command = new RelayCommand(() =>
+        {
+            Vm.ShowViewerPanelHeaders = !Vm.ShowViewerPanelHeaders;
+            headers.IsChecked = Vm.ShowViewerPanelHeaders;
+        });
+        layout.Items.Add(headers);
 
         var menu = new NativeMenu();
         menu.Items.Add(new NativeMenuItem("File") { Menu = file });

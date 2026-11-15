@@ -280,6 +280,24 @@ public abstract class ViewerDockFactory : Factory, ILayoutBuilder
 /// </summary>
 public sealed partial class ViewerDock : ObservableObject
 {
+    /// <summary>
+    /// Whether the viewers' docks show their tool title bars and document tabs (all viewers at once).
+    /// Hidden saves space; shown, every panel has a handle to drag it by.
+    /// </summary>
+    public static bool ShowHeaders
+    {
+        get => _showHeaders;
+        set
+        {
+            if (_showHeaders == value) return;
+            _showHeaders = value;
+            ShowHeadersChanged?.Invoke();
+        }
+    }
+    private static bool _showHeaders;
+
+    public static event Action ShowHeadersChanged;
+
     public ViewerDock(ViewerDockFactory factory)
     {
         Factory = factory;

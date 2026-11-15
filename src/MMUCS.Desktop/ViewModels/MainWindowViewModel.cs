@@ -94,6 +94,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         TreeOptions.ColorizeTags = Settings.ColorizeTags;
         TreeOptions.PropertyChanged += (_, e) => OnTreeOptionChanged(e.PropertyName);
 
+        ViewerDock.ShowHeaders = Settings.ShowViewerPanelHeaders;
         DockFactory = new MmucsDockFactory(this);
         var saved = DockLayoutStore.Read();
         SavedMainWindow = saved?.MainWindow;
@@ -200,6 +201,20 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         if (IsPanelOpen(id)) DockFactory.HidePanel(id, Layout);
         else ShowPanel(id);
+    }
+
+    /// <summary>Shows or hides the title bars and Preview tabs inside the viewers (saved).</summary>
+    public bool ShowViewerPanelHeaders
+    {
+        get => ViewerDock.ShowHeaders;
+        set
+        {
+            if (ViewerDock.ShowHeaders == value) return;
+            ViewerDock.ShowHeaders = value;
+            Settings.ShowViewerPanelHeaders = value;
+            Settings.Save();
+            OnPropertyChanged();
+        }
     }
 
     /// <summary>Closes floating windows and rebuilds the default arrangement.</summary>

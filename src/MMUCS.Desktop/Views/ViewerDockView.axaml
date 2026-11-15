@@ -2,8 +2,23 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:docking="using:MMUCS.Desktop.ViewModels.Docking"
              xmlns:dock="using:Dock.Avalonia.Controls"
+             xmlns:views="using:MMUCS.Desktop.Views"
              x:Class="MMUCS.Desktop.Views.ViewerDockView"
              x:DataType="docking:ViewerDock">
+  <!-- Headers hidden (the default; Layout ▸ Show viewer panel headers): no tool title bars and no
+       document tabs, so Chores / Cels / Palette are just tabs, and Preview, Objects and States have no
+       header. Tool tabs stay. Scoped to this view, so the main window's panels keep theirs. -->
+  <UserControl.Styles>
+    <Style Selector="views|ViewerDockView.headers-hidden ToolChromeControl /template/ Border#PART_Border">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="views|ViewerDockView.headers-hidden ToolChromeControl /template/ Panel#PART_Panel">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="views|ViewerDockView.headers-hidden DocumentTabStrip">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+  </UserControl.Styles>
   <!-- A viewer's own panels (Costume, Object, Room; see ViewModels/Docking/ViewerDock.cs). -->
   <!-- Its tool title bars use their own theme so they never take over a floating window (see the file). -->
   <dock:DockControl Layout="{Binding Layout}">
