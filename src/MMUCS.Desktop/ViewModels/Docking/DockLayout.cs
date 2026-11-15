@@ -23,7 +23,7 @@ public sealed class InspectorTool(MainWindowViewModel main) : Tool { public Main
 
 /// <summary>
 /// Builds the default layout (Blocks on the left, viewers in the middle, the Inspector on the right) and hosts floating
-/// panels in real OS windows. Panels can't be closed (yet), so nothing gets lost; Layout ▸ Reset to
+/// panels in real OS windows. Closing a panel only hides it (the Window menu brings it back); Layout ▸ Reset to
 /// default rebuilds the default arrangement. Saved layouts are handled by <see cref="DockLayoutStore"/>.
 /// </summary>
 public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayoutBuilder
@@ -51,7 +51,7 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
         {
             d.Id = id;
             d.Title = title;
-            d.CanClose = false;
+            d.CanClose = true; // closing hides it (see CloseDockable); the Window menu brings it back
             d.CanFloat = true;
             d.CanPin = false;
             return d;
@@ -203,6 +203,18 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
         base.InitLayout(layout);
     }
 
+    /// <summary>
+    /// Closing a panel (its header menu, a floating window's close button) hides it: it keeps its place
+    /// to go back to, and the Window menu brings it back.
+    /// </summary>
+    public override void CloseDockable(IDockable dockable)
+    {
+        if (dockable?.Id is { } id && Panels.TryGetValue(id, out var panel) && ReferenceEquals(panel, dockable) && main?.Layout is { } layout)
+            HidePanel(id, layout);
+        else
+            base.CloseDockable(dockable);
+    }
+
     /// <summary>Applies side-panel sizing to real drops (the preview factory does the same for previews).</summary>
     public override void OnDockableDocked(IDockable dockable, DockOperation operation)
     {
@@ -351,7 +363,10 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
         RemoveDockable(panel, false);
         foreach (var w in (layout.Windows ?? Enumerable.Empty<IDockWindow>()).ToList())
             if (w.Layout == null || FindIn(w.Layout, d => d is not IDock && d is not IProportionalDockSplitter) == null)
+            {
                 w.Exit();
+                layout.Windows?.Remove(w); // or the layout file keeps an empty window that comes back next time
+            }
     }
 
     /// <summary>Where a hidden panel was: the dock it left (kept, empty and collapsed, while it's hidden).</summary>
