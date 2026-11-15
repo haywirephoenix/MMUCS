@@ -72,7 +72,9 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
     public DocumentDock NewDocumentDock(string id, IList<IDockable> panels, IDockable active = null) => new()
     {
         Id = id,
-        IsCollapsable = false,
+        // Emptied (its viewers floated or moved away) it collapses and its neighbours take the space,
+        // instead of leaving a "No documents open" area that can't be closed.
+        IsCollapsable = true,
         CanCreateDocument = false,
         CloseButtonShowMode = DocumentCloseButtonShowMode.Never,
         ActiveDockable = active ?? panels.FirstOrDefault(),

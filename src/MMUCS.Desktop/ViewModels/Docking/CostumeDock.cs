@@ -65,7 +65,7 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : Factory, ILayoutBui
         Id = id,
         DockGroup = Group,
         CanFloat = false,
-        IsCollapsable = false,
+        IsCollapsable = true, // emptied, it collapses and its neighbours take the space
         CanCreateDocument = false,
         CloseButtonShowMode = DocumentCloseButtonShowMode.Never,
         ActiveDockable = active ?? panels.FirstOrDefault(),
