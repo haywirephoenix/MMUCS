@@ -22,7 +22,7 @@ public sealed class ScriptDocument(MainWindowViewModel main) : Document { public
 public sealed class InspectorTool(MainWindowViewModel main) : Tool { public MainWindowViewModel Main { get; } = main; }
 
 /// <summary>
-/// Builds the default layout (Blocks, Metadata and Hex stacked on the left, viewers on the right) and hosts floating
+/// Builds the default layout (Blocks on the left, viewers in the middle, the Inspector on the right) and hosts floating
 /// panels in real OS windows. Panels can't be closed (yet), so nothing gets lost; Layout ▸ Reset to
 /// default rebuilds the default arrangement. Saved layouts are handled by <see cref="DockLayoutStore"/>.
 /// </summary>
@@ -34,6 +34,12 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
 
     public static readonly string[] PanelIds = { BlocksId, MetadataId, HexId, RoomId, CostumeId, ObjectId, ScriptId, InspectorId };
     public static readonly string[] ViewerIds = { RoomId, CostumeId, ObjectId, ScriptId };
+
+    /// <summary>
+    /// Panels hidden by default (the Inspector shows Metadata, Costume and Object; Hex is occasional):
+    /// brought back from the Window menu they open in their own floating window rather than in a dock.
+    /// </summary>
+    public static readonly string[] FloatWhenShownIds = { MetadataId, HexId, CostumeId, ObjectId };
 
     /// <summary>The panels of the current layout, placed or hidden (set whenever panels are created).</summary>
     public Dictionary<string, IDockable> Panels { get; private set; } = new();
@@ -124,28 +130,17 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
         ?? CreateDefaultLayout(CreatePanels());
 
     /// <summary>
-    /// Built-in layout, used when layout.default.json is missing or doesn't fit: one column on the
-    /// left stacking Blocks, Metadata and Hex, the Room and Script viewers in the middle and the
-    /// Inspector on the right. The Costume and Object panels start hidden (the Inspector shows them).
+    /// Built-in layout, used when layout.default.json is missing or doesn't fit:
+    /// Blocks on the left, the Room and Script viewers in the middle and the Inspector on the right. The
+    /// Metadata, Costume and Object panels start hidden (the Inspector shows them), and so does Hex; each
+    /// floats when shown from the Window menu.
     /// </summary>
     public IRootDock CreateDefaultLayout(Dictionary<string, IDockable> p)
     {
         var blocksDock = NewToolDock("LeftDock", CreateList(p[BlocksId]));
-        blocksDock.Proportion = 0.60;
-
-        var metadataDock = NewToolDock("MetadataDock", CreateList(p[MetadataId]));
-        metadataDock.Proportion = 0.26;
-
-        var hexDock = NewToolDock("HexDock", CreateList(p[HexId]));
-        hexDock.Proportion = 0.14;
-
-        var left = new ProportionalDock
-        {
-            Id = "LeftColumn",
-            Proportion = 0.31,
-            Orientation = Orientation.Vertical,
-            VisibleDockables = CreateList<IDockable>(blocksDock, new ProportionalDockSplitter(), metadataDock, new ProportionalDockSplitter(), hexDock),
-        };
+        blocksDock.Proportion = 0.31;
+        RememberHidden(MetadataId, blocksDock); // the Inspector shows it
+        RememberHidden(HexId, blocksDock);      // floats when shown
 
         var documents = NewDocumentDock("Documents", CreateList(p[RoomId], p[ScriptId]));
         documents.Proportion = 0.41;
@@ -159,7 +154,7 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
         {
             Id = "MainDock",
             Orientation = Orientation.Horizontal,
-            VisibleDockables = CreateList<IDockable>(left, new ProportionalDockSplitter(), documents, new ProportionalDockSplitter(), inspector),
+            VisibleDockables = CreateList<IDockable>(blocksDock, new ProportionalDockSplitter(), documents, new ProportionalDockSplitter(), inspector),
         };
 
         return CreateMainRoot(mainDock);
@@ -395,6 +390,11 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
     public void ShowPanel(string id, IRootDock layout)
     {
         if (layout == null) return;
+        if (FindPanel(id, layout) == null && FloatWhenShownIds.Contains(id) && Panels.TryGetValue(id, out var floating))
+        {
+            ShowFloating(id, floating, layout);
+            return;
+        }
         if (FindPanel(id, layout) == null && Panels.TryGetValue(id, out var panel) && !TryRestorePlacement(id, panel, layout))
         {
             bool viewer = ViewerIds.Contains(id);
@@ -430,6 +430,29 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
                 }
             }
         }
+        Activate(id, layout);
+    }
+
+    /// <summary>Opens a hidden panel in a floating window of its own, over the main window's right side.</summary>
+    private void ShowFloating(string id, IDockable panel, IRootDock layout)
+    {
+        _hiddenAt.Remove(id);
+        bool viewer = ViewerIds.Contains(id);
+        IDock dock = viewer
+            ? NewDocumentDock($"{id}FloatDock", CreateList(panel))
+            : NewToolDock($"{id}FloatDock", CreateList(panel));
+        double width = viewer ? 560 : 380, height = viewer ? 680 : 440;
+        double x = 200, y = 200;
+        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime { MainWindow: { } owner })
+        {
+            double scale = owner.RenderScaling;
+            x = owner.Position.X + (owner.Bounds.Width - width - 80) * scale;
+            y = owner.Position.Y + 120 * scale;
+        }
+        var window = CreateFloatingWindow(dock, x, y, width, height);
+        AddWindow(layout, window);
+        InitDockable(window.Layout, null);
+        window.Present(false);
         Activate(id, layout);
     }
 }

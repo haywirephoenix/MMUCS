@@ -7,17 +7,7 @@
     "Orientation": "Horizontal",
     "Proportion": "NaN",
     "Children": [
-      {
-        "Kind": "split",
-        "Id": "LeftColumn",
-        "Orientation": "Vertical",
-        "Proportion": 0.2056,
-        "Children": [
-          { "Kind": "tools", "Id": "LeftDock", "Proportion": 0.5752, "Active": "Blocks", "Panels": [ "Blocks" ] },
-          { "Kind": "tools", "Id": "MetadataDock", "Proportion": 0.2358, "Active": "Metadata", "Panels": [ "Metadata" ] },
-          { "Kind": "tools", "Id": "HexDock", "Proportion": 0.189, "Active": "Hex", "Panels": [ "Hex" ] }
-        ]
-      },
+      { "Kind": "tools", "Id": "LeftDock", "Proportion": 0.2056, "Active": "Blocks", "Panels": [ "Blocks" ], "Hidden": [ "Metadata", "Hex" ] },
       { "Kind": "documents", "Id": "Documents", "Proportion": 0.5144, "Active": "Room", "Panels": [ "Room", "Script" ], "Hidden": [ "Costume", "Object" ] },
       { "Kind": "tools", "Id": "InspectorDock", "Proportion": 0.28, "Active": "Inspector", "Panels": [ "Inspector" ] }
     ]
