@@ -6,45 +6,49 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Templates;
 using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;
-using MMUCS.Desktop.ViewModels;
 using MMUCS.Desktop.ViewModels.Docking;
 
 namespace MMUCS.Desktop.Views;
 
 /// <summary>
-/// Shows the Costume panel with one long-lived <see cref="AkosView"/> for the costume view model,
-/// instead of a new view each time its tab comes forward. The viewer holds its own docking area, and
-/// that inner layout can only be shown by one DockControl: a second view of it comes up empty, or
+/// Shows each viewer that has its own docking area (Costume, Object, Room) with one long-lived
+/// <see cref="ViewerDockView"/>, instead of a new view each time its tab comes forward. The inner layout
+/// can only be shown by one DockControl: a second view of it comes up empty, or
 /// (after Layout ▸ Reset, while the old view still exists) breaks the window's layout. Reusing one view
 /// keeps the inner dock, and the viewer's scroll and zoom, alive across tab switches, re-docking,
 /// floating and layout resets.
 /// </summary>
-public sealed class CostumeViewTemplate : IDataTemplate
+public sealed class ViewerViewTemplate : IDataTemplate
 {
-    private static readonly ConditionalWeakTable<AkosViewModel, AkosView> Views = new();
+    private static readonly ConditionalWeakTable<ViewerDock, ViewerDockView> Views = new();
 
-    public bool Match(object data) => data is CostumeDocument;
+    private static ViewerDock DockOf(object data) => data switch
+    {
+        CostumeDocument d => d.Main.Costume.ViewerLayout,
+        ObjectDocument d => d.Main.ObjectImage.ViewerLayout,
+        RoomDocument d => d.Main.Room.ViewerLayout,
+        _ => null,
+    };
+
+    public bool Match(object data) => DockOf(data) != null;
 
     /// <summary>A new host each time; the shared view moves into whichever host is on screen.</summary>
-    public Control Build(object param)
-    {
-        if (param is not CostumeDocument doc) return null;
-        return new CostumeViewHost(Views.GetValue(doc.Main.Costume, vm => new AkosView { DataContext = vm }));
-    }
+    public Control Build(object param) =>
+        DockOf(param) is { } dock ? new ViewerViewHost(Views.GetValue(dock, d => new ViewerDockView { DataContext = d })) : null;
 }
 
 /// <summary>
-/// Holds the shared Costume view while it's on screen. Dock presents panel content through deferred
+/// Holds a viewer's shared view while it's on screen. Dock presents panel content through deferred
 /// presenters, so clearing an old presenter doesn't free the view at once; hosts hand it over between
 /// themselves instead, synchronously, so it's only ever in one tree. A host in Dock's drag preview
 /// leaves it alone, and one in a floating window takes it once the window is open.
 /// </summary>
-internal sealed class CostumeViewHost : Decorator
+internal sealed class ViewerViewHost : Decorator
 {
-    private readonly AkosView _view;
+    private readonly ViewerDockView _view;
     private Window _waitingFor;
 
-    public CostumeViewHost(AkosView view) => _view = view;
+    public ViewerViewHost(ViewerDockView view) => _view = view;
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -76,7 +80,7 @@ internal sealed class CostumeViewHost : Decorator
             }
             return;
         }
-        if (_view.GetVisualParent() is CostumeViewHost previous) previous.Child = null;
+        if (_view.GetVisualParent() is ViewerViewHost previous) previous.Child = null;
         else if (_view.GetVisualParent() is ContentPresenter presenter) presenter.Content = null;
         if (_view.GetVisualParent() == null && _view.Parent == null) Child = _view;
     }

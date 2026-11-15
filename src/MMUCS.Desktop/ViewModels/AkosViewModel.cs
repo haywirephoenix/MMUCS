@@ -98,25 +98,9 @@ public sealed partial class AkosViewModel : ObservableObject
     public ObservableCollection<CelItem> Cels { get; } = new();
 
     /// <summary>The viewer's own panels (Cels, Preview, Chores, Resolved palette).</summary>
-    public Docking.CostumeDockFactory DockFactory { get; }
-    [ObservableProperty] private Dock.Model.Controls.IRootDock _layout;
+    public Docking.ViewerDock ViewerLayout { get; }
 
-    public AkosViewModel()
-    {
-        DockFactory = new Docking.CostumeDockFactory(this);
-        UseLayout(DockFactory.CreateLayout());
-    }
-
-    /// <summary>Applies a saved arrangement of the viewer's panels (the default if it doesn't fit).</summary>
-    public void RestoreLayout(Docking.DockLayoutStore.Node saved) => UseLayout(DockFactory.TryRestore(saved) ?? DockFactory.CreateLayout());
-
-    public void ResetLayout() => UseLayout(DockFactory.CreateLayout());
-
-    private void UseLayout(Dock.Model.Controls.IRootDock layout)
-    {
-        DockFactory.InitLayout(layout);
-        Layout = layout;
-    }
+    public AkosViewModel() => ViewerLayout = new Docking.ViewerDock(new Docking.CostumeDockFactory(this));
     public ObservableCollection<ChoreNode> Chores { get; } = new();
     public IReadOnlyList<CelViewMode> Modes { get; } = Enum.GetValues<CelViewMode>();
 

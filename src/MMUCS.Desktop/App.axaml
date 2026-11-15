@@ -15,8 +15,8 @@
 
   <!-- Panel content for each dockable. App-level so floating (host) windows resolve them too. -->
   <Application.DataTemplates>
-    <!-- One long-lived Costume viewer: it hosts its own docking area (see CostumeViewTemplate). -->
-    <views:CostumeViewTemplate />
+    <!-- One long-lived view each for the Costume, Object and Room viewers, which host their own docking areas (see ViewerViewTemplate). -->
+    <views:ViewerViewTemplate />
     <!-- Every other panel (see ViewLocator). -->
     <local:ViewLocator />
   </Application.DataTemplates>

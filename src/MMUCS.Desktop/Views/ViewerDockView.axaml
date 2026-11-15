@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:docking="using:MMUCS.Desktop.ViewModels.Docking"
+             xmlns:dock="using:Dock.Avalonia.Controls"
+             x:Class="MMUCS.Desktop.Views.ViewerDockView"
+             x:DataType="docking:ViewerDock">
+  <!-- A viewer's own panels (Costume, Object, Room; see ViewModels/Docking/ViewerDock.cs). -->
+  <!-- Its tool title bars use their own theme so they never take over a floating window (see the file). -->
+  <dock:DockControl Layout="{Binding Layout}">
+    <dock:DockControl.Resources>
+      <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+          <ResourceInclude Source="/Styles/InnerToolChrome.axaml" />
+        </ResourceDictionary.MergedDictionaries>
+      </ResourceDictionary>
+    </dock:DockControl.Resources>
+  </dock:DockControl>
+</UserControl>
