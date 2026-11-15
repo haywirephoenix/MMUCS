@@ -116,4 +116,48 @@
     <Setter Property="Spacing" Value="6" />
     <Setter Property="Margin" Value="6,4" />
   </Style>
+  
+  <!-- Eye checkboxes: an eye drawn as a vector path (no icon font; Avalonia 12 has no icon package
+       built for it). Starts hidden (Opacity 0) as the crossed-out eye (unchecked). -->
+  <Style Selector="CheckBox.eye-toggle">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="Transparent"
+                Width="32" Height="32">
+          <Path x:Name="PART_EyeIcon"
+                Width="32" Height="32" Stretch="None"
+                Stroke="{DynamicResource EyeToggleDefaultBrush}" StrokeThickness="1.3" StrokeLineCap="Round" StrokeJoin="Round"
+                Data="M1.5,8 C3.5,4.5 5.7,3.5 8,3.5 C10.3,3.5 12.5,4.5 14.5,8 C12.5,11.5 10.3,12.5 8,12.5 C5.7,12.5 3.5,11.5 1.5,8 Z M10.3,8 A2.3,2.3 0 1 1 5.7,8 A2.3,2.3 0 1 1 10.3,8 Z M2.5,2.5 L13.5,13.5" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  
+  <Style Selector="CheckBox.eye-toggle /template/ Path#PART_EyeIcon">
+    <Setter Property="Margin" Value="0,8,0,0"/>
+  </Style>
+  
+  <!-- Enabled & hovered: visible, white. -->
+  <Style Selector="CheckBox.eye-toggle:pointerover /template/ Path#PART_EyeIcon">
+    <Setter Property="Opacity" Value="1"/>
+    <Setter Property="Stroke" Value="{DynamicResource EyeToggleHoverBrush}"/>
+  </Style>
+  
+  <Style Selector="CheckBox.eye-toggle:disabled /template/ Path#PART_EyeIcon">
+    <!-- <Setter Property="Opacity" Value="{DynamicResource EyeToggleDisabledOpacity}"/> -->
+    <Setter Property="Stroke" Value="{DynamicResource EyeToggleDisabledBrush}"/>
+  </Style>
+
+  <!-- Disabled & hovered: visible, grey (after pointerover so the colour wins). -->
+  <Style Selector="CheckBox.eye-toggle:disabled:pointerover /template/ Path#PART_EyeIcon">
+    <!-- <Setter Property="Opacity" Value="{DynamicResource EyeToggleDisabledOpacity}"/> -->
+    <Setter Property="Stroke" Value="{DynamicResource EyeToggleDisabledBrush}"/>
+  </Style>
+
+  <!-- Checked: the open eye (no slash). -->
+  <Style Selector="CheckBox.eye-toggle:checked /template/ Path#PART_EyeIcon">
+    <Setter Property="Data" Value="M1.5,8 C3.5,4.5 5.7,3.5 8,3.5 C10.3,3.5 12.5,4.5 14.5,8 C12.5,11.5 10.3,12.5 8,12.5 C5.7,12.5 3.5,11.5 1.5,8 Z M10.3,8 A2.3,2.3 0 1 1 5.7,8 A2.3,2.3 0 1 1 10.3,8 Z"/>
+  </Style>
+  
 </Styles>

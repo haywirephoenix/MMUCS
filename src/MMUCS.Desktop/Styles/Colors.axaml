@@ -124,6 +124,12 @@
       <SolidColorBrush x:Key="DockDocumentContentBorderBrush" Color="Transparent" />
       <SolidColorBrush x:Key="DockSplitterIdleBrush" Color="#2E2E33" />
       <SolidColorBrush x:Key="DockSeparatorBrush" Color="Transparent" />
+      
+      <!-- Visible Eye Toggle -->
+      
+      <SolidColorBrush x:Key="EyeToggleDefaultBrush" Color="Gray" />
+      <SolidColorBrush x:Key="EyeToggleHoverBrush" Color="White" />
+      <SolidColorBrush x:Key="EyeToggleDisabledBrush" Color="#22808080" />
 
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>

@@ -7,8 +7,8 @@
     <Border DockPanel.Dock="Top" Classes="panel-header">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <!-- Toggle all: shows a mixed state when only some objects are visible. -->
-        <CheckBox IsChecked="{Binding AllObjectsVisible}" MinWidth="0" MinHeight="0" Padding="0"
-                  Margin="0,0,6,0" VerticalAlignment="Center" ToolTip.Tip="Show / hide all objects" />
+        <CheckBox Classes="eye-toggle" IsChecked="{Binding AllObjectsVisible}" 
+                  ToolTip.Tip="Show / hide all objects" Margin="0,8,0,0"/>
         <TextBlock Grid.Column="1" Text="All objects" VerticalAlignment="Center" />
         <Button Grid.Column="2" Content="Reset" Command="{Binding ResetVisibilityCommand}" Padding="6,0" MinHeight="0"
                 FontSize="11" VerticalAlignment="Center"
@@ -39,15 +39,18 @@
         <DataTemplate DataType="vm:RoomObjectItem">
           <!-- Fixed toggle column so names line up whether or not an object has a toggle. -->
           <Grid ColumnDefinitions="22,*">
-            <CheckBox IsChecked="{Binding IsVisible}" IsVisible="{Binding HasToggle}" MinWidth="0" MinHeight="0"
-                      Padding="0" VerticalAlignment="Center" Focusable="False" ToolTip.Tip="Visible (Space)" />
+            <CheckBox Classes="eye-toggle" IsChecked="{Binding IsVisible}" 
+                     IsEnabled="{Binding HasToggle}"
+                     MinWidth="32"
+                     Focusable="False" ToolTip.Tip="Visible (Space)" />
             <StackPanel Grid.Column="1">
               <StackPanel Orientation="Horizontal" Spacing="4">
                 <TextBlock Text="⚑" FontSize="11" Foreground="{DynamicResource ReviewMarkBrush}" IsVisible="{Binding IsMarked}"
                            ToolTip.Tip="{Binding MarkText}" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Name}" FontSize="12" Classes="objname" Classes.hasImage="{Binding HasImage}" Classes.hasCostume="{Binding HasCostume}" />
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="12" Classes="objname" Classes.hasImage="{Binding HasImage}" 
+                           Padding="5,5,0,0" Classes.hasCostume="{Binding HasCostume}" ToolTip.Tip="{Binding Summary}"/>
               </StackPanel>
-              <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" />
+              <!-- <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" /> -->
             </StackPanel>
           </Grid>
         </DataTemplate>
