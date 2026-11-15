@@ -591,7 +591,21 @@ public static class RoomActors
                 if (t is PlacementTime.OnEntry or PlacementTime.OnEntryIf && timing.Reached(scripts[si], pl.CostumePos, pl.PlacePos))
                     firstVisit.Add(key);
             }
-        foreach (var (si, (actor, costume, sx, sy, elevation, scriptAnim, dir, via, scale, clip, ignoreBoxes, followsAtPut, removes, _, _, _, animChoices)) in scans.SelectMany((list, i) => list.Select(e => (i, e)))
+        // The z-clip and ignore-boxes the room's entry scripts leave on each actor: the engine keeps them on
+        // the actor, so a cutscene that dresses and puts it without touching them draws it that way too
+        // (armsdlr's local 2001 ends with Kenny at always-zclip 2; script 287 puts him in costume 252).
+        var clipOps = scripts.Select(b => ClipOps(b.DataSpan)).ToList();
+        var entryClip = new Dictionary<int, (int Clip, bool Ignore)?>();
+        for (int i = 0; i < scripts.Count; i++)
+        {
+            if (!timing.RunsOnEntry(scripts[i])) continue;
+            foreach (int a in clipOps[i].Select(op => op.Actor).Where(a => a > 0).Distinct())
+            {
+                var end = FoldClip(clipOps[i], a, -1, int.MaxValue, (ClipByBox, false));
+                entryClip[a] = entryClip.TryGetValue(a, out var known) && known != end ? null : end;
+            }
+        }
+        foreach (var (si, (actor, costume, sx, sy, elevation, scriptAnim, dir, via, scale, scanClip, scanIgnore, followsAtPut, removes, _, _, _, animChoices)) in scans.SelectMany((list, i) => list.Select(e => (i, e)))
                      // A put that follows its costume first: it says how the actor is set up (smglcave's
                      // 388 is set up with ignore-boxes and scale 255 before its put in local 2012, while
                      // local 2004 only puts the player there before dressing it, in an override).
@@ -604,6 +618,11 @@ public static class RoomActors
             // An actor number wears a costume once; an actor in a variable is a different actor at
             // each spot it's put (the fortbase chickens), so each spot is kept.
             if (!seen.Add(Key(actor, costume, sx, sy))) continue;
+            // A script that leaves the actor's z-clip and boxes alone draws it as the entry scripts left it.
+            var (clip, ignoreBoxes) = (scanClip, scanIgnore);
+            if (actor > 0 && !timing.RunsOnEntry(scripts[si]) && !clipOps[si].Any(op => op.Actor == actor)
+                && (clip, ignoreBoxes) == (ClipByBox, false) && !followsAtPut && entryClip.GetValueOrDefault(actor) is { } left)
+                (clip, ignoreBoxes) = left;
             var akos = directory.Resolve(costume, lflf);
             if (akos == null || !ReferenceEquals(akos.Parent, lflf)) continue;
             var (d, f) = Load(akos);
@@ -1106,6 +1125,11 @@ public static class RoomActors
             // (brbr-int's Rottingham: costume 124, always-zclip 2, costume 124, ignore-boxes, put, then
             // always-zclip 2 again; read from the first, the window ends before the last z-clip).
             if (untilCostume == c.Costume && !places.Any(pl => pl.Actor == c.Actor && pl.Pos > c.Pos && pl.Pos < until)) continue;
+            // Set again after the put, it's still the same picture: its z-clip keeps changing until another
+            // costume (armsdlr's Kenny: costume 251, ignore-boxes, put, … costume 251, always-zclip 2).
+            int clipUntil = untilCostume != c.Costume ? until
+                : costumes.Where(o => o.Actor == c.Actor && o.Pos > until && o.Costume != c.Costume && !JumpedOver(code, c.Pos, o.Pos))
+                          .Select(o => o.Pos).DefaultIfEmpty(int.MaxValue).Min();
             // Below 1000 an animation number is a chore; 1000 and up are turn/stop commands.
             var onPath = anims.Where(a => a.Actor == c.Actor && a.Pos > c.Pos && a.Pos < until && OnPath(a.Pos) && a.Anim is >= 0 and < 1000).ToList();
             int anim = c.Anim ?? onPath.Select(a => a.Anim).DefaultIfEmpty(-1).First();
@@ -1195,7 +1219,7 @@ public static class RoomActors
                 var (clip, ignore) = c.Clip is { } start
                     ? FoldClip(path, c.Actor, c.Pos, putAt, start)
                     : FoldClip(path, c.Actor, -1, putAt, (ClipByBox, false));
-                (clip, ignore) = FoldClip(clips.Where(op => op.Ignore != false && !JumpedOver(code, putAt, op.Pos)).ToList(), c.Actor, putAt, until, (clip, ignore));
+                (clip, ignore) = FoldClip(clips.Where(op => op.Ignore != false && !JumpedOver(code, putAt, op.Pos)).ToList(), c.Actor, putAt, clipUntil, (clip, ignore));
                 // Whether it surely follows the boxes when it's put: then the engine moves it into one. Only
                 // what this script says counts (follow-boxes or default before the put); a room's setup
                 // script often sets ignore-boxes on an actor that a cutscene elsewhere puts at 0,0.

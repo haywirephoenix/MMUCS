@@ -16,6 +16,9 @@
               <MenuItem Header="Full-screen objects" ToggleType="CheckBox" StaysOpenOnClick="True"
                         ToolTip.Tip="Draw all 640px-wide object images over the background (or pick one with the Background spinbox)"
                         IsChecked="{Binding ShowFullScreenObjects, Mode=OneWay}" Command="{Binding ToggleFullScreenObjectsCommand}" />
+              <MenuItem Header="Unused" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        ToolTip.Tip="Include object images the game never shows (listed in unused-art.json) in what the Show mode shows"
+                        IsChecked="{Binding ShowUnused, Mode=OneWay}" Command="{Binding ToggleUnusedCommand}" />
               <MenuItem Header="Hotspots" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowHotspots, Mode=OneWay}" Command="{Binding ToggleHotspotsCommand}" />
               <MenuItem Header="Walkboxes" ToggleType="CheckBox" StaysOpenOnClick="True"

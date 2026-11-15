@@ -144,6 +144,14 @@ public class RoomActorsScanTests
     }
 
     [Fact]
+    public void The_same_costume_set_again_after_the_put_keeps_its_z_clip_window_open()
+    {
+        // costume 251; ignore-boxes; put-actor 4 at 552,268; costume 251; always-zclip 2 (armsdlr's Kenny)
+        var s = Script(4, SetActor, 251, SetCostume, IgnoreBoxes, 4, 552, 268, 44, Put, 4, SetActor, 251, SetCostume, 2, AlwaysZClip);
+        Assert.Equal(2, RoomActors.ScanScript(s, 44).First(p => p.Costume == 251).Clip);
+    }
+
+    [Fact]
     public void Ignore_boxes_puts_the_clip_back_to_the_walkbox_mask_and_255_means_the_same()
     {
         var s = Script(3, SetActor, 35, SetCostume, 1, AlwaysZClip, IgnoreBoxes, 3, 320, 240, 10, Put);
@@ -523,5 +531,16 @@ public class WalkboxScaleTests
         Assert.Equal(250, Walkboxes.ScaleAt(new[] { Box(0, 0), Box(1, 255) }, slots, 1, 5, 300));
         Assert.Equal(255, Walkboxes.ScaleAt(new[] { Box(0, 0), Box(1, 255) }, slots, 1, 5, 400)); // clipped to 255
         Assert.Equal(255, Walkboxes.ScaleAt(new[] { Box(0, 0), Box(1, 255) }, slots, 5, 5, 5));   // no such box
+    }
+}
+
+public class UnusedArtTests
+{
+    [Fact]
+    public void The_built_in_list_names_unused_object_images_by_room()
+    {
+        Assert.True(MMUCS.Core.Scumm.UnusedArt.IsUnused(65, "guest-room-nightstand"));
+        Assert.False(MMUCS.Core.Scumm.UnusedArt.IsUnused(64, "guest-room-nightstand"));
+        Assert.False(MMUCS.Core.Scumm.UnusedArt.IsUnused(65, "guest-room-mints"));
     }
 }

@@ -136,4 +136,6 @@ public sealed class RoomViewOptions
     public bool ShowZPlanes { get; set; }
     /// <summary>What each room starts with: 0 Room start, 1 Everything, 2 Hidden at start, 3 None.</summary>
     public int ShowMode { get; set; }
+    /// <summary>Include the art the game never shows (unused-art.json).</summary>
+    public bool ShowUnused { get; set; }
 }

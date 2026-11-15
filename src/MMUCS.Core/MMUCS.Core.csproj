@@ -17,5 +17,7 @@
     <EmbeddedResource Include="Names\variables.json" LogicalName="variables.json" />
     <!-- Names for global and local scripts (see Scumm/ScriptNames.cs). -->
     <EmbeddedResource Include="Names\scripts.json" LogicalName="scripts.json" />
+    <!-- Object images the game never shows (see Scumm/UnusedArt.cs). -->
+    <EmbeddedResource Include="Names\unused-art.json" LogicalName="unused-art.json" />
   </ItemGroup>
 </Project>

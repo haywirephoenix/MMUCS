@@ -33,11 +33,14 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
     public bool IsActorOnly { get; init; }
     public string Summary => IsActorOnly ? ActorSummary(Costume)
         : (Costume != null ? $"{Object.Summary}   costume {Costume.Costume}{(Costume.IsLinked ? " (linked)" : "")}{WhenText(Costume)}" : Object.Summary)
-          + (Object.ImageCount > 0 && InitialState is int st ? $"   state {st}{(st == 0 ? " (hidden on entry)" : "")}" : "");
+          + (Object.ImageCount > 0 && InitialState is int st ? $"   state {st}{(st == 0 ? " (hidden on entry)" : "")}" : "")
+          + (Unused != null ? $"   unused{(string.IsNullOrEmpty(Unused.Note) ? "" : $": {Unused.Note}")}" : "");
     /// <summary>The object's state when the room is entered (see <see cref="RoomObjectStates"/>), for objects with an image.</summary>
     public int? InitialState { get; init; }
     /// <summary>Whether it's shown when the room opens; Reset puts every entry back to this.</summary>
     public bool InitialVisible { get; set; } = true;
+    /// <summary>Art the game never shows (<see cref="UnusedArt"/>): left out unless Unused is on.</summary>
+    public UnusedArt.Entry Unused { get; init; }
     /// <summary>
     /// Where the scripts put a costume no object claims: its position as the script writes it (with the
     /// elevation that lifts it), or why it has none.
@@ -139,6 +142,8 @@ public sealed partial class RoomViewModel : ObservableObject
     {
         bool drawable = o.Object.ImageCount > 0 || o.Costume is { CanDraw: true };
         if (!drawable) return o.InitialVisible;
+        // Unused art only when asked for; then the mode decides, as for anything else.
+        if (o.Unused != null && !ShowUnused) return false;
         return ShowMode switch
         {
             ShowEverything => true,
@@ -149,6 +154,12 @@ public sealed partial class RoomViewModel : ObservableObject
     }
 
     partial void OnShowModeChanged(int value) => SetVisibility(o => ShownByMode(o));
+
+    /// <summary>Include the art the game never shows (<see cref="UnusedArt"/>) in what the Show mode shows.</summary>
+    [ObservableProperty] private bool _showUnused;
+
+    partial void OnShowUnusedChanged(bool value) => SetVisibility(o => o.Unused != null ? ShownByMode(o) : null);
+    [RelayCommand] private void ToggleUnused() => ShowUnused = !ShowUnused;
     /// <summary>Whether the Objects side panel is shown (toolbar toggle).</summary>
     [ObservableProperty] private bool _showObjectsPanel = true;
 
@@ -445,7 +456,7 @@ public sealed partial class RoomViewModel : ObservableObject
             // is a library of images (room 3's inventory icons, all in state 0), not a scene.
             bool shown = o.ImageCount <= 0 || room.Width <= 0 || state != 0;
             // A room starts as the Show mode says (Room start: as the game shows it).
-            var item = new RoomObjectItem(o) { InitialState = state, InitialVisible = shown };
+            var item = new RoomObjectItem(o) { InitialState = state, InitialVisible = shown, Unused = UnusedArt.Find(room.RoomNo, o.Name) };
             item.IsVisible = ShownByMode(item);
             item.PropertyChanged += OnItemChanged;
             Objects.Add(item);

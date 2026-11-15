@@ -1,0 +1,10 @@
+{
+  "objects": [
+    { "room": 3,  "object": "bullseye-icon",               "note": "listed as unused art" },
+    { "room": 60, "object": "hotel-ex-stans-sign-1",       "note": "listed as unused art" },
+    { "room": 65, "object": "guest-room-nightstand",       "note": "the open drawer: no script opens it, and the image sits 40,32 off the drawn nightstand" },
+    { "room": 67, "object": "cemetery-stans-crypt-door",   "note": "listed as unused art" },
+    { "room": 73, "object": "stump-box",                   "note": "listed as unused art" },
+    { "room": 87, "object": "easyhard-choice-object",      "note": "no script uses it; its position doesn't fit the current menu layout" }
+  ]
+}
