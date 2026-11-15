@@ -1,0 +1,102 @@
+<!-- App-wide control styles. Loaded after FluentTheme and DockFluentTheme (see App.axaml), so these
+     override the themes. Resource keys come from AppResources.axaml; they are DynamicResource because
+     this file is compiled on its own and can't see App's resources at compile time. -->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dockCtl="using:Dock.Avalonia.Controls"
+        xmlns:dockCore="using:Dock.Model.Core"
+        xmlns:controls="using:MMUCS.Desktop.Controls">
+
+  <!-- Compact input controls. -->
+  <Style Selector="NumericUpDown">
+    <Setter Property="MaxHeight" Value="24" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="ComboBox">
+    <Setter Property="MaxHeight" Value="24" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Slider">
+    <Setter Property="MaxHeight" Value="24" />
+  </Style>
+  <Style Selector="Slider /template/ Track">
+    <Setter Property="Margin" Value="0,-10,0,0" />
+  </Style>
+
+  <!-- Blue text selection highlight for both dark and light modes. -->
+  <Style Selector="TextBox">
+    <Setter Property="SelectionBrush" Value="#2563EB" />
+    <Setter Property="SelectionForegroundBrush" Value="White" />
+  </Style>
+  <Style Selector="SelectableTextBlock">
+    <Setter Property="SelectionBrush" Value="#2563EB" />
+    <Setter Property="SelectionForegroundBrush" Value="White" />
+  </Style>
+
+  <!-- Splitters (the theme leaves them transparent) show as thin lines: the only lines between
+       panels, marking where they can be resized. -->
+  <Style Selector="ProportionalStackPanelSplitter">
+    <Setter Property="Background" Value="{DynamicResource DockSplitterIdleBrush}" />
+  </Style>
+  <Style Selector="ProportionalStackPanelSplitter:pointerover">
+    <Setter Property="Background" Value="{DynamicResource DockSplitterHoverBrush}" />
+  </Style>
+  <!-- Held for the whole drag: the pointer slips off the thin handle while it catches up, which
+       would otherwise flicker the hover colour. -->
+  <Style Selector="ProportionalStackPanelSplitter:pressed">
+    <Setter Property="Background" Value="{DynamicResource DockSplitterHoverBrush}" />
+  </Style>
+
+  <!-- A tab whose panel got new content while hidden shows a white dot (Dock's "modified"
+       indicator, a * by default); bringing the tab forward clears it. -->
+  <Style Selector="dockCtl|DocumentControl">
+    <Setter Property="ModifiedTemplate">
+      <DataTemplate DataType="dockCore:IDockable">
+        <Ellipse Width="6" Height="6" Fill="White" VerticalAlignment="Center" Margin="2,0,4,0" />
+      </DataTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="dockCtl|ToolControl">
+    <Setter Property="ModifiedTemplate">
+      <DataTemplate DataType="dockCore:IDockable">
+        <Ellipse Width="6" Height="6" Fill="White" VerticalAlignment="Center" Margin="2,0,4,0" />
+      </DataTemplate>
+    </Setter>
+  </Style>
+
+  <!-- Floating panel windows use the app icon. -->
+  <Style Selector="dockCtl|HostWindow">
+    <Setter Property="Icon" Value="/Assets/mmucs.ico" />
+  </Style>
+
+  <!-- Panel chrome. -->
+  <Style Selector="Border.panel-header">
+    <Setter Property="Background" Value="{DynamicResource PanelHeaderBrush}" />
+    <Setter Property="Padding" Value="8,4" />
+  </Style>
+  <Style Selector="Border.panel-header > TextBlock, Border.panel-header > Grid > TextBlock">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
+  </Style>
+  <!-- One list background everywhere, so no list shows Fluent's default grey. -->
+  <Style Selector="ListBox">
+    <Setter Property="Background" Value="{DynamicResource ListBackgroundBrush}" />
+  </Style>
+
+  <!-- Room viewer: the outline drawn around the selected object(s). Colour may include alpha
+       (#AARRGGBB); thickness is in screen pixels, the same at every zoom. -->
+  <Style Selector="controls|RoomCanvas">
+    <Setter Property="SelectionOutlineColor" Value="#50C8FF" />
+    <Setter Property="SelectionOutlineThickness" Value="2" />
+  </Style>
+
+  <Style Selector="TextBlock.mono">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+  </Style>
+  <Style Selector="StackPanel.toolbar">
+    <Setter Property="Orientation" Value="Horizontal" />
+    <Setter Property="Spacing" Value="6" />
+    <Setter Property="Margin" Value="6,4" />
+  </Style>
+</Styles>

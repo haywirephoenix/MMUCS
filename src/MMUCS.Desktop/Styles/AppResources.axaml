@@ -1,0 +1,43 @@
+<!-- App-wide resources: fonts, brushes and Dock theme overrides. App resources take precedence over
+     the Dock theme's, so keys here that match Dock's replace its defaults. -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ResourceDictionary.MergedDictionaries>
+    <!-- Drop targets as invisible edge zones instead of icons. -->
+    <ResourceInclude Source="/Styles/DockTargets.axaml" />
+  </ResourceDictionary.MergedDictionaries>
+
+  <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace</FontFamily>
+  <SolidColorBrush x:Key="PanelHeaderBrush" Color="#000000" />
+  <SolidColorBrush x:Key="ListBackgroundBrush" Color="#000000" />
+  <SolidColorBrush x:Key="SubtleTextBrush" Color="#99FFFFFF" />
+
+  <!-- Script viewer syntax colours. -->
+  <SolidColorBrush x:Key="ScriptOffsetBrush" Color="#5C6370" />
+  <SolidColorBrush x:Key="ScriptBytesBrush" Color="#7F848E" />
+  <SolidColorBrush x:Key="ScriptCommentBrush" Color="#6A9955" />
+  <SolidColorBrush x:Key="ScriptKeywordBrush" Color="#C586C0" />
+  <SolidColorBrush x:Key="ScriptCommandBrush" Color="#569CD6" />
+  <SolidColorBrush x:Key="ScriptFunctionBrush" Color="#DCDCAA" />
+  <SolidColorBrush x:Key="ScriptVariableBrush" Color="#9CDCFE" />
+  <SolidColorBrush x:Key="ScriptNumberBrush" Color="#B5CEA8" />
+  <SolidColorBrush x:Key="ScriptStringBrush" Color="#CE9178" />
+  <SolidColorBrush x:Key="ScriptLabelBrush" Color="#4EC9B0" />
+
+  <!-- Dock tabs: neutral greys instead of the theme's blue for hovered/active tabs.
+       (Drop targets and splitters keep the blue accent.) -->
+  <SolidColorBrush x:Key="DockTabHoverBackgroundBrush" Color="#3A3A3F" />
+  <SolidColorBrush x:Key="DockTabActiveBackgroundBrush" Color="#4A4A50" />
+  <SolidColorBrush x:Key="DockTabActiveIndicatorBrush" Color="#707078" />
+  <SolidColorBrush x:Key="DockTabSelectedForegroundBrush" Color="#F0F0F0" />
+  <SolidColorBrush x:Key="DockTabCloseHoverBackgroundBrush" Color="#5A5A62" />
+
+  <!-- No outlines around panels: the only lines are the splitters, where panels can be resized. -->
+  <SolidColorBrush x:Key="DockBorderSubtleBrush" Color="Transparent" />
+  <SolidColorBrush x:Key="DockBorderStrongBrush" Color="Transparent" />
+  <SolidColorBrush x:Key="DockDocumentContentBorderBrush" Color="Transparent" />
+  <Thickness x:Key="DockDocumentContentBorderThickness">0</Thickness>
+  <SolidColorBrush x:Key="DockSplitterIdleBrush" Color="#2E2E33" />
+  <SolidColorBrush x:Key="DockSeparatorBrush" Color="Transparent" />
+  <x:Boolean x:Key="DockDocumentTabStripSeparatorVisible">False</x:Boolean>
+</ResourceDictionary>
