@@ -63,8 +63,10 @@ public static class DockLayoutStore
         public WindowPlacement MainWindow { get; set; }
         public Node Root { get; set; }
         public List<FloatingWindow> Windows { get; set; } = new();
-        /// <summary>The Costume viewer's own panel arrangement.</summary>
+        /// <summary>The viewers' own panel arrangements (see <see cref="ViewerDockFactory"/>).</summary>
         public Node Costume { get; set; }
+        public Node Room { get; set; }
+        public Node Object { get; set; }
     }
 
     public sealed class FloatingWindow
@@ -92,7 +94,8 @@ public static class DockLayoutStore
 
     // ── Save ─────────────────────────────────────────────────────────────────
 
-    public static void Save(IRootDock layout, WindowPlacement mainWindow, Func<IDock, List<string>> hiddenIn = null, IRootDock costume = null)
+    public static void Save(IRootDock layout, WindowPlacement mainWindow, Func<IDock, List<string>> hiddenIn = null,
+        ViewerDock costume = null, ViewerDock room = null, ViewerDock objectViewer = null)
     {
         _hiddenIn = hiddenIn;
         try
@@ -104,12 +107,10 @@ public static class DockLayoutStore
                 MainWindow = mainWindow,
                 Root = Capture(layout.DefaultDockable ?? layout.VisibleDockables[0]),
             };
-            if ((costume?.DefaultDockable ?? costume?.VisibleDockables?.FirstOrDefault()) is { } costumeContent)
-            {
-                _hiddenIn = null;
-                file.Costume = Capture(costumeContent);
-                _hiddenIn = hiddenIn;
-            }
+            file.Costume = CaptureViewer(costume);
+            file.Room = CaptureViewer(room);
+            file.Object = CaptureViewer(objectViewer);
+            _hiddenIn = hiddenIn;
 
             foreach (var window in layout.Windows ?? Enumerable.Empty<IDockWindow>())
             {
@@ -137,6 +138,15 @@ public static class DockLayoutStore
     }
 
     private static Func<IDock, List<string>> _hiddenIn;
+
+    /// <summary>A viewer's own arrangement, with the panels it has hidden.</summary>
+    public static Node CaptureViewer(ViewerDock viewer)
+    {
+        var root = viewer?.Layout;
+        if ((root?.DefaultDockable ?? root?.VisibleDockables?.FirstOrDefault()) is not { } content) return null;
+        _hiddenIn = viewer.Factory.HiddenIn;
+        return Capture(content);
+    }
 
     /// <summary>Hidden panels that belong in a dock; null when none (keeps the file unchanged for most docks).</summary>
     private static List<string> Hidden(IDock dock) => _hiddenIn?.Invoke(dock) is { Count: > 0 } ids ? ids : null;

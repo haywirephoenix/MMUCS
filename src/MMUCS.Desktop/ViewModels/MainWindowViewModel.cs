@@ -68,7 +68,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public WindowPlacement SavedMainWindow { get; }
 
     /// <summary>Persists the panel layout, floating windows and main window placement.</summary>
-    public void SaveLayout(WindowPlacement mainWindow) => DockLayoutStore.Save(Layout, mainWindow, DockFactory.HiddenIn, Costume.Layout);
+    public void SaveLayout(WindowPlacement mainWindow) => DockLayoutStore.Save(Layout, mainWindow, DockFactory.HiddenIn,
+        Costume.ViewerLayout, Room.ViewerLayout, ObjectImage.ViewerLayout);
 
     /// <summary>Raised by Ctrl+F; the Blocks panel focuses its filter box wherever it is docked.</summary>
     public event Action FocusFilterRequested;
@@ -94,7 +95,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         var saved = DockLayoutStore.Read();
         SavedMainWindow = saved?.MainWindow;
         _layout = DockLayoutStore.TryRestore(DockFactory, saved) ?? DockFactory.CreateLayout();
-        Costume.RestoreLayout(saved?.Costume);
+        Costume.ViewerLayout.Restore(saved?.Costume);
+        Room.ViewerLayout.Restore(saved?.Room);
+        ObjectImage.ViewerLayout.Restore(saved?.Object);
         DockFactory.InitLayout(_layout);
         DockFactory.PlaceNewPanel(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, _layout);
 
@@ -199,7 +202,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         var layout = DockFactory.CreateLayout();
         DockFactory.InitLayout(layout);
         Layout = layout;
-        Costume.ResetLayout();
+        Costume.ViewerLayout.Reset();
+        Room.ViewerLayout.Reset();
+        ObjectImage.ViewerLayout.Reset();
         OnSelectedViewerIndexChanged(SelectedViewerIndex);
     }
 

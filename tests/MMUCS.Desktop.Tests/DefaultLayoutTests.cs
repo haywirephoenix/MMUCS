@@ -44,6 +44,49 @@ public class DefaultLayoutTests
         Assert.NotNull(factory.TryRestore(DockLayoutStore.ReadDefault()?.Costume));
     }
 
+    [Fact]
+    public void Room_default_comes_from_the_file()
+    {
+        var factory = new RoomDockFactory(new RoomViewModel());
+        Assert.NotNull(factory.TryRestore(DockLayoutStore.ReadDefault()?.Room));
+    }
+
+    [Fact]
+    public void Object_default_comes_from_the_file()
+    {
+        var factory = new ObjectDockFactory(new ObjectImageViewModel(new RoomViewModel()));
+        Assert.NotNull(factory.TryRestore(DockLayoutStore.ReadDefault()?.Object));
+    }
+
+    [Fact]
+    public void Hidden_objects_panel_is_saved_and_restored_hidden()
+    {
+        var room = new RoomViewModel();
+        room.ShowObjectsPanel = false;
+        Assert.False(room.ViewerLayout.IsPanelShown(RoomDockFactory.ObjectsId));
+
+        // Capture it as the layout file does, then rebuild.
+        var json = SaveViewers(room.ViewerLayout);
+        var restored = new RoomViewModel { ShowObjectsPanel = false };
+        restored.ViewerLayout.Restore(json.Room);
+        Assert.Equal("RoomRoot", restored.ViewerLayout.Layout.Id);
+        Assert.False(restored.ViewerLayout.IsPanelShown(RoomDockFactory.ObjectsId));
+
+        restored.ShowObjectsPanel = true;
+        Assert.True(restored.ViewerLayout.IsPanelShown(RoomDockFactory.ObjectsId));
+        var objects = Find(restored.ViewerLayout.Layout, RoomDockFactory.ObjectsId);
+        Assert.Equal("ObjectsDock", objects.Owner.Id);
+    }
+
+    /// <summary>Round-trips a room viewer's arrangement through the layout file's JSON.</summary>
+    private static DockLayoutStore.LayoutFile SaveViewers(ViewerDock room)
+    {
+        var node = DockLayoutStore.CaptureViewer(room);
+        var options = new System.Text.Json.JsonSerializerOptions { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals };
+        var json = System.Text.Json.JsonSerializer.Serialize(new DockLayoutStore.LayoutFile { Room = node }, options);
+        return System.Text.Json.JsonSerializer.Deserialize<DockLayoutStore.LayoutFile>(json, options);
+    }
+
     private static IDockable Find(IDockable node, string id)
     {
         if (node.Id == id && node is not IDock) return node;
