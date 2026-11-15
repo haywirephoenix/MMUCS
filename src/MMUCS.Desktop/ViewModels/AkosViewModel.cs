@@ -67,21 +67,30 @@ public sealed partial class AkosViewModel : ObservableObject
     /// <summary>While playing, also show the animation in the Room viewer where the room places this costume.</summary>
     [ObservableProperty] private bool _playInPlace = true;
 
-    /// <summary>A frame played in place (null when playback in place ends).</summary>
-    public event Action<ScummBlock, AkosFrame> LiveFrameChanged;
+    /// <summary>A frame played in place, in the palette this viewer shows (null when playback in place ends).</summary>
+    public event Action<ScummBlock, AkosFrame, int> LiveFrameChanged;
     private bool _liveShown;
 
-    private void SendLiveFrame(AkosFrame frame)
+    /// <summary>Sends step <paramref name="step"/> of the playing chore as the engine shows it on an actor: over
+    /// the limbs the costume's init animation started.</summary>
+    private void SendLiveFrame(int step)
     {
-        if (frame == null && !_liveShown) return;
-        _liveShown = frame != null;
-        LiveFrameChanged?.Invoke(Block, frame);
+        if (Akos == null || _frameChore < 0) return;
+        _liveShown = true;
+        LiveFrameChanged?.Invoke(Block, AkosFrames.ComposeAfterInit(Akos, _frameChore, step), PaletteIndex);
+    }
+
+    private void ClearLiveFrame()
+    {
+        if (!_liveShown) return;
+        _liveShown = false;
+        LiveFrameChanged?.Invoke(Block, null, PaletteIndex);
     }
 
     partial void OnPlayInPlaceChanged(bool value)
     {
-        if (!value) SendLiveFrame(null);
-        else if (IsPlaying && Akos != null && _frameChore >= 0) SendLiveFrame(AkosFrames.Compose(Akos, _frameChore, _playPos));
+        if (!value) ClearLiveFrame();
+        else if (IsPlaying) SendLiveFrame(_playPos);
     }
 
     public ObservableCollection<CelItem> Cels { get; } = new();
@@ -245,7 +254,7 @@ public sealed partial class AkosViewModel : ObservableObject
     {
         if (Akos == null || _frameChore < 0) return;
         var frame = AkosFrames.Compose(Akos, _frameChore, step);
-        if (IsPlaying && PlayInPlace) SendLiveFrame(frame);
+        if (IsPlaying && PlayInPlace) SendLiveFrame(step);
         int cycle = AkosFrames.CycleLength(Akos, _frameChore);
         ShowFrame(frame, _frameBounds, $"Chore {_frameChore}  frame {step % cycle + 1}/{cycle}");
     }
@@ -342,7 +351,7 @@ public sealed partial class AkosViewModel : ObservableObject
     {
         _timer?.Stop();
         IsPlaying = false;
-        SendLiveFrame(null);
+        ClearLiveFrame();
     }
 
     public async Task ExportCelsAsync(string folder)

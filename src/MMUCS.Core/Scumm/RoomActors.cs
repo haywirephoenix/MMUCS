@@ -540,7 +540,7 @@ public static class RoomActors
             if (data.TryGetValue(akos, out var v)) return v;
             var d = parser.Parse(akos);
             int chore = AkosFrames.FindDefaultChore(d);
-            var f = chore >= 0 ? AkosFrames.Compose(d, chore) : null;
+            var f = chore >= 0 ? AkosFrames.ComposeAfterInit(d, chore) : null;
             return data[akos] = (d, f is { IsEmpty: false } ? f : null);
         }
 
@@ -591,12 +591,16 @@ public static class RoomActors
                 if (t is PlacementTime.OnEntry or PlacementTime.OnEntryIf && timing.Reached(scripts[si], pl.CostumePos, pl.PlacePos))
                     firstVisit.Add(key);
             }
-        foreach (var (si, (actor, costume, sx, sy, elevation, anim, dir, via, scale, clip, ignoreBoxes, followsAtPut, removes, _, _, _)) in scans.SelectMany((list, i) => list.Select(e => (i, e)))
+        foreach (var (si, (actor, costume, sx, sy, elevation, scriptAnim, dir, via, scale, clip, ignoreBoxes, followsAtPut, removes, _, _, _, animChoices)) in scans.SelectMany((list, i) => list.Select(e => (i, e)))
                      // A put that follows its costume first: it says how the actor is set up (smglcave's
                      // 388 is set up with ignore-boxes and scale 255 before its put in local 2012, while
                      // local 2004 only puts the player there before dressing it, in an override).
                      .OrderBy(x => x.e.PlacePos > x.e.CostumePos ? 0 : 1))
         {
+            // The animation the script starts; if a fresh game skips it, the one in the else part it reaches.
+            int anim = animChoices is { Length: > 1 } && !timing.Reached(scripts[si], animChoices[0].Pos)
+                       && animChoices.Skip(1).FirstOrDefault(a => timing.Reached(scripts[si], a.Pos)) is { Pos: > 0 } reached
+                ? reached.Anim : scriptAnim;
             // An actor number wears a costume once; an actor in a variable is a different actor at
             // each spot it's put (the fortbase chickens), so each spot is kept.
             if (!seen.Add(Key(actor, costume, sx, sy))) continue;
@@ -876,11 +880,23 @@ public static class RoomActors
 
     /// <summary>Whether code at <paramref name="at"/> is skipped by an unconditional forward jump after
     /// <paramref name="from"/> (the end of an if's then-part jumping over its else-part).</summary>
-    internal static bool JumpedOver(ReadOnlySpan<byte> s, int from, int at)
+    /// <param name="elseParts">Not counting the jump at the end of an if's then-part when the if comes
+    /// after <paramref name="from"/>: code in its else part runs instead of the then-part, not never.</param>
+    internal static bool JumpedOver(ReadOnlySpan<byte> s, int from, int at, bool elseParts = false)
     {
         for (int j = from + 1; j < at && j + 5 <= s.Length; j++)
-            if (s[j] == OpJump && j + 5 + s.S32LE(j + 1) is int target && target > at && target <= s.Length)
+            if (s[j] == OpJump && j + 5 + s.S32LE(j + 1) is int target && target > at && target <= s.Length
+                && !(elseParts && EndsThenPart(s, from, j)))
                 return true;
+        return false;
+    }
+
+    /// <summary>Whether the jump at <paramref name="j"/> ends the then-part of an if after <paramref name="from"/>
+    /// (the if's condition jumps to just after it, to the else part).</summary>
+    private static bool EndsThenPart(ReadOnlySpan<byte> s, int from, int j)
+    {
+        for (int k = from + 1; k < j && k + 5 <= s.Length; k++)
+            if (s[k] is OpIf or OpIfNot && k + 5 + s.S32LE(k + 1) == j + 5) return true;
         return false;
     }
 
@@ -1001,7 +1017,7 @@ public static class RoomActors
     /// </summary>
     internal readonly record struct Placement(int Actor, int Costume, int X, int Y, int Elevation, int Anim, int Dir, int Via, int Scale,
         int Clip, bool IgnoreBoxes, bool FollowsAtPut = false, int[] Removes = null, int CostumePos = -1, int PlacePos = -1,
-        bool Passing = false);
+        bool Passing = false, (int Pos, int Anim)[] AnimChoices = null);
 
     internal static List<Placement> ScanScript(
         ReadOnlySpan<byte> s, int roomNo, Func<int, IReadOnlyList<ParamCostume>> dressers = null)
@@ -1091,8 +1107,15 @@ public static class RoomActors
             // always-zclip 2 again; read from the first, the window ends before the last z-clip).
             if (untilCostume == c.Costume && !places.Any(pl => pl.Actor == c.Actor && pl.Pos > c.Pos && pl.Pos < until)) continue;
             // Below 1000 an animation number is a chore; 1000 and up are turn/stop commands.
-            int anim = c.Anim ?? anims.Where(a => a.Actor == c.Actor && a.Pos > c.Pos && a.Pos < until && OnPath(a.Pos) && a.Anim is >= 0 and < 1000)
-                                      .Select(a => a.Anim).DefaultIfEmpty(-1).First();
+            var onPath = anims.Where(a => a.Actor == c.Actor && a.Pos > c.Pos && a.Pos < until && OnPath(a.Pos) && a.Anim is >= 0 and < 1000).ToList();
+            int anim = c.Anim ?? onPath.Select(a => a.Anim).DefaultIfEmpty(-1).First();
+            // That animation first, then the ones in else parts it skips ("if (bit168) { … do-animation 12 7 }
+            // else { do-animation 12 3 }" in cannon): when a fresh game skips the first, the room takes the
+            // next it reaches.
+            var animChoices = c.Anim != null || onPath.Count == 0 ? null
+                : onPath.Take(1).Concat(anims.Where(a => a.Actor == c.Actor && a.Pos > onPath[0].Pos && a.Pos < until && a.Anim is >= 0 and < 1000
+                                                          && !OnPath(a.Pos) && !JumpedOver(code, c.Pos, a.Pos, elseParts: true)))
+                        .Select(a => (a.Pos, a.Anim)).ToArray();
             // A costume change keeps the actor's facing and scale; only "actor A default" resets them (to
             // 180 and 255). So what this script set before the costume, on the way to it, still holds:
             // quiksand's chicken, dressed by script 88 at scale 160, then face 270, then costume 185.
@@ -1195,7 +1218,7 @@ public static class RoomActors
                 bool passing = b.Pos > c.Pos && removals.Any(rm => rm.Actor == c.Actor && rm.Pos > lastPut && rm.Pos < until
                                                                   && OnPath(rm.Pos) && !Guarded(code, lastPut, rm.Pos));
                 pairs.Add(new Placement(c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir, c.Via, scale, clip, ignore, ignoreAtPut == false, removes,
-                    c.Pos, b.Pos, passing));
+                    c.Pos, b.Pos, passing, animChoices));
             }
         }
         return pairs;
@@ -1268,7 +1291,7 @@ public static class RoomActors
     {
         if (anim < 0) return null;
         int chore = AkosFrames.ChoreIndex(d, anim, AkosFrames.DirectionOf(d, degrees));
-        return AkosFrames.HasChore(d, chore) && AkosFrames.Compose(d, chore) is { IsEmpty: false } f ? f : null;
+        return AkosFrames.HasChore(d, chore) && AkosFrames.ComposeAfterInit(d, chore) is { IsEmpty: false } f ? f : null;
     }
 
     /// <summary>do-animation ops with a constant animation: (position, actor key, animation).</summary>

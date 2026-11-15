@@ -242,6 +242,45 @@ public static class AkosFrames
         return frame;
     }
 
+    /// <summary>
+    /// A chore's frame as the engine shows it on an actor: setting a costume plays its init animation
+    /// (ScummVM setActorCostume → startAnimActor(initFrame)), which starts every limb it lists; a later
+    /// chore restarts only its own limbs, stops those it gives code 1, and leaves the rest on init's.
+    /// Wally's stand animation in cannon drives only his body: his head stays init's.
+    /// </summary>
+    public static AkosFrame ComposeAfterInit(AkosData d, int chore, int step = 0)
+    {
+        int init = ChoreIndex(d, InitFrame, d.DirectionCount > 0 ? chore % d.DirectionCount : 0);
+        if (chore / Math.Max(1, d.DirectionCount) == InitFrame || !HasChore(d, init)) return Compose(d, chore, step);
+        var limbs = new SortedDictionary<int, AkosLimb>();
+        foreach (int c in new[] { init, chore })
+        {
+            var ch = d.ChoreData.Span;
+            int p = ch.U16LE(c * 2);
+            if (p == 0 || p + 2 > ch.Length) continue;
+            ushort mask = ch.U16LE(p);
+            p += 2;
+            for (int limb = 0; mask != 0 && p < ch.Length; limb++, mask <<= 1)
+            {
+                if ((mask & 0x8000) == 0) continue;
+                byte code = ch[p++];
+                if (code == 1) { limbs.Remove(limb); continue; }
+                if (code is 4 or 5) continue; // stop / resume: the limb keeps its sequence
+                if (p + 4 > ch.Length) break;
+                limbs[limb] = new AkosLimb(limb, code, ch.U16LE(p), ch.U16LE(p + 2));
+                p += 4;
+            }
+        }
+        var frame = new AkosFrame();
+        int xmove = 0, ymove = 0;
+        foreach (var limb in limbs.Values)
+        {
+            var steps = GetFrameSteps(d, limb);
+            if (steps.Count > 0) AddStep(d, steps[step % steps.Count], frame, ref xmove, ref ymove);
+        }
+        return frame;
+    }
+
     /// <summary>Number of steps before every limb of a chore is back at its start (capped).</summary>
     public static int CycleLength(AkosData d, int chore)
     {

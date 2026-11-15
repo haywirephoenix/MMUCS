@@ -446,14 +446,22 @@ public sealed class RoomCanvas : SkiaViewport
                 // Actors are drawn over the objects, in SCUMM's order: by y before elevation, then actor
                 // number, so an actor lifted by elevation still sorts by where it stands (cannon-v's cannon
                 // stands at y 792 to be drawn in front of the water).
+                bool liveDrawn = false;
                 foreach (var layer in _drawLayers.Where(l => l.CostumeImage != null).OrderBy(l => l.CostumeDepth).ThenBy(l => l.CostumeActor))
                 {
-                    if (layer.CostumeImage == null || _visible == null || !_visible.Contains(layer.Object)) continue;
-                    if (_live != null && ReferenceEquals(layer.Object, _live.Target)) continue; // replaced by the playing frame
+                    if (_live != null && ReferenceEquals(layer.Object, _live.Target))
+                    {
+                        // The playing frame, in its actor's place in the order; shown even when its entry is
+                        // hidden: it was asked for from the Costume viewer.
+                        if (_live.Image != null) DrawActor(canvas, _live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, sampling);
+                        liveDrawn = true;
+                        continue;
+                    }
+                    if (_visible == null || !_visible.Contains(layer.Object)) continue;
                     DrawActor(canvas, layer.CostumeImage, layer.CostumeX, layer.CostumeY, layer.CostumeScale, layer.CostumeZPlane, sampling);
                 }
-                // Played in place even when its entry is hidden: it was asked for from the Costume viewer.
-                if (_live?.Image != null) DrawActor(canvas, _live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, sampling);
+                // A costume whose usual frame draws nothing has no place in the order: on top.
+                if (!liveDrawn && _live?.Image != null) DrawActor(canvas, _live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, sampling);
             }
             canvas.Restore();
 

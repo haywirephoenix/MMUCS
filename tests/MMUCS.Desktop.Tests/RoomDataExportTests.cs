@@ -108,6 +108,20 @@ public class RoomActorsScanTests
     }
 
     [Fact]
+    public void An_animation_in_the_else_part_is_offered_after_the_one_the_script_starts()
+    {
+        // actor 12 costume 26; put-actor 12 at 0,380 in-room 9;
+        // if (bit168) { do-animation 12 7 } else { do-animation 12 3 } (cannon)
+        var s = Script(12, SetActor, 26, SetCostume, 12, 0, 380, 9, Put,  // 24 … 59
+                       PushVar(unchecked((int)0x800000A8)), Jump(0x65, 16), // 59: if (bit168) { → else at 85
+                       12, 7, new byte[] { 0xA4 }, Jump(0x66, 11),          // 69:   do-animation 12 7 } → end at 96
+                       12, 3, new byte[] { 0xA4 });                         // 85: else do-animation 12 3
+        var found = Assert.Single(RoomActors.ScanScript(s, 9));
+        Assert.Equal(7, found.Anim);
+        Assert.Equal(new[] { 7, 3 }, found.AnimChoices.Select(a => a.Anim));
+    }
+
+    [Fact]
     public void A_costume_its_script_takes_away_again_is_only_there_for_a_moment()
     {
         // actor 35 costume 267; put-actor 35 at 429,335 in-room 52; put-actor 35 at 0,0 in-room 0 (gb-deck's idle arms)

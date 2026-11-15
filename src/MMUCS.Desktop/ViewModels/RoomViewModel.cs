@@ -455,26 +455,38 @@ public sealed partial class RoomViewModel : ObservableObject
     }
 
     private bool _suppressPaletteReload;
+    /// <summary>The costume and palette the frames played in place are resolved in.</summary>
+    private (AkosData, int) _livePalette;
 
     /// <summary>
     /// Shows <paramref name="frame"/> of costume <paramref name="akos"/> where this room places that
-    /// costume, in place of its usual frame; null (or a costume this room doesn't place) clears it.
+    /// costume, in place of its usual frame and in palette <paramref name="palette"/> (the one the Costume
+    /// viewer shows it in); null (or a costume this room doesn't place) clears it.
     /// </summary>
-    public void ShowLiveFrame(ScummBlock akos, AkosFrame frame)
+    public void ShowLiveFrame(ScummBlock akos, AkosFrame frame, int palette)
     {
         var placed = frame == null || akos == null ? default
             : _actorTargets.FirstOrDefault(kv => ReferenceEquals(kv.Key.Akos, akos) && kv.Key.HasPosition);
         if (placed.Key is not { } actor)
         {
             LiveCostume = null;
+            _livePalette = default;
             return;
         }
         try
         {
             RgbaImage rgba;
             int ox, oy;
-            // The room's own parse of the costume, in the room's current palette.
-            lock (actor.Data) rgba = AkosFrames.Render(actor.Data, frame, out ox, out oy, mirror: actor.Mirrored);
+            // The room's own parse of the costume; the next reload puts it back in the room's palette.
+            lock (actor.Data)
+            {
+                if (_livePalette != (actor.Data, palette))
+                {
+                    _akosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
+                    _livePalette = (actor.Data, palette);
+                }
+                rgba = AkosFrames.Render(actor.Data, frame, out ox, out oy, mirror: actor.Mirrored);
+            }
             float f = actor.ScaleFactor;
             LiveCostume = new LiveCostume(placed.Value, rgba?.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), f, actor.ZPlane);
         }
@@ -708,6 +720,7 @@ public sealed partial class RoomViewModel : ObservableObject
             lock (actor.Data)
             {
                 _akosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
+                if (ReferenceEquals(_livePalette.Item1, actor.Data)) _livePalette = default;
                 var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, token, actor.Mirrored);
                 // Scaled about the actor's origin: the frame's offset from it shrinks with the frame.
                 float f = actor.ScaleFactor;
