@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using MMUCS.Desktop.Controls;
 using MMUCS.Desktop.ViewModels;
@@ -21,6 +22,9 @@ public partial class CostumePreviewView : UserControl
     }
 
     public CelCanvas CelCanvas => Canvas;
+    
+    private void OnFitClick(object sender, RoutedEventArgs e) => CelCanvas?.ZoomToFit();
+    private void OnActualClick(object sender, RoutedEventArgs e) => CelCanvas?.ZoomToActual();
 
     private void Subscribe()
     {

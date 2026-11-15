@@ -46,6 +46,7 @@ public sealed partial class AkosViewModel : ObservableObject
     [ObservableProperty] private AkosData _akos;
     [ObservableProperty] private ScummBlock _block;
     [ObservableProperty] private string _title = "No costume selected";
+    [ObservableProperty] private string _info = "";
     [ObservableProperty] private CelItem _selectedCel;
     [ObservableProperty] private SKImage _dataImage;
     [ObservableProperty] private SKImage _rawImage;
@@ -55,11 +56,12 @@ public sealed partial class AkosViewModel : ObservableObject
     [ObservableProperty] private int _paletteIndex;
     [ObservableProperty] private int _maxPaletteIndex;
 
-    [ObservableProperty] private CelViewMode _mode = CelViewMode.Shader;
-    [ObservableProperty] private bool _alphaEnabled = true;
-    [ObservableProperty] private bool _shadowColorEnabled = true;
-    [ObservableProperty] private double _shadowAmount = 0.4;
-    [ObservableProperty] private bool _linearFilter;
+    [ObservableProperty] private CelViewMode _mode               = CelViewMode.Shader;
+    [ObservableProperty] private bool        _alphaEnabled       = true;
+    [ObservableProperty] private bool        _shadowColorEnabled = true;
+    [ObservableProperty] private static bool  _celInfoEnabled     = true;
+    [ObservableProperty] private double      _shadowAmount       = 0.4;
+    [ObservableProperty] private bool        _linearFilter;
 
     [ObservableProperty] private ChoreNode _selectedChoreNode;
     [ObservableProperty] private bool _isPlaying;
@@ -127,6 +129,7 @@ public sealed partial class AkosViewModel : ObservableObject
 
         Block = akosBlock;
         Title = $"AKOS @0x{akosBlock.Offset:X8}";
+        Info  = "";
         Cels.Clear();
         Chores.Clear();
         DataImage = RawImage = null;
@@ -138,7 +141,8 @@ public sealed partial class AkosViewModel : ObservableObject
 
             Akos = data;
             OnPropertyChanged(nameof(HasCostume));
-            Title = $"AKOS @0x{akosBlock.Offset:X8}  —  {data.Header.CelsCount} cels, {data.AnimCount} anims × {data.DirectionCount} dirs, codec {data.Header.Codec}";
+            Title = $"AKOS @0x{akosBlock.Offset:X8}";
+            Info  = $"{data.Header.CelsCount} cels, {data.AnimCount} anims × {data.DirectionCount} dirs, codec {data.Header.Codec}";
 
             var apals = akosBlock.Parent?.FindChild(ScummTag.ROOM)?.FindChild(ScummTag.PALS)?.FindChild(ScummTag.WRAP)?.FindChildrenRecursive(ScummTag.APAL);
             MaxPaletteIndex = Math.Max(0, (apals?.Count ?? 1) - 1);
@@ -151,7 +155,9 @@ public sealed partial class AkosViewModel : ObservableObject
                 Cels.Add(new CelItem(i, data.CelInfos[i].Width, data.CelInfos[i].Height));
 
             BuildChoreTree(data);
-            SelectedCel = Cels.FirstOrDefault();
+            var foundCel = Cels.FirstOrDefault();
+            if (foundCel != null)
+                SelectedCel = foundCel;
         }
         catch (Exception ex)
         {

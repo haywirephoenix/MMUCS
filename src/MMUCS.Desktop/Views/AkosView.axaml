@@ -5,24 +5,6 @@
              x:Class="MMUCS.Desktop.Views.AkosView"
              x:DataType="vm:AkosViewModel">
   <DockPanel>
-    <!-- Toolbar -->
-    <Border DockPanel.Dock="Top" Classes="panel-header" Padding="6,3">
-      <WrapPanel Orientation="Horizontal" ItemSpacing="0" LineSpacing="4">
-        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="12" Margin="2,0,14,0" />
-        <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" Width="100" Margin="0,0,8,0"
-                  ToolTip.Tip="Shader: GPU palette resolve (SkSL) · Index: encoded data · Raw: CPU resolve" />
-        <CheckBox Content="Alpha" IsChecked="{Binding AlphaEnabled}" Margin="0,0,6,0" />
-        <CheckBox Content="Shadow" IsChecked="{Binding ShadowColorEnabled}" Margin="0,0,6,0" />
-        <Slider Value="{Binding ShadowAmount}" Minimum="0" Maximum="1" Width="90" Margin="0,0,8,0"
-                VerticalAlignment="Center" ToolTip.Tip="Shadow amount" />
-        <CheckBox Content="Linear" IsChecked="{Binding LinearFilter}" Margin="0,0,12,0" />
-        <TextBlock Text="Palette" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
-        <NumericUpDown Value="{Binding PaletteIndex}" Minimum="0" Maximum="{Binding MaxPaletteIndex}"
-                       Increment="1" FormatString="0" Width="96" Margin="0,0,12,0" />
-        <Button Content="Fit" Click="OnFitClick" Margin="0,0,4,0" />
-        <Button Content="1:1" Click="OnActualClick" />
-      </WrapPanel>
-    </Border>
 
     <!-- The viewer's own panels: Cels, Preview, Chores and Resolved palette (see CostumeDock.cs). -->
     <!-- Its tool title bars use their own theme so they never take over a floating window (see the file). -->
