@@ -21,18 +21,11 @@ public class AkosParser
 
         var roomBlock = akosBlock.Parent.FindChild(ScummTag.ROOM);
         var apals = roomBlock.FindChildrenRecursive(ScummTag.APAL);
-        ScummBlock apal = apals[0];
-
-        //edge case for 77.skulisle - change to width based or lookup later
-        if (data.Offset == 61970978) //data.Offset == 0x03B19A22
-        {
-            data.DefaultPaletteIndex = 1;
-            apal                     = apals[1];
-        }
-        else
-        {
-            data.DefaultPaletteIndex = 0;
-        }
+        // The palette the game shows it in: 0 unless a script switches the room's palette for it
+        // (skulisle's costume 381 is shown in palette 1).
+        data.DefaultPaletteIndex = apals.Count == 0 ? 0 : Math.Clamp(
+            RoomPalettes.For(akosBlock).Costume(RoomScripts.RoomNo(akosBlock.Parent) ?? -1, RoomActors.CostumeNumber(akosBlock)), 0, apals.Count - 1);
+        ScummBlock apal = apals.Count > 0 ? apals[data.DefaultPaletteIndex] : null;
 
         if (apal != null)
             globalPalette = ScummDecoders.ExtractPalette(apal);

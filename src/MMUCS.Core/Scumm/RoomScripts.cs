@@ -98,7 +98,7 @@ public static class RoomScripts
     public static string ObjectName(ScummBlock any, int id)
         => any != null && IndexFor(any).ObjectNames.TryGetValue(id, out var n) ? n : null;
 
-    private static int? RoomNo(ScummBlock lflf)
+    internal static int? RoomNo(ScummBlock lflf)
     {
         var meta = lflf?.GetMetaDataDict();
         return meta != null && meta.TryGetValue(MetaValue.From(ScummMeta.LFLF.roomNo), out var no) ? (int)no : null;

@@ -71,7 +71,7 @@ public sealed partial class ObjectImageViewModel : ObservableObject
             States.Add(new ObjectStateItem { State = 0, Label = "State 0", Detail = "hidden" + (entry == 0 ? " · on entry" : "") });
             for (int f = 0; f < frames; f++)
             {
-                var result = await ObimCache.GetCachedObimAsync(obj.Block, f, _room.PaletteIndex, bakeImage: true, token);
+                var result = await ObimCache.GetCachedObimAsync(obj.Block, f, _room.PaletteOf(obj), bakeImage: true, token);
                 if (token.IsCancellationRequested) return;
                 States.Add(new ObjectStateItem
                 {
@@ -85,14 +85,6 @@ public sealed partial class ObjectImageViewModel : ObservableObject
         SelectCurrent();
     }
 
-    /// <summary>Decodes the shown object again (the room's palette changed).</summary>
-    public Task ReloadAsync()
-    {
-        var obj = Object;
-        if (obj == null) return Task.CompletedTask;
-        States.Clear();
-        return LoadAsync(obj);
-    }
 
     /// <summary>Selects the state the room draws the object in now, without changing the room.</summary>
     private void SelectCurrent()

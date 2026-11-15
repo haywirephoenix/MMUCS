@@ -46,9 +46,6 @@
                        ToolTip.Tip="The room's own background, then each full-width (640px) object image" />
         <TextBlock Text="{Binding BackgroundLabel}" VerticalAlignment="Center" FontSize="11" MaxWidth="160"
                    TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SubtleTextBrush}" Margin="0,0,12,0" />
-        <TextBlock Text="Palette" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
-        <NumericUpDown Value="{Binding PaletteIndex}" Minimum="0" Maximum="{Binding MaxPaletteIndex}"
-                       IsEnabled="{Binding HasPaletteChoices}" Increment="1" FormatString="0" Width="96" Margin="0,0,12,0" />
         <ComboBox ItemsSource="{Binding ZPlaneChoices}" SelectedIndex="{Binding ZPlaneShown}" IsVisible="{Binding ShowZPlanes}"
                   MinWidth="110" Margin="0,0,12,0" FontSize="12"
                   ToolTip.Tip="The z-plane to draw: plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan" />

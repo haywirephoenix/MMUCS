@@ -90,8 +90,6 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private IReadOnlyList<Walkbox> _walkboxes;
     [ObservableProperty] private Size _roomSize;
     [ObservableProperty] private RoomObject _selectedObject;
-    [ObservableProperty] private int _paletteIndex;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasPaletteChoices))] private int _maxPaletteIndex;
     [ObservableProperty] private int _backgroundIndex;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasBackgroundChoices))] private int _maxBackgroundIndex;
     [ObservableProperty] private string _backgroundLabel;
@@ -205,7 +203,7 @@ public sealed partial class RoomViewModel : ObservableObject
         if (state > 0 && obj.ImageCount > 0 && ObimDecoders.TryGetObimInfo(obj.Block, out var info))
         {
             int frame = RoomObjectStates.FrameFor(state, info.TotalFrames > 0 ? info.TotalFrames : 1);
-            var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteIndex, bakeImage: true, CancellationToken.None);
+            var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(obj), bakeImage: true, CancellationToken.None);
             if (Room?.Objects.Contains(obj) != true) return; // another room opened meanwhile
             var image = result.ExecutedImage?.ToSkImage();
             if (ObjectLayers != null)
@@ -378,7 +376,6 @@ public sealed partial class RoomViewModel : ObservableObject
 
     public bool HasRoom => Room != null;
     /// <summary>Spinboxes are only active when there is something to switch between.</summary>
-    public bool HasPaletteChoices => MaxPaletteIndex > 0;
     public bool HasBackgroundChoices => MaxBackgroundIndex > 0;
 
     public async Task LoadAsync(RoomModel room)
@@ -434,10 +431,6 @@ public sealed partial class RoomViewModel : ObservableObject
         SelectedObject = null;
         RefreshVisibility();
 
-        MaxPaletteIndex = Math.Max(0, room.PaletteCount - 1);
-        _suppressPaletteReload = true;
-        PaletteIndex = 0;
-        _suppressPaletteReload = false;
         _resetBackgroundChoice = true;
 
         // With objects and costumes hidden nothing waits on the costume analysis: show the new
@@ -454,7 +447,12 @@ public sealed partial class RoomViewModel : ObservableObject
         await ReloadImagesAsync();
     }
 
-    private bool _suppressPaletteReload;
+    /// <summary>
+    /// The palette an object image is drawn in: the one the game shows it in (stancrpt's office in
+    /// palette 1), else the room's own palette 0 (<see cref="RoomPalettes"/>).
+    /// </summary>
+    public int PaletteOf(RoomObject obj) => Room == null ? 0 : Math.Clamp(RoomPalettes.For(Room.Lflf).Object(Room, obj), 0, Math.Max(0, Room.PaletteCount - 1));
+
     /// <summary>The costume and palette the frames played in place are resolved in.</summary>
     private (AkosData, int) _livePalette;
 
@@ -507,7 +505,7 @@ public sealed partial class RoomViewModel : ObservableObject
         try
         {
             var bg = await ScummBackgroundCache.GetCachedBackgroundAsync(
-                BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, PaletteIndex, CancellationToken.None);
+                BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, 0, CancellationToken.None);
             if (!ReferenceEquals(Room, room) || bg.ExecutedImage == null) return; // no image of its own: wait for the full load
             ObjectLayers = Array.Empty<RoomObjectLayer>(); // the old room's labels and hotspots go too
             BackgroundObject = null;
@@ -709,9 +707,9 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>Shows these entries and hides every other one.</summary>
     public void ShowOnly(IReadOnlyList<RoomObjectItem> items) => SetVisibility(o => items.Contains(o));
 
-    /// <summary>Renders the actors' frames in palette <paramref name="palette"/>, keyed by where they're shown.</summary>
+    /// <summary>Renders the actors' frames, each in the palette the game shows its costume in, keyed by where they're shown.</summary>
     private Dictionary<RoomObject, (SKImage Image, int X, int Y, int Depth, int Actor, float Scale, int ZPlane)> RenderActors(
-        Dictionary<RoomActor, RoomObject> targets, int palette, CancellationToken token)
+        Dictionary<RoomActor, RoomObject> targets, CancellationToken token)
     {
         var result = new Dictionary<RoomObject, (SKImage, int, int, int, int, float, int)>();
         foreach (var (actor, target) in targets)
@@ -719,7 +717,7 @@ public sealed partial class RoomViewModel : ObservableObject
             if (token.IsCancellationRequested) break;
             lock (actor.Data)
             {
-                _akosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
+                _akosParser.UpdatePaletteOnly(actor.Data, actor.Akos, actor.Data.DefaultPaletteIndex);
                 if (ReferenceEquals(_livePalette.Item1, actor.Data)) _livePalette = default;
                 var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, token, actor.Mirrored);
                 // Scaled about the actor's origin: the frame's offset from it shrinks with the frame.
@@ -728,11 +726,6 @@ public sealed partial class RoomViewModel : ObservableObject
             }
         }
         return result;
-    }
-
-    partial void OnPaletteIndexChanged(int value)
-    {
-        if (!_suppressPaletteReload) _ = ReloadImagesAsync();
     }
 
     private async Task ReloadImagesAsync()
@@ -748,14 +741,13 @@ public sealed partial class RoomViewModel : ObservableObject
         try
         {
             var bg = await ScummBackgroundCache.GetCachedBackgroundAsync(
-                BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, PaletteIndex, token);
+                BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, 0, token);
             if (token.IsCancellationRequested) return;
 
             var roomBackground = bg.ExecutedImage;
 
-            int palette = PaletteIndex;
             var targets = _actorTargets;
-            var costumes = await Task.Run(() => RenderActors(targets, palette, token), token);
+            var costumes = await Task.Run(() => RenderActors(targets, token), token);
             if (token.IsCancellationRequested) return;
 
             var layers = new List<RoomObjectLayer>(room.Objects.Count + targets.Count);
@@ -768,11 +760,11 @@ public sealed partial class RoomViewModel : ObservableObject
                 RgbaImage rgba = null;
                 if (obj.ImageCount > 0 && ObimDecoders.TryGetObimInfo(obj.Block, out var info))
                 {
-                    // Objects use the room's current palette: SCUMM v8 has no per-object palette, the
-                    // game switches the room palette from scripts.
+                    // In the palette the game shows it in: SCUMM v8 has no per-object palette, the game
+                    // switches the room's palette from scripts before it shows one (RoomPalettes).
                     // The image for its state on entry (state N shows image N); the first when it starts hidden.
                     int frame = RoomObjectStates.FrameFor(StateOf(obj), info.TotalFrames > 0 ? info.TotalFrames : 1);
-                    var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteIndex, bakeImage: true, token);
+                    var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(obj), bakeImage: true, token);
                     if (token.IsCancellationRequested) return;
                     rgba = result.ExecutedImage;
                     image = rgba?.ToSkImage();
@@ -799,13 +791,11 @@ public sealed partial class RoomViewModel : ObservableObject
             _backgroundChoices = choices;
             MaxBackgroundIndex = Math.Max(0, choices.Count - 1);
             // A new room starts on its first choice (its own image, or e.g. the inventory backdrop);
-            // a palette change keeps the current choice.
+            // a reload keeps the current choice.
             int index = _resetBackgroundChoice ? 0 : Math.Clamp(BackgroundIndex, 0, MaxBackgroundIndex);
             _resetBackgroundChoice = false;
-            _restoringBackground = true;
             if (BackgroundIndex != index) BackgroundIndex = index; // applies via OnBackgroundIndexChanged
             else ApplyBackgroundChoice();
-            _restoringBackground = false;
             IsSwitchingRoom = false; // background, objects and overlays all show together
         }
         catch (OperationCanceledException) { }
@@ -823,13 +813,7 @@ public sealed partial class RoomViewModel : ObservableObject
         }
     }
 
-    private bool _restoringBackground;
-
-    /// <summary>
-    /// Choosing background k switches to palette k (clamped to the room's palettes). In COMI each
-    /// alternate background is drawn for the matching palette (e.g. stancrpt's office and palette 1,
-    /// the credits pages and palettes 1–5). The Palette spinbox can still override it.
-    /// </summary>
+    /// <summary>Whether an image has no visible pixel.</summary>
     private static bool IsFullyTransparent(RgbaImage image)
     {
         var data = image.Data;
@@ -847,19 +831,8 @@ public sealed partial class RoomViewModel : ObservableObject
         if (SelectedObjectItem is { HasToggle: true } item) item.IsVisible = !item.IsVisible;
     }
 
-    partial void OnBackgroundIndexChanged(int value)
-    {
-        int palette = Math.Clamp(value, 0, MaxPaletteIndex);
-        if (!_restoringBackground && palette != PaletteIndex)
-        {
-            // Keep showing the current background until the reload has decoded the new one with its
-            // palette; showing it now would flash it in the old palette for a frame. The reload
-            // restores this index and applies background and objects together.
-            PaletteIndex = palette;
-            return;
-        }
-        ApplyBackgroundChoice();
-    }
+    /// <summary>Each background is already in its own palette (the room's 0, stancrpt's office 1).</summary>
+    partial void OnBackgroundIndexChanged(int value) => ApplyBackgroundChoice();
 
     private void ApplyBackgroundChoice()
     {
@@ -875,7 +848,7 @@ public sealed partial class RoomViewModel : ObservableObject
         var choice = BackgroundIndex >= 0 && BackgroundIndex < _backgroundChoices.Count ? _backgroundChoices[BackgroundIndex] : null;
         if (choice?.Rgba == null || Room == null) return;
         string room = Room.RoomNo > 0 ? Room.RoomNo.ToString("D3") : Room.Room.Offset.ToString("X8");
-        string suffix = choice.Object == null ? $"pal{PaletteIndex}" : string.Join("_", choice.Label.Split(Path.GetInvalidFileNameChars()));
+        string suffix = choice.Object == null ? "room" : string.Join("_", choice.Label.Split(Path.GetInvalidFileNameChars()));
         string path = Path.Combine(folder, $"room_{room}_{suffix}.png");
         choice.Rgba.SavePng(path);
         Log.Info($"Exported {path}");

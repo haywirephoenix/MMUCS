@@ -104,7 +104,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
         // share a dock) to show what the selection is: an object image or a costume.
         Room.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(RoomViewModel.PaletteIndex)) { _ = ObjectImage.ReloadAsync(); return; }
             if (e.PropertyName != nameof(RoomViewModel.SelectedObjectItem) || Room.SelectedObjectItem is not { } item) return;
             if (item.Costume != null)
                 DockFactory.BringForwardOver(MmucsDockFactory.CostumeId, MmucsDockFactory.ObjectId, Layout);
