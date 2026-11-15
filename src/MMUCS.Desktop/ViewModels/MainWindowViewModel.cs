@@ -619,7 +619,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         // the game shows it), so saving them would carry one room's state into the next launch.
         nameof(RoomViewModel.ShowBackground), nameof(RoomViewModel.ShowFullScreenObjects),
         nameof(RoomViewModel.ShowHotspots), nameof(RoomViewModel.ShowWalkboxes),
-        nameof(RoomViewModel.ShowLabels), nameof(RoomViewModel.ShowBounds), nameof(RoomViewModel.ShowObjectsPanel),
+        nameof(RoomViewModel.ShowLabels), nameof(RoomViewModel.ShowBounds), nameof(RoomViewModel.ShowSelectionOutline), nameof(RoomViewModel.ShowObjectsPanel),
         nameof(RoomViewModel.ZPlaneMasking), nameof(RoomViewModel.ShowZPlanes), nameof(RoomViewModel.ShowMode),
     };
     private bool _applyingRoomView;
@@ -634,6 +634,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Room.ShowWalkboxes = o.ShowWalkboxes;
         Room.ShowLabels = o.ShowLabels;
         Room.ShowBounds = o.ShowBounds;
+        Room.ShowSelectionOutline = o.ShowSelectionOutline;
         Room.ShowObjectsPanel = o.ShowObjectsPanel;
         Room.ZPlaneMasking = o.ZPlaneMasking;
         Room.ShowZPlanes = o.ShowZPlanes;
@@ -652,6 +653,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             ShowWalkboxes = Room.ShowWalkboxes,
             ShowLabels = Room.ShowLabels,
             ShowBounds = Room.ShowBounds,
+            ShowSelectionOutline = Room.ShowSelectionOutline,
             ShowObjectsPanel = Room.ShowObjectsPanel,
             ZPlaneMasking = Room.ZPlaneMasking,
             ShowZPlanes = Room.ShowZPlanes,

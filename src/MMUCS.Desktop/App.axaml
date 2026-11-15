@@ -7,6 +7,7 @@
              xmlns:views="using:MMUCS.Desktop.Views"
              xmlns:panels="using:MMUCS.Desktop.Views.Panels"
              xmlns:costume="using:MMUCS.Desktop.Views.Costume"
+             xmlns:controls="using:MMUCS.Desktop.Controls"
              x:Class="MMUCS.Desktop.App"
              RequestedThemeVariant="Dark">
   <Application.Resources>
@@ -164,6 +165,13 @@
     <!-- One list background everywhere, so no list shows Fluent's default grey. -->
     <Style Selector="ListBox">
       <Setter Property="Background" Value="{StaticResource ListBackgroundBrush}" />
+    </Style>
+
+    <!-- Room viewer: the outline drawn around the selected object(s). Colour may include alpha
+         (#AARRGGBB); thickness is in screen pixels, the same at every zoom. -->
+    <Style Selector="controls|RoomCanvas">
+      <Setter Property="SelectionOutlineColor" Value="#50C8FF" />
+      <Setter Property="SelectionOutlineThickness" Value="2" />
     </Style>
 
     <Style Selector="TextBlock.mono">

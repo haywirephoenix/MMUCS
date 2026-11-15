@@ -25,6 +25,9 @@
                         IsChecked="{Binding ShowLabels, Mode=OneWay}" Command="{Binding ToggleLabelsCommand}" />
               <MenuItem Header="Room bounds" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowBounds, Mode=OneWay}" Command="{Binding ToggleBoundsCommand}" />
+              <MenuItem Header="Selection outline" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        ToolTip.Tip="Outline the selected object(s)"
+                        IsChecked="{Binding ShowSelectionOutline, Mode=OneWay}" Command="{Binding ToggleSelectionOutlineCommand}" />
               <MenuItem Header="Z-plane masking" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ZPlaneMasking, Mode=OneWay}" Command="{Binding ToggleZPlaneMaskingCommand}"
                         ToolTip.Tip="Hide the parts of actors behind the room's foreground, as the game does" />
@@ -73,6 +76,7 @@
                     ShowWalkboxes="{Binding ShowWalkboxes}"
                     ShowLabels="{Binding ShowLabels}"
                     ShowBounds="{Binding ShowBounds}"
+                    ShowSelectionOutline="{Binding ShowSelectionOutline}"
                     ShowFullScreenObjects="{Binding ShowFullScreenObjects}"
                     BackgroundObject="{Binding BackgroundObject}"
                     VisibleObjects="{Binding VisibleObjects}"

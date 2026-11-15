@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Input;
+using Avalonia.Media;
 using MMUCS.Core.Scumm;
 using SkiaSharp;
 
@@ -50,6 +51,14 @@ public sealed class RoomCanvas : SkiaViewport
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(ShowLabels), true);
     public static readonly StyledProperty<bool> ShowBoundsProperty =
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(ShowBounds));
+    public static readonly StyledProperty<bool> ShowSelectionOutlineProperty =
+        AvaloniaProperty.Register<RoomCanvas, bool>(nameof(ShowSelectionOutline), true);
+    /// <summary>The selection outline's colour (alpha included); styled in App.axaml.</summary>
+    public static readonly StyledProperty<Color> SelectionOutlineColorProperty =
+        AvaloniaProperty.Register<RoomCanvas, Color>(nameof(SelectionOutlineColor), Color.FromRgb(80, 200, 255));
+    /// <summary>The selection outline's width in screen pixels (not scaled by zoom); styled in App.axaml.</summary>
+    public static readonly StyledProperty<double> SelectionOutlineThicknessProperty =
+        AvaloniaProperty.Register<RoomCanvas, double>(nameof(SelectionOutlineThickness), 2);
 
     /// <summary>When the background is a full-width object image, that object (gives its position).</summary>
     public static readonly StyledProperty<RoomObject> BackgroundObjectProperty =
@@ -101,6 +110,10 @@ public sealed class RoomCanvas : SkiaViewport
     public bool ShowWalkboxes { get => GetValue(ShowWalkboxesProperty); set => SetValue(ShowWalkboxesProperty, value); }
     public bool ShowLabels { get => GetValue(ShowLabelsProperty); set => SetValue(ShowLabelsProperty, value); }
     public bool ShowBounds { get => GetValue(ShowBoundsProperty); set => SetValue(ShowBoundsProperty, value); }
+    /// <summary>Outline (and label) the selected object(s).</summary>
+    public bool ShowSelectionOutline { get => GetValue(ShowSelectionOutlineProperty); set => SetValue(ShowSelectionOutlineProperty, value); }
+    public Color SelectionOutlineColor { get => GetValue(SelectionOutlineColorProperty); set => SetValue(SelectionOutlineColorProperty, value); }
+    public double SelectionOutlineThickness { get => GetValue(SelectionOutlineThicknessProperty); set => SetValue(SelectionOutlineThicknessProperty, value); }
     /// <summary>Objects whose image is drawn (hidden ones keep their hotspot, so they can be found and shown again).</summary>
     public IReadOnlySet<RoomObject> VisibleObjects { get => GetValue(VisibleObjectsProperty); set => SetValue(VisibleObjectsProperty, value); }
     public bool HoldScene { get => GetValue(HoldSceneProperty); set => SetValue(HoldSceneProperty, value); }
@@ -130,12 +143,15 @@ public sealed class RoomCanvas : SkiaViewport
             BackgroundImageProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
             ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty, LiveCostumeProperty,
-            ZMasksProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty);
+            ZMasksProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty, ShowSelectionOutlineProperty,
+            SelectionOutlineColorProperty, SelectionOutlineThicknessProperty);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if (change.Property == SelectionOutlineColorProperty || change.Property == SelectionOutlineThicknessProperty)
+            _selectStroke = null; // rebuilt on the next scene
         if (change.Property == HoldSceneProperty)
         {
             if (!HoldScene) ContentChanged(); // re-fit to the new content and draw it
@@ -174,12 +190,30 @@ public sealed class RoomCanvas : SkiaViewport
 
     protected override bool HoldFrame => HoldScene;
 
+    private SKPaint _selectStroke;
+
+    /// <summary>The selection outline paint, built from the styled colour and thickness (kept until they change).</summary>
+    private SKPaint SelectStroke
+    {
+        get
+        {
+            if (_selectStroke != null) return _selectStroke;
+            var c = SelectionOutlineColor;
+            // Not disposed when replaced: a scene already handed out may still draw with it.
+            return _selectStroke = new SKPaint
+            {
+                Color = new SKColor(c.R, c.G, c.B, c.A), Style = SKPaintStyle.Stroke,
+                StrokeWidth = (float)Math.Max(0, SelectionOutlineThickness), IsAntialias = false,
+            };
+        }
+    }
+
     protected override IViewportScene CreateScene() => new Scene(
         ShowBackground ? BackgroundImage : null,
         ObjectLayers, // per-object visibility (incl. the View menu's Objects toggle) is in VisibleObjects
         ObjectLayers,
         ShowWalkboxes ? Walkboxes : null,
-        SelectedObject,
+        ShowSelectionOutline ? SelectedObject : null,
         ShowHotspots,
         ShowLabels,
         ShowBounds,
@@ -191,7 +225,8 @@ public sealed class RoomCanvas : SkiaViewport
         MaskActors ? ZMasks : null,
         ZPlaneOverlay >= 0 ? ZMasks : null,
         ZPlaneOverlay,
-        SelectedObjects);
+        ShowSelectionOutline ? SelectedObjects : null,
+        SelectStroke);
 
     protected override void OnContentClicked(Point p, PointerPressedEventArgs e)
     {
@@ -292,20 +327,20 @@ public sealed class RoomCanvas : SkiaViewport
         private readonly IReadOnlyList<SKImage> _overlayMasks;
         private readonly int _overlayPlane;
         private readonly IReadOnlySet<RoomObject> _selectedAll;
+        private readonly SKPaint _selectStroke;
         private readonly Size _size;
 
         public Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
             IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
-            IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll)
+            IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke)
         {
             _bg = bg; _drawLayers = drawLayers; _allLayers = allLayers; _boxes = boxes;
             _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject; _visible = visible; _live = live; _zMasks = zMasks;
-            _overlayMasks = overlayMasks; _overlayPlane = overlayPlane; _selectedAll = selectedAll;
+            _overlayMasks = overlayMasks; _overlayPlane = overlayPlane; _selectedAll = selectedAll; _selectStroke = selectStroke;
         }
 
         private static readonly SKPaint HotspotFill = new() { Color = new SKColor(255, 220, 0, 38), Style = SKPaintStyle.Fill };
         private static readonly SKPaint HotspotStroke = new() { Color = new SKColor(255, 220, 0, 170), Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = false };
-        private static readonly SKPaint SelectStroke = new() { Color = new SKColor(80, 200, 255), Style = SKPaintStyle.Stroke, StrokeWidth = 2, IsAntialias = false };
         private static readonly SKPaint BoxFill = new() { Color = new SKColor(0, 255, 140, 40), Style = SKPaintStyle.Fill, IsAntialias = true };
         private static readonly SKPaint BoxStroke = new() { Color = new SKColor(0, 255, 140, 210), Style = SKPaintStyle.Stroke, StrokeWidth = 1.25f, IsAntialias = true };
         private static readonly SKPaint BoundsStroke = new() { Color = SKColors.Orange, Style = SKPaintStyle.Stroke, StrokeWidth = 2 };
@@ -438,7 +473,7 @@ public sealed class RoomCanvas : SkiaViewport
                         canvas.DrawRect(r, HotspotFill);
                         canvas.DrawRect(r, HotspotStroke);
                     }
-                    if (isSel) canvas.DrawRect(r, SelectStroke);
+                    if (isSel && _selectStroke.StrokeWidth > 0) canvas.DrawRect(r, _selectStroke);
 
                     if (_labels && (_hotspots || isSel))
                     {

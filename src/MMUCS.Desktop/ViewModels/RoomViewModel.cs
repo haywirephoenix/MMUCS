@@ -107,6 +107,8 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] private bool _showWalkboxes;
     [ObservableProperty] private bool _showLabels = true;
     [ObservableProperty] private bool _showBounds;
+    /// <summary>Outline the selected object(s) on the canvas.</summary>
+    [ObservableProperty] private bool _showSelectionOutline = true;
     /// <summary>Hide the parts of actors behind the room's z-planes, as the game does.</summary>
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(ZPlaneOverlay))] private bool _zPlaneMasking = true;
     /// <summary>Tint the room's z-planes over the scene (each plane its own colour) to see what hides actors.</summary>
@@ -270,6 +272,7 @@ public sealed partial class RoomViewModel : ObservableObject
     [RelayCommand] private void ToggleWalkboxes() => ShowWalkboxes = !ShowWalkboxes;
     [RelayCommand] private void ToggleLabels() => ShowLabels = !ShowLabels;
     [RelayCommand] private void ToggleBounds() => ShowBounds = !ShowBounds;
+    [RelayCommand] private void ToggleSelectionOutline() => ShowSelectionOutline = !ShowSelectionOutline;
     [RelayCommand] private void ToggleZPlaneMasking() => ZPlaneMasking = !ZPlaneMasking;
     [RelayCommand] private void ToggleZPlanes() => ShowZPlanes = !ShowZPlanes;
 
