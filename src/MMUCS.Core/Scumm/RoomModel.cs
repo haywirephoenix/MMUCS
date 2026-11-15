@@ -45,6 +45,12 @@ public sealed class RoomModel
     /// <summary>The room's scale slots (SCAL), which walkboxes may scale their actors by.</summary>
     public IReadOnlyList<ScaleSlot> ScaleSlots { get; init; } = Array.Empty<ScaleSlot>();
 
+    /// <summary>How many images (states) an OBIM's header (IMHD) declares; 0 for a hotspot with none.</summary>
+    public static int ImageCountOf(ScummBlock obim) =>
+        obim?.Tag == ScummTag.OBIM && obim.FindChild(ScummTag.IMHD) is { } imhd ? ImageCountOf(imhd.DataSpan) : 0;
+
+    private static int ImageCountOf(ReadOnlySpan<byte> imhd) => imhd.Length >= 48 ? (int)imhd.U32LE(44) : 0;
+
     /// <summary>Resolves a room from any block inside (or equal to) an LFLF.</summary>
     public static bool TryCreate(ScummBlock any, out RoomModel model)
     {
@@ -82,7 +88,7 @@ public sealed class RoomModel
             {
                 Index = idx++,
                 Name = System.Text.Encoding.ASCII.GetString(s.Slice(0, len)),
-                ImageCount = (int)s.U32LE(44),
+                ImageCount = ImageCountOf(s),
                 X = s.S32LE(48),
                 Y = s.S32LE(52),
                 Width = (int)s.U32LE(56),

@@ -72,7 +72,10 @@ public sealed partial class BlockNodeViewModel : ObservableObject
     };
 
     /// <summary>Resource key of the tag's colour; null for uncoloured tags.</summary>
-    public string TagBrushKey => TagBrushKeys.TryGetValue(Block.Tag, out var k) ? k : null;
+    /// An OBIM with images takes the Room viewer's colour for objects with an image (its Objects panel).
+    public string TagBrushKey =>
+        Block.Tag == ScummTag.OBIM && RoomModel.ImageCountOf(Block) > 0 ? "TagContainerBrush"
+        : TagBrushKeys.TryGetValue(Block.Tag, out var k) ? k : null;
     public bool HasTagColor => TagBrushKeys.ContainsKey(Block.Tag);
 
     public string Tag => Block.TagName ?? ScummTag.ToString(Block.Tag);

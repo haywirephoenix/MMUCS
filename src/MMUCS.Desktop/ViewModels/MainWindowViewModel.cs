@@ -125,20 +125,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         // they still swap places.)
         Room.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName != nameof(RoomViewModel.SelectedObjectItem) || Room.SelectedObjectItem is not { } item) return;
-            if (item.Costume != null)
-            {
-                Inspect(Costume.ViewerLayout);
-                DockFactory.BringForwardOver(MmucsDockFactory.CostumeId, MmucsDockFactory.ObjectId, Layout);
-            }
-            else if (item.Object.ImageCount > 0)
-            {
-                _ = ObjectImage.LoadAsync(item.Object);
-                MarkUpdated(MmucsDockFactory.ObjectId);
-                Inspect(ObjectImage.ViewerLayout);
-                DockFactory.BringForwardOver(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, Layout);
-            }
-            else Inspect(null); // an object without an image: don't leave the last one up
+            if (e.PropertyName == nameof(RoomViewModel.SelectedObjectItem) && Room.SelectedObjectItem != null) InspectRoomSelection();
         };
         Script.BlockFocusRequested += RevealFromViewer;
         Script.ShowScumm = Settings.ScriptShowScumm;
@@ -576,6 +563,25 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (viewer != null) MarkUpdated(MmucsDockFactory.InspectorId);
     }
 
+    /// <summary>Inspects the Room viewer's selected object: its costume, its image, or nothing.</summary>
+    private void InspectRoomSelection()
+    {
+        var item = Room.SelectedObjectItem;
+        if (item?.Costume != null)
+        {
+            Inspect(Costume.ViewerLayout);
+            DockFactory.BringForwardOver(MmucsDockFactory.CostumeId, MmucsDockFactory.ObjectId, Layout);
+        }
+        else if (item?.Object.ImageCount > 0)
+        {
+            _ = ObjectImage.LoadAsync(item.Object);
+            MarkUpdated(MmucsDockFactory.ObjectId);
+            Inspect(ObjectImage.ViewerLayout);
+            DockFactory.BringForwardOver(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, Layout);
+        }
+        else Inspect(null); // an object without an image: don't leave the last one up
+    }
+
     // ── Tab update dots ───────────────────────────────────────────────────────
 
     /// <summary>
@@ -658,10 +664,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
             _lastRoom = room.Lflf;
             RememberRoom(room.Lflf);
             _ = Room.LoadAsync(room);
-            if (b.Tag == ScummTag.OBIM || b.FindParent(ScummTag.OBIM) is { } obim)
+            if ((b.Tag == ScummTag.OBIM ? b : b.FindParent(ScummTag.OBIM)) is { } obim)
             {
-                var target = b.Tag == ScummTag.OBIM ? b : b.FindParent(ScummTag.OBIM);
-                Room.SelectedObject = room.Objects.FirstOrDefault(o => ReferenceEquals(o.Block, target));
+                // The viewer's own objects: a room it already shows keeps them (room is a fresh parse).
+                var before = Room.SelectedObjectItem;
+                Room.SelectedObject = Room.Room?.Objects.FirstOrDefault(o => ReferenceEquals(o.Block, obim));
+                // Reselecting the same object raises no change; nothing selectable clears the Inspector.
+                if (ReferenceEquals(before, Room.SelectedObjectItem) || Room.SelectedObjectItem == null) InspectRoomSelection();
             }
             ShowViewer(ViewerTab.Room);
         }

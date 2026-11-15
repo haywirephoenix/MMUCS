@@ -35,7 +35,7 @@
       <SolidColorBrush x:Key="ReviewMarkBrush" Color="#E06C75" />
 
       <!-- ── Block tags (Blocks panel; the Room viewer's object list reuses some) ── -->
-      <!-- LECF, LFLF; Room viewer: objects with an image. -->
+      <!-- LECF, LFLF, OBIMs with an image; Room viewer: objects with an image. -->
       <SolidColorBrush x:Key="TagContainerBrush" Color="#E8C07D" />
       <!-- ROOM, RMHD, RMIM. -->
       <SolidColorBrush x:Key="TagRoomBrush" Color="#7DCFE8" />
@@ -47,7 +47,7 @@
       <SolidColorBrush x:Key="TagCharsetBrush" Color="#C87DE8" />
       <!-- SCRP. -->
       <SolidColorBrush x:Key="TagScriptBrush" Color="#E8D77D" />
-      <!-- OBCD, OBIM. -->
+      <!-- OBCD, OBIMs without an image. -->
       <SolidColorBrush x:Key="TagObjectBrush" Color="#D0D0D0" />
 
       <!-- ── Script viewer syntax ───────────────────────────────────────────────── -->
