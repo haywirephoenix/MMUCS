@@ -40,8 +40,8 @@
                   IsChecked="{Binding IsViewerExpanded}" IsVisible="{Binding !IsEmpty}" />
     <!-- The picked viewer's docking area (ViewerViewTemplate builds it, sharing one view per viewer). -->
     <ContentControl Grid.Row="3" Content="{Binding Content}" IsVisible="{Binding IsViewerExpanded}" />
-    <TextBlock Grid.Row="3" Text="{Binding Hint}" IsVisible="{Binding IsEmpty}"
-               HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="16"
-               Foreground="{DynamicResource SubtleTextBrush}" />
+    <!-- <TextBlock Grid.Row="3" Text="{Binding Hint}" IsVisible="{Binding IsEmpty}" -->
+    <!--            HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="16" -->
+    <!--            Foreground="{DynamicResource SubtleTextBrush}" /> -->
   </Grid>
 </UserControl>
