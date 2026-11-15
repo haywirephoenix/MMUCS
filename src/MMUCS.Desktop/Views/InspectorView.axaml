@@ -1,0 +1,13 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             x:Class="MMUCS.Desktop.Views.InspectorView"
+             x:DataType="vm:InspectorViewModel">
+  <!-- The picked viewer's docking area (ViewerViewTemplate builds it, sharing one view per viewer). -->
+  <Grid>
+    <ContentControl Content="{Binding Content}" />
+    <TextBlock Text="Pick a costume or an object to inspect it here." IsVisible="{Binding IsEmpty}"
+               HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="16"
+               Foreground="{DynamicResource SubtleTextBrush}" />
+  </Grid>
+</UserControl>

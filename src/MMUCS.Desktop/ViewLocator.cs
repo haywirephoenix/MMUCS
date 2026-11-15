@@ -34,6 +34,7 @@ public sealed class ViewLocator : IDataTemplate
         [typeof(MetadataTool)] = d => new MetadataView { DataContext = ((MetadataTool)d).Main },
         [typeof(HexTool)] = d => new HexPanelView { DataContext = ((HexTool)d).Main },
         [typeof(ScriptDocument)] = d => new ScriptView { DataContext = ((ScriptDocument)d).Main.Script },
+        [typeof(InspectorTool)] = d => new InspectorView { DataContext = ((InspectorTool)d).Main.Inspector },
 
         // The Costume viewer's own panels.
         [typeof(CostumeCelsTool)] = d => new CostumeCelsView { DataContext = ((CostumeCelsTool)d).Akos },

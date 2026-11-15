@@ -60,6 +60,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>The Object viewer: the selected object's image and states.</summary>
     public ObjectImageViewModel ObjectImage { get; }
 
+    /// <summary>Shows the viewer for what was last picked: a costume or an object image.</summary>
+    public InspectorViewModel Inspector { get; } = new();
+
     /// <summary>Docking layout: panels are views over this view model (see Docking/DockLayout.cs).</summary>
     public MmucsDockFactory DockFactory { get; }
     [ObservableProperty] private IRootDock _layout;
@@ -100,20 +103,26 @@ public sealed partial class MainWindowViewModel : ObservableObject
         ObjectImage.ViewerLayout.Restore(saved?.Object);
         DockFactory.InitLayout(_layout);
         DockFactory.PlaceNewPanel(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, _layout);
+        DockFactory.AdoptInspector(_layout);
 
         DockFactory.ActiveDockableChanged += (_, e) => { if (e.Dockable is { IsModified: true } d) d.IsModified = false; };
         Room.BlockFocusRequested += RevealFromViewer;
-        // The Object viewer follows the room's selection; it and the Costume viewer swap places (where they
-        // share a dock) to show what the selection is: an object image or a costume.
+        // The Object viewer follows the room's selection, and the Inspector shows what the selection is:
+        // a costume or an object image. (Where the Costume and Object panels are open and share a dock,
+        // they still swap places.)
         Room.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName != nameof(RoomViewModel.SelectedObjectItem) || Room.SelectedObjectItem is not { } item) return;
             if (item.Costume != null)
+            {
+                Inspect(Costume.ViewerLayout);
                 DockFactory.BringForwardOver(MmucsDockFactory.CostumeId, MmucsDockFactory.ObjectId, Layout);
+            }
             else if (item.Object.ImageCount > 0)
             {
                 _ = ObjectImage.LoadAsync(item.Object);
                 MarkUpdated(MmucsDockFactory.ObjectId);
+                Inspect(ObjectImage.ViewerLayout);
                 DockFactory.BringForwardOver(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, Layout);
             }
         };
@@ -528,6 +537,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _selectionSave.Start();
     }
 
+    /// <summary>Shows a viewer in the Inspector (without taking focus; its tab gets a dot when it's behind another).</summary>
+    private void Inspect(ViewerDock viewer)
+    {
+        if (ReferenceEquals(Inspector.Content, viewer)) return;
+        Inspector.Content = viewer;
+        MarkUpdated(MmucsDockFactory.InspectorId);
+    }
+
     // ── Tab update dots ───────────────────────────────────────────────────────
 
     /// <summary>
@@ -587,7 +604,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             _ = Costume.LoadAsync(akos);
             MarkUpdated(MmucsDockFactory.CostumeId);
-            if (!_selectingFromViewer) ShowViewer(ViewerTab.Costume);
+            Inspect(Costume.ViewerLayout);
             return;
         }
         if (_selectingFromViewer) return; // the viewer already shows it

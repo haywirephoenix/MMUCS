@@ -19,6 +19,7 @@ public sealed class RoomDocument(MainWindowViewModel main) : Document { public M
 public sealed class CostumeDocument(MainWindowViewModel main) : Document { public MainWindowViewModel Main { get; } = main; }
 public sealed class ObjectDocument(MainWindowViewModel main) : Document { public MainWindowViewModel Main { get; } = main; }
 public sealed class ScriptDocument(MainWindowViewModel main) : Document { public MainWindowViewModel Main { get; } = main; }
+public sealed class InspectorTool(MainWindowViewModel main) : Tool { public MainWindowViewModel Main { get; } = main; }
 
 /// <summary>
 /// Builds the default layout (Blocks, Metadata and Hex stacked on the left, viewers on the right) and hosts floating
@@ -29,8 +30,9 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
 {
     public const string BlocksId = "Blocks", MetadataId = "Metadata", HexId = "Hex";
     public const string RoomId = "Room", CostumeId = "Costume", ObjectId = "Object", ScriptId = "Script";
+    public const string InspectorId = "Inspector";
 
-    public static readonly string[] PanelIds = { BlocksId, MetadataId, HexId, RoomId, CostumeId, ObjectId, ScriptId };
+    public static readonly string[] PanelIds = { BlocksId, MetadataId, HexId, RoomId, CostumeId, ObjectId, ScriptId, InspectorId };
     public static readonly string[] ViewerIds = { RoomId, CostumeId, ObjectId, ScriptId };
 
     /// <summary>The panels of the current layout, placed or hidden (set whenever panels are created).</summary>
@@ -59,6 +61,7 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
             [CostumeId] = Panel(new CostumeDocument(main), CostumeId, "Costume"),
             [ObjectId] = Panel(new ObjectDocument(main), ObjectId, "Object"),
             [ScriptId] = Panel(new ScriptDocument(main), ScriptId, "Script"),
+            [InspectorId] = Panel(new InspectorTool(main), InspectorId, "Inspector"),
         };
     }
 
@@ -122,7 +125,8 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
 
     /// <summary>
     /// Built-in layout, used when layout.default.json is missing or doesn't fit: one column on the
-    /// left stacking Blocks, Metadata and Hex, with the viewers (Room/Costume/Script) taking the rest.
+    /// left stacking Blocks, Metadata and Hex, the Room and Script viewers in the middle and the
+    /// Inspector on the right. The Costume and Object panels start hidden (the Inspector shows them).
     /// </summary>
     public IRootDock CreateDefaultLayout(Dictionary<string, IDockable> p)
     {
@@ -143,14 +147,19 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
             VisibleDockables = CreateList<IDockable>(blocksDock, new ProportionalDockSplitter(), metadataDock, new ProportionalDockSplitter(), hexDock),
         };
 
-        var documents = NewDocumentDock("Documents", CreateList(p[RoomId], p[CostumeId], p[ObjectId], p[ScriptId]));
-        documents.Proportion = 0.69;
+        var documents = NewDocumentDock("Documents", CreateList(p[RoomId], p[ScriptId]));
+        documents.Proportion = 0.41;
+        RememberHidden(CostumeId, documents);
+        RememberHidden(ObjectId, documents);
+
+        var inspector = NewToolDock("InspectorDock", CreateList(p[InspectorId]));
+        inspector.Proportion = 0.28;
 
         var mainDock = new ProportionalDock
         {
             Id = "MainDock",
             Orientation = Orientation.Horizontal,
-            VisibleDockables = CreateList<IDockable>(left, new ProportionalDockSplitter(), documents),
+            VisibleDockables = CreateList<IDockable>(left, new ProportionalDockSplitter(), documents, new ProportionalDockSplitter(), inspector),
         };
 
         return CreateMainRoot(mainDock);
@@ -253,6 +262,49 @@ public sealed class MmucsDockFactory(MainWindowViewModel main) : Factory, ILayou
         if (FindPanel(besideId, layout) is { Owner: IDock dock } beside)
             InsertDockable(dock, panel, (dock.VisibleDockables?.IndexOf(beside) ?? 0) + 1);
     }
+
+    /// <summary>
+    /// A saved layout from before the Inspector: the Inspector goes on the right edge and the Costume and
+    /// Object panels are hidden (the Inspector shows them now; the Window menu brings them back).
+    /// </summary>
+    public void AdoptInspector(IRootDock layout)
+    {
+        if (FindPanel(InspectorId, layout) != null || _hiddenAt.ContainsKey(InspectorId) || !Panels.TryGetValue(InspectorId, out var panel)) return;
+        HidePanel(CostumeId, layout);
+        HidePanel(ObjectId, layout);
+        PlaceOnRightEdge(NewToolDock("InspectorDock", CreateList(panel)), 0.28, layout);
+    }
+
+    /// <summary>Adds <paramref name="dock"/> as a new pane along the right edge of the main window, taking <paramref name="share"/> of its width.</summary>
+    private void PlaceOnRightEdge(IDock dock, double share, IRootDock layout)
+    {
+        var main = layout.DefaultDockable ?? layout.VisibleDockables?.FirstOrDefault();
+        if (main is IProportionalDock { Orientation: Orientation.Horizontal } split && split.VisibleDockables is { Count: > 0 } items)
+        {
+            foreach (var pane in items.Where(d => d is not IProportionalDockSplitter))
+                if (double.IsFinite(pane.Proportion) && pane.Proportion > 0) pane.Proportion *= 1 - share;
+            dock.Proportion = share;
+            AddDockable(split, new ProportionalDockSplitter());
+            AddDockable(split, dock);
+            return;
+        }
+        // Any other arrangement: beside the right-most panel dock.
+        var anchor = main == null ? null : LastIn(main, d => d is IToolDock or IDocumentDock) as IDock;
+        if (anchor == null) return;
+        SplitToDock(anchor, dock, DockOperation.Right);
+        EdgeDockSizing.Apply(dock, DockOperation.Right);
+    }
+
+    private static IDockable LastIn(IDockable node, System.Func<IDockable, bool> match)
+    {
+        if (node is IDock dock && dock.VisibleDockables != null)
+            for (int i = dock.VisibleDockables.Count - 1; i >= 0; i--)
+                if (LastIn(dock.VisibleDockables[i], match) is { } found) return found;
+        return match(node) ? node : null;
+    }
+
+    /// <summary>Whether a panel is hidden (its dock remembered so it can go back).</summary>
+    public bool IsHidden(string id) => _hiddenAt.ContainsKey(id);
 
     /// <summary>
     /// Brings <paramref name="id"/> to the front only where it shares a dock with <paramref name="otherId"/>

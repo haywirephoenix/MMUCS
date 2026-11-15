@@ -24,6 +24,7 @@ public sealed class ViewerViewTemplate : IDataTemplate
 
     private static ViewerDock DockOf(object data) => data switch
     {
+        ViewerDock d => d, // the Inspector shows a viewer directly
         CostumeDocument d => d.Main.Costume.ViewerLayout,
         ObjectDocument d => d.Main.ObjectImage.ViewerLayout,
         RoomDocument d => d.Main.Room.ViewerLayout,

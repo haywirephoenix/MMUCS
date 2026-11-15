@@ -259,8 +259,8 @@ public static class DockLayoutStore
             // Panels the user hid stay hidden (the Window menu brings them back); a layout with
             // none of this version's panels doesn't fit it.
             if (used.Count == 0) return null;
-            // A default must place every panel (one added since it was written would be lost otherwise).
-            if (requireAllPanels && !panels.Keys.All(used.Contains)) return null;
+            // A default must place (or hide) every panel (one added since it was written would be lost otherwise).
+            if (requireAllPanels && !panels.Keys.All(id => used.Contains(id) || factory.IsHidden(id))) return null;
             return root;
         }
         catch (Exception ex)

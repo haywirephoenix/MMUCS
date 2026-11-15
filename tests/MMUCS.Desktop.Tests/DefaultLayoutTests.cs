@@ -34,7 +34,49 @@ public class DefaultLayoutTests
         var root = DockLayoutStore.TryRestore(factory, DockLayoutStore.ReadDefault(), requireAllPanels: true);
         Assert.NotNull(root);
         foreach (var id in MmucsDockFactory.PanelIds)
-            Assert.True(Find(root, id) != null, $"{id} is missing from layout.default.json");
+            Assert.True(Find(root, id) != null || factory.IsHidden(id), $"{id} is missing from layout.default.json");
+        // The Inspector shows costumes and objects; their own panels start hidden.
+        Assert.NotNull(Find(root, MmucsDockFactory.InspectorId));
+        Assert.True(factory.IsHidden(MmucsDockFactory.CostumeId));
+        Assert.True(factory.IsHidden(MmucsDockFactory.ObjectId));
+    }
+
+    [Fact]
+    public void Layout_from_before_the_inspector_gets_it_on_the_right_and_hides_costume_and_object()
+    {
+        // The 2.0 default: Costume and Object placed, no Inspector.
+        var old = new DockLayoutStore.LayoutFile
+        {
+            Version = 1,
+            Root = new DockLayoutStore.Node
+            {
+                Kind = "split", Id = "MainDock", Orientation = "Horizontal",
+                Children = new()
+                {
+                    new() { Kind = "tools", Id = "LeftDock", Proportion = 0.25, Panels = new() { "Blocks", "Metadata", "Hex" } },
+                    new() { Kind = "documents", Id = "Documents", Proportion = 0.45, Panels = new() { "Room", "Script" } },
+                    new() { Kind = "documents", Id = "CostumeDocuments", Proportion = 0.30, Panels = new() { "Costume", "Object" } },
+                },
+            },
+        };
+        var factory = new MmucsDockFactory(null);
+        var root = DockLayoutStore.TryRestore(factory, old);
+        Assert.NotNull(root);
+        factory.InitLayout(root);
+        factory.AdoptInspector(root);
+
+        var inspector = Find(root, MmucsDockFactory.InspectorId);
+        Assert.NotNull(inspector);
+        var main = (Dock.Model.Controls.IProportionalDock)root.DefaultDockable;
+        Assert.Same(inspector.Owner, main.VisibleDockables[^1]);
+        Assert.Null(Find(root, MmucsDockFactory.CostumeId));
+        Assert.Null(Find(root, MmucsDockFactory.ObjectId));
+        Assert.True(factory.IsHidden(MmucsDockFactory.CostumeId));
+
+        // Adopting again (the next start, with the Inspector saved) changes nothing.
+        int panes = main.VisibleDockables.Count;
+        factory.AdoptInspector(root);
+        Assert.Equal(panes, main.VisibleDockables.Count);
     }
 
     [Fact]
