@@ -21,7 +21,7 @@ public class CostumeDockTests(ITestOutputHelper output)
     public void Cels_tabbed_into_chores_then_docked_back_left_restores_the_layout()
     {
         var factory = new CostumeDockFactory(new AkosViewModel());
-        var root = factory.CreateLayout();
+        var root = SideBySide(factory);
         factory.InitLayout(root);
         LayoutPass(root);
         var before = Widths(root);
@@ -53,7 +53,7 @@ public class CostumeDockTests(ITestOutputHelper output)
     public void Cels_docked_right_of_chores_then_back_left_restores_the_layout()
     {
         var factory = new CostumeDockFactory(new AkosViewModel());
-        var root = factory.CreateLayout();
+        var root = SideBySide(factory);
         factory.InitLayout(root);
         LayoutPass(root);
         var before = Widths(root);
@@ -83,6 +83,25 @@ public class CostumeDockTests(ITestOutputHelper output)
     }
 
     // ── Helpers ──
+
+    /// <summary>Cels | Preview | Chores + Palette: the drags below move panels sideways (the default is stacked).</summary>
+    private static IRootDock SideBySide(CostumeDockFactory factory)
+    {
+        DockLayoutStore.Node Pane(string kind, string id, double share, params string[] panels) =>
+            new() { Kind = kind, Id = id, Proportion = share, Active = panels[0], Panels = new(panels) };
+        var root = factory.TryRestore(new DockLayoutStore.Node
+        {
+            Kind = "split", Id = "CostumeMain", Orientation = "Horizontal",
+            Children = new()
+            {
+                Pane("tools", "CelsDock", 0.18, CostumeDockFactory.CelsId),
+                Pane("documents", "PreviewDock", 0.60, CostumeDockFactory.PreviewId),
+                Pane("tools", "SideDock", 0.22, CostumeDockFactory.ChoresId, CostumeDockFactory.PaletteId),
+            },
+        });
+        Assert.NotNull(root);
+        return root;
+    }
 
     private static IDockable Find(IDockable node, string id)
     {

@@ -12,7 +12,7 @@ public sealed class CostumeChoresTool(AkosViewModel akos) : Tool { public AkosVi
 public sealed class CostumePaletteTool(AkosViewModel akos) : Tool { public AkosViewModel Akos { get; } = akos; }
 public sealed class CostumePreviewDocument(AkosViewModel akos) : Document { public AkosViewModel Akos { get; } = akos; }
 
-/// <summary>Docking inside the Costume viewer: Cels | Preview | Chores and Resolved palette as tabs (see <see cref="ViewerDockFactory"/>).</summary>
+/// <summary>Docking inside the Costume viewer, stacked for the Inspector: Chores, Cels and Resolved palette as tabs over the Preview (see <see cref="ViewerDockFactory"/>).</summary>
 public sealed class CostumeDockFactory(AkosViewModel akos) : ViewerDockFactory(Group, "Costume")
 {
     public const string Group = "costume";
@@ -31,13 +31,11 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : ViewerDockFactory(G
 
     protected override IDockable CreateBuiltInContent(Dictionary<string, IDockable> p)
     {
-        var cels = NewToolDock("CelsDock", CreateList(p[CelsId]));
-        cels.Proportion = 0.18;
+        var tabs = NewToolDock("SideDock", CreateList(p[ChoresId], p[CelsId], p[PaletteId]));
+        tabs.Proportion = 0.48;
         var preview = NewDocumentDock("PreviewDock", CreateList(p[PreviewId]));
-        preview.Proportion = 0.60;
-        var side = NewToolDock("SideDock", CreateList(p[ChoresId], p[PaletteId]));
-        side.Proportion = 0.22;
-        return Split("CostumeMain", Orientation.Horizontal, cels, preview, side);
+        preview.Proportion = 0.52;
+        return Split("CostumeMain", Orientation.Vertical, tabs, preview);
     }
 
     public override DockLayoutStore.Node DefaultNode(DockLayoutStore.LayoutFile file) => file.Costume;
