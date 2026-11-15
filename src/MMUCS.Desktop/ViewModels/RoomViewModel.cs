@@ -152,6 +152,28 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>Whether the Objects side panel is shown (toolbar toggle).</summary>
     [ObservableProperty] private bool _showObjectsPanel = true;
 
+    partial void OnShowObjectsPanelChanged(bool value) => ViewerLayout?.SetPanelShown(Docking.RoomDockFactory.ObjectsId, value);
+
+    /// <summary>The viewer's own panels (Preview, Objects). A new layout keeps the Objects toggle's state.</summary>
+    public Docking.ViewerDock ViewerLayout { get; }
+
+    public RoomViewModel()
+    {
+        ViewerLayout = new Docking.ViewerDock(new Docking.RoomDockFactory(this));
+        ViewerLayout.LayoutReplaced += () => ViewerLayout.SetPanelShown(Docking.RoomDockFactory.ObjectsId, ShowObjectsPanel);
+    }
+
+    /// <summary>
+    /// Ctrl / Shift click in the room: the Objects list adds the entry to its selection (Shift) or toggles
+    /// it (Ctrl). The list owns the multi-selection, so the canvas asks it.
+    /// </summary>
+    public event Action<RoomObjectItem, Avalonia.Input.KeyModifiers> ModifierSelectRequested;
+
+    public void RequestModifierSelect(RoomObject obj, Avalonia.Input.KeyModifiers mods)
+    {
+        if (ItemFor(obj) is { } item) ModifierSelectRequested?.Invoke(item, mods);
+    }
+
     public ObservableCollection<RoomObjectItem> Objects { get; } = new();
 
     [ObservableProperty] private RoomObjectItem _selectedObjectItem;

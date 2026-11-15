@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             x:Class="MMUCS.Desktop.Views.Room.RoomObjectsView"
+             x:DataType="vm:RoomViewModel">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="panel-header">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <!-- Toggle all: shows a mixed state when only some objects are visible. -->
+        <CheckBox IsChecked="{Binding AllObjectsVisible}" MinWidth="0" MinHeight="0" Padding="0"
+                  Margin="0,0,6,0" VerticalAlignment="Center" ToolTip.Tip="Show / hide all objects" />
+        <TextBlock Grid.Column="1" Text="All objects" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Content="Reset" Command="{Binding ResetVisibilityCommand}" Padding="6,0" MinHeight="0"
+                FontSize="11" VerticalAlignment="Center"
+                ToolTip.Tip="Show the objects and costumes as the Show mode starts the room (Room start: as the game opens it)" />
+      </Grid>
+    </Border>
+    <!-- Multiple: Ctrl / Shift click select several (visibility and Mark for review apply to all);
+         the last one clicked is the current one (canvas, Costume viewer). Kept in step in code-behind. -->
+    <ListBox x:Name="ObjectList" ItemsSource="{Binding Objects}" SelectionMode="Multiple">
+      <ListBox.Styles>
+        <Style Selector="ListBoxItem">
+          <Setter Property="Padding" Value="8,3" />
+        </Style>
+        <!-- Objects without an image read as plain entries; ones with an image use the
+             hierarchy's room (LFLF) colour. -->
+        <Style Selector="TextBlock.objname">
+          <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.objname.hasImage">
+          <Setter Property="Foreground" Value="{DynamicResource TagContainerBrush}" />
+        </Style>
+        <!-- Hotspots with a costumed actor: the hierarchy's AKOS colour. -->
+        <Style Selector="TextBlock.objname.hasCostume">
+          <Setter Property="Foreground" Value="{DynamicResource TagCostumeBrush}" />
+        </Style>
+      </ListBox.Styles>
+      <ListBox.ItemTemplate>
+        <DataTemplate DataType="vm:RoomObjectItem">
+          <!-- Fixed toggle column so names line up whether or not an object has a toggle. -->
+          <Grid ColumnDefinitions="22,*">
+            <CheckBox IsChecked="{Binding IsVisible}" IsVisible="{Binding HasToggle}" MinWidth="0" MinHeight="0"
+                      Padding="0" VerticalAlignment="Center" Focusable="False" ToolTip.Tip="Visible (Space)" />
+            <StackPanel Grid.Column="1">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Text="⚑" FontSize="11" Foreground="{DynamicResource ReviewMarkBrush}" IsVisible="{Binding IsMarked}"
+                           ToolTip.Tip="{Binding MarkText}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Name}" FontSize="12" Classes="objname" Classes.hasImage="{Binding HasImage}" Classes.hasCostume="{Binding HasCostume}" />
+              </StackPanel>
+              <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{DynamicResource SubtleTextBrush}" />
+            </StackPanel>
+          </Grid>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </DockPanel>
+</UserControl>

@@ -5,6 +5,8 @@ using Avalonia.Controls.Templates;
 using MMUCS.Desktop.ViewModels.Docking;
 using MMUCS.Desktop.Views;
 using MMUCS.Desktop.Views.Costume;
+using MMUCS.Desktop.Views.ObjectImage;
+using MMUCS.Desktop.Views.Room;
 using MMUCS.Desktop.Views.Panels;
 
 namespace MMUCS.Desktop;
@@ -19,8 +21,8 @@ namespace MMUCS.Desktop;
 /// stays safe under trimming. To add a panel, add one line here.
 /// </para>
 /// <para>
-/// The Costume document isn't here: it reuses one long-lived view (see
-/// <see cref="CostumeViewTemplate"/>), which is registered before this locator.
+/// The Costume, Object and Room documents aren't here: each reuses one long-lived view of its own
+/// docking area (see <see cref="ViewerViewTemplate"/>), which is registered before this locator.
 /// </para>
 /// </summary>
 public sealed class ViewLocator : IDataTemplate
@@ -31,8 +33,6 @@ public sealed class ViewLocator : IDataTemplate
         [typeof(BlocksTool)] = d => new BlockTreeView { DataContext = ((BlocksTool)d).Main },
         [typeof(MetadataTool)] = d => new MetadataView { DataContext = ((MetadataTool)d).Main },
         [typeof(HexTool)] = d => new HexPanelView { DataContext = ((HexTool)d).Main },
-        [typeof(RoomDocument)] = d => new RoomView { DataContext = ((RoomDocument)d).Main.Room },
-        [typeof(ObjectDocument)] = d => new ObjectImageView { DataContext = ((ObjectDocument)d).Main.ObjectImage },
         [typeof(ScriptDocument)] = d => new ScriptView { DataContext = ((ScriptDocument)d).Main.Script },
 
         // The Costume viewer's own panels.
@@ -40,6 +40,14 @@ public sealed class ViewLocator : IDataTemplate
         [typeof(CostumePreviewDocument)] = d => new CostumePreviewView { DataContext = ((CostumePreviewDocument)d).Akos },
         [typeof(CostumeChoresTool)] = d => new CostumeChoresView { DataContext = ((CostumeChoresTool)d).Akos },
         [typeof(CostumePaletteTool)] = d => new CostumePaletteView { DataContext = ((CostumePaletteTool)d).Akos },
+
+        // The Object viewer's own panels.
+        [typeof(ObjectStatesTool)] = d => new ObjectStatesView { DataContext = ((ObjectStatesTool)d).Object },
+        [typeof(ObjectPreviewDocument)] = d => new ObjectPreviewView { DataContext = ((ObjectPreviewDocument)d).Object },
+
+        // The Room viewer's own panels.
+        [typeof(RoomPreviewDocument)] = d => new RoomPreviewView { DataContext = ((RoomPreviewDocument)d).Room },
+        [typeof(RoomObjectsTool)] = d => new RoomObjectsView { DataContext = ((RoomObjectsTool)d).Room },
     };
 
     public bool Match(object data) => data != null && Factories.ContainsKey(data.GetType());

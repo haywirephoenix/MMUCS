@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             xmlns:c="using:MMUCS.Desktop.Controls"
+             x:Class="MMUCS.Desktop.Views.Room.RoomPreviewView"
+             x:DataType="vm:RoomViewModel">
+  <!-- The shared preview panel (Controls/ViewerPreview.cs): title, the room's tools, Fit / 1:1, the canvas and its hover readout. -->
+  <c:ViewerPreview Title="{Binding Title}">
+    <c:ViewerPreview.Tools>
+      <WrapPanel Orientation="Horizontal" ItemSpacing="0" LineSpacing="4">
+        <Button Content="View ▾" Margin="0,0,12,0" ToolTip.Tip="Room layers and overlays">
+          <Button.Flyout>
+            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+              <MenuItem Header="Background" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowBackground, Mode=OneWay}" Command="{Binding ToggleBackgroundCommand}" />
+              <MenuItem Header="Full-screen objects" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        ToolTip.Tip="Draw all 640px-wide object images over the background (or pick one with the Background spinbox)"
+                        IsChecked="{Binding ShowFullScreenObjects, Mode=OneWay}" Command="{Binding ToggleFullScreenObjectsCommand}" />
+              <MenuItem Header="Hotspots" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowHotspots, Mode=OneWay}" Command="{Binding ToggleHotspotsCommand}" />
+              <MenuItem Header="Walkboxes" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowWalkboxes, Mode=OneWay}" Command="{Binding ToggleWalkboxesCommand}" />
+              <MenuItem Header="Labels" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowLabels, Mode=OneWay}" Command="{Binding ToggleLabelsCommand}" />
+              <MenuItem Header="Room bounds" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowBounds, Mode=OneWay}" Command="{Binding ToggleBoundsCommand}" />
+              <MenuItem Header="Selection outline" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        ToolTip.Tip="Outline the selected object(s)"
+                        IsChecked="{Binding ShowSelectionOutline, Mode=OneWay}" Command="{Binding ToggleSelectionOutlineCommand}" />
+              <MenuItem Header="Z-plane masking" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ZPlaneMasking, Mode=OneWay}" Command="{Binding ToggleZPlaneMaskingCommand}"
+                        ToolTip.Tip="Hide the parts of actors behind the room's foreground, as the game does" />
+              <MenuItem Header="Draw z-planes" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        IsChecked="{Binding ShowZPlanes, Mode=OneWay}" Command="{Binding ToggleZPlanesCommand}"
+                        ToolTip.Tip="Tint the room's z-planes (plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan)" />
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
+        <TextBlock Text="Show" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
+        <ComboBox ItemsSource="{Binding ShowModes}" SelectedIndex="{Binding ShowMode}" MinWidth="130" Margin="0,0,12,0" FontSize="12"
+                  ToolTip.Tip="What each room starts with (and Reset goes back to): Room start as the game shows it on entry; Everything every object image and placed costume, ignoring the entry scripts; Hidden at start what the game hides on entry (the player, cutscenes, later, closed states); None nothing" />
+        <TextBlock Text="Background" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
+        <NumericUpDown Value="{Binding BackgroundIndex}" Minimum="0" Maximum="{Binding MaxBackgroundIndex}"
+                       IsEnabled="{Binding HasBackgroundChoices}" Increment="1" FormatString="0" Width="96" Margin="0,0,4,0"
+                       ToolTip.Tip="The room's own background, then each full-width (640px) object image" />
+        <TextBlock Text="{Binding BackgroundLabel}" VerticalAlignment="Center" FontSize="11" MaxWidth="160"
+                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SubtleTextBrush}" Margin="0,0,12,0" />
+        <ComboBox ItemsSource="{Binding ZPlaneChoices}" SelectedIndex="{Binding ZPlaneShown}" IsVisible="{Binding ShowZPlanes}"
+                  MinWidth="110" Margin="0,0,12,0" FontSize="12"
+                  ToolTip.Tip="The z-plane to draw: plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan" />
+      </WrapPanel>
+    </c:ViewerPreview.Tools>
+    <c:ViewerPreview.TrailingTools>
+      <ToggleButton Content="Objects" IsChecked="{Binding ShowObjectsPanel}" ToolTip.Tip="Show / hide the Objects panel" />
+    </c:ViewerPreview.TrailingTools>
+    <c:ViewerPreview.Footer>
+      <Border Padding="8,2">
+        <TextBlock Text="{Binding #Canvas.HoverText}" FontSize="11" Classes="mono"
+                   Foreground="{DynamicResource SubtleTextBrush}" />
+      </Border>
+    </c:ViewerPreview.Footer>
+
+    <c:RoomCanvas x:Name="Canvas"
+                  BackgroundImage="{Binding BackgroundImage}"
+                  ObjectLayers="{Binding ObjectLayers}"
+                  Walkboxes="{Binding Walkboxes}"
+                  RoomSize="{Binding RoomSize}"
+                  SelectedObject="{Binding SelectedObject, Mode=TwoWay}"
+                  ShowBackground="{Binding ShowBackground}"
+                  ShowHotspots="{Binding ShowHotspots}"
+                  ShowWalkboxes="{Binding ShowWalkboxes}"
+                  ShowLabels="{Binding ShowLabels}"
+                  ShowBounds="{Binding ShowBounds}"
+                  ShowSelectionOutline="{Binding ShowSelectionOutline}"
+                  ShowFullScreenObjects="{Binding ShowFullScreenObjects}"
+                  BackgroundObject="{Binding BackgroundObject}"
+                  VisibleObjects="{Binding VisibleObjects}"
+                  HoldScene="{Binding IsSwitchingRoom}"
+                  LiveCostume="{Binding LiveCostume}"
+                  ZMasks="{Binding ZMasks}"
+                  MaskActors="{Binding ZPlaneMasking}"
+                  ZPlaneOverlay="{Binding ZPlaneOverlay}"
+                  SelectedObjects="{Binding SelectedObjects}" />
+  </c:ViewerPreview>
+</UserControl>
