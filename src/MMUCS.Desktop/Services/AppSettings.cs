@@ -32,6 +32,10 @@ public sealed class AppSettings
     public bool CostumePlayInPlace { get; set; } = true;
     /// <summary>Title bars and the Preview tab inside the viewers (Layout menu; shown to rearrange their panels).</summary>
     public bool ShowViewerPanelHeaders { get; set; }
+    /// <summary>The Inspector's Metadata section is open.</summary>
+    public bool InspectorMetadataExpanded { get; set; } = true;
+    /// <summary>The Inspector's Costume / Object section is open.</summary>
+    public bool InspectorViewerExpanded { get; set; } = true;
     /// <summary>The Room viewer's View menu and Objects panel toggle.</summary>
     public RoomViewOptions RoomView { get; set; } = new();
     /// <summary>Per opened game (its first resource file): the selected hierarchy block, as child indices from the root.</summary>

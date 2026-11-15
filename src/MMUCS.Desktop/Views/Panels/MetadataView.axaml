@@ -1,9 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:MMUCS.Desktop.ViewModels"
-             x:Class="MMUCS.Desktop.Views.Panels.MetadataView"
-             x:DataType="vm:MainWindowViewModel">
-  <ListBox ItemsSource="{Binding Metadata}">
+             x:Class="MMUCS.Desktop.Views.Panels.MetadataView">
+  <!-- DataContext: the selected block's rows (shown by the Metadata panel and at the top of the Inspector). -->
+  <ListBox ItemsSource="{ReflectionBinding}">
     <ListBox.Styles>
       <Style Selector="ListBoxItem">
         <Setter Property="Padding" Value="8,2" />

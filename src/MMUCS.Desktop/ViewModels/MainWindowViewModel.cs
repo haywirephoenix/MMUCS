@@ -60,8 +60,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>The Object viewer: the selected object's image and states.</summary>
     public ObjectImageViewModel ObjectImage { get; }
 
-    /// <summary>Shows the viewer for what was last picked: a costume or an object image.</summary>
-    public InspectorViewModel Inspector { get; } = new();
+    /// <summary>The selected block's metadata, over the viewer for it (a costume or an object image).</summary>
+    public InspectorViewModel Inspector { get; }
 
     /// <summary>Docking layout: panels are views over this view model (see Docking/DockLayout.cs).</summary>
     public MmucsDockFactory DockFactory { get; }
@@ -95,6 +95,18 @@ public sealed partial class MainWindowViewModel : ObservableObject
         TreeOptions.PropertyChanged += (_, e) => OnTreeOptionChanged(e.PropertyName);
 
         ViewerDock.ShowHeaders = Settings.ShowViewerPanelHeaders;
+        Inspector = new InspectorViewModel(Metadata)
+        {
+            IsMetadataExpanded = Settings.InspectorMetadataExpanded,
+            IsViewerExpanded = Settings.InspectorViewerExpanded,
+        };
+        Inspector.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is not (nameof(InspectorViewModel.IsMetadataExpanded) or nameof(InspectorViewModel.IsViewerExpanded))) return;
+            Settings.InspectorMetadataExpanded = Inspector.IsMetadataExpanded;
+            Settings.InspectorViewerExpanded = Inspector.IsViewerExpanded;
+            Settings.Save();
+        };
         DockFactory = new MmucsDockFactory(this);
         var saved = DockLayoutStore.Read();
         SavedMainWindow = saved?.MainWindow;
@@ -126,6 +138,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 Inspect(ObjectImage.ViewerLayout);
                 DockFactory.BringForwardOver(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, Layout);
             }
+            else Inspect(null); // an object without an image: don't leave the last one up
         };
         Script.BlockFocusRequested += RevealFromViewer;
         Script.ShowScumm = Settings.ScriptShowScumm;
@@ -552,12 +565,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _selectionSave.Start();
     }
 
-    /// <summary>Shows a viewer in the Inspector (without taking focus; its tab gets a dot when it's behind another).</summary>
+    /// <summary>
+    /// Shows a viewer in the Inspector, or none for a selection with nothing to view (without taking
+    /// focus; its tab gets a dot when it's behind another).
+    /// </summary>
     private void Inspect(ViewerDock viewer)
     {
         if (ReferenceEquals(Inspector.Content, viewer)) return;
         Inspector.Content = viewer;
-        MarkUpdated(MmucsDockFactory.InspectorId);
+        if (viewer != null) MarkUpdated(MmucsDockFactory.InspectorId);
     }
 
     // ── Tab update dots ───────────────────────────────────────────────────────
@@ -583,6 +599,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (value == null)
         {
             HexData = ReadOnlyMemory<byte>.Empty;
+            Inspect(null);
             return;
         }
 
@@ -622,6 +639,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
             Inspect(Costume.ViewerLayout);
             return;
         }
+        // An object image is inspected through the room's selection (below, or by the Room viewer that
+        // revealed it); anything else has nothing to show there.
+        if (b.Tag != ScummTag.OBIM && b.FindParent(ScummTag.OBIM) == null) Inspect(null);
         if (_selectingFromViewer) return; // the viewer already shows it
 
         if (ScriptTags.Contains(b.Tag))

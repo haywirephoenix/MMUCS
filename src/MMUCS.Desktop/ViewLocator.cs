@@ -31,7 +31,7 @@ public sealed class ViewLocator : IDataTemplate
     {
         // Main window panels.
         [typeof(BlocksTool)] = d => new BlockTreeView { DataContext = ((BlocksTool)d).Main },
-        [typeof(MetadataTool)] = d => new MetadataView { DataContext = ((MetadataTool)d).Main },
+        [typeof(MetadataTool)] = d => new MetadataView { DataContext = ((MetadataTool)d).Main.Metadata },
         [typeof(HexTool)] = d => new HexPanelView { DataContext = ((HexTool)d).Main },
         [typeof(ScriptDocument)] = d => new ScriptView { DataContext = ((ScriptDocument)d).Main.Script },
         [typeof(InspectorTool)] = d => new InspectorView { DataContext = ((InspectorTool)d).Main.Inspector },

@@ -1,12 +1,46 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             xmlns:panels="using:MMUCS.Desktop.Views.Panels"
              x:Class="MMUCS.Desktop.Views.InspectorView"
              x:DataType="vm:InspectorViewModel">
-  <!-- The picked viewer's docking area (ViewerViewTemplate builds it, sharing one view per viewer). -->
-  <Grid>
-    <ContentControl Content="{Binding Content}" />
-    <TextBlock Text="Pick a costume or an object to inspect it here." IsVisible="{Binding IsEmpty}"
+  <UserControl.Resources>
+    <!-- A section header: a chevron and the title; clicking it folds the section. -->
+    <ControlTheme x:Key="SectionHeader" TargetType="ToggleButton">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Classes="panel-header" Padding="6,4">
+            <StackPanel Orientation="Horizontal">
+              <Panel Width="14">
+                <TextBlock Text="▾" FontSize="11" VerticalAlignment="Center"
+                           IsVisible="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" />
+                <TextBlock Text="▸" FontSize="11" VerticalAlignment="Center"
+                           IsVisible="{Binding !IsChecked, RelativeSource={RelativeSource TemplatedParent}}" />
+              </Panel>
+              <ContentPresenter Content="{TemplateBinding Content}" FontSize="12" VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+  </UserControl.Resources>
+
+  <!-- Rows: Metadata header, Metadata rows, viewer header, viewer (sized in code: the open sections share the height). -->
+  <Grid x:Name="Sections" RowDefinitions="Auto,Auto,Auto,*">
+    <ToggleButton Grid.Row="0" Theme="{StaticResource SectionHeader}" Content="Metadata"
+                  IsChecked="{Binding IsMetadataExpanded}" ToolTip.Tip="Show or hide the selected block's metadata" />
+    <Panel Grid.Row="1" x:Name="MetadataSection" IsVisible="{Binding IsMetadataExpanded}">
+      <panels:MetadataView x:Name="MetadataRows" />
+    </Panel>
+
+    <ToggleButton Grid.Row="2" Theme="{StaticResource SectionHeader}" Content="{Binding ContentTitle}"
+                  IsChecked="{Binding IsViewerExpanded}" IsVisible="{Binding !IsEmpty}" />
+    <!-- The picked viewer's docking area (ViewerViewTemplate builds it, sharing one view per viewer). -->
+    <ContentControl Grid.Row="3" Content="{Binding Content}" IsVisible="{Binding IsViewerExpanded}" />
+    <TextBlock Grid.Row="3" Text="{Binding Hint}" IsVisible="{Binding IsEmpty}"
                HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="16"
                Foreground="{DynamicResource SubtleTextBrush}" />
   </Grid>
