@@ -38,6 +38,8 @@ public sealed class MixerVoice
     public float Pan { get; set; }
     /// <summary>True once it has ended or been stopped and the mixer has dropped it.</summary>
     public bool Finished { get; internal set; }
+    /// <summary>While paused the mixer skips it: its source isn't read, so it resumes where it was.</summary>
+    public bool Paused { get; set; }
 
     /// <summary>Stops the sound, fading it out over <paramref name="fadeMs"/> first.</summary>
     public void Stop(int fadeMs = 0)
@@ -64,6 +66,7 @@ public sealed class MixerVoice
     internal bool MixInto(Span<float> mix, Span<float> scratch, int frames, float groupVolume)
     {
         if (_stopRequested) return false;
+        if (Paused) return true;
         int got = Resampler.Read(scratch[..(frames * 2)]);
 
         // Equal-power pan: centre is −3 dB on each side.

@@ -1,0 +1,20 @@
+{
+  "Note": "COMI's cutscenes in the order they play. The game data has no single order: each is started by name from a script, so this list is assembled from those scripts (which disc's resource file holds them, the room they belong to, and the order counting scripts play them in). Room is the room the starting script belongs to. Title is optional and shown in the media player; Note says what the order rests on.",
+  "Cutscenes": [
+    { "Id": "video/opening", "Title": "", "Disc": 1, "Room": "logo", "Note": "Global script 119, started by the main flow (script 71) as the game begins." },
+    { "Id": "video/sinkshp", "Title": "", "Disc": 1, "Room": "cannon", "Note": "Global script 131." },
+    { "Id": "video/curserng", "Title": "", "Disc": 1, "Room": "fortbase", "Note": "Global script 141, started at the end of the treasure room (room 12, local 2005)." },
+    { "Id": "video/sb010", "Title": "", "Disc": 1, "Room": "brimbch", "Note": "Brimstone Beach, local script 2007." },
+    { "Id": "video/sb020", "Title": "", "Disc": 1, "Room": "brimbch", "Note": "Brimstone Beach, local script 2008." },
+    { "Id": "video/fg010gp", "Title": "", "Disc": 1, "Room": "snake", "Note": "Local script 2001 of room 31." },
+    { "Id": "video/newboots", "Title": "", "Disc": 1, "Room": "logo", "Note": "Global script 115's first showing; 115 runs on room exits around Plunder Island and LeChuck's deck." },
+    { "Id": "video/bbsan", "Title": "", "Disc": 1, "Room": "logo", "Note": "Global script 115's second showing." },
+    { "Id": "video/wrecksan", "Title": "", "Disc": 2, "Room": "shipwrck", "Note": "Global script 327, chained from script 126." },
+    { "Id": "video/moreslaw", "Title": "", "Disc": 2, "Room": "chapter4", "Note": "Global script 127's first showing; 127 runs on door exits on Blood Island (eggbeach, famcrypt)." },
+    { "Id": "video/lavaride", "Title": "", "Disc": 2, "Room": "chapter4", "Note": "Global script 127's second showing." },
+    { "Id": "video/kis030", "Title": "", "Disc": 2, "Room": "famcrypt", "Note": "Global script 387, started from the guest room (room 65, local 2002). Its place relative to moreslaw and lavaride is not settled by the scripts." },
+    { "Id": "video/liftcrse", "Title": "", "Disc": 2, "Room": "chapter5", "Note": "Global script 128, chained from the cursed ring (room 58) and from the main flow before zap010." },
+    { "Id": "video/zap010", "Title": "", "Disc": 2, "Room": "gondola", "Note": "Global script 416, chained from the main flow after liftcrse, and from the gondola (local 2005)." },
+    { "Id": "video/finale", "Title": "", "Disc": 2, "Room": "snow-dia", "Note": "Global script 433." }
+  ]
+}

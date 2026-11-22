@@ -48,6 +48,8 @@ public sealed class ImusPlayer : IAudioSource
     private long _remaining;  // bytes left in the current region
     private bool _finished;
     private volatile int _hook;
+    // Read runs on the audio thread; Seek and Restart may come from the UI.
+    private readonly object _gate = new();
 
     // Crossfade after a jump: the old position keeps playing and fades out while the new one fades in.
     private long _fadeOffset;
@@ -61,7 +63,7 @@ public sealed class ImusPlayer : IAudioSource
         _bpf = _bytesPerSample * Math.Max(1, sound.Channels);
         _dataStart = sound.DataOffset;
         _dataEnd = sound.DataOffset + (long)sound.DataLength;
-        Restart();
+        RestartLocked();
     }
 
     public ImusSound Sound => _sound;
@@ -83,6 +85,11 @@ public sealed class ImusPlayer : IAudioSource
     /// <summary>Starts again from the beginning, as the game starts a sound.</summary>
     public void Restart()
     {
+        lock (_gate) RestartLocked();
+    }
+
+    private void RestartLocked()
+    {
         _finished = false;
         _remaining = 0;
         _fadeTotal = _fadeDone = 0;
@@ -95,6 +102,11 @@ public sealed class ImusPlayer : IAudioSource
     /// a crossfade (for a timeline). Returns false when no region holds it.
     /// </summary>
     public bool Seek(long frame)
+    {
+        lock (_gate) return SeekLocked(frame);
+    }
+
+    private bool SeekLocked(long frame)
     {
         long target = _dataStart + frame * _bpf;
         foreach (var r in _sound.Regions)
@@ -110,6 +122,11 @@ public sealed class ImusPlayer : IAudioSource
     }
 
     public int Read(Span<float> buffer)
+    {
+        lock (_gate) return ReadLocked(buffer);
+    }
+
+    private int ReadLocked(Span<float> buffer)
     {
         int channels = Math.Max(1, _sound.Channels);
         int want = buffer.Length / channels;
