@@ -20,7 +20,7 @@ namespace MMUCS.Desktop.Views;
 /// </summary>
 public sealed class ViewerViewTemplate : IDataTemplate
 {
-    private static readonly ConditionalWeakTable<ViewerDock, ViewerDockView> Views = new();
+    private static readonly ConditionalWeakTable<ViewerDock, ViewerDockView> Views = [];
 
     private static ViewerDock DockOf(object data) => data switch
     {
@@ -44,12 +44,10 @@ public sealed class ViewerViewTemplate : IDataTemplate
 /// themselves instead, synchronously, so it's only ever in one tree. A host in Dock's drag preview
 /// leaves it alone, and one in a floating window takes it once the window is open.
 /// </summary>
-internal sealed class ViewerViewHost : Decorator
+internal sealed class ViewerViewHost(ViewerDockView view) : Decorator
 {
-    private readonly ViewerDockView _view;
+    private readonly ViewerDockView _view = view;
     private Window _waitingFor;
-
-    public ViewerViewHost(ViewerDockView view) => _view = view;
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -66,11 +64,21 @@ internal sealed class ViewerViewHost : Decorator
 
     private void TryTake()
     {
-        if (ReferenceEquals(Child, _view)) return;
+        if (ReferenceEquals(Child, _view))
+        {
+            return;
+        }
+
         var top = TopLevel.GetTopLevel(this);
-        if (top == null) return; // no longer on screen
+        if (top == null)
+        {
+            return; // no longer on screen
+        }
         // Dock's own windows (drag preview, adorners) only show a picture of the panel for a moment.
-        if (top is DragPreviewWindow or DockAdornerWindow || this.FindAncestorOfType<DragPreviewControl>() != null) return;
+        if (top is DragPreviewWindow or DockAdornerWindow || this.FindAncestorOfType<DragPreviewControl>() != null)
+        {
+            return;
+        }
         // A floating window that isn't open yet: take the view once it is.
         if (top is Window w && !w.IsVisible)
         {
@@ -81,9 +89,19 @@ internal sealed class ViewerViewHost : Decorator
             }
             return;
         }
-        if (_view.GetVisualParent() is ViewerViewHost previous) previous.Child = null;
-        else if (_view.GetVisualParent() is ContentPresenter presenter) presenter.Content = null;
-        if (_view.GetVisualParent() == null && _view.Parent == null) Child = _view;
+        if (_view.GetVisualParent() is ViewerViewHost previous)
+        {
+            previous.Child = null;
+        }
+        else if (_view.GetVisualParent() is ContentPresenter presenter)
+        {
+            presenter.Content = null;
+        }
+
+        if (_view.GetVisualParent() == null && _view.Parent == null)
+        {
+            Child = _view;
+        }
     }
 
     private void OnWindowOpened(object sender, EventArgs e)
@@ -94,7 +112,8 @@ internal sealed class ViewerViewHost : Decorator
 
     private void StopWaiting()
     {
-        if (_waitingFor != null) _waitingFor.Opened -= OnWindowOpened;
+        _waitingFor?.Opened -= OnWindowOpened;
+
         _waitingFor = null;
     }
 }

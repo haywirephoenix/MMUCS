@@ -26,14 +26,22 @@ public partial class CostumePreviewView : UserControl
     private void Subscribe()
     {
         Unsubscribe();
-        if (DataContext is not AkosViewModel vm) return;
+        if (DataContext is not AkosViewModel vm)
+        {
+            return;
+        }
+
         _subscribedVm = vm;
         _subscribedVm.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     private void Unsubscribe()
     {
-        if (_subscribedVm == null) return;
+        if (_subscribedVm == null)
+        {
+            return;
+        }
+
         _subscribedVm.PropertyChanged -= OnViewModelPropertyChanged;
         _subscribedVm = null;
     }

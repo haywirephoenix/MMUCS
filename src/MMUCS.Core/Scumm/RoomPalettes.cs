@@ -17,29 +17,44 @@ namespace MMUCS.Core.Scumm;
 /// just before the switch (smglcave's cave-dark-anim-object). Loading a room puts its palette 0 back.
 /// Everything else is in palette 0.
 /// </summary>
-public sealed class RoomPalettes
+public sealed partial class RoomPalettes
 {
-    private static readonly Regex NewPalette = new(@"^room palette (\d+)$", RegexOptions.Compiled);
-    private static readonly Regex SetState = new(@"^state-of ([\w-]+) is (\d+)$", RegexOptions.Compiled);
-    private static readonly Regex SetCostume = new(@"^actor .+ costume (\d+)$", RegexOptions.Compiled);
-    private static readonly Regex CurrentRoom = new(@"^current-room (\d+)$", RegexOptions.Compiled);
-    private static readonly Regex Wait = new(@"^(?:break-here|wait-for)", RegexOptions.Compiled);
-    private static readonly Regex StartScript = new(@"^(?:start-script|start-script-quick|chain-script)\b(?: [a-z]+)* (\d+)\b", RegexOptions.Compiled);
+    [GeneratedRegex(@"^room palette (\d+)$")]
+    private static partial Regex NewPalette();
+    [GeneratedRegex(@"^state-of ([\w-]+) is (\d+)$")]
+    private static partial Regex SetState();
+    [GeneratedRegex(@"^actor .+ costume (\d+)$")]
+    private static partial Regex SetCostume();
+    [GeneratedRegex(@"^current-room (\d+)$")]
+    private static partial Regex CurrentRoom();
+    [GeneratedRegex(@"^(?:break-here|wait-for)")]
+    private static partial Regex Wait();
+    [GeneratedRegex(@"^(?:start-script|start-script-quick|chain-script)\b(?: [a-z]+)* (\d+)\b")]
+    private static partial Regex StartScript();
 
-    private static readonly ConditionalWeakTable<ScummBlock, RoomPalettes> Cache = new();
+    private static readonly ConditionalWeakTable<ScummBlock, RoomPalettes> Cache = [];
 
-    private readonly Dictionary<(int Room, int Costume), int> _costumes = new();
-    private readonly Dictionary<(int Room, string Name), int> _objects = new();
+    private readonly Dictionary<(int Room, int Costume), int> _costumes = [];
+    private readonly Dictionary<(int Room, string Name), int> _objects = [];
 
     /// <summary>The palette costume <paramref name="costume"/> is drawn in in room <paramref name="room"/> (0 unless a
     /// script shows it in another).</summary>
-    public int Costume(int room, int? costume) => costume is int c && _costumes.TryGetValue((room, c), out int p) ? p : 0;
+    public int Costume(int room, int? costume)
+    {
+        return costume is int c && _costumes.TryGetValue((room, c), out int p) ? p : 0;
+    }
 
     /// <summary>The palette an object image of room <paramref name="room"/> is drawn in.</summary>
-    public int Object(int room, string name) => name != null && _objects.TryGetValue((room, name), out int p) ? p : 0;
+    public int Object(int room, string name)
+    {
+        return name != null && _objects.TryGetValue((room, name), out int p) ? p : 0;
+    }
 
     /// <summary>The palette <paramref name="obj"/> of <paramref name="room"/> is drawn in.</summary>
-    public int Object(RoomModel room, RoomObject obj) => room == null || obj == null ? 0 : Object(room.RoomNo, obj.Name);
+    public int Object(RoomModel room, RoomObject obj)
+    {
+        return room == null || obj == null ? 0 : Object(room.RoomNo, obj.Name);
+    }
 
     /// <summary>The palettes of the game <paramref name="any"/> belongs to (read once per game).</summary>
     public static RoomPalettes For(ScummBlock any)
@@ -96,21 +111,21 @@ public sealed class RoomPalettes
                 string t = line.Text.Trim();
                 while (scopes.Count > 0 && line.Indent < scopes.Peek().Indent) palette = scopes.Pop().Restore;
                 if (line.Indent != turnedOnIndent) turnedOn.Clear();
-                if (NewPalette.Match(t) is { Success: true } np)
+                if (NewPalette().Match(t) is { Success: true } np)
                 {
                     scopes.Push((line.Indent, palette));
                     palette = int.Parse(np.Groups[1].Value);
                     if (palette > 0) foreach (var name in turnedOn) _objects.TryAdd((room, name), palette);
                     turnedOn.Clear();
                 }
-                else if (CurrentRoom.Match(t) is { Success: true } cr)
+                else if (CurrentRoom().Match(t) is { Success: true } cr)
                 {
                     room = int.Parse(cr.Groups[1].Value);
                     palette = 0;
                     turnedOn.Clear();
                 }
-                else if (Wait.IsMatch(t)) turnedOn.Clear();
-                else if (SetState.Match(t) is { Success: true } ss && ss.Groups[2].Value != "0")
+                else if (Wait().IsMatch(t)) turnedOn.Clear();
+                else if (SetState().Match(t) is { Success: true } ss && ss.Groups[2].Value != "0")
                 {
                     if (palette > 0) _objects.TryAdd((room, ss.Groups[1].Value), palette);
                     else
@@ -120,8 +135,8 @@ public sealed class RoomPalettes
                     }
                 }
                 else if (palette <= 0) continue;
-                else if (SetCostume.Match(t) is { Success: true } sc) _costumes.TryAdd((room, int.Parse(sc.Groups[1].Value)), palette);
-                else if (StartScript.Match(t) is { Success: true } st && int.TryParse(st.Groups[1].Value, out int no))
+                else if (SetCostume().Match(t) is { Success: true } sc) _costumes.TryAdd((room, int.Parse(sc.Groups[1].Value)), palette);
+                else if (StartScript().Match(t) is { Success: true } st && int.TryParse(st.Groups[1].Value, out int no))
                 {
                     if (no >= 2000) Run(locals.GetValueOrDefault((room, no)), palette, room);
                     else if (globals.GetValueOrDefault(no) is { } g) Run(g, palette, room);

@@ -53,7 +53,11 @@ half4 main(float2 p) {
     private static readonly Lazy<SKRuntimeEffect> Effect = new(() =>
     {
         var effect = SKRuntimeEffect.CreateShader(Sksl, out var errors);
-        if (effect == null) Log.Error($"AKOS SkSL compile failed: {errors}");
+        if (effect == null)
+        {
+            Log.Error($"AKOS SkSL compile failed: {errors}");
+        }
+
         return effect;
     });
 
@@ -64,7 +68,10 @@ half4 main(float2 p) {
     public static SKShader Create(SKImage dataImage, SKImage paletteStrip, in Options o)
     {
         var effect = Effect.Value;
-        if (effect == null || dataImage == null || paletteStrip == null) return null;
+        if (effect == null || dataImage == null || paletteStrip == null)
+        {
+            return null;
+        }
 
         var nearest = new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
         var builder = new SKRuntimeShaderBuilder(effect);

@@ -13,11 +13,13 @@ public class AkosParser
     /// Parses the AKOS block structure using ReadOnlyMemory to avoid redundant array allocations.
     /// This version is non-blocking and safe to run in Task.Run.
     /// </summary>
-    public AkosData Parse(ScummBlock akosBlock, ScummColor[] globalPalette = null)
+    public static AkosData Parse(ScummBlock akosBlock, ScummColor[] globalPalette = null)
     {
-        var data = new AkosData();
-        data.Offset = akosBlock.Offset;
-        data.SourceKey = akosBlock.SourceKey;
+        var data = new AkosData
+        {
+            Offset = akosBlock.Offset,
+            SourceKey = akosBlock.SourceKey
+        };
 
         var roomBlock = akosBlock.Parent.FindChild(ScummTag.ROOM);
         var apals = roomBlock.FindChildrenRecursive(ScummTag.APAL);
@@ -40,7 +42,7 @@ public class AkosParser
         var akfo = akosBlock.FindChild(ScummTag.AKFO); // Frame Offsets
         var rgbs = akosBlock.FindChild(ScummTag.RGBS);
         
-        if (ahkd != null) _ParseAKHD(data, ahkd);
+        if (ahkd != null) ParseAKHD(data, ahkd);
 
         // Data Blobs
                                                 
@@ -60,8 +62,8 @@ public class AkosParser
             data.AkplSize = (uint)akpl.DataLength;
         }
 
-        if (akof != null) _ParseAKOF(data, akof);
-        if (akci != null) _ParseAKCI(data, akci);
+        if (akof != null) ParseAKOF(data, akof);
+        if (akci != null) ParseAKCI(data, akci);
 
         if (akch != null)
         {
@@ -70,12 +72,12 @@ public class AkosParser
         }
         if (akfo != null) data.FrameOffsets = akfo.DataSpan.ReadU16Table();
 
-        _ResolvePalette(data, globalPalette);
+        ResolvePalette(data, globalPalette);
 
         return data;
     }
     
-    public void UpdatePaletteOnly(AkosData data, ScummBlock akosBlock, int paletteIndex)
+    public static void UpdatePaletteOnly(AkosData data, ScummBlock akosBlock, int paletteIndex)
     {
         ScummColor[] targetPalette = null;
 
@@ -93,10 +95,10 @@ public class AkosParser
             }
         }
 
-        _ResolvePalette(data, targetPalette);
+        ResolvePalette(data, targetPalette);
     }
     
-    private void _ResolvePalette(AkosData data, ScummColor[] globalPalette)
+    private static void ResolvePalette(AkosData data, ScummColor[] globalPalette)
     {
         data.ResolvedColors = new ScummColor[256];
         // for (int i = 0; i < 256; i++) data.ResolvedColors[i] = new ScummColor(1, 0, 1, 1); // debug pink
@@ -149,7 +151,7 @@ public class AkosParser
         data.ResolvedColors[0] = new ScummColor(0, 0, 0, 0);
     }
 
-    private void _ParseAKHD(AkosData data, ScummBlock block)
+    private static void ParseAKHD(AkosData data, ScummBlock block)
     {
         block.GetMetadataItem(ScummMeta.AKHD.VersionNo, out var versionNumber);
         block.GetMetadataItem(ScummMeta.AKHD.Codec, out var celCompressionCodec);
@@ -169,7 +171,7 @@ public class AkosParser
         };
     }
 
-    private void _ParseAKOF(AkosData data, ScummBlock block)
+    private static void ParseAKOF(AkosData data, ScummBlock block)
     {
         int count = block.DataLength / 6;
         data.CelOffsets = new AkosOffset[count];
@@ -208,9 +210,12 @@ public class AkosParser
         };
     }
 
-    private static short S16OrZero(ReadOnlySpan<byte> s, int at) => at + 2 <= s.Length ? (short)s.U16LE(at) : (short)0;
+    private static short S16OrZero(ReadOnlySpan<byte> s, int at)
+    {
+        return at + 2 <= s.Length ? (short)s.U16LE(at) : (short)0;
+    }
 
-    private void _ParseAKCI(AkosData data, ScummBlock block)
+    private static void ParseAKCI(AkosData data, ScummBlock block)
     {
         int count = data.CelOffsets.Length;
         data.CelInfos = new AkosCelInfo[count];

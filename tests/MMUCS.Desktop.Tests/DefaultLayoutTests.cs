@@ -8,6 +8,8 @@ namespace MMUCS.Desktop.Tests;
 /// <summary>Layouts/layout.default.json is read and places every panel, so the built-in fallback isn't used by accident.</summary>
 public class DefaultLayoutTests
 {
+    private static readonly System.Text.Json.JsonSerializerOptions NamedFloats = new() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals };
+
     [Fact]
     public void Default_layout_file_is_embedded_and_readable()
     {
@@ -18,7 +20,7 @@ public class DefaultLayoutTests
             Assert.True(stream != null, "resources: " + names);
             using var reader = new System.IO.StreamReader(stream);
             var text = reader.ReadToEnd();
-            try { System.Text.Json.JsonSerializer.Deserialize<DockLayoutStore.LayoutFile>(text, new System.Text.Json.JsonSerializerOptions { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals }); }
+            try { System.Text.Json.JsonSerializer.Deserialize<DockLayoutStore.LayoutFile>(text, NamedFloats); }
             catch (System.Exception ex) { Assert.Fail(ex.Message); }
         }
         var file = DockLayoutStore.ReadDefault();
@@ -51,12 +53,12 @@ public class DefaultLayoutTests
             Root = new DockLayoutStore.Node
             {
                 Kind = "split", Id = "MainDock", Orientation = "Horizontal",
-                Children = new()
-                {
-                    new() { Kind = "tools", Id = "LeftDock", Proportion = 0.25, Panels = new() { "Blocks", "Metadata", "Hex" } },
-                    new() { Kind = "documents", Id = "Documents", Proportion = 0.45, Panels = new() { "Room", "Script" } },
-                    new() { Kind = "documents", Id = "CostumeDocuments", Proportion = 0.30, Panels = new() { "Costume", "Object" } },
-                },
+                Children =
+                [
+                    new() { Kind = "tools", Id = "LeftDock", Proportion = 0.25, Panels = ["Blocks", "Metadata", "Hex"] },
+                    new() { Kind = "documents", Id = "Documents", Proportion = 0.45, Panels = ["Room", "Script"] },
+                    new() { Kind = "documents", Id = "CostumeDocuments", Proportion = 0.30, Panels = ["Costume", "Object"] },
+                ],
             },
         };
         var factory = new MmucsDockFactory(null);

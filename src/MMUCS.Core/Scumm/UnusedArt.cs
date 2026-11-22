@@ -38,14 +38,17 @@ public static class UnusedArt
         return _entries.TryGetValue((room, objectName), out var e) ? e : null;
     }
 
-    public static bool IsUnused(int room, string objectName) => Find(room, objectName) != null;
+    public static bool IsUnused(int room, string objectName)
+    {
+        return Find(room, objectName) != null;
+    }
 
     private static Dictionary<(int, string), Entry> Load()
     {
         var entries = new Dictionary<(int, string), Entry>();
         void Add(ListFile file)
         {
-            foreach (var e in file?.Objects ?? new())
+            foreach (var e in file?.Objects ?? [])
                 if (!string.IsNullOrWhiteSpace(e?.Object)) entries[(e.Room, e.Object.Trim())] = e;
         }
         try

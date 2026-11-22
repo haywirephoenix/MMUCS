@@ -10,7 +10,7 @@ public partial class RoomPreviewView : UserControl
     {
         InitializeComponent();
         // Right-click on the room: show/hide the object under the pointer, or all objects.
-        Canvas.ObjectContextRequested += obj => { if (Vm is { } vm) RoomObjectMenu.Show(vm, obj, Canvas); };
+        Canvas.ObjectContextRequested += obj => { if (Vm is { } vm) { RoomObjectMenu.Show(vm, obj, Canvas); } };
         // Ctrl / Shift click: the Objects list owns the multi-selection.
         Canvas.ObjectModifierClicked += (obj, mods) => Vm?.RequestModifierSelect(obj, mods);
     }

@@ -33,17 +33,17 @@ public class AkosData
     // ── Header & Metadata ────────────────────────────────────────────────────
     public AkosHeader Header;
     public uint AkplSize;
-    public ScummColor[] ResolvedColors = Array.Empty<ScummColor>();
+    public ScummColor[] ResolvedColors = [];
     
     // ── Tables (Parsed upfront) ──────────────────────────────────────────────
-    public AkosOffset[] CelOffsets = Array.Empty<AkosOffset>();
-    public AkosCelInfo[] CelInfos = Array.Empty<AkosCelInfo>();
-    public ushort[] ChoreOffsets = Array.Empty<ushort>(); // From AKCH
-    public ushort[] FrameOffsets = Array.Empty<ushort>(); // From AKFO
+    public AkosOffset[] CelOffsets = [];
+    public AkosCelInfo[] CelInfos = [];
+    public ushort[] ChoreOffsets = []; // From AKCH
+    public ushort[] FrameOffsets = []; // From AKFO
     
     // ── Lazy-loaded data ─────────────────────────────────────────────────────
     // public readonly Dictionary<int, RgbaImage> DecodedCels = new();
-    public readonly Dictionary<long, IndexedSurface> DecodedCels = new();
+    public readonly Dictionary<long, IndexedSurface> DecodedCels = [];
 
     // ── Calculated Properties ────────────────────────────────────────────────
     public int DirectionCount => (Header.CostumeFlags & 2) != 0 ? 8 : 4;
@@ -62,10 +62,10 @@ public struct AkosHeader
     public ushort CelCompressionCodec;
     public ushort LayerCount;
 
-    public bool HasManyDirections => (CostumeFlags & 2) != 0;
-    public bool MirroredCostume   => (CostumeFlags & 1) != 0;
+    public readonly bool HasManyDirections => (CostumeFlags & 2) != 0;
+    public readonly bool MirroredCostume   => (CostumeFlags & 1) != 0;
 
-    public AkosCodec Codec => (AkosCodec)CelCompressionCodec;
+    public readonly AkosCodec Codec => (AkosCodec)CelCompressionCodec;
 }
 
 public struct AkosOffset

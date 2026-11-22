@@ -52,9 +52,12 @@ public sealed class ReviewTarget
     /// The same thing: the same object, or the same costume at the same spot (one costume can stand in
     /// several places, like the fortbase chickens).
     /// </summary>
-    public bool Same(ReviewTarget o) => o != null && Kind == o.Kind && (Kind == "object"
+    public bool Same(ReviewTarget o)
+    {
+        return o != null && Kind == o.Kind && (Kind == "object"
         ? Object == o.Object
         : Akos == o.Akos && Snapshot?.X == o.Snapshot?.X && Snapshot?.Y == o.Snapshot?.Y);
+    }
 }
 
 /// <summary>
@@ -67,8 +70,8 @@ public sealed class ReviewMark
     [JsonPropertyName("created")] public string Created { get; set; }
     [JsonPropertyName("room")] public int Room { get; set; }
     [JsonPropertyName("room_name")] public string RoomName { get; set; }
-    [JsonPropertyName("targets")] public List<ReviewTarget> Targets { get; set; } = new();
-    [JsonPropertyName("tags")] public List<string> Tags { get; set; } = new();
+    [JsonPropertyName("targets")] public List<ReviewTarget> Targets { get; set; } = [];
+    [JsonPropertyName("tags")] public List<string> Tags { get; set; } = [];
     [JsonPropertyName("note")] public string Note { get; set; }
 
     // A first-format mark held one target in these; Load moves them into Targets.
@@ -78,11 +81,16 @@ public sealed class ReviewMark
     [JsonPropertyName("object")] public string LegacyObject { get; set; }
     [JsonPropertyName("snapshot")] public ReviewSnapshot LegacySnapshot { get; set; }
 
-    public bool Includes(int room, ReviewTarget target) => Room == room && Targets.Any(t => t.Same(target));
+    public bool Includes(int room, ReviewTarget target)
+    {
+        return Room == room && Targets.Any(t => t.Same(target));
+    }
 
     /// <summary>The same room and the same set of targets.</summary>
-    public bool SameTargets(ReviewMark o) =>
-        o != null && Room == o.Room && Targets.Count == o.Targets.Count && Targets.All(t => o.Targets.Any(t.Same));
+    public bool SameTargets(ReviewMark o)
+    {
+        return o != null && Room == o.Room && Targets.Count == o.Targets.Count && Targets.All(t => o.Targets.Any(t.Same));
+    }
 }
 
 /// <summary>
@@ -92,8 +100,8 @@ public sealed class ReviewMark
 public static class ReviewMarks
 {
     /// <summary>What a mark can say looks wrong. A mark is reviewed in full whatever it's tagged with.</summary>
-    public static readonly IReadOnlyList<(string Tag, string Label)> Tags = new[]
-    {
+    public static readonly IReadOnlyList<(string Tag, string Label)> Tags =
+    [
         ("position", "Position"),
         ("scale", "Scale"),
         ("order", "Draw order (in front of / behind)"),
@@ -102,7 +110,7 @@ public static class ReviewMarks
         ("frame", "Wrong frame or animation"),
         ("visibility", "Visibility on room start (shown but shouldn't be, or hidden but should be)"),
         ("missing", "Not placed / not shown"),
-    };
+    ];
 
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -114,7 +122,7 @@ public static class ReviewMarks
     private sealed class Document
     {
         [JsonPropertyName("format")] public int Format { get; set; } = 2;
-        [JsonPropertyName("marks")] public List<ReviewMark> Marks { get; set; } = new();
+        [JsonPropertyName("marks")] public List<ReviewMark> Marks { get; set; } = [];
     }
 
     /// <summary>The file the marks live in; tests point it elsewhere.</summary>
@@ -130,8 +138,8 @@ public static class ReviewMarks
         try
         {
             string path = PathOrDefault;
-            if (!File.Exists(path)) return new();
-            var marks = JsonSerializer.Deserialize<Document>(File.ReadAllText(path), Options)?.Marks ?? new();
+            if (!File.Exists(path)) return [];
+            var marks = JsonSerializer.Deserialize<Document>(File.ReadAllText(path), Options)?.Marks ?? [];
             foreach (var m in marks.Where(m => m.LegacyKind != null))
             {
                 m.Targets.Add(new ReviewTarget { Kind = m.LegacyKind, Costume = m.LegacyCostume, Akos = m.LegacyAkos, Object = m.LegacyObject, Snapshot = m.LegacySnapshot ?? new() });
@@ -142,7 +150,7 @@ public static class ReviewMarks
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
             Diagnostics.Log.Warn($"Review marks unreadable: {ex.Message}");
-            return new();
+            return [];
         }
     }
 
@@ -164,7 +172,7 @@ public static class ReviewMarks
         mark.Id = same?.Id ?? (marks.Count == 0 ? 1 : marks.Max(m => m.Id) + 1);
         mark.Created ??= DateTime.Now.ToString("yyyy-MM-dd HH:mm");
         marks.Add(mark);
-        Save(marks.OrderBy(m => m.Id).ToList());
+        Save([.. marks.OrderBy(m => m.Id)]);
         return mark;
     }
 

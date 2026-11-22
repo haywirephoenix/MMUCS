@@ -7,13 +7,14 @@ namespace MMUCS.Core.Scumm;
 /// Loosely-typed metadata value (replaces Godot.Variant). Stores the original boxed value and
 /// converts on demand, so a value stored as uint can still be read back as (int).
 /// </summary>
-public readonly struct MetaValue : IEquatable<MetaValue>
+public readonly struct MetaValue(object value) : IEquatable<MetaValue>
 {
-    public object Value { get; }
+    public object Value { get; } = value;
 
-    public MetaValue(object value) => Value = value;
-
-    public static MetaValue From<T>(T value) => new(value);
+    public static MetaValue From<T>(T value)
+    {
+        return new(value);
+    }
 
     public bool IsNull => Value is null;
     public Type ValueType => Value?.GetType();
@@ -40,13 +41,38 @@ public readonly struct MetaValue : IEquatable<MetaValue>
     public static explicit operator double(MetaValue m) => Convert.ToDouble(m.Value, CultureInfo.InvariantCulture);
     public static explicit operator string(MetaValue m) => m.Value?.ToString();
 
-    public bool Equals(MetaValue other) => Equals(Value, other.Value);
-    public override bool Equals(object obj) => obj is MetaValue m && Equals(m);
-    public override int GetHashCode() => Value?.GetHashCode() ?? 0;
-    public override string ToString() => Value switch
+    public bool Equals(MetaValue other)
     {
-        null => "",
-        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-        _ => Value.ToString()
-    };
+        return Equals(Value, other.Value);
+    }
+
+    public override bool Equals(object obj)
+    {
+        return obj is MetaValue m && Equals(m);
+    }
+
+    public override int GetHashCode()
+    {
+        return Value?.GetHashCode() ?? 0;
+    }
+
+    public override string ToString()
+    {
+        return Value switch
+        {
+            null => "",
+            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+            _ => Value.ToString()
+        };
+    }
+
+    public static bool operator ==(MetaValue left, MetaValue right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(MetaValue left, MetaValue right)
+    {
+        return !(left == right);
+    }
 }

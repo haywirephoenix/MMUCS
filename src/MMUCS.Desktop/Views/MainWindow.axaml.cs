@@ -19,7 +19,7 @@ namespace MMUCS.Desktop.Views;
 public partial class MainWindow : Window
 {
     private NativeMenu _recentMenu;
-    private readonly System.Collections.Generic.Dictionary<string, NativeMenuItem> _panelItems = new();
+    private readonly System.Collections.Generic.Dictionary<string, NativeMenuItem> _panelItems = [];
     private PixelPoint _normalPosition;
     private Size _normalSize;
     private bool _placementApplied;
@@ -34,7 +34,7 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnPreviewKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
         // Track the normal (un-maximized) bounds so a maximized window still saves a sensible size.
-        PositionChanged += (_, _) => { if (WindowState == WindowState.Normal) _normalPosition = Position; };
+        PositionChanged += (_, _) => { if (WindowState == WindowState.Normal) { _normalPosition = Position; } };
         Opened += OnOpened;
         Closing += (_, _) =>
         {
@@ -46,7 +46,10 @@ public partial class MainWindow : Window
     protected override void OnSizeChanged(SizeChangedEventArgs e)
     {
         base.OnSizeChanged(e);
-        if (WindowState == WindowState.Normal) _normalSize = e.NewSize;
+        if (WindowState == WindowState.Normal)
+        {
+            _normalSize = e.NewSize;
+        }
     }
 
     // ── Window placement ─────────────────────────────────────────────────────
@@ -69,7 +72,11 @@ public partial class MainWindow : Window
     /// <summary>Applies the saved placement before the window is shown, if it is still on a screen.</summary>
     private void ApplyPlacement(WindowPlacement p)
     {
-        if (_placementApplied || p == null) return;
+        if (_placementApplied || p == null)
+        {
+            return;
+        }
+
         _placementApplied = true;
 
         if (double.IsFinite(p.Width) && double.IsFinite(p.Height) && p.Width >= MinWidth && p.Height >= MinHeight)
@@ -88,7 +95,10 @@ public partial class MainWindow : Window
         }
         _normalPosition = Position;
         _normalSize = new Size(Width, Height);
-        if (p.Maximized) WindowState = WindowState.Maximized;
+        if (p.Maximized)
+        {
+            WindowState = WindowState.Maximized;
+        }
     }
 
     /// <summary>True when a point near the window's top-left lands in some screen's working area.</summary>
@@ -108,12 +118,24 @@ public partial class MainWindow : Window
 
         // Floating panel windows restored onto a monitor that's no longer attached come back over
         // the main window instead.
-        if (Vm?.Layout?.Windows == null) return;
+        if (Vm?.Layout?.Windows == null)
+        {
+            return;
+        }
+
         int offset = 0;
         foreach (var w in Vm.Layout.Windows)
         {
-            if (w.Host is not Window host) continue;
-            if (IsOnScreen(host.Position)) continue;
+            if (w.Host is not Window host)
+            {
+                continue;
+            }
+
+            if (IsOnScreen(host.Position))
+            {
+                continue;
+            }
+
             offset += 30;
             host.Position = new PixelPoint(Position.X + 80 + offset, Position.Y + 80 + offset);
         }
@@ -124,7 +146,10 @@ public partial class MainWindow : Window
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not MainWindowViewModel vm)
+        {
+            return;
+        }
 
         ApplyPlacement(vm.SavedMainWindow);
         BuildMenu();
@@ -152,7 +177,7 @@ public partial class MainWindow : Window
         var open = new AsyncRelayCommand(OpenAsync);
         var export = new AsyncRelayCommand(ShowExportWizardAsync);
 
-        _recentMenu = new NativeMenu();
+        _recentMenu = [];
         _reopenItem = new NativeMenuItem("Reopen last file on startup")
         {
             ToggleType = MenuItemToggleType.CheckBox,
@@ -198,7 +223,9 @@ public partial class MainWindow : Window
             window.Items.Add(item);
             // The shortcut shows a viewer (it doesn't hide one that's already open).
             if (key is { } gesture && !OperatingSystem.IsMacOS())
+            {
                 KeyBindings.Add(new KeyBinding { Gesture = Shortcut(gesture), Command = new RelayCommand(() => Vm.ShowPanel(id)) });
+            }
         }
         PanelItem(MmucsDockFactory.RoomId, "Room", Key.D1);
         PanelItem(MmucsDockFactory.CostumeId, "Costume", Key.D2);
@@ -241,8 +268,12 @@ public partial class MainWindow : Window
         if (!OperatingSystem.IsMacOS())
         {
             foreach (var item in file.Items.OfType<NativeMenuItem>())
+            {
                 if (item.Gesture != null && item.Command != null)
+                {
                     KeyBindings.Add(new KeyBinding { Gesture = item.Gesture, Command = item.Command });
+                }
+            }
         }
 
         RebuildRecentMenu();
@@ -252,7 +283,11 @@ public partial class MainWindow : Window
 
     private void RebuildRecentMenu()
     {
-        if (_recentMenu == null) return;
+        if (_recentMenu == null)
+        {
+            return;
+        }
+
         _recentMenu.Items.Clear();
         var recent = Vm.RecentFiles;
         if (recent.Count == 0)
@@ -274,18 +309,27 @@ public partial class MainWindow : Window
     private void OnVmPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(MainWindowViewModel.HasProject) or nameof(MainWindowViewModel.ReopenLastFileOnStartup))
+        {
             UpdateMenuState();
+        }
     }
 
     /// <summary>Ticks the Window menu's panels that are placed (a closed floating window unticks its panel).</summary>
     private void UpdatePanelItems()
     {
-        foreach (var (id, item) in _panelItems) item.IsChecked = Vm.IsPanelOpen(id);
+        foreach (var (id, item) in _panelItems)
+        {
+            item.IsChecked = Vm.IsPanelOpen(id);
+        }
     }
 
     private void UpdateMenuState()
     {
-        if (_reopenItem == null) return;
+        if (_reopenItem == null)
+        {
+            return;
+        }
+
         _reopenItem.IsChecked = Vm.ReopenLastFileOnStartup;
         _exportItem.IsEnabled = Vm.HasProject;
         _exportRoomItem.IsEnabled = Vm.Room.HasRoom;
@@ -309,10 +353,15 @@ public partial class MainWindow : Window
     {
         var file = e.DataTransfer.TryGetFiles()?.FirstOrDefault();
         var path = file?.TryGetLocalPath();
-        if (path != null) await Vm.OpenFileAsync(path);
+        if (path != null)
+        {
+            await Vm.OpenFileAsync(path);
+        }
     }
 
     // ── Commands ─────────────────────────────────────────────────────────────
+
+    private static readonly string[] ScummResourcePatterns = ["*.la0", "*.la1", "*.la2", "*.lab", "*.lec", "*.000", "*.001"];
 
     private async Task OpenAsync()
     {
@@ -320,21 +369,24 @@ public partial class MainWindow : Window
         {
             Title = "Open SCUMM resource",
             AllowMultiple = false,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("SCUMM resources") { Patterns = new[] { "*.la0", "*.la1", "*.la2", "*.lab", "*.lec", "*.000", "*.001" } },
+            FileTypeFilter =
+            [
+                new FilePickerFileType("SCUMM resources") { Patterns = ScummResourcePatterns },
                 FilePickerFileTypes.All,
-            },
+            ],
         });
 
-        var path = files.FirstOrDefault()?.TryGetLocalPath();
-        if (path != null) await Vm.OpenFileAsync(path);
+        var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (path != null)
+        {
+            await Vm.OpenFileAsync(path);
+        }
     }
 
     private async Task<string> PickFolderAsync(string title)
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = title });
-        return folders.FirstOrDefault()?.TryGetLocalPath();
+        return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
     }
 
     private Views.Media.MediaPlayerWindow _mediaPlayer;
@@ -350,7 +402,11 @@ public partial class MainWindow : Window
 
     private async Task ShowExportWizardAsync()
     {
-        if (Vm.RootBlock == null) return;
+        if (Vm.RootBlock == null)
+        {
+            return;
+        }
+
         var window = new ExporterWindow { DataContext = new ExporterViewModel(Vm.RootBlock, Vm.GameFile, Vm.Settings) };
         await window.ShowDialog(this);
     }
@@ -358,13 +414,19 @@ public partial class MainWindow : Window
     private async Task ExportRoomAsync()
     {
         var folder = await PickFolderAsync("Export room background to…");
-        if (folder != null) Vm.Room.ExportBackground(folder);
+        if (folder != null)
+        {
+            Vm.Room.ExportBackground(folder);
+        }
     }
 
     private async Task ExportCelsAsync()
     {
         var folder = await PickFolderAsync("Export costume cels to…");
-        if (folder != null) await Vm.Costume.ExportCelsAsync(folder);
+        if (folder != null)
+        {
+            await Vm.Costume.ExportCelsAsync(folder);
+        }
     }
 
     private static void ClearCaches()

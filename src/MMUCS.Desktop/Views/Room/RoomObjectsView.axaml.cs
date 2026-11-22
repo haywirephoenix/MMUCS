@@ -44,51 +44,84 @@ public partial class RoomObjectsView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (this.IsAttachedToVisualTree()) Attach(DataContext as RoomViewModel);
+        if (this.IsAttachedToVisualTree())
+        {
+            Attach(DataContext as RoomViewModel);
+        }
     }
 
     private void Attach(RoomViewModel vm)
     {
-        if (ReferenceEquals(vm, _vm)) return;
+        if (ReferenceEquals(vm, _vm))
+        {
+            return;
+        }
+
         if (_vm != null)
         {
             _vm.PropertyChanged -= OnVmPropertyChanged;
             _vm.ModifierSelectRequested -= OnModifierSelect;
         }
         _vm = vm;
-        if (_vm == null) return;
+        if (_vm == null)
+        {
+            return;
+        }
+
         _vm.PropertyChanged += OnVmPropertyChanged;
         _vm.ModifierSelectRequested += OnModifierSelect;
         // Back on screen: show the selection the view model has.
         _syncingSelection = true;
         ObjectList.SelectedItems?.Clear();
-        foreach (var item in _vm.SelectedItems.Where(_vm.Objects.Contains)) ObjectList.SelectedItems?.Add(item);
+        foreach (var item in _vm.SelectedItems.Where(_vm.Objects.Contains))
+        {
+            ObjectList.SelectedItems?.Add(item);
+        }
+
         _syncingSelection = false;
         SyncListSelection();
     }
 
     private void OnVmPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(RoomViewModel.SelectedObjectItem)) SyncListSelection();
+        if (e.PropertyName == nameof(RoomViewModel.SelectedObjectItem))
+        {
+            SyncListSelection();
+        }
     }
 
     /// <summary>Ctrl-click in the room adds or removes the object from the selection; Shift-click adds it.</summary>
     private void OnModifierSelect(RoomObjectItem item, KeyModifiers mods)
     {
-        if (ObjectList.SelectedItems is not { } selected) return;
+        if (ObjectList.SelectedItems is not { } selected)
+        {
+            return;
+        }
+
         if (selected.Contains(item))
         {
-            if ((mods & (KeyModifiers.Control | KeyModifiers.Meta)) != 0) selected.Remove(item);
+            if ((mods & (KeyModifiers.Control | KeyModifiers.Meta)) != 0)
+            {
+                selected.Remove(item);
+            }
         }
-        else selected.Add(item);
+        else
+        {
+            selected.Add(item);
+        }
+
         ObjectList.ScrollIntoView(item);
     }
 
     /// <summary>The list's selection → the view model: all selected, and the last one picked as the current one.</summary>
     private void OnObjectListSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_syncingSelection || _vm == null) return;
-        var selected = ObjectList.SelectedItems?.OfType<RoomObjectItem>().ToList() ?? new();
+        if (_syncingSelection || _vm == null)
+        {
+            return;
+        }
+
+        var selected = ObjectList.SelectedItems?.OfType<RoomObjectItem>().ToList() ?? [];
         _vm.SelectedItems = selected;
         var current = e.AddedItems.OfType<RoomObjectItem>().LastOrDefault()
                       ?? (selected.Contains(_vm.SelectedObjectItem) ? _vm.SelectedObjectItem : selected.LastOrDefault());
@@ -100,19 +133,35 @@ public partial class RoomObjectsView : UserControl
     /// <summary>The view model's current entry (a click in the room) → the list, as the only one selected.</summary>
     private void SyncListSelection()
     {
-        if (_syncingSelection || _vm == null) return;
+        if (_syncingSelection || _vm == null)
+        {
+            return;
+        }
+
         var item = _vm.SelectedObjectItem;
-        if (item != null && ObjectList.SelectedItems?.Contains(item) == true) return;
+        if (item != null && ObjectList.SelectedItems?.Contains(item) == true)
+        {
+            return;
+        }
+
         _syncingSelection = true;
         ObjectList.SelectedItems?.Clear();
-        if (item != null) ObjectList.SelectedItem = item;
-        _vm.SelectedItems = item == null ? Array.Empty<RoomObjectItem>() : new[] { item };
+        if (item != null)
+        {
+            ObjectList.SelectedItem = item;
+        }
+
+        _vm.SelectedItems = item == null ? Array.Empty<RoomObjectItem>() : [item];
         _syncingSelection = false;
     }
 
     private void OnObjectListKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Space || _vm == null) return;
+        if (e.Key != Key.Space || _vm == null)
+        {
+            return;
+        }
+
         _vm.ToggleSelectedVisibility();
         e.Handled = true;
     }
@@ -120,11 +169,22 @@ public partial class RoomObjectsView : UserControl
     /// <summary>Right-click in the Objects list: the same menu as in the room, for the item under the pointer.</summary>
     private void OnObjectListContextRequested(object sender, ContextRequestedEventArgs e)
     {
-        if (_vm == null) return;
+        if (_vm == null)
+        {
+            return;
+        }
+
         var item = (e.Source as StyledElement)?.DataContext as RoomObjectItem ?? _vm.SelectedObjectItem;
-        if (item == null) return;
+        if (item == null)
+        {
+            return;
+        }
         // Right-click inside the selection acts on all of it; elsewhere it selects just that entry.
-        if (ObjectList.SelectedItems?.Contains(item) != true) _vm.SelectedObjectItem = item;
+        if (ObjectList.SelectedItems?.Contains(item) != true)
+        {
+            _vm.SelectedObjectItem = item;
+        }
+
         RoomObjectMenu.Show(_vm, item.Object, ObjectList);
         e.Handled = true;
     }

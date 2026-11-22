@@ -326,6 +326,7 @@ public class ReviewMarksTests : IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
         MMUCS.Core.ReviewMarks.FilePath = null;
         if (System.IO.Directory.Exists(_dir)) System.IO.Directory.Delete(_dir, true);
     }
@@ -420,13 +421,13 @@ public class PutInBoxTests
     {
         // town's walk paths: boxes whose corners pair up into a line (912,213 → 932,257)
         var line = new Walkbox(1, new(912, 213), new(912, 213), new(932, 257), new(932, 257), 1, 2, 0, 255);
-        Assert.Equal((925, 241, 1), RoomActors.PutInBox(new List<Walkbox> { Placeholder, line }, 925, 241, isPlayer: false));
+        Assert.Equal((925, 241, 1), RoomActors.PutInBox([Placeholder, line], 925, 241, isPlayer: false));
     }
 
     [Fact]
     public void With_no_boxes_the_actor_stays_where_it_is_put()
     {
-        Assert.Equal((5, 6, 0), RoomActors.PutInBox(new List<Walkbox> { Placeholder }, 5, 6, isPlayer: false));
+        Assert.Equal((5, 6, 0), RoomActors.PutInBox([Placeholder], 5, 6, isPlayer: false));
     }
 }
 

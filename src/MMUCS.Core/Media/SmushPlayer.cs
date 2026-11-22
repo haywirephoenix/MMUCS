@@ -32,7 +32,10 @@ public sealed class SmushPlayer
     public int CurrentIndex => Current?.Index ?? -1;
 
     /// <summary>The frame to show at a time.</summary>
-    public int FrameAt(TimeSpan time) => Math.Clamp((int)Math.Floor(time.TotalSeconds * FrameRate), 0, Math.Max(0, FrameCount - 1));
+    public int FrameAt(TimeSpan time)
+    {
+        return Math.Clamp((int)Math.Floor(time.TotalSeconds * FrameRate), 0, Math.Max(0, FrameCount - 1));
+    }
 
     /// <summary>Decodes up to <paramref name="index"/> (from the start when it lies behind). True when the picture changed.</summary>
     public bool ShowFrame(int index, CancellationToken token = default)

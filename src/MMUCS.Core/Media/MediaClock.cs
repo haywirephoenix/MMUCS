@@ -6,14 +6,12 @@ namespace MMUCS.Core.Media;
 /// A playback position that can run, pause and seek, driven by an output's played clock, so pictures
 /// follow the sound as it is heard. The output keeps running while this is paused; only this clock stops.
 /// </summary>
-public sealed class MediaClock
+public sealed class MediaClock(IAudioOutput output)
 {
-    private readonly IAudioOutput _output;
+    private readonly IAudioOutput _output = output;
     private TimeSpan _base;
     private TimeSpan _startedAt;
     private bool _running;
-
-    public MediaClock(IAudioOutput output) => _output = output;
 
     public bool Running => _running;
 

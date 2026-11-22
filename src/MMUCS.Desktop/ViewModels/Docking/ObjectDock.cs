@@ -14,15 +14,15 @@ public sealed class ObjectDockFactory(ObjectImageViewModel obj) : ViewerDockFact
 {
     public const string GroupId = "object";
     public const string StatesId = "States", PreviewId = "Preview";
-    public static readonly string[] PanelIds = { StatesId, PreviewId };
+    public static readonly string[] PanelIds = [StatesId, PreviewId];
 
     public override IReadOnlyList<string> Ids => PanelIds;
 
-    protected override IEnumerable<ViewerPanel> DefinePanels() => new ViewerPanel[]
-    {
+    protected override IEnumerable<ViewerPanel> DefinePanels() =>
+    [
         new(StatesId, "States", new ObjectStatesTool(obj)),
         new(PreviewId, "Preview", new ObjectPreviewDocument(obj)),
-    };
+    ];
 
     protected override IDockable CreateBuiltInContent(Dictionary<string, IDockable> p)
     {

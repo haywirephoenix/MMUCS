@@ -44,7 +44,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     private readonly MMUCS.Core.Scumm.ScummBlock _root;
     private readonly MediaEngine _engine;
     private readonly MediaClock _clock;
-    private IReadOnlyList<MediaItem> _all = Array.Empty<MediaItem>();
+    private IReadOnlyList<MediaItem> _all = [];
     private int _loadGeneration;
 
     // Sound
@@ -65,44 +65,44 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
 
     private bool _updatingPosition;
 
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsSpeech))] private Category _selectedCategory;
-    [ObservableProperty] private IReadOnlyList<CodeFilter> _scenes = Array.Empty<CodeFilter>();
-    [ObservableProperty] private CodeFilter _selectedScene;
-    [ObservableProperty] private IReadOnlyList<CodeFilter> _speakers = Array.Empty<CodeFilter>();
-    [ObservableProperty] private CodeFilter _selectedSpeaker;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("MvvmToolkit", "MVVMTK0042", Justification = "The constructor sets the field so OnSelectedCategoryChanged does not filter before the scan.")] [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsSpeech))] private Category _selectedCategory;
+    [ObservableProperty] public partial IReadOnlyList<CodeFilter> Scenes { get; set; } = Array.Empty<CodeFilter>();
+    [ObservableProperty] public partial CodeFilter SelectedScene { get; set; }
+    [ObservableProperty] public partial IReadOnlyList<CodeFilter> Speakers { get; set; } = Array.Empty<CodeFilter>();
+    [ObservableProperty] public partial CodeFilter SelectedSpeaker { get; set; }
     /// <summary>The library list, replaced as a whole when the filter changes (speech has thousands of lines).</summary>
-    [ObservableProperty] private IReadOnlyList<MediaItem> _items = Array.Empty<MediaItem>();
-    [ObservableProperty] private string _filter = "";
-    [ObservableProperty] private MediaItem _selectedItem;
-    [ObservableProperty] private string _title = "Nothing loaded";
-    [ObservableProperty] private string _status;
-    [ObservableProperty] private bool _isLoading;
-    [ObservableProperty] private bool _isPlaying;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsEmpty))] private bool _isVideo;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsEmpty))] private bool _isAudio;
-    [ObservableProperty] private double _position;
-    [ObservableProperty] private double _duration = 1;
-    [ObservableProperty] private string _positionText = "0:00.0 / 0:00.0";
-    [ObservableProperty] private double _volume = 0.8;
-    [ObservableProperty] private SKImage _frame;
+    [ObservableProperty] public partial IReadOnlyList<MediaItem> Items { get; set; } = Array.Empty<MediaItem>();
+    [ObservableProperty] public partial string Filter { get; set; } = "";
+    [ObservableProperty] public partial MediaItem SelectedItem { get; set; }
+    [ObservableProperty] public partial string Title { get; set; } = "Nothing loaded";
+    [ObservableProperty] public partial string Status { get; set; }
+    [ObservableProperty] public partial bool IsLoading { get; set; }
+    [ObservableProperty] public partial bool IsPlaying { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsEmpty))] public partial bool IsVideo { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsEmpty))] public partial bool IsAudio { get; set; }
+    [ObservableProperty] public partial double Position { get; set; }
+    [ObservableProperty] public partial double Duration { get; set; } = 1;
+    [ObservableProperty] public partial string PositionText { get; set; } = "0:00.0 / 0:00.0";
+    [ObservableProperty] public partial double Volume { get; set; } = 0.8;
+    [ObservableProperty] public partial SKImage Frame { get; set; }
     /// <summary>The changing frame readout, drawn over the picture so it never resizes the canvas.</summary>
-    [ObservableProperty] private string _frameText;
+    [ObservableProperty] public partial string FrameText { get; set; }
     /// <summary>The cutscene's fixed details, for the viewer's toolbar.</summary>
-    [ObservableProperty] private string _videoInfo;
-    [ObservableProperty] private bool _showFrameInfo = true;
-    [ObservableProperty] private ImusSound _sound;
-    [ObservableProperty] private long _soundFrame;
-    [ObservableProperty] private int _hook;
-    [ObservableProperty] private string _hookText = "Track hook: 0";
+    [ObservableProperty] public partial string VideoInfo { get; set; }
+    [ObservableProperty] public partial bool ShowFrameInfo { get; set; } = true;
+    [ObservableProperty] public partial ImusSound Sound { get; set; }
+    [ObservableProperty] public partial long SoundFrame { get; set; }
+    [ObservableProperty] public partial int Hook { get; set; }
+    [ObservableProperty] public partial string HookText { get; set; } = "Track hook: 0";
 
-    public IReadOnlyList<Category> Categories { get; } = new[]
-    {
+    public IReadOnlyList<Category> Categories { get; } =
+    [
         new Category(MediaKind.Cutscene, "Cutscenes"),
         new Category(MediaKind.Music, "Music"),
         new Category(MediaKind.Voice, "Speech"),
-    };
+    ];
 
-    public ObservableCollection<string> Events { get; } = new();
+    public ObservableCollection<string> Events { get; } = [];
 
     public string OutputName => _engine.Output.Name;
     public bool IsEmpty => !IsVideo && !IsAudio;
@@ -122,7 +122,10 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         _clock = new MediaClock(_engine.Output);
         _selectedCategory = Categories[1];
         Status = gameFile == null ? "Open the game (COMI.LA0) first: the media player lists its cutscenes and bundles." : "Scanning…";
-        if (gameFile != null) _ = ScanAsync();
+        if (gameFile != null)
+        {
+            _ = ScanAsync();
+        }
     }
 
     private async Task ScanAsync()
@@ -156,7 +159,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         var scenes = Speech.GroupBy(i => i.Scene)
             .Select(g => new CodeFilter(g.Key, $"{g.Key} · {g.First().SceneName ?? "?"}  ({g.Count():N0})"))
             .OrderBy(f => f.Code, StringComparer.Ordinal);
-        Scenes = new[] { new CodeFilter(null, $"All scenes  ({Speech.Count():N0})") }.Concat(scenes).ToList();
+        Scenes = [new CodeFilter(null, $"All scenes  ({Speech.Count():N0})"), .. scenes];
         SelectedScene = Scenes[0];
     }
 
@@ -168,7 +171,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         var speakers = lines.GroupBy(i => i.Speaker)
             .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)
             .Select(g => new CodeFilter(g.Key, $"{g.Key}{(g.First().SpeakerName is { } n ? " · " + n : "")}  ({g.Count():N0})"));
-        Speakers = new[] { new CodeFilter(null, $"All speakers  ({lines.Count:N0})") }.Concat(speakers).ToList();
+        Speakers = [new CodeFilter(null, $"All speakers  ({lines.Count:N0})"), .. speakers];
         SelectedSpeaker = Speakers.FirstOrDefault(s => s.Code == keep) ?? Speakers[0];
     }
     partial void OnVolumeChanged(double value) => _engine.Mixer.MasterVolume = (float)Math.Clamp(value, 0, 1);
@@ -180,14 +183,16 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         string scene = kind == MediaKind.Voice ? SelectedScene?.Code : null;
         string speaker = kind == MediaKind.Voice ? SelectedSpeaker?.Code : null;
         var keep = SelectedItem;
-        Items = _all.Where(i => i.Kind == kind
+        Items = [.. _all.Where(i => i.Kind == kind
                 && (scene == null || i.Scene == scene)
                 && (speaker == null || i.Speaker == speaker)
                 && (f.Length == 0 || i.Label.Contains(f, StringComparison.OrdinalIgnoreCase)
                     || (i.SceneName?.Contains(f, StringComparison.OrdinalIgnoreCase) ?? false)
-                    || (i.SpeakerName?.Contains(f, StringComparison.OrdinalIgnoreCase) ?? false)))
-            .ToList();
-        if (keep != null && Items.Contains(keep)) SelectedItem = keep;
+                    || (i.SpeakerName?.Contains(f, StringComparison.OrdinalIgnoreCase) ?? false)))];
+        if (keep != null && Items.Contains(keep))
+        {
+            SelectedItem = keep;
+        }
     }
 
     partial void OnSelectedItemChanged(MediaItem value)
@@ -210,8 +215,16 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
                     var v = MediaLibrary.LoadVideo(item);
                     return (v, MMUCS.Core.Smush.SmushAudio.Decode(v));
                 });
-                if (generation != _loadGeneration) return;
-                if (sound != null) _videoSound = new PcmSource(sound.Pcm, sound.SampleRate, sound.Channels);
+                if (generation != _loadGeneration)
+                {
+                    return;
+                }
+
+                if (sound != null)
+                {
+                    _videoSound = new PcmSource(sound.Pcm, sound.SampleRate, sound.Channels);
+                }
+
                 _video = new SmushPlayer(video);
                 _rgba = new byte[video.Width * video.Height * 4];
                 Duration = _video.Duration.TotalSeconds;
@@ -228,7 +241,11 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
             else
             {
                 var sound = await Task.Run(() => MediaLibrary.LoadSound(item));
-                if (generation != _loadGeneration) return;
+                if (generation != _loadGeneration)
+                {
+                    return;
+                }
+
                 _player = new ImusPlayer(sound);
                 _player.EventRaised += e => _pendingEvents.Enqueue(e);
                 Sound = sound;
@@ -248,7 +265,10 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            if (generation == _loadGeneration) IsLoading = false;
+            if (generation == _loadGeneration)
+            {
+                IsLoading = false;
+            }
         }
     }
 
@@ -278,13 +298,21 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         {
             if (_player.Finished) { _player.Restart(); _voice = _engine.Mixer.Play(_player, _group); IsPlaying = true; return; }
             IsPlaying = !IsPlaying;
-            if (_voice != null) _voice.Paused = !IsPlaying;
+            _voice?.Paused = !IsPlaying;
         }
         else if (_video != null)
         {
             if (!IsPlaying && _clock.Position >= _video.Duration) { _clock.Seek(TimeSpan.Zero); _videoSound?.Seek(0); }
             IsPlaying = !IsPlaying;
-            if (IsPlaying) _clock.Play(); else _clock.Pause();
+            if (IsPlaying)
+            {
+                _clock.Play();
+            }
+            else
+            {
+                _clock.Pause();
+            }
+
             SetVideoSound(IsPlaying);
         }
     }
@@ -294,7 +322,8 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     {
         if (_player != null)
         {
-            if (_voice != null) _voice.Paused = true;
+            _voice?.Paused = true;
+
             _player.Restart();
             if (_voice == null || _voice.Finished) { _voice = _engine.Mixer.Play(_player, _group); _voice.Paused = true; }
             Events.Clear();
@@ -315,7 +344,11 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void SetHook()
     {
-        if (_player == null) return;
+        if (_player == null)
+        {
+            return;
+        }
+
         _player.Hook = Hook;
         AddEvent($"hook set to {Hook}");
     }
@@ -324,7 +357,11 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ExitLoop()
     {
-        if (_player == null) return;
+        if (_player == null)
+        {
+            return;
+        }
+
         _player.Hook = ImusPlayer.ExitLoopHook;
         AddEvent("hook set to 128 (leave the loop)");
     }
@@ -332,14 +369,21 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     /// <summary>Seeks the audio to a frame (from the timeline).</summary>
     public void SeekSound(long frame)
     {
-        if (_player == null) return;
+        if (_player == null)
+        {
+            return;
+        }
+
         if (_player.Finished && _voice != null && _voice.Finished)
         {
             _player.Restart();
             _voice = _engine.Mixer.Play(_player, _group);
             _voice.Paused = !IsPlaying;
         }
-        if (!_player.Seek(frame)) AddEvent($"frame {frame} isn't in a region");
+        if (!_player.Seek(frame))
+        {
+            AddEvent($"frame {frame} isn't in a region");
+        }
     }
 
     partial void OnPositionChanged(double value)
@@ -359,7 +403,11 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     /// <summary>Follows playback: called by the view on every animation tick.</summary>
     public void Tick()
     {
-        while (_pendingEvents.TryDequeue(out var e)) AddEvent(Describe(e));
+        while (_pendingEvents.TryDequeue(out var e))
+        {
+            AddEvent(Describe(e));
+        }
+
         if (_player != null)
         {
             HookText = $"Track hook: {_player.Hook}";
@@ -368,7 +416,10 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
             long heard = Math.Max(0, _player.Frame - (IsPlaying ? lag : 0));
             SoundFrame = heard;
             SetPosition(heard / (double)_player.SampleRate);
-            if (_player.Finished && IsPlaying && (_voice == null || _voice.Finished)) IsPlaying = false;
+            if (_player.Finished && IsPlaying && (_voice == null || _voice.Finished))
+            {
+                IsPlaying = false;
+            }
         }
         else if (_video != null)
         {
@@ -387,7 +438,11 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
                 IsPlaying = false;
             }
             SetPosition(Math.Min(t.TotalSeconds, Duration));
-            if (IsPlaying) _wantedFrame = _video.FrameAt(t);
+            if (IsPlaying)
+            {
+                _wantedFrame = _video.FrameAt(t);
+            }
+
             DecodeWanted();
         }
     }
@@ -395,9 +450,16 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     /// <summary>Plays or pauses the cutscene's sound, adding it to the mixer again if it had played to its end.</summary>
     private void SetVideoSound(bool playing)
     {
-        if (_videoSound == null) return;
+        if (_videoSound == null)
+        {
+            return;
+        }
+
         if (_videoVoice == null || (_videoVoice.Finished && !_videoSound.Ended))
+        {
             _videoVoice = _engine.Mixer.Play(_videoSound, MixGroup.Video);
+        }
+
         _videoVoice.Paused = !playing;
     }
 
@@ -414,9 +476,17 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     /// </summary>
     private async void DecodeWanted()
     {
-        if (_decodingBusy) return;
+        if (_decodingBusy)
+        {
+            return;
+        }
+
         var video = _video;
-        if (video == null) return;
+        if (video == null)
+        {
+            return;
+        }
+
         _decodingBusy = true;
         try
         {
@@ -432,7 +502,11 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
                     return SKImage.FromPixelCopy(info, rgba, video.Video.Width * 4);
                 });
                 // Frames aren't disposed here: the render thread may still be drawing the previous one.
-                if (_video != video) return;
+                if (_video != video)
+                {
+                    return;
+                }
+
                 Frame = image;
                 _shownFrame = index;
                 FrameText = $"frame {video.CurrentIndex + 1} / {video.FrameCount}  ·  {Format(video.CurrentIndex / video.FrameRate)}";
@@ -479,7 +553,10 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     private void AddEvent(string text)
     {
         Events.Insert(0, text);
-        while (Events.Count > MaxEvents) Events.RemoveAt(Events.Count - 1);
+        while (Events.Count > MaxEvents)
+        {
+            Events.RemoveAt(Events.Count - 1);
+        }
     }
 
     public void Dispose()

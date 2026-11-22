@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace MMUCS.Core.Scumm;
 
@@ -38,7 +39,7 @@ public sealed class RoomActor
     /// in room 0, then back): the costume draws them meanwhile (barber's costume 122 draws Bill getting up,
     /// so the script removes Bill's actor and puts it back after).
     /// </summary>
-    public IReadOnlyList<int> Removes { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<int> Removes { get; init; } = [];
     /// <summary>
     /// The y it's drawn in order of: <see cref="Y"/>, as the engine sorts, except that a costume is drawn in
     /// front of the actors it <see cref="Removes"/>. The two only share the screen for the moment before the
@@ -115,9 +116,9 @@ public sealed class RoomActor
         get
         {
             if (!CanDraw) return null;
-            var b = Frame.Bounds;
+            var (Left, Top, Right, Bottom) = Frame.Bounds;
             float f = ScaleFactor;
-            return ((int)(b.Left * f) + X, (int)(b.Top * f) + DrawY, (int)Math.Ceiling(b.Right * f) + X, (int)Math.Ceiling(b.Bottom * f) + DrawY);
+            return ((int)(Left * f) + X, (int)(Top * f) + DrawY, (int)Math.Ceiling(Right * f) + X, (int)Math.Ceiling(Bottom * f) + DrawY);
         }
     }
 
@@ -128,7 +129,10 @@ public sealed class RoomActor
         : Character != null && Object == null ? $"costume {Costume}  ({ActorText}, {Character.Name})"
         : $"costume {Costume}  ({ActorText})";
 
-    public override string ToString() => HasPosition ? $"{Label} at {X},{Y}{(Elevation != 0 ? $" elevation {Elevation}" : "")}" : Label;
+    public override string ToString()
+    {
+        return HasPosition ? $"{Label} at {X},{Y}{(Elevation != 0 ? $" elevation {Elevation}" : "")}" : Label;
+    }
 }
 
 /// <summary>
@@ -138,7 +142,7 @@ public sealed class RoomActor
 /// costume numbers through the index's DCOS directory, and pairs each actor with the hotspot its
 /// frame covers. Manual links (room / object name → costume) override the matching.
 /// </summary>
-public static class RoomActors
+public static partial class RoomActors
 {
     private const byte OpPushWord = 0x01, OpPushVar = 0x02, OpPutActorAtXY = 0xA1, OpAnimateActor = 0xA4, OpActorOps = 0xAC;
     private const byte SubSetCostume = 0x64, SubDefault = 0x6D, SubElevation = 0x6E, SubScale = 0x73, SubNeverZClip = 0x74,
@@ -177,15 +181,17 @@ public static class RoomActors
 
     private static (int Clip, bool Ignore) FoldClip(List<(int Pos, int Actor, int? Clip, bool? Ignore)> ops, int actor, int after, int before, (int Clip, bool Ignore) state)
     {
-        foreach (var op in ops)
-            if (op.Actor == actor && op.Pos > after && op.Pos < before)
-                state = (op.Clip ?? state.Clip, op.Ignore ?? state.Ignore);
+        foreach (var (Pos, Actor, Clip, Ignore) in ops)
+            if (Actor == actor && Pos > after && Pos < before)
+                state = (Clip ?? state.Clip, Ignore ?? state.Ignore);
         return state;
     }
 
     /// <summary>The mask of a walkbox (0 when the room has no such box), as ScummVM's getMaskFromBox.</summary>
-    private static int MaskOf(RoomModel room, int box) =>
-        box >= 0 && box < room.Walkboxes.Count ? (int)(room.Walkboxes[box].Mask & 0xFF) : 0;
+    private static int MaskOf(RoomModel room, int box)
+    {
+        return box >= 0 && box < room.Walkboxes.Count ? (int)(room.Walkboxes[box].Mask & 0xFF) : 0;
+    }
 
     private const uint BoxPlayerOnly = 0x20, BoxInvisible = 0x80;
 
@@ -228,12 +234,16 @@ public static class RoomActors
         return abr;
     }
 
-    private static bool QuickReject(BoxPoint[] q, int x, int y, int t) =>
-        q.All(p => x - t > p.X) || q.All(p => x + t < p.X) || q.All(p => y - t > p.Y) || q.All(p => y + t < p.Y);
+    private static bool QuickReject(BoxPoint[] q, int x, int y, int t)
+    {
+        return q.All(p => x - t > p.X) || q.All(p => x + t < p.X) || q.All(p => y - t > p.Y) || q.All(p => y + t < p.Y);
+    }
 
     /// <summary>ScummVM's compareSlope: p3 is on or to one side of the line p1 → p2.</summary>
-    private static bool Slope(BoxPoint p1, BoxPoint p2, BoxPoint p3) =>
-        (long)(p2.Y - p1.Y) * (p3.X - p1.X) <= (long)(p3.Y - p1.Y) * (p2.X - p1.X);
+    private static bool Slope(BoxPoint p1, BoxPoint p2, BoxPoint p3)
+    {
+        return (long)(p2.Y - p1.Y) * (p3.X - p1.X) <= (long)(p3.Y - p1.Y) * (p2.X - p1.X);
+    }
 
     /// <summary>ScummVM's checkXYInBoxBounds for v7+ (corners UL, UR, LR, LL), including its line-box case.</summary>
     public static bool InBox(BoxPoint[] q, int x, int y)
@@ -324,13 +334,13 @@ public static class RoomActors
     }
 
     private static readonly object Sync = new();
-    private static readonly ConditionalWeakTable<ScummBlock, CostumeDirectory> Directories = new();
-    private static readonly ConditionalWeakTable<ScummBlock, List<RoomActor>> Analyses = new();
-    private static readonly ConditionalWeakTable<ScummBlock, StrongBox<int>> Players = new();
+    private static readonly ConditionalWeakTable<ScummBlock, CostumeDirectory> Directories = [];
+    private static readonly ConditionalWeakTable<ScummBlock, List<RoomActor>> Analyses = [];
+    private static readonly ConditionalWeakTable<ScummBlock, StrongBox<int>> Players = [];
     /// <summary>AKOS block → name of the object it belongs to (filled as rooms are analysed).</summary>
-    private static readonly ConditionalWeakTable<ScummBlock, string> AkosObjectNames = new();
+    private static readonly ConditionalWeakTable<ScummBlock, string> AkosObjectNames = [];
 
-    private static Dictionary<string, int> _links = new();
+    private static Dictionary<string, int> _links = [];
 
     /// <summary>
     /// Manual links, keyed by <see cref="LinkKey"/>: a costume number, or 0 for "no costume"
@@ -344,13 +354,16 @@ public static class RoomActors
         {
             lock (Sync)
             {
-                _links = value ?? new();
+                _links = value ?? [];
                 Analyses.Clear();
             }
         }
     }
 
-    public static string LinkKey(int roomNo, string objectName) => $"{roomNo}/{objectName}";
+    public static string LinkKey(int roomNo, string objectName)
+    {
+        return $"{roomNo}/{objectName}";
+    }
 
     /// <summary>Links an object to a costume (0 = none), or back to automatic matching (null).</summary>
     public static void SetLink(RoomModel room, RoomObject obj, int? costume)
@@ -373,9 +386,9 @@ public static class RoomActors
     /// <summary>Costume number → AKOS block, from the index file's DCOS.</summary>
     private sealed class CostumeDirectory
     {
-        private readonly Dictionary<int, (int Room, uint Offset)> _entries = new();
-        private readonly Dictionary<int, ScummBlock> _lflfByRoom = new();
-        private readonly Dictionary<(int Room, long Offset), int> _byLocation = new();
+        private readonly Dictionary<int, (int Room, uint Offset)> _entries = [];
+        private readonly Dictionary<int, ScummBlock> _lflfByRoom = [];
+        private readonly Dictionary<(int Room, long Offset), int> _byLocation = [];
 
         public CostumeDirectory(ScummBlock root)
         {
@@ -441,7 +454,7 @@ public static class RoomActors
         return b;
     }
 
-    private static readonly ConditionalWeakTable<ScummBlock, Dictionary<int, IReadOnlyList<ParamCostume>>> Dressers = new();
+    private static readonly ConditionalWeakTable<ScummBlock, Dictionary<int, IReadOnlyList<ParamCostume>>> Dressers = [];
 
     /// <summary>Global script number → the costumes it dresses its parameters in, for every such script in the game.</summary>
     private static Dictionary<int, IReadOnlyList<ParamCostume>> DressersFor(ScummBlock any)
@@ -466,7 +479,10 @@ public static class RoomActors
         lock (Sync) return Directories.GetValue(Root(b), r => new CostumeDirectory(r));
     }
 
-    private static bool IsScriptTag(uint tag) => tag is ScummTag.LSCR or ScummTag.ENCD or ScummTag.EXCD or ScummTag.SCRP or ScummTag.VERB;
+    private static bool IsScriptTag(uint tag)
+    {
+        return tag is ScummTag.LSCR or ScummTag.ENCD or ScummTag.EXCD or ScummTag.SCRP or ScummTag.VERB;
+    }
 
     /// <summary>
     /// The player's actor: the one the scripts dress in costumes in the most rooms (Guybrush, actor 1,
@@ -485,8 +501,8 @@ public static class RoomActors
             var actors = new HashSet<int>();
             foreach (var script in Walk(lflf, 4))
                 if (IsScriptTag(script.Tag))
-                    foreach (var c in CostumeSets(script.DataSpan))
-                        if (c.Actor > 0) actors.Add(c.Actor);
+                    foreach (var (Pos, Actor, Costume) in CostumeSets(script.DataSpan))
+                        if (Actor > 0) actors.Add(Actor);
             foreach (int a in actors) rooms[a] = rooms.GetValueOrDefault(a) + 1;
         }
         var ranked = rooms.OrderByDescending(kv => kv.Value).ToList();
@@ -497,7 +513,10 @@ public static class RoomActors
     }
 
     /// <summary>The costume number of an AKOS block, from the index (null without an index).</summary>
-    public static int? CostumeNumber(ScummBlock akos) => akos?.Tag == ScummTag.AKOS ? DirectoryFor(akos).CostumeOf(akos) : null;
+    public static int? CostumeNumber(ScummBlock akos)
+    {
+        return akos?.Tag == ScummTag.AKOS ? DirectoryFor(akos).CostumeOf(akos) : null;
+    }
 
     /// <summary>The name of the object an AKOS belongs to, once its room has been analysed.</summary>
     public static string ObjectNameOf(ScummBlock akos)
@@ -527,7 +546,7 @@ public static class RoomActors
     public static List<RoomActor> Analyze(RoomModel room, AkosParser parser = null)
     {
         var lflf = room?.Lflf;
-        if (lflf == null) return new();
+        if (lflf == null) return [];
         lock (Sync)
             if (Analyses.TryGetValue(lflf, out var cached)) return cached;
 
@@ -538,7 +557,7 @@ public static class RoomActors
         (AkosData, AkosFrame) Load(ScummBlock akos)
         {
             if (data.TryGetValue(akos, out var v)) return v;
-            var d = parser.Parse(akos);
+            var d = AkosParser.Parse(akos);
             int chore = AkosFrames.FindDefaultChore(d);
             var f = chore >= 0 ? AkosFrames.ComposeAfterInit(d, chore) : null;
             return data[akos] = (d, f is { IsEmpty: false } ? f : null);
@@ -559,15 +578,15 @@ public static class RoomActors
         var roomAnims = new Dictionary<int, List<int>>();
         foreach (var b in scripts)
             foreach (var (_, actor, anim) in Animations(b.DataSpan))
-                if (anim is >= 0 and < 1000) (roomAnims.TryGetValue(actor, out var l) ? l : roomAnims[actor] = new()).Add(anim);
+                if (anim is >= 0 and < 1000) (roomAnims.TryGetValue(actor, out var l) ? l : roomAnims[actor] = []).Add(anim);
         var wears = scans.SelectMany(x => x).GroupBy(x => x.Actor).ToDictionary(g => g.Key, g => g.Select(x => x.Costume).Distinct().Count());
         // Every actor a script dresses in each costume, placed or not.
         var wearers = new Dictionary<int, List<int>>();
         foreach (var b in scripts)
-            foreach (var c in CostumeSets(b.DataSpan).Where(c => c.Actor > 0))
+            foreach (var (Pos, Actor, Costume) in CostumeSets(b.DataSpan).Where(c => c.Actor > 0))
             {
-                var list = wearers.TryGetValue(c.Costume, out var l) ? l : wearers[c.Costume] = new();
-                if (!list.Contains(c.Actor)) list.Add(c.Actor);
+                var list = wearers.TryGetValue(Costume, out var l) ? l : wearers[Costume] = [];
+                if (!list.Contains(Actor)) list.Add(Actor);
             }
 
         var placed = new List<RoomActor>();
@@ -658,7 +677,7 @@ public static class RoomActors
                 // works it out again at every draw (setupActorScale). Only ignoring the boxes keeps it.
                 Data = d, Frame = f, Mirrored = AkosFrames.IsMirrored(d, dir), IsPlayer = actor == player, DressedBy = via, SortY = y,
                 Scale = box > 0 ? Walkboxes.ScaleAt(room.Walkboxes, room.ScaleSlots, box, x, y) : scale,
-                Removes = removes ?? Array.Empty<int>(),
+                Removes = removes ?? [],
                 When = earliest.GetValueOrDefault(Key(actor, costume, sx, sy)),
                 FirstVisit = firstVisit.Contains(Key(actor, costume, sx, sy)),
                 Passing = !stays.Contains(Key(actor, costume, sx, sy)),
@@ -678,7 +697,7 @@ public static class RoomActors
         // Image-less hotspots, except exits: a room's doors are walk-through areas, never a costume
         // (full-room overlays such as waterlines overlap them by chance).
         var candidates = room.Objects.Where(o => o.ImageCount == 0 && !IsExit(o)).ToList();
-        MatchObjects(placed.Where(p => !p.IsPlayer).ToList(), candidates, a => a.RoomBounds);
+        MatchObjects([.. placed.Where(p => !p.IsPlayer)], candidates, a => a.RoomBounds);
 
         // Spots: an actor kept in a variable is a different actor at each spot it's put (the fortbase
         // chickens), and an actor dressed by a call may get one of several costumes (script 88 picks one
@@ -699,8 +718,8 @@ public static class RoomActors
         // Costumes a script called from this room may dress an actor in, for those placed nowhere.
         var offeredBy = new Dictionary<int, int>();
         foreach (var b in scripts)
-            foreach (var call in DressingCalls(b.DataSpan, Dresser))
-                offeredBy.TryAdd(call.Costume.Costume, call.Script);
+            foreach (var (Pos, Script, Actor, Costume, Scale) in DressingCalls(b.DataSpan, Dresser))
+                offeredBy.TryAdd(Costume.Costume, Script);
 
         // One entry per AKOS: its matched placements, else its first placement, else an unplaced entry;
         // plus the spots where an actor in a variable wears it.
@@ -826,10 +845,16 @@ public static class RoomActors
         return true;
     }
 
-    internal static bool Const(ReadOnlySpan<byte> s, int end, out int v) => Const(s, end, out v, out _);
+    internal static bool Const(ReadOnlySpan<byte> s, int end, out int v)
+    {
+        return Const(s, end, out v, out _);
+    }
 
     /// <summary>A variable as an actor key: always negative, so it can't meet a literal actor number.</summary>
-    private static int VarKey(int var) => int.MinValue + (var & 0x7FFFFFFF);
+    private static int VarKey(int var)
+    {
+        return int.MinValue + (var & 0x7FFFFFFF);
+    }
 
     private const int LocalVar = 0x40000000;
 
@@ -852,7 +877,10 @@ public static class RoomActors
         return false;
     }
 
-    private static bool ActorArg(ReadOnlySpan<byte> s, int end, out int key) => ActorArg(s, end, out key, out _);
+    private static bool ActorArg(ReadOnlySpan<byte> s, int end, out int key)
+    {
+        return ActorArg(s, end, out key, out _);
+    }
 
     /// <summary>
     /// What a script does to the actor passed in one of its parameters: the costumes it may dress it in,
@@ -956,29 +984,29 @@ public static class RoomActors
         }
         var anims = Animations(s);
         var clips = ClipOps(s);
-        foreach (var c in sets)
+        foreach (var (Pos, Actor, Costume) in sets)
         {
-            if (c.Actor >= 0) continue;
-            int var = c.Actor - int.MinValue;
+            if (Actor >= 0) continue;
+            int var = Actor - int.MinValue;
             if ((var & LocalVar) == 0) continue;           // a global variable, not a parameter
             int param = var & ~LocalVar;
             if (param > 15) continue;
             // The script branches between costumes, so the facing is the last one set before this costume
             // and the animation the first one played after it, whichever branch they're in.
-            int dir = faces.Where(f => f.Actor == c.Actor && f.Pos < c.Pos).Select(f => f.Dir).DefaultIfEmpty(180).Last();
-            int anim = anims.Where(x => x.Actor == c.Actor && x.Pos > c.Pos && x.Anim is >= 0 and < 1000).Select(x => x.Anim).DefaultIfEmpty(-1).First();
-            var guard = Guard(s, c.Pos);
+            int dir = faces.Where(f => f.Actor == Actor && f.Pos < Pos).Select(f => f.Dir).DefaultIfEmpty(180).Last();
+            int anim = anims.Where(x => x.Actor == Actor && x.Pos > Pos && x.Anim is >= 0 and < 1000).Select(x => x.Anim).DefaultIfEmpty(-1).First();
+            var guard = Guard(s, Pos);
             // The first scale set on it after the costume, whichever branch it's in.
             int scale = -1, scaleParam = -1;
-            if (scales.FirstOrDefault(x => x.Actor == c.Actor && x.Pos > c.Pos) is { Pos: > 0 } sc)
+            if (scales.FirstOrDefault(x => x.Actor == Actor && x.Pos > Pos) is { Pos: > 0 } sc)
             {
                 if (sc.IsConst) scale = sc.Value;
                 else if (((sc.Value - int.MinValue) & LocalVar) != 0) scaleParam = (sc.Value - int.MinValue) & ~LocalVar;
             }
             // Its clip after the whole setup, whichever branch each op is in.
-            var (clip, ignore) = FoldClip(clips, c.Actor, -1, int.MaxValue, (ClipByBox, false));
-            if (!result.Any(r => r.Param == param && r.Costume == c.Costume))
-                result.Add(new ParamCostume(param, c.Costume, anim, dir, guard?.Param ?? -1, guard?.WhenTrue ?? false, scale, scaleParam, clip, ignore));
+            var (clip, ignore) = FoldClip(clips, Actor, -1, int.MaxValue, (ClipByBox, false));
+            if (!result.Any(r => r.Param == param && r.Costume == Costume))
+                result.Add(new ParamCostume(param, Costume, anim, dir, guard?.Param ?? -1, guard?.WhenTrue ?? false, scale, scaleParam, clip, ignore));
         }
         return result;
     }
@@ -1111,65 +1139,65 @@ public static class RoomActors
 
         var pairs = new List<Placement>();
         var code = s.ToArray();
-        foreach (var c in costumes)
+        foreach (var (Pos, Actor, Costume, Anim, Dir, Via, Scale, Clip) in costumes)
         {
             // Code on this costume's path: not on a branch a goto after it jumps over.
-            bool OnPath(int pos) => !JumpedOver(code, c.Pos, pos);
+            bool OnPath(int pos) => !JumpedOver(code, Pos, pos);
             // Until the actor's next costume change in this script (a call offering several costumes
             // changes it once). A change on a sibling branch doesn't end it: "if … { costume 166; goto L }
             // else { costume 12 }  L: scale 140; put-actor" scales and places both (voodoo-e's skull).
             int until = int.MaxValue, untilCostume = -1;
             foreach (var o in costumes)
-                if (o.Actor == c.Actor && o.Pos > c.Pos && o.Pos < until && !JumpedOver(s, c.Pos, o.Pos)) (until, untilCostume) = (o.Pos, o.Costume);
+                if (o.Actor == Actor && o.Pos > Pos && o.Pos < until && !JumpedOver(s, Pos, o.Pos)) (until, untilCostume) = (o.Pos, o.Costume);
             // The same costume set again before the actor is put: that later set is the one the put wears
             // (brbr-int's Rottingham: costume 124, always-zclip 2, costume 124, ignore-boxes, put, then
             // always-zclip 2 again; read from the first, the window ends before the last z-clip).
-            if (untilCostume == c.Costume && !places.Any(pl => pl.Actor == c.Actor && pl.Pos > c.Pos && pl.Pos < until)) continue;
+            if (untilCostume == Costume && !places.Any(pl => pl.Actor == Actor && pl.Pos > Pos && pl.Pos < until)) continue;
             // Set again after the put, it's still the same picture: its z-clip keeps changing until another
             // costume (armsdlr's Kenny: costume 251, ignore-boxes, put, … costume 251, always-zclip 2).
-            int clipUntil = untilCostume != c.Costume ? until
-                : costumes.Where(o => o.Actor == c.Actor && o.Pos > until && o.Costume != c.Costume && !JumpedOver(code, c.Pos, o.Pos))
+            int clipUntil = untilCostume != Costume ? until
+                : costumes.Where(o => o.Actor == Actor && o.Pos > until && o.Costume != Costume && !JumpedOver(code, Pos, o.Pos))
                           .Select(o => o.Pos).DefaultIfEmpty(int.MaxValue).Min();
             // Below 1000 an animation number is a chore; 1000 and up are turn/stop commands.
-            var onPath = anims.Where(a => a.Actor == c.Actor && a.Pos > c.Pos && a.Pos < until && OnPath(a.Pos) && a.Anim is >= 0 and < 1000).ToList();
-            int anim = c.Anim ?? onPath.Select(a => a.Anim).DefaultIfEmpty(-1).First();
+            var onPath = anims.Where(a => a.Actor == Actor && a.Pos > Pos && a.Pos < until && OnPath(a.Pos) && a.Anim is >= 0 and < 1000).ToList();
+            int anim = Anim ?? onPath.Select(a => a.Anim).DefaultIfEmpty(-1).First();
             // That animation first, then the ones in else parts it skips ("if (bit168) { … do-animation 12 7 }
             // else { do-animation 12 3 }" in cannon): when a fresh game skips the first, the room takes the
             // next it reaches.
-            var animChoices = c.Anim != null || onPath.Count == 0 ? null
-                : onPath.Take(1).Concat(anims.Where(a => a.Actor == c.Actor && a.Pos > onPath[0].Pos && a.Pos < until && a.Anim is >= 0 and < 1000
-                                                          && !OnPath(a.Pos) && !JumpedOver(code, c.Pos, a.Pos, elseParts: true)))
+            var animChoices = Anim != null || onPath.Count == 0 ? null
+                : onPath.Take(1).Concat(anims.Where(a => a.Actor == Actor && a.Pos > onPath[0].Pos && a.Pos < until && a.Anim is >= 0 and < 1000
+                                                          && !OnPath(a.Pos) && !JumpedOver(code, Pos, a.Pos, elseParts: true)))
                         .Select(a => (a.Pos, a.Anim)).ToArray();
             // A costume change keeps the actor's facing and scale; only "actor A default" resets them (to
             // 180 and 255). So what this script set before the costume, on the way to it, still holds:
             // quiksand's chicken, dressed by script 88 at scale 160, then face 270, then costume 185.
-            bool Before(int pos) => pos < c.Pos && !JumpedOver(code, pos, c.Pos);
-            int since = defaults.Where(d => d.Actor == c.Actor && Before(d.Pos)).Select(d => d.Pos).DefaultIfEmpty(-1).Max();
+            bool Before(int pos) => pos < Pos && !JumpedOver(code, pos, Pos);
+            int since = defaults.Where(d => d.Actor == Actor && Before(d.Pos)).Select(d => d.Pos).DefaultIfEmpty(-1).Max();
             bool Inherits(int pos) => pos > since && Before(pos);
-            var dressedBefore = c.Via < 0
-                ? costumes.Where(o => o.Actor == c.Actor && o.Via >= 0 && Inherits(o.Pos)).ToList()
-                : new();
+            var dressedBefore = Via < 0
+                ? costumes.Where(o => o.Actor == Actor && o.Via >= 0 && Inherits(o.Pos)).ToList()
+                : [];
             int lastDress = dressedBefore.Select(o => o.Pos).DefaultIfEmpty(-1).Max();
             var dressAt = dressedBefore.Where(o => o.Pos == lastDress).ToList();
-            int? priorDir = faces.Where(f => f.Actor == c.Actor && f.Pos > lastDress && Inherits(f.Pos)).Select(f => (int?)f.Dir).LastOrDefault()
+            int? priorDir = faces.Where(f => f.Actor == Actor && f.Pos > lastDress && Inherits(f.Pos)).Select(f => (int?)f.Dir).LastOrDefault()
                             ?? (dressAt.Select(o => o.Dir).Distinct().Count() == 1 ? dressAt[0].Dir : null);
-            int? priorScale = scales.Where(e => e.Actor == c.Actor && e.Pos > lastDress && Inherits(e.Pos)).Select(e => (int?)e.Scale).LastOrDefault()
+            int? priorScale = scales.Where(e => e.Actor == Actor && e.Pos > lastDress && Inherits(e.Pos)).Select(e => (int?)e.Scale).LastOrDefault()
                               ?? dressAt.Select(o => o.Scale).FirstOrDefault(x => x != null);
-            int dir = c.Dir ?? faces.Where(f => f.Actor == c.Actor && f.Pos > c.Pos && f.Pos < until && OnPath(f.Pos)).Select(f => (int?)f.Dir)
+            int dir = Dir ?? faces.Where(f => f.Actor == Actor && f.Pos > Pos && f.Pos < until && OnPath(f.Pos)).Select(f => (int?)f.Dir)
                 .FirstOrDefault() ?? priorDir ?? 180;
 
             // The first placement of the actor while it wears this costume (after the costume is set,
             // before its next change); otherwise, for an actor number, the nearest one, preferring
             // those after. A variable holds different actors at different times, so it needs the former.
             (int Pos, int Actor, int X, int Y)? best = places
-                .Where(pl => pl.Actor == c.Actor && pl.Pos > c.Pos && pl.Pos < until && OnPath(pl.Pos))
+                .Where(pl => pl.Actor == Actor && pl.Pos > Pos && pl.Pos < until && OnPath(pl.Pos))
                 .Select(pl => ((int, int, int, int)?)pl).FirstOrDefault();
             int bestDist = int.MaxValue;
-            if (best == null && c.Actor > 0)
+            if (best == null && Actor > 0)
                 foreach (var pl in places)
                 {
-                    if (pl.Actor != c.Actor) continue;
-                    int dist = pl.Pos >= c.Pos ? pl.Pos - c.Pos : (c.Pos - pl.Pos) * 2;
+                    if (pl.Actor != Actor) continue;
+                    int dist = pl.Pos >= Pos ? pl.Pos - Pos : (Pos - pl.Pos) * 2;
                     if (dist < bestDist) { bestDist = dist; best = pl; }
                 }
             if (best is { } b)
@@ -1180,14 +1208,14 @@ public static class RoomActors
                 // Only a re-placement right after an elevation is that idiom; others are steps of a scene that
                 // plays later (clifface's Guybrush climbs with y-of(1) + 33).
                 int nextPlace = places.Select(pl => (pl.Pos, pl.Actor)).Concat(elsewhere)
-                    .Where(pl => pl.Actor == c.Actor && pl.Pos > b.Pos).Select(pl => pl.Pos).DefaultIfEmpty(int.MaxValue).Min();
+                    .Where(pl => pl.Actor == Actor && pl.Pos > b.Pos).Select(pl => pl.Pos).DefaultIfEmpty(int.MaxValue).Min();
                 var followUps = new List<(int Pos, int Actor, int Dx, int Dy)>();
-                if (b.Pos > c.Pos)
+                if (b.Pos > Pos)
                 {
                     int prev = b.Pos;
-                    foreach (var m in moves.Where(m => m.Actor == c.Actor && m.Pos > b.Pos && m.Pos < Math.Min(until, nextPlace)))
+                    foreach (var m in moves.Where(m => m.Actor == Actor && m.Pos > b.Pos && m.Pos < Math.Min(until, nextPlace)))
                     {
-                        if (!elevations.Any(e => e.Actor == c.Actor && e.Pos > prev && e.Pos < m.Pos)) break;
+                        if (!elevations.Any(e => e.Actor == Actor && e.Pos > prev && e.Pos < m.Pos)) break;
                         followUps.Add(m);
                         prev = m.Pos;
                     }
@@ -1197,14 +1225,14 @@ public static class RoomActors
                 // Only an elevation set while it wears this costume, before this placement, moves the
                 // picture. The common "elevation E, then put-actor at x-of(a), y-of(a) + E" re-places the
                 // actor after the literal placement so it's drawn where it was (only its depth changes).
-                bool inWindow = b.Pos > c.Pos && b.Pos < until;
-                int elevation = !inWindow ? 0 : elevations.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < lastPut && OnPath(e.Pos))
+                bool inWindow = b.Pos > Pos && b.Pos < until;
+                int elevation = !inWindow ? 0 : elevations.Where(e => e.Actor == Actor && e.Pos > Pos && e.Pos < lastPut && OnPath(e.Pos))
                                                           .Select(e => e.Elevation).DefaultIfEmpty(0).Last();
                 // Scale the same way: set while it wears this costume, before this placement; or what the
                 // call that dressed it passes.
-                int scale = !inWindow ? c.Scale ?? priorScale ?? 255
-                    : scales.Where(e => e.Actor == c.Actor && e.Pos > c.Pos && e.Pos < b.Pos && OnPath(e.Pos))
-                            .Select(e => e.Scale).DefaultIfEmpty(c.Scale ?? priorScale ?? 255).Last();
+                int scale = !inWindow ? Scale ?? priorScale ?? 255
+                    : scales.Where(e => e.Actor == Actor && e.Pos > Pos && e.Pos < b.Pos && OnPath(e.Pos))
+                            .Select(e => e.Scale).DefaultIfEmpty(Scale ?? priorScale ?? 255).Last();
                 // The z-clip it's drawn with: what this script sets on it until its next costume (it applies
                 // whenever it's drawn, so after the placement too). A dressing call starts from what the
                 // callee set up; otherwise from the start of the script, from the engine's default.
@@ -1213,36 +1241,36 @@ public static class RoomActors
                 // 5, and follow-boxes comes at the end).
                 // A put after the costume counts even past another costume set on a sibling branch
                 // (barber's "if … costume 114 else costume 112", then always-zclip 3 and the put for both).
-                int putAt = b.Pos > c.Pos ? b.Pos : c.Pos;
+                int putAt = b.Pos > Pos ? b.Pos : Pos;
                 // Between the costume and the put, only what's on its path (not the sibling branch's default).
-                var path = clips.Where(op => op.Pos <= c.Pos || OnPath(op.Pos)).ToList();
-                var (clip, ignore) = c.Clip is { } start
-                    ? FoldClip(path, c.Actor, c.Pos, putAt, start)
-                    : FoldClip(path, c.Actor, -1, putAt, (ClipByBox, false));
-                (clip, ignore) = FoldClip(clips.Where(op => op.Ignore != false && !JumpedOver(code, putAt, op.Pos)).ToList(), c.Actor, putAt, clipUntil, (clip, ignore));
+                var path = clips.Where(op => op.Pos <= Pos || OnPath(op.Pos)).ToList();
+                var (clip, ignore) = Clip is { } start
+                    ? FoldClip(path, Actor, Pos, putAt, start)
+                    : FoldClip(path, Actor, -1, putAt, (ClipByBox, false));
+                (clip, ignore) = FoldClip([.. clips.Where(op => op.Ignore != false && !JumpedOver(code, putAt, op.Pos))], Actor, putAt, clipUntil, (clip, ignore));
                 // Whether it surely follows the boxes when it's put: then the engine moves it into one. Only
                 // what this script says counts (follow-boxes or default before the put); a room's setup
                 // script often sets ignore-boxes on an actor that a cutscene elsewhere puts at 0,0.
                 bool? ignoreAtPut = null;
                 foreach (var op in path)
-                    if (op.Actor == c.Actor && op.Pos < b.Pos && op.Ignore is bool ig) ignoreAtPut = ig;
-                if (c.Clip is { Ignore: true } && b.Pos > c.Pos
-                    && !clips.Any(op => op.Actor == c.Actor && op.Pos > c.Pos && op.Pos < b.Pos && op.Ignore != null))
+                    if (op.Actor == Actor && op.Pos < b.Pos && op.Ignore is bool ig) ignoreAtPut = ig;
+                if (Clip is { Ignore: true } && b.Pos > Pos
+                    && !clips.Any(op => op.Actor == Actor && op.Pos > Pos && op.Pos < b.Pos && op.Ignore != null))
                     ignoreAtPut = true;  // the dressing script set ignore-boxes (script 88)
                 // Other actors it takes out of the room for a while as this costume plays, putting them back
                 // before the actor's next costume: the costume draws them meanwhile (barber's 122 draws Bill
                 // getting up). Removals that aren't undone are a scene ending, not this.
-                var removes = b.Pos > c.Pos
-                    ? removals.Where(rm => rm.Actor != c.Actor && rm.Actor > 0 && rm.Pos > b.Pos && rm.Pos < until
+                var removes = b.Pos > Pos
+                    ? [.. removals.Where(rm => rm.Actor != Actor && rm.Actor > 0 && rm.Pos > b.Pos && rm.Pos < until
                                            && places.Any(pl => pl.Actor == rm.Actor && pl.Pos > rm.Pos && pl.Pos < until))
-                              .Select(rm => rm.Actor).Distinct().ToArray()
+                              .Select(rm => rm.Actor).Distinct()]
                     : Array.Empty<int>();
                 // Taken out of the room again by this script before its next costume, on the same path and
                 // not under a new condition: only there for a moment (an idle animation's extra layer).
-                bool passing = b.Pos > c.Pos && removals.Any(rm => rm.Actor == c.Actor && rm.Pos > lastPut && rm.Pos < until
+                bool passing = b.Pos > Pos && removals.Any(rm => rm.Actor == Actor && rm.Pos > lastPut && rm.Pos < until
                                                                   && OnPath(rm.Pos) && !Guarded(code, lastPut, rm.Pos));
-                pairs.Add(new Placement(c.Actor, c.Costume, b.X, b.Y, elevation, anim, dir, c.Via, scale, clip, ignore, ignoreAtPut == false, removes,
-                    c.Pos, b.Pos, passing, animChoices));
+                pairs.Add(new Placement(Actor, Costume, b.X, b.Y, elevation, anim, dir, Via, scale, clip, ignore, ignoreAtPut == false, removes,
+                    Pos, b.Pos, passing, animChoices));
             }
         }
         return pairs;
@@ -1260,7 +1288,7 @@ public static class RoomActors
         foreach (var p in placed)
         {
             if (done.Contains(p)) continue;
-            var layers = p.IsPlayer ? new List<RoomActor> { p } : placed
+            var layers = p.IsPlayer ? [p] : placed
                 .Where(o => !o.IsPlayer && scriptOf[o] == scriptOf[p] && ReferenceEquals(o.Akos, p.Akos) && o.X == p.X && o.DrawY == p.DrawY)
                 .ToList();
             foreach (var l in layers) done.Add(l);
@@ -1278,9 +1306,9 @@ public static class RoomActors
                 if (l.Frame != null) frame.Cels.AddRange(l.Frame.Cels);
             result.Add(new RoomActor
             {
-                Actor = p.Actor, Actors = layers.Select(l => l.Actor).Distinct().ToList(), Costume = p.Costume, Akos = p.Akos,
+                Actor = p.Actor, Actors = [.. layers.Select(l => l.Actor).Distinct()], Costume = p.Costume, Akos = p.Akos,
                 X = p.X, Y = p.Y, Elevation = p.Elevation, Scale = p.Scale, ZPlane = p.ZPlane, HasPosition = true, Data = p.Data, Frame = frame.IsEmpty ? null : frame, Mirrored = p.Mirrored,
-                SortY = p.SortY, Removes = layers.SelectMany(l => l.Removes).Distinct().ToList(),
+                SortY = p.SortY, Removes = [.. layers.SelectMany(l => l.Removes).Distinct()],
                 When = layers.Min(l => l.When), FirstVisit = layers.Any(l => l.FirstVisit), Passing = layers.All(l => l.Passing), StartsBlank = layers.All(l => l.StartsBlank),
             });
         }
@@ -1307,8 +1335,13 @@ public static class RoomActors
     }
 
     /// <summary>An exit hotspot: COMI names them "…-door" (optionally numbered: "town-plndrmap-door-1", "town-door-1a").</summary>
-    private static bool IsExit(RoomObject o) =>
-        o.Name != null && System.Text.RegularExpressions.Regex.IsMatch(o.Name, @"(^|-)door(-\d+[a-z]?)?$");
+    private static bool IsExit(RoomObject o)
+    {
+        return o.Name != null && ExitName().IsMatch(o.Name);
+    }
+
+    [GeneratedRegex(@"(^|-)door(-\d+[a-z]?)?$")]
+    private static partial Regex ExitName();
 
     /// <summary>The first frame of animation <paramref name="anim"/> facing <paramref name="degrees"/>, or null if it draws nothing.</summary>
     private static AkosFrame Animated(AkosData d, int anim, int degrees)

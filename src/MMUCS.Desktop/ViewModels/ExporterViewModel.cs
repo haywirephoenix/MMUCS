@@ -22,7 +22,7 @@ public sealed partial class StepItem(ExportStep step, string title) : Observable
 {
     public ExportStep Step { get; } = step;
     public string Title { get; } = title;
-    [ObservableProperty] private bool _isCurrent;
+    [ObservableProperty] public partial bool IsCurrent { get; set; }
 }
 
 /// <summary>
@@ -36,39 +36,39 @@ public sealed partial class ExporterViewModel : ObservableObject
     private readonly AppSettings _settings;
     private CancellationTokenSource _cts;
 
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private ExportStep _step;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportBackgrounds;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportObjects;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportCostumes;
-    [ObservableProperty] private bool _allBackgroundPalettes;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportScripts;
-    [ObservableProperty] private bool _scriptOffsets;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportRoomData;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportCutscenes;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportAudio;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private string _outputFolder;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] public partial ExportStep Step { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] public partial bool ExportBackgrounds { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] public partial bool ExportObjects { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] public partial bool ExportCostumes { get; set; }
+    [ObservableProperty] public partial bool AllBackgroundPalettes { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] public partial bool ExportScripts { get; set; }
+    [ObservableProperty] public partial bool ScriptOffsets { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] public partial bool ExportRoomData { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] public partial bool ExportCutscenes { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] public partial bool ExportAudio { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] public partial string OutputFolder { get; set; }
 
-    [ObservableProperty] private CostumeChoice _selectedCostume;
-    [ObservableProperty] private double _progressValue;
-    [ObservableProperty] private double _progressMaximum = 1;
-    [ObservableProperty] private string _progressText;
-    [ObservableProperty] private string _currentItem;
-    [ObservableProperty] private string _summaryText;
-    [ObservableProperty] private bool _hasFailures;
+    [ObservableProperty] public partial CostumeChoice SelectedCostume { get; set; }
+    [ObservableProperty] public partial double ProgressValue { get; set; }
+    [ObservableProperty] public partial double ProgressMaximum { get; set; } = 1;
+    [ObservableProperty] public partial string ProgressText { get; set; }
+    [ObservableProperty] public partial string CurrentItem { get; set; }
+    [ObservableProperty] public partial string SummaryText { get; set; }
+    [ObservableProperty] public partial bool HasFailures { get; set; }
 
     public string SurveyText { get; }
-    public IReadOnlyList<StepItem> Steps { get; } = new[]
-    {
+    public IReadOnlyList<StepItem> Steps { get; } =
+    [
         new StepItem(ExportStep.Start, "1  Content") { IsCurrent = true },
         new StepItem(ExportStep.Customize, "2  Costume shading"),
         new StepItem(ExportStep.Path, "3  Destination"),
         new StepItem(ExportStep.Process, "4  Export"),
         new StepItem(ExportStep.Complete, "5  Done"),
-    };
+    ];
 
     /// <summary>Costume preview reuses the viewer's model (shader options, palette, cel list).</summary>
     public AkosViewModel Preview { get; } = new();
-    public ObservableCollection<CostumeChoice> Costumes { get; } = new();
+    public ObservableCollection<CostumeChoice> Costumes { get; } = [];
 
     public ExporterViewModel(ScummBlock root, string gameFile, AppSettings settings)
     {
@@ -76,18 +76,18 @@ public sealed partial class ExporterViewModel : ObservableObject
         _gameFile = gameFile;
         _settings = settings;
 
-        _exportBackgrounds = settings.ExportBackgrounds;
-        _exportObjects = settings.ExportObjects;
-        _exportCostumes = settings.ExportCostumes;
-        _allBackgroundPalettes = settings.ExportAllBackgroundPalettes;
-        _exportScripts = settings.ExportScripts;
-        _scriptOffsets = settings.ExportScriptOffsets;
-        _exportRoomData = settings.ExportRoomData;
+        ExportBackgrounds = settings.ExportBackgrounds;
+        ExportObjects = settings.ExportObjects;
+        ExportCostumes = settings.ExportCostumes;
+        AllBackgroundPalettes = settings.ExportAllBackgroundPalettes;
+        ExportScripts = settings.ExportScripts;
+        ScriptOffsets = settings.ExportScriptOffsets;
+        ExportRoomData = settings.ExportRoomData;
         CutsceneCount = MMUCS.Core.Smush.SmushVideo.FindAll(gameFile).Count;
-        _exportCutscenes = settings.ExportCutscenes && CutsceneCount > 0;
+        ExportCutscenes = settings.ExportCutscenes && CutsceneCount > 0;
         BundleCount = MMUCS.Core.GameFiles.Find(gameFile, ".bun").Count;
-        _exportAudio = settings.ExportAudio && BundleCount > 0;
-        _outputFolder = settings.LastExportFolder;
+        ExportAudio = settings.ExportAudio && BundleCount > 0;
+        OutputFolder = settings.LastExportFolder;
 
         Preview.AlphaEnabled = settings.CelAlphaEnabled;
         Preview.ShadowColorEnabled = settings.CelShadowColorEnabled;
@@ -102,7 +102,9 @@ public sealed partial class ExporterViewModel : ObservableObject
             RoomModel.TryCreate(lflf, out var room);
             string roomLabel = room == null ? "?" : room.RoomNo > 0 ? $"{room.RoomNo}. {room.Name}" : $"@0x{room.Room.Offset:X8}";
             foreach (var akos in lflf.Children.Where(c => c.Tag == ScummTag.AKOS))
+            {
                 Costumes.Add(new CostumeChoice(akos, $"{roomLabel}  —  AKOS @0x{akos.Offset:X8}"));
+            }
         }
     }
 
@@ -153,7 +155,11 @@ public sealed partial class ExporterViewModel : ObservableObject
     [RelayCommand]
     private async Task NextAsync()
     {
-        if (!CanGoNext) return;
+        if (!CanGoNext)
+        {
+            return;
+        }
+
         switch (Step)
         {
             case ExportStep.Start:
@@ -227,7 +233,7 @@ public sealed partial class ExporterViewModel : ObservableObject
         });
 
         var summary = await Task.Run(() =>
-            new ScummExporters().ExportProjectAsync(_root, OutputFolder, options, progress, _cts.Token));
+            ScummExporters.ExportProjectAsync(_root, OutputFolder, options, progress, _cts.Token));
 
         HasFailures = summary.Failures > 0;
         string verb = summary.Cancelled ? "Cancelled after writing" : "Wrote";

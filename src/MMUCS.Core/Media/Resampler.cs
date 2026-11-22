@@ -7,26 +7,18 @@ namespace MMUCS.Core.Media;
 /// interpolation between neighbouring frames; at the same rate it passes samples through unchanged,
 /// so a mixer at the game's own 22,050 Hz reproduces the original exactly.
 /// </summary>
-public sealed class Resampler
+public sealed class Resampler(IAudioSource source, int outputRate)
 {
-    private readonly IAudioSource _source;
-    private readonly int _channels;
-    private readonly double _step;
-    private readonly bool _passThrough;
-    private float[] _in = new float[0];
+    private readonly IAudioSource _source = source;
+    private readonly int _channels = Math.Max(1, source.Channels);
+    private readonly double _step = (double)source.SampleRate / outputRate;
+    private readonly bool _passThrough = source.SampleRate == outputRate;
+    private float[] _in = [];
     private int _inFrames, _inPos;
     // The frame before the current input block, so interpolation runs across block edges.
     private float _prevL, _prevR, _curL, _curR;
     private double _frac;
     private bool _primed, _ended;
-
-    public Resampler(IAudioSource source, int outputRate)
-    {
-        _source = source;
-        _channels = Math.Max(1, source.Channels);
-        _step = (double)source.SampleRate / outputRate;
-        _passThrough = source.SampleRate == outputRate;
-    }
 
     public IAudioSource Source => _source;
     /// <summary>True once the source has ended and every frame of it has been read.</summary>

@@ -21,8 +21,11 @@ public sealed class ScriptEntry
     public string Heading => Name == null ? Title : $"{Title} · {Name}";
     public ScummBlock Block { get; init; }
     /// <summary>The code ranges in <see cref="Block"/>'s data: one, or one per verb.</summary>
-    public IReadOnlyList<ScriptPart> Parts { get; init; } = Array.Empty<ScriptPart>();
-    public override string ToString() => Title;
+    public IReadOnlyList<ScriptPart> Parts { get; init; } = [];
+    public override string ToString()
+    {
+        return Title;
+    }
 }
 
 /// <summary>
@@ -33,11 +36,11 @@ public static class RoomScripts
 {
     private sealed class Index
     {
-        public readonly Dictionary<(int Room, long Offset), int> ScriptAt = new();
-        public readonly Dictionary<int, string> ObjectNames = new();
+        public readonly Dictionary<(int Room, long Offset), int> ScriptAt = [];
+        public readonly Dictionary<int, string> ObjectNames = [];
     }
 
-    private static readonly ConditionalWeakTable<ScummBlock, Index> Indexes = new();
+    private static readonly ConditionalWeakTable<ScummBlock, Index> Indexes = [];
 
     private static ScummBlock RootOf(ScummBlock b)
     {
@@ -45,7 +48,10 @@ public static class RoomScripts
         return b;
     }
 
-    private static Index IndexFor(ScummBlock any) => Indexes.GetValue(RootOf(any), Build);
+    private static Index IndexFor(ScummBlock any)
+    {
+        return Indexes.GetValue(RootOf(any), Build);
+    }
 
     private static Index Build(ScummBlock root)
     {
@@ -96,7 +102,9 @@ public static class RoomScripts
 
     /// <summary>An object's name from the game's object table, or null.</summary>
     public static string ObjectName(ScummBlock any, int id)
-        => any != null && IndexFor(any).ObjectNames.TryGetValue(id, out var n) ? n : null;
+    {
+        return any != null && IndexFor(any).ObjectNames.TryGetValue(id, out var n) ? n : null;
+    }
 
     internal static int? RoomNo(ScummBlock lflf)
     {
@@ -113,10 +121,16 @@ public static class RoomScripts
                 yield return x;
     }
 
-    public static bool IsScript(ScummBlock b) => b != null &&
+    public static bool IsScript(ScummBlock b)
+    {
+        return b != null &&
         (b.Tag is ScummTag.SCRP or ScummTag.LSCR or ScummTag.ENCD or ScummTag.EXCD || IsObjectCode(b));
+    }
 
-    private static bool IsObjectCode(ScummBlock b) => b.Tag is ScummTag.OBCD or ScummTag.VERB;
+    private static bool IsObjectCode(ScummBlock b)
+    {
+        return b.Tag is ScummTag.OBCD or ScummTag.VERB;
+    }
 
     /// <summary>The scripts of the room <paramref name="lflf"/>, in a stable order.</summary>
     public static List<ScriptEntry> List(ScummBlock lflf)
@@ -129,8 +143,8 @@ public static class RoomScripts
                 && For(b) is { } entry)
                 result.Add(entry);
         }
-        int Rank(ScriptEntry e) => e.Group switch { "Room" => 0, "Local" => 1, "Global" => 2, _ => 3 };
-        return result.Select((e, i) => (e, i)).OrderBy(x => Rank(x.e)).ThenBy(x => x.i).Select(x => x.e).ToList();
+        static int Rank(ScriptEntry e) => e.Group switch { "Room" => 0, "Local" => 1, "Global" => 2, _ => 3 };
+        return [.. result.Select((e, i) => (e, i)).OrderBy(x => Rank(x.e)).ThenBy(x => x.i).Select(x => x.e)];
     }
 
     /// <summary>The entry for one script block (a VERB resolves to its object), or null.</summary>
@@ -142,14 +156,14 @@ public static class RoomScripts
         switch (b.Tag)
         {
             case ScummTag.ENCD:
-                return new ScriptEntry { Title = "Room entry", Detail = "ENCD", Group = "Room", Block = b, Parts = new[] { new ScriptPart(null, 0, len) } };
+                return new ScriptEntry { Title = "Room entry", Detail = "ENCD", Group = "Room", Block = b, Parts = [new ScriptPart(null, 0, len)] };
             case ScummTag.EXCD:
-                return new ScriptEntry { Title = "Room exit", Detail = "EXCD", Group = "Room", Block = b, Parts = new[] { new ScriptPart(null, 0, len) } };
+                return new ScriptEntry { Title = "Room exit", Detail = "EXCD", Group = "Room", Block = b, Parts = [new ScriptPart(null, 0, len)] };
             case ScummTag.LSCR:
             {
                 int no = len >= 4 ? (int)b.DataSpan.U32LE(0) : -1;
                 string name = RoomNo(b.FindParent(ScummTag.LFLF)) is int room ? ScriptNames.Local(room, no) : null;
-                return new ScriptEntry { Title = $"Local script {no}", Name = name, Detail = $"LSCR  {len:N0} bytes", Group = "Local", Block = b, Parts = new[] { new ScriptPart(null, 4, len) } };
+                return new ScriptEntry { Title = $"Local script {no}", Name = name, Detail = $"LSCR  {len:N0} bytes", Group = "Local", Block = b, Parts = [new ScriptPart(null, 4, len)] };
             }
             case ScummTag.SCRP:
             {
@@ -160,7 +174,7 @@ public static class RoomScripts
                     title = $"Global script {no}";
                     name = ScriptNames.Global(no);
                 }
-                return new ScriptEntry { Title = title, Name = name, Detail = $"SCRP  {len:N0} bytes", Group = "Global", Block = b, Parts = new[] { new ScriptPart(null, 0, len) } };
+                return new ScriptEntry { Title = title, Name = name, Detail = $"SCRP  {len:N0} bytes", Group = "Global", Block = b, Parts = [new ScriptPart(null, 0, len)] };
             }
             case ScummTag.OBCD:
                 return ObjectEntry(b);
@@ -203,7 +217,10 @@ public static class RoomScripts
         return new ScriptEntry { Title = title, Detail = $"#{id}  {verbs}", Group = "Object", Block = verb, Parts = parts };
     }
 
-    private static ScummDecompiler.ObjectNamer Namer(ScummBlock any) => id => ObjectName(any, id);
+    private static ScummDecompiler.ObjectNamer Namer(ScummBlock any)
+    {
+        return id => ObjectName(any, id);
+    }
 
     /// <summary>The entry as SCUMM source.</summary>
     public static List<ScriptLine> Decompile(ScriptEntry e)
@@ -212,7 +229,7 @@ public static class RoomScripts
         var namer = Namer(e.Block);
         if (e.Group != "Object")
         {
-            var part = e.Parts.FirstOrDefault();
+            var part = e.Parts.Count > 0 ? e.Parts[0] : default;
             return ScummDecompiler.Decompile(data, part.Start, part.End, namer);
         }
 

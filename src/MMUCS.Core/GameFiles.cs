@@ -14,18 +14,17 @@ public static class GameFiles
     /// </summary>
     public static IReadOnlyList<string> Find(string gameFile, string extension)
     {
-        if (string.IsNullOrEmpty(gameFile)) return Array.Empty<string>();
+        if (string.IsNullOrEmpty(gameFile)) return [];
         string dir = Path.GetDirectoryName(Path.GetFullPath(gameFile));
-        if (dir == null || !Directory.Exists(dir)) return Array.Empty<string>();
+        if (dir == null || !Directory.Exists(dir)) return [];
 
         var folders = new List<string> { dir };
         folders.AddRange(Directory.GetDirectories(dir)
             .Where(d => string.Equals(Path.GetFileName(d), "resource", StringComparison.OrdinalIgnoreCase)));
 
-        return folders
+        return [.. folders
             .SelectMany(Directory.GetFiles)
             .Where(f => string.Equals(Path.GetExtension(f), extension, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)];
     }
 }

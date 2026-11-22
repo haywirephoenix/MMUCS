@@ -38,7 +38,7 @@ public static class AkosDecoders
         switch (_akos.Header.Codec)
         {
             case AkosCodec.ByleRLE: // 1
-                _DecodeByleRLE(_akos.CelData.Span, _akos.AkplSize, surface, ci, offset, token);
+                DecodeByleRLE(_akos.CelData.Span, _akos.AkplSize, surface, ci, offset, token);
 
                 break;
             case AkosCodec.CdatRLE: // 5
@@ -57,7 +57,7 @@ public static class AkosDecoders
         return surface;
     }
 
-    public static void _DecodeByleRLE(ReadOnlySpan<byte> src, uint akplSize, IndexedSurface surface, AkosCelInfo ci, AkosOffset offset, CancellationToken token)
+    public static void DecodeByleRLE(ReadOnlySpan<byte> src, uint akplSize, IndexedSurface surface, AkosCelInfo ci, AkosOffset offset, CancellationToken token)
     {
         // ReadOnlySpan<byte> src = _akos.CelData.Span;
         int pos = (int)offset.AkcdOffset;
@@ -166,8 +166,6 @@ public static class AkosDecoders
                         // Truncated row — copy what's available and stop
                         for (int i = 0; i < avail; i++)
                             surface.SetPixel(x + i, y, src[pos + i]);
-                        pos += avail;
-                        x += avail;
                         break;
                     }
 

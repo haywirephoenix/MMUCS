@@ -34,7 +34,10 @@ public readonly record struct SmushChunk(uint Tag, int Offset, int DataOffset, i
     /// <summary>Where the next sibling starts: chunks are padded to an even length.</summary>
     public int Next => End + (Length & 1);
 
-    public ReadOnlySpan<byte> Data(byte[] file) => file.AsSpan(DataOffset, Length);
+    public ReadOnlySpan<byte> Data(byte[] file)
+    {
+        return file.AsSpan(DataOffset, Length);
+    }
 
     /// <summary>Reads the chunk header at <paramref name="offset"/>; false when there isn't a whole one.</summary>
     public static bool TryRead(byte[] file, int offset, int limit, out SmushChunk chunk)
@@ -50,7 +53,10 @@ public readonly record struct SmushChunk(uint Tag, int Offset, int DataOffset, i
     }
 
     /// <summary>The chunks directly inside this one.</summary>
-    public IEnumerable<SmushChunk> Children(byte[] file) => Sequence(file, DataOffset, End);
+    public IEnumerable<SmushChunk> Children(byte[] file)
+    {
+        return Sequence(file, DataOffset, End);
+    }
 
     /// <summary>The chunks laid end to end between <paramref name="start"/> and <paramref name="end"/>.</summary>
     public static IEnumerable<SmushChunk> Sequence(byte[] file, int start, int end)

@@ -52,7 +52,7 @@ public static class ObimCache
 
             if (token.IsCancellationRequested) return default;
 
-            if (ObimDecoders.TryDecodeObimFrame(objectBlock, token, frameIndex, paletteIndex, out var decodedRaw, out _, generateImage: false))
+            if (ObimDecoders.TryDecodeObimFrame(objectBlock, frameIndex, paletteIndex, out var decodedRaw, out _, generateImage: false, token))
             {
                 var freshlyDecoded = new IndexedSurface
                 {

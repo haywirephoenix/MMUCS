@@ -29,7 +29,11 @@ public static class ScriptHighlighter
         foreach (var l in lines)
         {
             o.Add(ScriptTokenKind.Offset, (l.Offset >= 0 ? l.Offset.ToString("X4") : "    ") + "  ");
-            if (l.Indent > 0) o.Add(ScriptTokenKind.Plain, new string(' ', l.Indent * 4));
+            if (l.Indent > 0)
+            {
+                o.Add(ScriptTokenKind.Plain, new string(' ', l.Indent * 4));
+            }
+
             Code(l.Text, o);
             o.Add(ScriptTokenKind.Plain, "\n");
         }
@@ -43,14 +47,21 @@ public static class ScriptHighlighter
         foreach (var line in text.Split('\n'))
         {
             var s = line.TrimEnd('\r');
-            if (s.StartsWith(';')) o.Add(ScriptTokenKind.Comment, s);
+            if (s.StartsWith(';'))
+            {
+                o.Add(ScriptTokenKind.Comment, s);
+            }
             else if (s.Length >= 20 && IsHex(s, 0, 4) && s[4] == ' ' && s[5] == ' ')
             {
                 o.Add(ScriptTokenKind.Offset, s[..6]);
                 o.Add(ScriptTokenKind.Bytes, s[6..20]);
                 Code(s[20..], o);
             }
-            else Code(s, o);
+            else
+            {
+                Code(s, o);
+            }
+
             o.Add(ScriptTokenKind.Plain, "\n");
         }
         return o.Finish();
@@ -69,7 +80,11 @@ public static class ScriptHighlighter
             if (c == '"')
             {
                 int j = i + 1;
-                while (j < s.Length && s[j] != '"') j += s[j] == '\\' ? 2 : 1;
+                while (j < s.Length && s[j] != '"')
+                {
+                    j += s[j] == '\\' ? 2 : 1;
+                }
+
                 j = Math.Min(j + 1, s.Length);
                 o.Add(ScriptTokenKind.String, s[i..j]);
                 i = j; head = false; continue;
@@ -78,16 +93,32 @@ public static class ScriptHighlighter
             {
                 o.Add(ScriptTokenKind.Plain, "→");
                 int j = ++i;
-                while (j < s.Length && s[j] == ' ') o.Space(s[j++]);
+                while (j < s.Length && s[j] == ' ')
+                {
+                    o.Space(s[j++]);
+                }
+
                 int k = j;
-                while (k < s.Length && Uri.IsHexDigit(s[k])) k++;
-                if (k > j) o.Add(ScriptTokenKind.Label, s[j..k]);
+                while (k < s.Length && Uri.IsHexDigit(s[k]))
+                {
+                    k++;
+                }
+
+                if (k > j)
+                {
+                    o.Add(ScriptTokenKind.Label, s[j..k]);
+                }
+
                 i = k; continue;
             }
             if (char.IsDigit(c))
             {
                 int j = i;
-                while (j < s.Length && char.IsLetterOrDigit(s[j])) j++;
+                while (j < s.Length && char.IsLetterOrDigit(s[j]))
+                {
+                    j++;
+                }
+
                 o.Add(ScriptTokenKind.Number, s[i..j]);
                 i = j; head = false; continue;
             }
@@ -96,13 +127,26 @@ public static class ScriptHighlighter
                 int j = i + 1;
                 while (j < s.Length)
                 {
-                    if (char.IsLetterOrDigit(s[j]) || s[j] == '_') j++;
-                    else if (s[j] is '-' or '.' && j + 1 < s.Length && char.IsLetter(s[j + 1])) j += 2; // kebab-case names, op.sub-op
-                    else break;
+                    if (char.IsLetterOrDigit(s[j]) || s[j] == '_')
+                    {
+                        j++;
+                    }
+                    else if (s[j] is '-' or '.' && j + 1 < s.Length && char.IsLetter(s[j + 1]))
+                    {
+                        j += 2; // kebab-case names, op.sub-op
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
                 string w = s[i..j];
                 int n = j;
-                while (n < s.Length && s[n] == ' ') n++;
+                while (n < s.Length && s[n] == ' ')
+                {
+                    n++;
+                }
+
                 char next = n < s.Length ? s[n] : '\0';
                 var kind = Keywords.Contains(w) ? ScriptTokenKind.Keyword
                     : IsVariable(w) ? ScriptTokenKind.Variable
@@ -115,7 +159,11 @@ public static class ScriptHighlighter
                 i = j; head = false; continue;
             }
             o.Add(ScriptTokenKind.Plain, c.ToString());
-            if (c != '}' && c != '{') head = false; // "} else …" still starts a statement
+            if (c != '}' && c != '{')
+            {
+                head = false; // "} else …" still starts a statement
+            }
+
             i++;
         }
     }
@@ -125,8 +173,19 @@ public static class ScriptHighlighter
 
     private static bool Prefixed(string w, string prefix)
     {
-        if (w.Length <= prefix.Length || !w.StartsWith(prefix, StringComparison.Ordinal)) return false;
-        for (int k = prefix.Length; k < w.Length; k++) if (!char.IsDigit(w[k])) return false;
+        if (w.Length <= prefix.Length || !w.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        for (int k = prefix.Length; k < w.Length; k++)
+        {
+            if (!char.IsDigit(w[k]))
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -134,29 +193,50 @@ public static class ScriptHighlighter
 
     private static bool IsHex(string s, int start, int count)
     {
-        for (int k = start; k < start + count; k++) if (!Uri.IsHexDigit(s[k])) return false;
+        for (int k = start; k < start + count; k++)
+        {
+            if (!Uri.IsHexDigit(s[k]))
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 
     /// <summary>Collects runs, merging same-kind neighbours; whitespace joins the previous run (not an offset).</summary>
     private sealed class Sink
     {
-        private readonly List<ScriptToken> _tokens = new();
+        private readonly List<ScriptToken> _tokens = [];
         private readonly StringBuilder _sb = new();
         private ScriptTokenKind _kind = ScriptTokenKind.Plain;
 
         public void Add(ScriptTokenKind kind, string text)
         {
-            if (text.Length == 0) return;
-            if (kind != _kind && _sb.Length > 0) Flush();
+            if (text.Length == 0)
+            {
+                return;
+            }
+
+            if (kind != _kind && _sb.Length > 0)
+            {
+                Flush();
+            }
+
             _kind = kind;
             _sb.Append(text);
         }
 
         public void Space(char c)
         {
-            if (_kind == ScriptTokenKind.Offset) Add(ScriptTokenKind.Plain, c.ToString());
-            else _sb.Append(c);
+            if (_kind == ScriptTokenKind.Offset)
+            {
+                Add(ScriptTokenKind.Plain, c.ToString());
+            }
+            else
+            {
+                _sb.Append(c);
+            }
         }
 
         private void Flush()
@@ -167,7 +247,11 @@ public static class ScriptHighlighter
 
         public List<ScriptToken> Finish()
         {
-            if (_sb.Length > 0) Flush();
+            if (_sb.Length > 0)
+            {
+                Flush();
+            }
+
             return _tokens;
         }
     }

@@ -10,20 +10,13 @@ namespace MMUCS.Core.Scumm;
 
 public static class AkosCelCache
 {
-    public readonly struct CelResult
+    public readonly struct CelResult(IndexedSurface surface, RgbaImage shaderDataImage = null, RgbaImage rawUnshadedImage = null)
     {
-        public IndexedSurface Surface { get; }
-        public RgbaImage ShaderDataImage { get; }
-        public RgbaImage RawUnshadedImage { get; }
-
-        public CelResult(IndexedSurface surface, RgbaImage shaderDataImage = null, RgbaImage rawUnshadedImage = null)
-        {
-            Surface          = surface;
-            ShaderDataImage  = shaderDataImage;
-            RawUnshadedImage = rawUnshadedImage;
-        }
+        public IndexedSurface Surface { get; } = surface;
+        public RgbaImage ShaderDataImage { get; } = shaderDataImage;
+        public RgbaImage RawUnshadedImage { get; } = rawUnshadedImage;
     }
-    
+
     private const int HeaderSize = 12;
     private const string CacheBucket = "akos";
     

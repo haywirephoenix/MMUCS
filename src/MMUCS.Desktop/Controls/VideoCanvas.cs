@@ -21,7 +21,10 @@ public sealed class VideoCanvas : SkiaViewport
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == ImageProperty) ContentChanged();
+        if (change.Property == ImageProperty)
+        {
+            ContentChanged();
+        }
     }
 
     protected override Size ContentSize => Image is { } i ? new Size(i.Width, i.Height) : default;
@@ -32,7 +35,11 @@ public sealed class VideoCanvas : SkiaViewport
     {
         public void Render(SKCanvas canvas, in ViewTransform view, SKRect viewBounds)
         {
-            if (image == null) return;
+            if (image == null)
+            {
+                return;
+            }
+
             canvas.Save();
             canvas.Concat(view.Matrix);
             bool smooth = linear || canvas.TotalMatrix.ScaleX < 0.999f;

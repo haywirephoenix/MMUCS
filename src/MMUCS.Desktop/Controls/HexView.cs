@@ -98,7 +98,7 @@ public sealed class HexView : Control
     }
 
     private long TotalRows => (Data.Length + BytesPerRow - 1) / BytesPerRow;
-    private Typeface Typeface => new(Mono);
+    private static Typeface Typeface => new(Mono);
     private double LineHeight => Math.Ceiling(FontSize * 1.45);
     private double CharWidth => new FormattedText("0", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Typeface, FontSize, null).WidthIncludingTrailingWhitespace;
 
@@ -127,7 +127,10 @@ public sealed class HexView : Control
     {
         var (_, hexX, asciiX, cw) = Columns();
         column = p.X >= asciiX - cw ? Column.Ascii : Column.Hex;
-        if (Data.Length == 0) return -1;
+        if (Data.Length == 0)
+        {
+            return -1;
+        }
 
         long row = (long)Math.Floor(p.Y / LineHeight) + (long)TopRow;
         int col;
@@ -143,11 +146,19 @@ public sealed class HexView : Control
                 : 8 + (int)Math.Floor((rel - (8 * 3 + 1) * cw) / (3 * cw));
         }
 
-        if (!clamp && (col < 0 || col >= BytesPerRow || row < 0)) return -1;
+        if (!clamp && (col < 0 || col >= BytesPerRow || row < 0))
+        {
+            return -1;
+        }
+
         col = Math.Clamp(col, 0, BytesPerRow - 1);
         row = Math.Clamp(row, 0, TotalRows - 1);
         long index = row * BytesPerRow + col;
-        if (index >= Data.Length) return clamp ? Data.Length - 1 : -1;
+        if (index >= Data.Length)
+        {
+            return clamp ? Data.Length - 1 : -1;
+        }
+
         return (int)index;
     }
 
@@ -188,17 +199,29 @@ public sealed class HexView : Control
     private void SetSelection(int anchor, int caret, bool scrollToCaret = true)
     {
         int max = Data.Length - 1;
-        if (max < 0) return;
+        if (max < 0)
+        {
+            return;
+        }
+
         _anchor = Math.Clamp(anchor, 0, max);
         _caret = Math.Clamp(caret, 0, max);
-        if (scrollToCaret) EnsureVisible(_caret);
+        if (scrollToCaret)
+        {
+            EnsureVisible(_caret);
+        }
+
         UpdateSelectionInfo();
         InvalidateVisual();
     }
 
     public void SelectAll()
     {
-        if (Data.Length == 0) return;
+        if (Data.Length == 0)
+        {
+            return;
+        }
+
         SetSelection(0, Data.Length - 1, scrollToCaret: false);
     }
 
@@ -212,8 +235,14 @@ public sealed class HexView : Control
     private void EnsureVisible(int index)
     {
         long row = index / BytesPerRow;
-        if (row < TopRow) TopRow = row;
-        else if (row >= TopRow + VisibleRows) TopRow = row - VisibleRows + 1;
+        if (row < TopRow)
+        {
+            TopRow = row;
+        }
+        else if (row >= TopRow + VisibleRows)
+        {
+            TopRow = row - VisibleRows + 1;
+        }
     }
 
     private void UpdateSelectionInfo()
@@ -224,13 +253,20 @@ public sealed class HexView : Control
         int i = SelStart;
         var sb = new StringBuilder();
         if (SelLength > 1)
+        {
             sb.Append($"0x{BaseOffset + SelStart:X8}–0x{BaseOffset + SelEnd:X8}  ({SelLength:N0} bytes)   ");
+        }
         else
+        {
             sb.Append($"@0x{BaseOffset + i:X8}   ");
+        }
 
         sb.Append($"u8 {span[i]}  i8 {(sbyte)span[i]}");
         if (i + 2 <= span.Length)
+        {
             sb.Append($"  u16le {BinaryPrimitives.ReadUInt16LittleEndian(span.Slice(i, 2))}");
+        }
+
         if (i + 4 <= span.Length)
         {
             sb.Append($"  u32le {BinaryPrimitives.ReadUInt32LittleEndian(span.Slice(i, 4))}");
@@ -266,7 +302,11 @@ public sealed class HexView : Control
             return; // the ContextMenu opens on release
         }
 
-        if (!point.Properties.IsLeftButtonPressed) return;
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
         if (index < 0) { ClearSelection(); return; }
 
         _activeColumn = column;
@@ -280,15 +320,27 @@ public sealed class HexView : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (!_dragging) return;
+        if (!_dragging)
+        {
+            return;
+        }
 
         var p = e.GetPosition(this);
         // Auto-scroll while dragging past the top or bottom edge.
-        if (p.Y < 0) TopRow -= 1;
-        else if (p.Y > Bounds.Height) TopRow += 1;
+        if (p.Y < 0)
+        {
+            TopRow -= 1;
+        }
+        else if (p.Y > Bounds.Height)
+        {
+            TopRow += 1;
+        }
 
         int index = HitTest(p, clamp: true, out _);
-        if (index >= 0 && index != _caret) SetSelection(_anchor, index, scrollToCaret: false);
+        if (index >= 0 && index != _caret)
+        {
+            SetSelection(_anchor, index, scrollToCaret: false);
+        }
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
@@ -325,7 +377,10 @@ public sealed class HexView : Control
             Key.End => ctrl ? Data.Length - 1 : caret - caret % BytesPerRow + BytesPerRow - 1,
             _ => int.MinValue,
         };
-        if (target == int.MinValue || Data.Length == 0) return;
+        if (target == int.MinValue || Data.Length == 0)
+        {
+            return;
+        }
 
         target = Math.Clamp(target, 0, Data.Length - 1);
         SetSelection(shift && HasSelection ? _anchor : target, target);
@@ -341,7 +396,11 @@ public sealed class HexView : Control
         MenuItem Item(string header, CopyFormat format, string gesture = null)
         {
             var item = new MenuItem { Header = header };
-            if (gesture != null) item.InputGesture = KeyGesture.Parse(gesture);
+            if (gesture != null)
+            {
+                item.InputGesture = KeyGesture.Parse(gesture);
+            }
+
             item.Click += (_, _) => _ = CopyAsync(format);
             return item;
         }
@@ -362,14 +421,23 @@ public sealed class HexView : Control
         menu.Opening += (_, _) =>
         {
             foreach (var o in menu.Items)
-                if (o is MenuItem m) m.IsEnabled = m == selectAll ? Data.Length > 0 : HasSelection;
+            {
+                if (o is MenuItem m)
+                {
+                    m.IsEnabled = m == selectAll ? Data.Length > 0 : HasSelection;
+                }
+            }
         };
         return menu;
     }
 
     private async System.Threading.Tasks.Task CopyAsync(CopyFormat format)
     {
-        if (!HasSelection) return;
+        if (!HasSelection)
+        {
+            return;
+        }
+
         if (SelLength > MaxCopyBytes)
         {
             Log.Error($"Selection is too large to copy ({SelLength:N0} bytes; limit {MaxCopyBytes / (1024 * 1024)} MB).");
@@ -378,7 +446,11 @@ public sealed class HexView : Control
 
         string text = Format(format, Data.Span.Slice(SelStart, SelLength), BaseOffset + SelStart);
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        if (clipboard == null) return;
+        if (clipboard == null)
+        {
+            return;
+        }
+
         await clipboard.SetTextAsync(text);
         Log.Info(format == CopyFormat.Offset ? $"Copied offset {text}" : $"Copied {SelLength:N0} bytes as {Describe(format)}.");
     }
@@ -403,7 +475,11 @@ public sealed class HexView : Control
             case CopyFormat.Hex:
                 for (int i = 0; i < bytes.Length; i++)
                 {
-                    if (i > 0) sb.Append(i % BytesPerRow == 0 ? '\n' : ' ');
+                    if (i > 0)
+                    {
+                        sb.Append(i % BytesPerRow == 0 ? '\n' : ' ');
+                    }
+
                     sb.Append(bytes[i].ToString("X2"));
                 }
                 break;
@@ -415,7 +491,11 @@ public sealed class HexView : Control
             case CopyFormat.Ascii:
                 for (int i = 0; i < bytes.Length; i++)
                 {
-                    if (i > 0 && i % BytesPerRow == 0) sb.Append('\n');
+                    if (i > 0 && i % BytesPerRow == 0)
+                    {
+                        sb.Append('\n');
+                    }
+
                     sb.Append(Printable(bytes[i]));
                 }
                 break;
@@ -443,8 +523,11 @@ public sealed class HexView : Control
                             sb.Append("   ");
                             ascii.Append(' ');
                         }
-                        if (c == 7) sb.Append(' ');
-                    }
+                        if (c == 7)
+                            {
+                                sb.Append(' ');
+                            }
+                        }
                     sb.Append(' ').Append(ascii.ToString().TrimEnd()).Append('\n');
                 }
                 break;
@@ -455,9 +538,16 @@ public sealed class HexView : Control
                 sb.Append($"static const unsigned char data[{bytes.Length}] = {{\n");
                 for (int i = 0; i < bytes.Length; i++)
                 {
-                    if (i % BytesPerRow == 0) sb.Append("    ");
+                    if (i % BytesPerRow == 0)
+                    {
+                        sb.Append("    ");
+                    }
+
                     sb.Append("0x").Append(bytes[i].ToString("X2"));
-                    if (i < bytes.Length - 1) sb.Append(i % BytesPerRow == BytesPerRow - 1 ? ",\n" : ", ");
+                    if (i < bytes.Length - 1)
+                    {
+                        sb.Append(i % BytesPerRow == BytesPerRow - 1 ? ",\n" : ", ");
+                    }
                 }
                 sb.Append("\n};");
                 break;
@@ -475,7 +565,10 @@ public sealed class HexView : Control
     {
         ctx.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
         var span = Data.Span;
-        if (span.Length == 0) return;
+        if (span.Length == 0)
+        {
+            return;
+        }
 
         var (offsetX, hexX, asciiX, cw) = Columns();
         double lh = LineHeight;
@@ -495,11 +588,18 @@ public sealed class HexView : Control
         {
             long row = top + r;
             long start = row * BytesPerRow;
-            if (start >= span.Length) break;
+            if (start >= span.Length)
+            {
+                break;
+            }
+
             int count = (int)Math.Min(BytesPerRow, span.Length - start);
             double y = r * lh;
 
-            if ((row & 1) == 1) ctx.FillRectangle(pal.StripeBg, new Rect(0, y, Bounds.Width, lh));
+            if ((row & 1) == 1)
+            {
+                ctx.FillRectangle(pal.StripeBg, new Rect(0, y, Bounds.Width, lh));
+            }
 
             // Header tint (per byte, only in the first row or so).
             for (int c = 0; c < count && start + c < HeaderLength; c++)
@@ -534,7 +634,11 @@ public sealed class HexView : Control
             for (int c = 0; c < count; c++)
             {
                 byte b = span[(int)(start + c)];
-                if (b != 0) allZero = false;
+                if (b != 0)
+                {
+                    allZero = false;
+                }
+
                 hex.Append(b.ToString("X2")).Append(c == 7 ? "  " : " ");
                 ascii.Append(b >= 0x20 && b < 0x7F ? (char)b : '·');
             }

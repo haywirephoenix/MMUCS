@@ -29,7 +29,10 @@ public sealed class PcmSource : IAudioSource
     public long Frame => Interlocked.Read(ref _frame);
     public bool Ended => Frame >= FrameCount;
 
-    public void Seek(long frame) => Interlocked.Exchange(ref _frame, Math.Clamp(frame, 0, FrameCount));
+    public void Seek(long frame)
+    {
+        Interlocked.Exchange(ref _frame, Math.Clamp(frame, 0, FrameCount));
+    }
 
     public int Read(Span<float> buffer)
     {

@@ -25,5 +25,8 @@ public static class CorePaths
         return dir;
     }
 
-    public static string CacheFile(string bucket, string fileName) => Path.Combine(CacheDir(bucket), fileName);
+    public static string CacheFile(string bucket, string fileName)
+    {
+        return Path.Combine(CacheDir(bucket), fileName);
+    }
 }

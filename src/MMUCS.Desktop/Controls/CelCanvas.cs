@@ -49,7 +49,9 @@ public sealed class CelCanvas : SkiaViewport
     {
         base.OnPropertyChanged(change);
         if (change.Property == DataImageProperty || change.Property == RawImageProperty)
+        {
             ContentChanged();
+        }
     }
 
     private SKImage Current => Mode == CelViewMode.Raw ? RawImage : DataImage;
@@ -66,22 +68,20 @@ public sealed class CelCanvas : SkiaViewport
     protected override IViewportScene CreateScene()
     {
         var mode = Mode;
-        if (mode == CelViewMode.Shader && !AkosPaletteShader.IsAvailable) mode = CelViewMode.Raw;
+        if (mode == CelViewMode.Shader && !AkosPaletteShader.IsAvailable)
+        {
+            mode = CelViewMode.Raw;
+        }
 
         return new Scene(mode, DataImage, RawImage, PaletteImage,
             new AkosPaletteShader.Options(AlphaEnabled, ShadowColorEnabled, (float)ShadowAmount, LinearFilter));
     }
 
-    private sealed class Scene : IViewportScene
+    private sealed class Scene(CelViewMode mode, SKImage data, SKImage raw, SKImage palette, AkosPaletteShader.Options options) : IViewportScene
     {
-        private readonly CelViewMode _mode;
-        private readonly SKImage _data, _raw, _palette;
-        private readonly AkosPaletteShader.Options _options;
-
-        public Scene(CelViewMode mode, SKImage data, SKImage raw, SKImage palette, AkosPaletteShader.Options options)
-        {
-            _mode = mode; _data = data; _raw = raw; _palette = palette; _options = options;
-        }
+        private readonly CelViewMode _mode = mode;
+        private readonly SKImage _data = data, _raw = raw, _palette = palette;
+        private readonly AkosPaletteShader.Options _options = options;
 
         public void Render(SKCanvas canvas, in ViewTransform view, SKRect viewBounds)
         {
@@ -98,13 +98,20 @@ public sealed class CelCanvas : SkiaViewport
                 case CelViewMode.Shader when _data != null && _palette != null:
                     using (var shader = AkosPaletteShader.Create(_data, _palette, _options))
                     using (var paint = new SKPaint { Shader = shader })
+                    {
                         canvas.DrawRect(0, 0, _data.Width, _data.Height, paint);
+                    }
+
                     break;
                 case CelViewMode.Index when _data != null:
                     canvas.DrawImage(_data, 0, 0, sampling);
                     break;
                 default:
-                    if (_raw != null) canvas.DrawImage(_raw, 0, 0, sampling);
+                    if (_raw != null)
+                    {
+                        canvas.DrawImage(_raw, 0, 0, sampling);
+                    }
+
                     break;
             }
 

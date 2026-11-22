@@ -18,7 +18,10 @@ public static class BundleCodec
     /// <summary>What decompressing an entry found, for checking the decoder. OverReads: the most bytes a full block's bit reader wanted past its input.</summary>
     public readonly record struct Stats(int Blocks, int Codec, int OverReads);
 
-    public static byte[] Decompress(ReadOnlySpan<byte> entry) => Decompress(entry, out _);
+    public static byte[] Decompress(ReadOnlySpan<byte> entry)
+    {
+        return Decompress(entry, out _);
+    }
 
     /// <summary>
     /// Decompresses only the first block (the iMUS header and map, then the first samples), and gives the
@@ -111,24 +114,24 @@ public static class ImcAdpcm
 
     /// <summary>The standard IMA ADPCM step sizes.</summary>
     private static readonly int[] Steps =
-    {
+    [
         7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45,
         50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307,
         337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066,
         2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899,
         15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767,
-    };
+    ];
 
     /// <summary>How far the step index moves for each code's magnitude, per code width (2–7 bits).</summary>
     private static readonly sbyte[][] IndexMoves =
-    {
-        new sbyte[] { -1, 4 },
-        new sbyte[] { -1, -1, 2, 8 },
-        new sbyte[] { -1, -1, -1, -1, 1, 2, 4, 6 },
-        new sbyte[] { -1, -1, -1, -1, -1, -1, -1, -1, 1, 2, 4, 6, 8, 12, 16, 32 },
-        Moves(16, new sbyte[] { 1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 32 }),
+    [
+        [-1, 4],
+        [-1, -1, 2, 8],
+        [-1, -1, -1, -1, 1, 2, 4, 6],
+        [-1, -1, -1, -1, -1, -1, -1, -1, 1, 2, 4, 6, 8, 12, 16, 32],
+        Moves(16, [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 32]),
         Moves(32, Range(1, 32)),
-    };
+    ];
 
     /// <summary>Code width in bits for each step index: grows with the step, kept within 2–7.</summary>
     private static readonly int[] Width = new int[Steps.Length];
@@ -224,8 +227,15 @@ public static class ImcAdpcm
         return overRead;
     }
 
-    private static int Be16(ReadOnlySpan<byte> s, int o) => o + 2 <= s.Length ? (s[o] << 8) | s[o + 1] : 0;
-    private static int Byte(ReadOnlySpan<byte> s, int o) => o < s.Length ? s[o] : 0;
+    private static int Be16(ReadOnlySpan<byte> s, int o)
+    {
+        return o + 2 <= s.Length ? (s[o] << 8) | s[o + 1] : 0;
+    }
+
+    private static int Byte(ReadOnlySpan<byte> s, int o)
+    {
+        return o < s.Length ? s[o] : 0;
+    }
 
     private static sbyte[] Moves(int lowerCount, sbyte[] upper)
     {

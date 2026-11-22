@@ -17,7 +17,7 @@ public sealed class AppSettings
     public int SettingsVersion { get; set; }
     private const int CurrentSettingsVersion = 2;
 
-    public List<string> RecentFiles { get; set; } = new();
+    public List<string> RecentFiles { get; set; } = [];
     public bool ReopenLastFileOnStartup { get; set; } = true;
     public bool ShowRoomNames { get; set; } = true;
     public bool ShowObjectNames { get; set; } = true;
@@ -39,11 +39,11 @@ public sealed class AppSettings
     /// <summary>The Room viewer's View menu and Objects panel toggle.</summary>
     public RoomViewOptions RoomView { get; set; } = new();
     /// <summary>Per opened game (its first resource file): the selected hierarchy block, as child indices from the root.</summary>
-    public System.Collections.Generic.Dictionary<string, string> LastSelection { get; set; } = new();
+    public System.Collections.Generic.Dictionary<string, string> LastSelection { get; set; } = [];
     /// <summary>Per opened game: the room the Room viewer showed (its LFLF, as child indices from the root).</summary>
-    public System.Collections.Generic.Dictionary<string, string> LastRoom { get; set; } = new();
+    public System.Collections.Generic.Dictionary<string, string> LastRoom { get; set; } = [];
     /// <summary>Manual object → costume links ("room/object name" → costume number, 0 = none).</summary>
-    public System.Collections.Generic.Dictionary<string, int> CostumeLinks { get; set; } = new();
+    public System.Collections.Generic.Dictionary<string, int> CostumeLinks { get; set; } = [];
 
     // Export wizard
     public string LastExportFolder { get; set; }
@@ -85,11 +85,21 @@ public sealed class AppSettings
 
     private void Migrate()
     {
-        if (SettingsVersion >= CurrentSettingsVersion) return;
+        if (SettingsVersion >= CurrentSettingsVersion)
+        {
+            return;
+        }
         // v1: object names now default on (older files saved "false" while the options menu couldn't toggle it).
-        if (SettingsVersion < 1) ShowObjectNames = true;
+        if (SettingsVersion < 1)
+        {
+            ShowObjectNames = true;
+        }
         // v2: Play in place became on by default (earlier files saved it off before it was ever offered on).
-        if (SettingsVersion < 2) CostumePlayInPlace = true;
+        if (SettingsVersion < 2)
+        {
+            CostumePlayInPlace = true;
+        }
+
         SettingsVersion = CurrentSettingsVersion;
         Save();
     }
@@ -113,7 +123,10 @@ public sealed class AppSettings
         string full = Path.GetFullPath(path);
         RecentFiles.RemoveAll(p => string.Equals(p, full, StringComparison.OrdinalIgnoreCase));
         RecentFiles.Insert(0, full);
-        if (RecentFiles.Count > MaxRecentFiles) RecentFiles.RemoveRange(MaxRecentFiles, RecentFiles.Count - MaxRecentFiles);
+        if (RecentFiles.Count > MaxRecentFiles)
+        {
+            RecentFiles.RemoveRange(MaxRecentFiles, RecentFiles.Count - MaxRecentFiles);
+        }
     }
 
     public string LastFile => RecentFiles.FirstOrDefault();

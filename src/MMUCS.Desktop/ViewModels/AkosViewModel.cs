@@ -27,7 +27,7 @@ public sealed record CelItem(int Index, int Width, int Height)
 public sealed class ChoreNode
 {
     public string Label { get; init; }
-    public ObservableCollection<ChoreNode> Children { get; } = new();
+    public ObservableCollection<ChoreNode> Children { get; } = [];
     /// <summary>The chore (AKCH index) this node belongs to, or -1.</summary>
     public int Chore { get; init; } = -1;
     /// <summary>For a step node: its AKSQ position (drawn on its own); otherwise -1.</summary>
@@ -43,31 +43,31 @@ public sealed partial class AkosViewModel : ObservableObject
     private DispatcherTimer _timer;
     private int _playPos;
 
-    [ObservableProperty] private AkosData _akos;
-    [ObservableProperty] private ScummBlock _block;
-    [ObservableProperty] private string _title = "No costume selected";
-    [ObservableProperty] private string _info = "";
-    [ObservableProperty] private CelItem _selectedCel;
-    [ObservableProperty] private SKImage _dataImage;
-    [ObservableProperty] private SKImage _rawImage;
-    [ObservableProperty] private SKImage _paletteImage;
-    [ObservableProperty] private ScummColor[] _paletteColors;
-    [ObservableProperty] private string _celInfo;
-    [ObservableProperty] private int _paletteIndex;
-    [ObservableProperty] private int _maxPaletteIndex;
+    [ObservableProperty] public partial AkosData Akos { get; set; }
+    [ObservableProperty] public partial ScummBlock Block { get; set; }
+    [ObservableProperty] public partial string Title { get; set; } = "No costume selected";
+    [ObservableProperty] public partial string Info { get; set; } = "";
+    [ObservableProperty] public partial CelItem SelectedCel { get; set; }
+    [ObservableProperty] public partial SKImage DataImage { get; set; }
+    [ObservableProperty] public partial SKImage RawImage { get; set; }
+    [ObservableProperty] public partial SKImage PaletteImage { get; set; }
+    [ObservableProperty] public partial ScummColor[] PaletteColors { get; set; }
+    [ObservableProperty] public partial string CelInfo { get; set; }
+    [ObservableProperty] public partial int PaletteIndex { get; set; }
+    [ObservableProperty] public partial int MaxPaletteIndex { get; set; }
 
-    [ObservableProperty] private CelViewMode _mode               = CelViewMode.Shader;
-    [ObservableProperty] private bool        _alphaEnabled       = true;
-    [ObservableProperty] private bool        _shadowColorEnabled = true;
-    [ObservableProperty] private static bool  _celInfoEnabled     = true;
-    [ObservableProperty] private double      _shadowAmount       = 0.4;
-    [ObservableProperty] private bool        _linearFilter;
+    [ObservableProperty] public partial CelViewMode Mode { get; set; } = CelViewMode.Shader;
+    [ObservableProperty] public partial bool AlphaEnabled { get; set; } = true;
+    [ObservableProperty] public partial bool ShadowColorEnabled { get; set; } = true;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("MvvmToolkit", "MVVMTK0042", Justification = "Static: one CelInfo toggle shared by every costume viewer.")] [ObservableProperty] private static bool _celInfoEnabled = true;
+    [ObservableProperty] public partial double ShadowAmount { get; set; } = 0.4;
+    [ObservableProperty] public partial bool LinearFilter { get; set; }
 
-    [ObservableProperty] private ChoreNode _selectedChoreNode;
-    [ObservableProperty] private bool _isPlaying;
-    [ObservableProperty] private double _fps = 10;
+    [ObservableProperty] public partial ChoreNode SelectedChoreNode { get; set; }
+    [ObservableProperty] public partial bool IsPlaying { get; set; }
+    [ObservableProperty] public partial double Fps { get; set; } = 10;
     /// <summary>While playing, also show the animation in the Room viewer where the room places this costume.</summary>
-    [ObservableProperty] private bool _playInPlace = true;
+    [ObservableProperty] public partial bool PlayInPlace { get; set; } = true;
 
     /// <summary>A frame played in place, in the palette this viewer shows (null when playback in place ends).</summary>
     public event Action<ScummBlock, AkosFrame, int> LiveFrameChanged;
@@ -77,14 +77,22 @@ public sealed partial class AkosViewModel : ObservableObject
     /// the limbs the costume's init animation started.</summary>
     private void SendLiveFrame(int step)
     {
-        if (Akos == null || _frameChore < 0) return;
+        if (Akos == null || _frameChore < 0)
+        {
+            return;
+        }
+
         _liveShown = true;
         LiveFrameChanged?.Invoke(Block, AkosFrames.ComposeAfterInit(Akos, _frameChore, step), PaletteIndex);
     }
 
     private void ClearLiveFrame()
     {
-        if (!_liveShown) return;
+        if (!_liveShown)
+        {
+            return;
+        }
+
         _liveShown = false;
         LiveFrameChanged?.Invoke(Block, null, PaletteIndex);
     }
@@ -95,20 +103,24 @@ public sealed partial class AkosViewModel : ObservableObject
         else if (IsPlaying) SendLiveFrame(_playPos);
     }
 
-    public ObservableCollection<CelItem> Cels { get; } = new();
+    public ObservableCollection<CelItem> Cels { get; } = [];
 
     /// <summary>The viewer's own panels (Cels, Preview, Chores, Resolved palette).</summary>
     public Docking.ViewerDock ViewerLayout { get; }
 
     public AkosViewModel() => ViewerLayout = new Docking.ViewerDock(new Docking.CostumeDockFactory(this));
-    public ObservableCollection<ChoreNode> Chores { get; } = new();
+    public ObservableCollection<ChoreNode> Chores { get; } = [];
     public IReadOnlyList<CelViewMode> Modes { get; } = Enum.GetValues<CelViewMode>();
 
     public bool HasCostume => Akos != null;
 
     public async Task LoadAsync(ScummBlock akosBlock)
     {
-        if (akosBlock == null || ReferenceEquals(akosBlock, Block)) return;
+        if (akosBlock == null || ReferenceEquals(akosBlock, Block))
+        {
+            return;
+        }
+
         Stop();
 
         Block = akosBlock;
@@ -120,8 +132,11 @@ public sealed partial class AkosViewModel : ObservableObject
 
         try
         {
-            var data = await Task.Run(() => _parser.Parse(akosBlock));
-            if (!ReferenceEquals(Block, akosBlock)) return;
+            var data = await Task.Run(() => AkosParser.Parse(akosBlock));
+            if (!ReferenceEquals(Block, akosBlock))
+            {
+                return;
+            }
 
             Akos = data;
             OnPropertyChanged(nameof(HasCostume));
@@ -136,12 +151,16 @@ public sealed partial class AkosViewModel : ObservableObject
             UpdatePalette();
 
             for (int i = 0; i < data.CelInfos.Length && i < data.CelOffsets.Length; i++)
+            {
                 Cels.Add(new CelItem(i, data.CelInfos[i].Width, data.CelInfos[i].Height));
+            }
 
             BuildChoreTree(data);
             var foundCel = Cels.FirstOrDefault();
             if (foundCel != null)
+            {
                 SelectedCel = foundCel;
+            }
         }
         catch (Exception ex)
         {
@@ -149,7 +168,7 @@ public sealed partial class AkosViewModel : ObservableObject
         }
     }
 
-    private static readonly string[] AnimNames = { "", "init", "walk", "stand", "talk start", "talk stop" };
+    private static readonly string[] AnimNames = ["", "init", "walk", "stand", "talk start", "talk stop"];
 
     private void BuildChoreTree(AkosData data)
     {
@@ -162,7 +181,11 @@ public sealed partial class AkosViewModel : ObservableObject
             for (int dir = 0; dir < data.DirectionCount; dir++)
             {
                 int chore = AkosFrames.ChoreIndex(data, anim, dir);
-                if (!AkosFrames.HasChore(data, chore)) continue;
+                if (!AkosFrames.HasChore(data, chore))
+                {
+                    continue;
+                }
+
                 var limbs = AkosFrames.GetLimbs(data, chore);
                 var dirNode = new ChoreNode
                 {
@@ -174,12 +197,18 @@ public sealed partial class AkosViewModel : ObservableObject
                     var steps = AkosFrames.GetFrameSteps(data, limb);
                     var limbNode = new ChoreNode { Label = $"Limb {limb.Index}  ({steps.Count} frame{(steps.Count == 1 ? "" : "s")})", Chore = chore };
                     foreach (int pos in steps)
+                    {
                         limbNode.Children.Add(new ChoreNode { Label = StepLabel(data, pos), Chore = chore, StepPos = pos });
+                    }
+
                     dirNode.Children.Add(limbNode);
                 }
                 animNode.Children.Add(dirNode);
             }
-            if (animNode.Children.Count > 0) Chores.Add(animNode);
+            if (animNode.Children.Count > 0)
+            {
+                Chores.Add(animNode);
+            }
         }
     }
 
@@ -207,7 +236,7 @@ public sealed partial class AkosViewModel : ObservableObject
     partial void OnPaletteIndexChanged(int value)
     {
         if (_suppressPaletteReload || Akos == null || Block == null) return;
-        _parser.UpdatePaletteOnly(Akos, Block, value);
+        AkosParser.UpdatePaletteOnly(Akos, Block, value);
         UpdatePalette();
         // The shader path resolves colours on the GPU; only the CPU "Raw" image needs a refresh.
         if (_frameChore >= 0) ShowChoreFrame(_playPos);
@@ -242,9 +271,17 @@ public sealed partial class AkosViewModel : ObservableObject
 
     private void ShowChoreFrame(int step)
     {
-        if (Akos == null || _frameChore < 0) return;
+        if (Akos == null || _frameChore < 0)
+        {
+            return;
+        }
+
         var frame = AkosFrames.Compose(Akos, _frameChore, step);
-        if (IsPlaying && PlayInPlace) SendLiveFrame(step);
+        if (IsPlaying && PlayInPlace)
+        {
+            SendLiveFrame(step);
+        }
+
         int cycle = AkosFrames.CycleLength(Akos, _frameChore);
         ShowFrame(frame, _frameBounds, $"Chore {_frameChore}  frame {step % cycle + 1}/{cycle}");
     }
@@ -254,7 +291,11 @@ public sealed partial class AkosViewModel : ObservableObject
     {
         var akos = Akos;
         _cts?.Cancel();
-        if (akos == null || frame == null) return;
+        if (akos == null || frame == null)
+        {
+            return;
+        }
+
         var surface = AkosFrames.ComposeSurface(akos, frame, bounds);
         if (surface == null) { DataImage = RawImage = null; CelInfo = $"{label}\n(nothing drawn)"; return; }
         DataImage = IndexedRenderer.CreateDataImage(surface, akos)?.ToSkImage();
@@ -265,7 +306,10 @@ public sealed partial class AkosViewModel : ObservableObject
 
     private void SelectCel(int index)
     {
-        if (index >= 0 && index < Cels.Count) SelectedCel = Cels[index];
+        if (index >= 0 && index < Cels.Count)
+        {
+            SelectedCel = Cels[index];
+        }
     }
 
     private void UpdatePalette()
@@ -293,7 +337,11 @@ public sealed partial class AkosViewModel : ObservableObject
         try
         {
             var result = await AkosCelCache.GetCachedCelAsync(akos, cel.Index, bakeImages: true, cacheDisabled: false, token);
-            if (token.IsCancellationRequested || result.Surface == null) return;
+            if (token.IsCancellationRequested || result.Surface == null)
+            {
+                return;
+            }
+
             DataImage = result.ShaderDataImage?.ToSkImage();
             RawImage = result.RawUnshadedImage?.ToSkImage();
         }
@@ -346,7 +394,11 @@ public sealed partial class AkosViewModel : ObservableObject
 
     public async Task ExportCelsAsync(string folder)
     {
-        if (Akos == null) return;
+        if (Akos == null)
+        {
+            return;
+        }
+
         var config = new CelExportConfig
         {
             AlphaEnabled = AlphaEnabled,
@@ -355,7 +407,7 @@ public sealed partial class AkosViewModel : ObservableObject
             UseLinearFilter = LinearFilter,
         };
         string dir = System.IO.Path.Combine(folder, $"akos_{Akos.Offset:X8}");
-        await new ScummExporters().ExportAkosCelsAsync(Akos, config, dir);
+        await ScummExporters.ExportAkosCelsAsync(Akos, config, dir);
         Log.Info($"Exported {Akos.CelOffsets.Length} cels to {dir}");
     }
 }

@@ -62,7 +62,7 @@ public static class DockLayoutStore
         public int Version { get; set; }
         public WindowPlacement MainWindow { get; set; }
         public Node Root { get; set; }
-        public List<FloatingWindow> Windows { get; set; } = new();
+        public List<FloatingWindow> Windows { get; set; } = [];
         /// <summary>The viewers' own panel arrangements (see <see cref="ViewerDockFactory"/>).</summary>
         public Node Costume { get; set; }
         public Node Room { get; set; }
@@ -100,23 +100,31 @@ public static class DockLayoutStore
         _hiddenIn = hiddenIn;
         try
         {
-            if (layout?.VisibleDockables is not { Count: > 0 }) return;
+            if (layout?.VisibleDockables is not { Count: > 0 })
+            {
+                return;
+            }
+
             var file = new LayoutFile
             {
                 Version = CurrentVersion,
                 MainWindow = mainWindow,
                 Root = Capture(layout.DefaultDockable ?? layout.VisibleDockables[0]),
+                Costume = CaptureViewer(costume),
+                Room = CaptureViewer(room),
+                Object = CaptureViewer(objectViewer)
             };
-            file.Costume = CaptureViewer(costume);
-            file.Room = CaptureViewer(room);
-            file.Object = CaptureViewer(objectViewer);
             _hiddenIn = hiddenIn;
 
             foreach (var window in layout.Windows ?? Enumerable.Empty<IDockWindow>())
             {
                 window.Save(); // pull the live position/size from the host window into the model
                 var content = window.Layout?.VisibleDockables?.FirstOrDefault();
-                if (content == null) continue;
+                if (content == null)
+                {
+                    continue;
+                }
+
                 file.Windows.Add(new FloatingWindow
                 {
                     X = window.X, Y = window.Y, Width = window.Width, Height = window.Height,
@@ -125,7 +133,11 @@ public static class DockLayoutStore
             }
 
             string json = JsonSerializer.Serialize(file, JsonOptions);
-            if (json == _lastWritten && File.Exists(FilePath)) return; // unchanged since the last write
+            if (json == _lastWritten && File.Exists(FilePath))
+            {
+                return; // unchanged since the last write
+            }
+
             Directory.CreateDirectory(CorePaths.Root);
             File.WriteAllText(FilePath, json);
             _lastWritten = json;
@@ -143,7 +155,11 @@ public static class DockLayoutStore
     public static Node CaptureViewer(ViewerDock viewer)
     {
         var root = viewer?.Layout;
-        if ((root?.DefaultDockable ?? root?.VisibleDockables?.FirstOrDefault()) is not { } content) return null;
+        if ((root?.DefaultDockable ?? root?.VisibleDockables?.FirstOrDefault()) is not { } content)
+        {
+            return null;
+        }
+
         _hiddenIn = viewer.Factory.HiddenIn;
         return Capture(content);
     }
@@ -156,7 +172,10 @@ public static class DockLayoutStore
         double proportion = DockCollapseBehavior.GetPersistedProportion(d);
         // An emptied dock (its panels hidden) is collapsed: keep the size it had while open.
         if (d is IDock { IsEmpty: true, IsCollapsable: true } && double.IsFinite(d.CollapsedProportion) && d.CollapsedProportion > 0)
+        {
             proportion = d.CollapsedProportion;
+        }
+
         return d switch
         {
             IProportionalDock p => new Node
@@ -165,9 +184,9 @@ public static class DockLayoutStore
                 Id = p.Id,
                 Orientation = p.Orientation.ToString(),
                 Proportion = proportion,
-                Children = (p.VisibleDockables ?? new List<IDockable>())
+                Children = [.. (p.VisibleDockables ?? [])
                     .Where(c => c is not IProportionalDockSplitter)
-                    .Select(Capture).ToList(),
+                    .Select(Capture)],
             },
             IToolDock t => new Node
             {
@@ -175,7 +194,7 @@ public static class DockLayoutStore
                 Id = t.Id,
                 Proportion = proportion,
                 Active = t.ActiveDockable?.Id,
-                Panels = (t.VisibleDockables ?? new List<IDockable>()).Select(v => v.Id).ToList(),
+                Panels = [.. (t.VisibleDockables ?? []).Select(v => v.Id)],
                 Hidden = Hidden(t),
             },
             IDocumentDock dd => new Node
@@ -184,7 +203,7 @@ public static class DockLayoutStore
                 Id = dd.Id,
                 Proportion = proportion,
                 Active = dd.ActiveDockable?.Id,
-                Panels = (dd.VisibleDockables ?? new List<IDockable>()).Select(v => v.Id).ToList(),
+                Panels = [.. (dd.VisibleDockables ?? []).Select(v => v.Id)],
                 Hidden = Hidden(dd),
             },
             _ => new Node { Kind = "panel", Id = d.Id, Proportion = proportion },
@@ -207,7 +226,11 @@ public static class DockLayoutStore
         try
         {
             using var stream = typeof(DockLayoutStore).Assembly.GetManifestResourceStream("layout.default.json");
-            if (stream == null) return null;
+            if (stream == null)
+            {
+                return null;
+            }
+
             var file = JsonSerializer.Deserialize<LayoutFile>(stream, JsonOptions);
             return file?.Version == CurrentVersion ? file : null;
         }
@@ -222,7 +245,11 @@ public static class DockLayoutStore
     {
         try
         {
-            if (!File.Exists(FilePath)) return null;
+            if (!File.Exists(FilePath))
+            {
+                return null;
+            }
+
             var file = JsonSerializer.Deserialize<LayoutFile>(File.ReadAllText(FilePath), JsonOptions);
             return file?.Version == CurrentVersion ? file : null;
         }
@@ -236,21 +263,37 @@ public static class DockLayoutStore
     /// <summary>Builds the saved layout, or returns null when it can't be restored faithfully.</summary>
     public static IRootDock TryRestore(MmucsDockFactory factory, LayoutFile file, bool requireAllPanels = false)
     {
-        if (file?.Root == null) return null;
+        if (file?.Root == null)
+        {
+            return null;
+        }
+
         try
         {
             var panels = factory.CreatePanels();
             var used = new HashSet<string>();
 
             var content = Build(factory, file.Root, panels, used);
-            if (content == null) return null;
+            if (content == null)
+            {
+                return null;
+            }
+
             var root = factory.CreateMainRoot(content);
 
-            foreach (var w in file.Windows ?? new List<FloatingWindow>())
+            foreach (var w in file.Windows ?? [])
             {
                 var windowContent = Build(factory, w.Content, panels, used);
-                if (windowContent == null) continue;
-                if (!double.IsFinite(w.Width) || !double.IsFinite(w.Height) || w.Width < 50 || w.Height < 20) continue;
+                if (windowContent == null)
+                {
+                    continue;
+                }
+
+                if (!double.IsFinite(w.Width) || !double.IsFinite(w.Height) || w.Width < 50 || w.Height < 20)
+                {
+                    continue;
+                }
+
                 var window = factory.CreateFloatingWindow(windowContent, w.X, w.Y, w.Width, w.Height);
                 root.Windows ??= factory.CreateList<IDockWindow>();
                 root.Windows.Add(window);
@@ -258,9 +301,16 @@ public static class DockLayoutStore
 
             // Panels the user hid stay hidden (the Window menu brings them back); a layout with
             // none of this version's panels doesn't fit it.
-            if (used.Count == 0) return null;
+            if (used.Count == 0)
+            {
+                return null;
+            }
             // A default must place (or hide) every panel (one added since it was written would be lost otherwise).
-            if (requireAllPanels && !panels.Keys.All(id => used.Contains(id) || factory.IsHidden(id))) return null;
+            if (requireAllPanels && !panels.Keys.All(id => used.Contains(id) || factory.IsHidden(id)))
+            {
+                return null;
+            }
+
             return root;
         }
         catch (Exception ex)
@@ -273,10 +323,13 @@ public static class DockLayoutStore
     /// <summary>Builds a saved dock tree from <paramref name="panels"/>, marking each one placed in <paramref name="used"/>.</summary>
     public static IDockable Build(ILayoutBuilder factory, Node node, Dictionary<string, IDockable> panels, HashSet<string> used)
     {
-        if (node == null) return null;
+        if (node == null)
+        {
+            return null;
+        }
 
         IList<IDockable> TakePanels() =>
-            factory.CreateList((node.Panels ?? new List<string>())
+            factory.CreateList((node.Panels ?? [])
                 .Where(id => id != null && panels.ContainsKey(id) && used.Add(id))
                 .Select(id => panels[id]).ToArray());
 
@@ -285,18 +338,25 @@ public static class DockLayoutStore
         {
             case "split":
             {
-                var children = (node.Children ?? new List<Node>())
+                var children = (node.Children ?? [])
                     .Select(c => Build(factory, c, panels, used))
                     .Where(c => c != null).ToList();
-                if (children.Count == 0) return null;
-                // Keep single-child splits: Dock can leave them, and their proportion is the pane's size.
+                if (children.Count == 0)
+                    {
+                        return null;
+                    }
+                    // Keep single-child splits: Dock can leave them, and their proportion is the pane's size.
 
-                Normalize(children);
+                    Normalize(children);
                 var items = new List<IDockable>();
                 for (int i = 0; i < children.Count; i++)
                 {
-                    if (i > 0) items.Add(new ProportionalDockSplitter());
-                    items.Add(children[i]);
+                    if (i > 0)
+                        {
+                            items.Add(new ProportionalDockSplitter());
+                        }
+
+                        items.Add(children[i]);
                 }
                 result = new ProportionalDock
                 {
@@ -310,46 +370,74 @@ public static class DockLayoutStore
             {
                 var list = TakePanels();
                 var hidden = HiddenPanels(node, panels);
-                if (list.Count == 0 && hidden.Count == 0) return null;
-                var dock = factory.NewToolDock(node.Id, list, list.FirstOrDefault(p => p.Id == node.Active));
-                foreach (var id in hidden) factory.RememberHidden(id, dock);
-                result = dock;
+                if (list.Count == 0 && hidden.Count == 0)
+                    {
+                        return null;
+                    }
+
+                    var dock = factory.NewToolDock(node.Id, list, list.FirstOrDefault(p => p.Id == node.Active));
+                foreach (var id in hidden)
+                    {
+                        factory.RememberHidden(id, dock);
+                    }
+
+                    result = dock;
                 break;
             }
             case "documents":
             {
                 var list = TakePanels();
                 var hidden = HiddenPanels(node, panels);
-                if (list.Count == 0 && hidden.Count == 0) return null;
-                var dock = factory.NewDocumentDock(node.Id, list, list.FirstOrDefault(p => p.Id == node.Active));
-                foreach (var id in hidden) factory.RememberHidden(id, dock);
-                result = dock;
+                if (list.Count == 0 && hidden.Count == 0)
+                    {
+                        return null;
+                    }
+
+                    var dock = factory.NewDocumentDock(node.Id, list, list.FirstOrDefault(p => p.Id == node.Active));
+                foreach (var id in hidden)
+                    {
+                        factory.RememberHidden(id, dock);
+                    }
+
+                    result = dock;
                 break;
             }
             case "panel":
             {
-                if (node.Id == null || !panels.TryGetValue(node.Id, out var panel) || !used.Add(node.Id)) return null;
-                result = panel;
+                if (node.Id == null || !panels.TryGetValue(node.Id, out var panel) || !used.Add(node.Id))
+                    {
+                        return null;
+                    }
+
+                    result = panel;
                 break;
             }
             default:
                 return null;
         }
 
-        if (double.IsFinite(node.Proportion) && node.Proportion > 0) result.Proportion = node.Proportion;
+        if (double.IsFinite(node.Proportion) && node.Proportion > 0)
+        {
+            result.Proportion = node.Proportion;
+        }
+
         return result;
     }
 
     /// <summary>A dock's hidden panels that this version knows (an empty dock is kept for them).</summary>
     private static List<string> HiddenPanels(Node node, Dictionary<string, IDockable> panels) =>
-        (node.Hidden ?? new List<string>()).Where(id => id != null && panels.ContainsKey(id)).Distinct().ToList();
+        [.. (node.Hidden ?? []).Where(id => id != null && panels.ContainsKey(id)).Distinct()];
 
     /// <summary>Scales sibling proportions to sum to 1 (dropped panes leave gaps otherwise).</summary>
     private static void Normalize(List<IDockable> children)
     {
         double total = children.Sum(c => double.IsFinite(c.Proportion) && c.Proportion > 0 ? c.Proportion : 0);
         int unset = children.Count(c => !double.IsFinite(c.Proportion) || c.Proportion <= 0);
-        if (total <= 0) return; // all unset: let the panel share equally
+        if (total <= 0)
+        {
+            return; // all unset: let the panel share equally
+        }
+
         double fill = unset > 0 ? Math.Max(0.05, (1 - Math.Min(total, 0.95)) / unset) : 0;
         double sum = total + fill * unset;
         foreach (var c in children)

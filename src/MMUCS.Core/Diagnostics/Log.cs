@@ -12,9 +12,20 @@ public static class Log
 {
     public static event Action<LogLevel, string> Message;
 
-    public static void Info(string msg) => Emit(LogLevel.Info, msg);
-    public static void Warn(string msg) => Emit(LogLevel.Warning, msg);
-    public static void Error(string msg) => Emit(LogLevel.Error, msg);
+    public static void Info(string msg)
+    {
+        Emit(LogLevel.Info, msg);
+    }
+
+    public static void Warn(string msg)
+    {
+        Emit(LogLevel.Warning, msg);
+    }
+
+    public static void Error(string msg)
+    {
+        Emit(LogLevel.Error, msg);
+    }
 
     private static void Emit(LogLevel level, string msg)
     {

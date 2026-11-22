@@ -23,7 +23,7 @@ public static class ScummProject
         string ext = Path.GetExtension(path).TrimStart('.');
 
         if (!IsLaExtension(ext, out _))
-            return new[] { path };
+            return [path];
 
         var files = Directory.GetFiles(dir, baseName + ".*", SearchOption.TopDirectoryOnly)
             .Select(f => (Path: f, Ok: IsLaExtension(Path.GetExtension(f).TrimStart('.'), out int n), Index: n))
@@ -55,7 +55,7 @@ public static class ScummProject
             progress?.Invoke(i, files.Count, files[i]);
             // LOFF offsets are file-relative; drop the previous file's before parsing the next.
             ScummStatics.RoomOffsets.Clear();
-            roots.Add(parser.Parse(files[i]));
+            roots.Add(ScummResourceParser.Parse(files[i]));
         }
 
         if (roots.Count == 1) return roots[0];

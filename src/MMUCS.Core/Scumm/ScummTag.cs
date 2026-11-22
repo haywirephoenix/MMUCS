@@ -163,31 +163,62 @@ public static class ScummTag
     };
 
 
-    public static string GetTagName(uint tag) => TryGetMeta(tag, out var meta) ? meta.TagName : "---";
-    public static string GetFullName(uint tag) => TryGetMeta(tag, out var meta) ? meta.FullName : "---";
-    public static string GetDescription(uint tag) => TryGetMeta(tag, out var meta) ? meta.Description : "---";
+    public static string GetTagName(uint tag)
+    {
+        return TryGetMeta(tag, out var meta) ? meta.TagName : "---";
+    }
 
-    public static bool TryGetMeta(uint tag, out TagMeta meta) => ScummV8Metadata.TryGetValue(tag, out meta);
-    public static bool TryGetMeta(string tag, out TagMeta meta) => ScummV8Metadata.TryGetValue(FromString(tag), out meta);
+    public static string GetFullName(uint tag)
+    {
+        return TryGetMeta(tag, out var meta) ? meta.FullName : "---";
+    }
+
+    public static string GetDescription(uint tag)
+    {
+        return TryGetMeta(tag, out var meta) ? meta.Description : "---";
+    }
+
+    public static bool TryGetMeta(uint tag, out TagMeta meta)
+    {
+        return ScummV8Metadata.TryGetValue(tag, out meta);
+    }
+
+    public static bool TryGetMeta(string tag, out TagMeta meta)
+    {
+        return ScummV8Metadata.TryGetValue(FromString(tag), out meta);
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static uint Read(byte[] data, int pos) => 
-        ((uint)data[pos] << 24) | ((uint)data[pos + 1] << 16) | ((uint)data[pos + 2] << 8) | data[pos + 3];
+    public static uint Read(byte[] data, int pos)
+    {
+        return ((uint)data[pos] << 24) | ((uint)data[pos + 1] << 16) | ((uint)data[pos + 2] << 8) | data[pos + 3];
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static uint Make(char a, char b, char c, char d) => 
-        ((uint)a << 24) | ((uint)b << 16) | ((uint)c << 8) | d;
+    public static uint Make(char a, char b, char c, char d)
+    {
+        return ((uint)a << 24) | ((uint)b << 16) | ((uint)c << 8) | d;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static uint FromString(ReadOnlySpan<char> s) =>
-        s.Length != 4 ? throw new ArgumentException("FourCC must be 4 chars") : ((uint)s[0] << 24) | ((uint)s[1] << 16) | ((uint)s[2] << 8) | s[3];
-    
-    public static string ToString(uint value) => string.Create(4, value, (span, v) => {
-        span[0] = (char)(v >> 24);
-        span[1] = (char)((v >> 16) & 0xFF);
-        span[2] = (char)((v >> 8) & 0xFF);
-        span[3] = (char)(v & 0xFF);
-    });
-    public static string ToString_prev(uint value) => 
-        new string(new[] { (char)(value >> 24), (char)((value >> 16) & 0xFF), (char)((value >> 8) & 0xFF), (char)(value & 0xFF) });
+    public static uint FromString(ReadOnlySpan<char> s)
+    {
+        return s.Length != 4 ? throw new ArgumentException("FourCC must be 4 chars") : ((uint)s[0] << 24) | ((uint)s[1] << 16) | ((uint)s[2] << 8) | s[3];
+    }
+
+    public static string ToString(uint value)
+    {
+        return string.Create(4, value, (span, v) =>
+        {
+            span[0] = (char)(v >> 24);
+            span[1] = (char)((v >> 16) & 0xFF);
+            span[2] = (char)((v >> 8) & 0xFF);
+            span[3] = (char)(v & 0xFF);
+        });
+    }
+
+    public static string ToString_prev(uint value)
+    {
+        return new string([(char)(value >> 24), (char)((value >> 16) & 0xFF), (char)((value >> 8) & 0xFF), (char)(value & 0xFF)]);
+    }
 }

@@ -107,14 +107,13 @@ public static class MediaLibrary
 
         // Cutscenes in the order they play (Names/cutscenes.json), any it doesn't list after them; sounds by ID.
         // Speech by scene, speaker and line number (so 999 comes before 1017).
-        return list
+        return [.. list
             .OrderBy(i => i.Kind)
             .ThenBy(i => i.Kind == MediaKind.Cutscene && CutsceneOrder.TryGet(i.Id, out int order, out _) ? order : int.MaxValue)
             .ThenBy(i => i.Scene ?? "", StringComparer.Ordinal)
             .ThenBy(i => i.Speaker ?? "", StringComparer.Ordinal)
             .ThenBy(i => i.Number)
-            .ThenBy(i => i.Id, StringComparer.Ordinal)
-            .ToList();
+            .ThenBy(i => i.Id, StringComparer.Ordinal)];
     }
 
     /// <summary>
@@ -130,7 +129,7 @@ public static class MediaLibrary
         {
             if (line.Room == 0 || line.RoomName == null) continue;
             string scene = VoiceLines.Split(line.Code).Scene;
-            if (!sceneRooms.TryGetValue(scene, out var rooms)) sceneRooms[scene] = rooms = new();
+            if (!sceneRooms.TryGetValue(scene, out var rooms)) sceneRooms[scene] = rooms = [];
             rooms[line.RoomName] = rooms.GetValueOrDefault(line.RoomName) + 1;
         }
 
@@ -163,6 +162,8 @@ public static class MediaLibrary
         return ImusSound.Parse(BundleCodec.Decompress(bundle.Read(bundle.Entries[item.Entry])));
     }
 
-    public static SmushVideo LoadVideo(MediaItem item) =>
-        item.Kind == MediaKind.Cutscene ? SmushVideo.Load(item.File) : throw new ArgumentException("not a cutscene");
+    public static SmushVideo LoadVideo(MediaItem item)
+    {
+        return item.Kind == MediaKind.Cutscene ? SmushVideo.Load(item.File) : throw new ArgumentException("not a cutscene");
+    }
 }

@@ -16,10 +16,7 @@ public class ScummResourceParser
     // COMI uses XOR obfuscation with key 0x69
     private const byte XorKey = 0x69;
 
-    // Max bytes to keep as RawData per block (avoid huge memory use for AKCD etc)
-    private const int MaxRawDataBytes = 256 * 1024;
-
-    public event Action<int, int> ProgressChanged; // current, total bytes
+    // public event Action<int, int> ProgressChanged; // current, total bytes
 
     public ScummResourceParser()
     {
@@ -28,14 +25,14 @@ public class ScummResourceParser
         ScummStatics.RoomOffsets.Clear();
     }
     
-    public ScummBlock Parse(string filePath)
+    public static ScummBlock Parse(string filePath)
     {
         // _rnamBlock = null;
         byte[] raw = File.ReadAllBytes(filePath);
 
         // COMI .la0 files are XOR obfuscated
-        if (_IsObfuscated(raw))
-            _XorDecrypt(raw);
+        if (IsObfuscated(raw))
+            XorDecrypt(raw);
 
         var root = new ScummBlock
         {
@@ -50,19 +47,19 @@ public class ScummResourceParser
             SourceKey = StableHash.Of(StableHash.Of(Path.GetFileName(filePath).ToUpperInvariant()), raw.Length),
         };
 
-        _ParseChildren(raw, 0, raw.Length, root);
+        ParseChildren(raw, 0, raw.Length, root);
 
-        _DecodeMetadata(root);
+        DecodeMetadata(root);
 
         return root;
     }
 
-    private void _ParseChildren(byte[] data, int start, int end, ScummBlock parent, bool silent = false)
+    private static void ParseChildren(byte[] data, int start, int end, ScummBlock parent, bool silent = false)
     {
         ReadOnlySpan<byte> span = data;
         int pos = start;
 
-        Dictionary<uint, int> tagCounters = new();
+        Dictionary<uint, int> tagCounters = [];
 
         while (pos + 8 <= end)
         {
@@ -107,9 +104,9 @@ public class ScummResourceParser
 
             parent.Children.Add(block);
 
-            if (_IsContainer(tag))
+            if (IsContainer(tag))
             {
-                _ParseChildren(data, pos + 8, pos + size, block, silent: true);
+                ParseChildren(data, pos + 8, pos + size, block, silent: true);
             }
 
             pos += size;
@@ -117,8 +114,8 @@ public class ScummResourceParser
     }
 
     // These container tags have child blocks inside them
-    private static readonly HashSet<uint> ContainerTags = new()
-    {
+    private static readonly HashSet<uint> ContainerTags =
+    [
         ScummTag.LECF,
         ScummTag.LFLF,
         ScummTag.ROOM,
@@ -144,16 +141,19 @@ public class ScummResourceParser
         ScummTag.STOP,
         ScummTag.DATA,
 
-    };
+    ];
 
 
-    private bool _IsContainer(uint tag) => ContainerTags.Contains(tag);
+    private static bool IsContainer(uint tag)
+    {
+        return ContainerTags.Contains(tag);
+    }
 
 
 
     // private HashSet<string> missingtags = new();
 
-    private void _AddNameDescription(ScummBlock block)
+    private static void AddNameDescription(ScummBlock block)
     {
         if (!ScummTag.TryGetMeta(block.Tag, out var meta))
         {
@@ -168,7 +168,7 @@ public class ScummResourceParser
         block.TagName = meta.TagName;
     }
 
-    private void _DecodeMetadata(ScummBlock block)
+    private static void DecodeMetadata(ScummBlock block)
     {
         // Pre: leaf/header blocks
         switch (block.Tag)
@@ -186,8 +186,8 @@ public class ScummResourceParser
 
         foreach (var child in block.Children)
         {
-            _AddNameDescription(child);
-            _DecodeMetadata(child);
+            AddNameDescription(child);
+            DecodeMetadata(child);
         }
 
         // Post: containers that need child data ready first
@@ -204,7 +204,7 @@ public class ScummResourceParser
         // }
     }
 
-    private void DecodeAKHD(ScummBlock block)
+    private static void DecodeAKHD(ScummBlock block)
     {
         var akhd = block.DataSpan;
         // var akpl = block.FindChild(ScummTag.AKPL).DataSpan;
@@ -231,16 +231,16 @@ public class ScummResourceParser
             (ScummMeta.AKHD.HasManyDirections,   hasManyDirections),
         };
         
-        foreach (var item in dataMap)
+        foreach (var (Key, Val) in dataMap)
         {
-            Set(item.Key, item.Val);
+            Set(Key, Val);
         }
     }
-    private void DecodeAKOS(ScummBlock block)
+    private static void DecodeAKOS(ScummBlock block)
     {
         // AKOS parsing happens on demand in AkosParser.
     }
-    private void DecodeLOFF(ScummBlock block)
+    private static void DecodeLOFF(ScummBlock block)
     {
         var span  = block.DataSpan;
         int count = span[0];   // 1 byte, matches readRoomsOffsets()
@@ -254,7 +254,7 @@ public class ScummResourceParser
         }
     }
 
-    private void DecodeLFLF(ScummBlock block)
+    private static void DecodeLFLF(ScummBlock block)
     {
         // if (_rnamBlock == null) return;
 
@@ -285,7 +285,7 @@ public class ScummResourceParser
 
     // private List<string> roomNames = new();
 
-    private void DecodeRNAM(ScummBlock block)
+    private static void DecodeRNAM(ScummBlock block)
     {
         // List<string> roomNames = new(); // indexed list the caller asked for
         // Dictionary<int, string> roomLookup = new(); // fast reverse lookup
@@ -341,7 +341,7 @@ public class ScummResourceParser
             // Log.Info($"  {kv.Key,3}: {kv.Value}");
     }
 
-    private void DecodeRMHD(ScummBlock block)
+    private static void DecodeRMHD(ScummBlock block)
     {
         var span = block.DataSpan;
 
@@ -353,7 +353,7 @@ public class ScummResourceParser
         block.SetMetaDataItem(ScummMeta.RMHD.transpar,span.U32LE(20));
     }
 
-    private void DecodeCDHD(ScummBlock block)
+    private static void DecodeCDHD(ScummBlock block)
     {
         var s = block.DataSpan;
         block.SetMetaDataItem(ScummMeta.CDHD.objId,s.U16LE(0));
@@ -364,13 +364,13 @@ public class ScummResourceParser
         if (s.Length >= 9) block.SetMetaDataItem(ScummMeta.CDHD.actorDir,s.Get(8));
     }
 
-    private void DecodeOBNA(ScummBlock block)
+    private static void DecodeOBNA(ScummBlock block)
     {
         // Null-terminated ASCII string
         var span = block.DataSpan;
         int len = 0;
         while (len < span.Length && span[len] != 0) len++;
-        var name = Encoding.ASCII.GetString(span.Slice(0, len).ToArray());
+        var name = Encoding.ASCII.GetString(span[..len].ToArray());
 
         block.SetMetaDataItem(ScummMeta.OBNA.name, name);
         // block.Metadata["name"] = 
@@ -387,7 +387,7 @@ public class ScummResourceParser
     //         block.Metadata[kv.Key] = kv.Value;
     // }
 
-    private void DecodeOBCD(ScummBlock block)
+    private static void DecodeOBCD(ScummBlock block)
     {
         var cdhd = block.FindChild(ScummTag.CDHD);
         if (cdhd == null)
@@ -422,7 +422,7 @@ public class ScummResourceParser
     //     }
     // }
 
-    private void DecodeOBIM(ScummBlock block)
+    private static void DecodeOBIM(ScummBlock block)
     {
         var imhd = block.FindChild(ScummTag.IMHD);
         if (imhd == null)
@@ -436,7 +436,7 @@ public class ScummResourceParser
             len++;
 
         block.SetMetaDataItem(ScummMeta.OBIM.name,
-            Encoding.ASCII.GetString(s.Slice(0, len).ToArray()));
+            Encoding.ASCII.GetString(s[..len].ToArray()));
 
        block.SetMetaDataItem(ScummMeta.OBIM.version,s.U32LE(40));
        block.SetMetaDataItem(ScummMeta.OBIM.imageCount,s.U32LE(44));
@@ -468,7 +468,7 @@ public class ScummResourceParser
         // }
     }
 
-    private void DecodeBOXD(ScummBlock block)
+    private static void DecodeBOXD(ScummBlock block)
     {
         var span = block.DataSpan;
         int numBoxes = span.U16LE(0);
@@ -489,42 +489,9 @@ public class ScummResourceParser
         // }
     }
 
-
-    private static bool _LooksLikeContainer(byte[] data, int start, int end)
-    {
-        end = Math.Min(end, data.Length);
-        if (end - start < 8) return false;
-
-        int pos = start;
-        int count = 0;
-
-        while (pos + 8 <= end)
-        {
-            bool tagOk = true;
-            for (int i = 0; i < 4; i++)
-            {
-                byte b = data[pos + i];
-                if (b < 0x20 || b > 0x7E)
-                {
-                    tagOk = false;
-                    break;
-                }
-            }
-            if (!tagOk) break;
-
-            int size = _ReadBEInt(data, pos + 4);
-            if (size < 8 || (long)pos + size > end) break;
-
-            pos += size;
-            count++;
-        }
-
-        return count > 0;
-    }
-
     // ── Obfuscation ───────────────────────────────────────────────────────────
 
-    private bool _IsObfuscated(byte[] data)
+    private static bool IsObfuscated(byte[] data)
     {
         if (data.Length < 4) return false;
 
@@ -546,18 +513,15 @@ public class ScummResourceParser
     //     return plain == "LECF" || plain == "RNAM";
     // }
 
-    private void _XorDecrypt(byte[] data)
+    private static void XorDecrypt(byte[] data)
     {
 
         for (int i = 0; i < data.Length; i++)
             data[i] ^= XorKey;
     }
 
-    // ── Binary helpers ────────────────────────────────────────────────────────
-
-    private static string _ReadTag(byte[] b, int pos) =>
-        $"{(char)b[pos]}{(char)b[pos + 1]}{(char)b[pos + 2]}{(char)b[pos + 3]}";
-
-    private static int _ReadBEInt(byte[] b, int pos) =>
-        (b[pos] << 24) | (b[pos + 1] << 16) | (b[pos + 2] << 8) | b[pos + 3];
+    private static int ReadBEInt(byte[] b, int pos)
+    {
+        return (b[pos] << 24) | (b[pos + 1] << 16) | (b[pos + 2] << 8) | b[pos + 3];
+    }
 }

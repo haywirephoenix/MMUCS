@@ -64,8 +64,8 @@ public static class SmushExporter
                 && frame.Palette.AsSpan().SequenceEqual(lastPalette);
             if (!same)
             {
-                lastPixels = frame.Pixels.ToArray();
-                lastPalette = frame.Palette.ToArray();
+                lastPixels = [.. frame.Pixels];
+                lastPalette = [.. frame.Palette];
                 lastImage = frame.Index;
                 string file = Path.Combine(frameDir, frame.Index.ToString(format) + ".png");
                 byte[] pixels = lastPixels, palette = lastPalette;

@@ -17,23 +17,31 @@ public partial class InspectorView : UserControl
     protected override void OnDataContextChanged(System.EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (_vm != null) _vm.PropertyChanged -= OnVmChanged;
+        _vm?.PropertyChanged -= OnVmChanged;
+
         _vm = DataContext as InspectorViewModel;
         MetadataRows.DataContext = _vm?.Metadata;
-        if (_vm != null) _vm.PropertyChanged += OnVmChanged;
+        _vm?.PropertyChanged += OnVmChanged;
+
         SizeSections();
     }
 
     private void OnVmChanged(object sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(InspectorViewModel.IsMetadataExpanded) or nameof(InspectorViewModel.IsViewerExpanded) or nameof(InspectorViewModel.Content))
+        {
             SizeSections();
+        }
     }
 
     /// <summary>The viewer takes the height when it's open; otherwise the Metadata rows do.</summary>
     private void SizeSections()
     {
-        if (_vm == null) return;
+        if (_vm == null)
+        {
+            return;
+        }
+
         bool viewerOpen = !_vm.IsEmpty && _vm.IsViewerExpanded;
         bool metadataFills = _vm.IsMetadataExpanded && !viewerOpen;
         Sections.RowDefinitions[1].Height = metadataFills ? GridLength.Star : GridLength.Auto;

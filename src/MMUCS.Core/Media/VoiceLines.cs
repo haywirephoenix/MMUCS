@@ -67,7 +67,10 @@ public static class VoiceLines
         return found;
     }
 
-    private static bool IsCodeChar(byte b) => b is >= (byte)'A' and <= (byte)'Z' or >= (byte)'0' and <= (byte)'9' or (byte)'_';
+    private static bool IsCodeChar(byte b)
+    {
+        return b is >= (byte)'A' and <= (byte)'Z' or >= (byte)'0' and <= (byte)'9' or (byte)'_';
+    }
 
     /// <summary>The text without SCUMM's 0xFF control codes (waits, colours), as one line.</summary>
     private static string Clean(ReadOnlySpan<byte> s)
@@ -85,7 +88,7 @@ public static class VoiceLines
     /// <summary>A code's parts: BCCB301 → ("BC", "CB", 301). Underscores are skipped (PU_CP124).</summary>
     public static (string Scene, string Speaker, int Number) Split(string code)
     {
-        string c = new string((code ?? "").Where(char.IsAsciiLetterOrDigit).ToArray()).ToUpperInvariant();
+        string c = new string([.. (code ?? "").Where(char.IsAsciiLetterOrDigit)]).ToUpperInvariant();
         string scene = c.Length >= 2 ? c[..2] : c;
         string speaker = c.Length >= 4 ? c[2..4] : "";
         int digits = 0;
@@ -112,8 +115,15 @@ public static class VoiceNames
 
     private static readonly Lazy<(Dictionary<string, string> Speakers, Dictionary<string, string> Scenes)> _names = new(Load);
 
-    public static string Speaker(string code) => code != null && _names.Value.Speakers.TryGetValue(code, out var n) ? n : null;
-    public static string Scene(string code) => code != null && _names.Value.Scenes.TryGetValue(code, out var n) ? n : null;
+    public static string Speaker(string code)
+    {
+        return code != null && _names.Value.Speakers.TryGetValue(code, out var n) ? n : null;
+    }
+
+    public static string Scene(string code)
+    {
+        return code != null && _names.Value.Scenes.TryGetValue(code, out var n) ? n : null;
+    }
 
     private static (Dictionary<string, string>, Dictionary<string, string>) Load()
     {
@@ -121,8 +131,8 @@ public static class VoiceNames
         var scenes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         void Apply(FileModel m)
         {
-            foreach (var (k, v) in m?.Speakers ?? new()) if (!string.IsNullOrWhiteSpace(v)) speakers[k] = v;
-            foreach (var (k, v) in m?.Scenes ?? new()) if (!string.IsNullOrWhiteSpace(v)) scenes[k] = v;
+            foreach (var (k, v) in m?.Speakers ?? []) if (!string.IsNullOrWhiteSpace(v)) speakers[k] = v;
+            foreach (var (k, v) in m?.Scenes ?? []) if (!string.IsNullOrWhiteSpace(v)) scenes[k] = v;
         }
         try
         {

@@ -17,21 +17,29 @@ public partial class ExporterWindow : Window
     {
         IStorageFolder start = null;
         if (!string.IsNullOrWhiteSpace(Vm.OutputFolder))
+        {
             start = await StorageProvider.TryGetFolderFromPathAsync(Vm.OutputFolder);
+        }
 
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = "Export to…",
             SuggestedStartLocation = start,
         });
-        var path = folders.FirstOrDefault()?.TryGetLocalPath();
-        if (path != null) Vm.OutputFolder = path;
+        var path = folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
+        if (path != null)
+        {
+            Vm.OutputFolder = path;
+        }
     }
 
     private async void OnOpenFolderClick(object sender, RoutedEventArgs e)
     {
         var folder = await StorageProvider.TryGetFolderFromPathAsync(Vm.OutputFolder);
-        if (folder != null) await Launcher.LaunchFileAsync(folder);
+        if (folder != null)
+        {
+            await Launcher.LaunchFileAsync(folder);
+        }
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();

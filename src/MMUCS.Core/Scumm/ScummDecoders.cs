@@ -13,24 +13,28 @@ namespace MMUCS.Core.Scumm;
 public static class ScummDecoders
 {
     #region OBIM
-    
+
     public static bool TryGetObimInfo(ScummBlock obimBlock, out ObimDecoders.ObimInfo info)
-    => ObimDecoders.TryGetObimInfo(obimBlock, out info);
-    
+    {
+        return ObimDecoders.TryGetObimInfo(obimBlock, out info);
+    }
+
     public static bool TryDecodeObimFrame(
         ScummBlock objectBlock,
-        CancellationToken token,
         int frameIndex,
         int paletteIndex,
         out ObimDecoders.ObimDecodeRawResult result,
         out RgbaImage bakedImage,
-        bool generateImage = false)
-    => ObimDecoders.TryDecodeObimFrame(objectBlock, token, frameIndex, paletteIndex, out result, out bakedImage, generateImage);
-    
+        bool generateImage = false,
+        CancellationToken token = default)
+    {
+        return ObimDecoders.TryDecodeObimFrame(objectBlock, frameIndex, paletteIndex, out result, out bakedImage, generateImage, token);
+    }
+
     #endregion
 
     #region ROOM
-    
+
     public static bool DecodeBackgroundImage(
         int roomId,
         ScummBlock _rmhdBlock,
@@ -41,17 +45,21 @@ public static class ScummDecoders
         out byte[] indexedPixels,
         out int outPitch,
         out ReadOnlySpan<byte> roomPalette,
-        bool generateImage = false) =>
-        RoomDecoders.DecodeBackgroundImage(roomId, _rmhdBlock, _roomBlock, paletteIndex, token, out backgroundImage, out indexedPixels, out outPitch, out roomPalette, generateImage);
-    
+        bool generateImage = false)
+    {
+        return RoomDecoders.DecodeBackgroundImage(roomId, _rmhdBlock, _roomBlock, paletteIndex, token, out backgroundImage, out indexedPixels, out outPitch, out roomPalette, generateImage);
+    }
+
     public static bool TryGetRoomInfo(ScummBlock rmhdBlock, ScummBlock roomBlock, out RoomDecoders.RoomInfo info)
-    =>  RoomDecoders.TryGetRoomInfo(rmhdBlock, roomBlock, out info);
-    
+    {
+        return RoomDecoders.TryGetRoomInfo(rmhdBlock, roomBlock, out info);
+    }
+
     #endregion
 
     #region Common
 
-   public static bool TryDecodeSmapBlock(
+    public static bool TryDecodeSmapBlock(
     ScummBlock smapBlock,
     int width,
     int height,
@@ -124,9 +132,9 @@ public static class ScummDecoders
             //     continue;
             // }
 
-            var stripSrc = fileSpan.Slice(absoluteOffset);
+            var stripSrc = fileSpan[absoluteOffset..];
             byte codec = stripSrc[0];
-            var compressedPayload = stripSrc.Slice(1);
+            var compressedPayload = stripSrc[1..];
 
             // Map column dynamically to visual coordinates
             int destX = i * 8;
@@ -162,7 +170,7 @@ public static class ScummDecoders
 
         byte color = src[0];
 
-        var br = new BitReaderLSB(src.Slice(1));
+        var br = new BitReaderLSB(src[1..]);
 
         bool repeatMode = false;
         int repeatCount = 0;
@@ -228,7 +236,7 @@ public static class ScummDecoders
 
         byte color = src[0];
 
-        var br = new BitReaderLSB(src.Slice(1));
+        var br = new BitReaderLSB(src[1..]);
 
         sbyte inc = -1;
 
@@ -280,7 +288,7 @@ public static class ScummDecoders
 
         byte color = src[0];
 
-        var br = new BitReaderLSB(src.Slice(1));
+        var br = new BitReaderLSB(src[1..]);
 
         sbyte inc = -1;
 
@@ -359,7 +367,7 @@ public static class ScummDecoders
             return;
 
         byte color = src[0];
-        var br = new BitReaderLSB(src.Slice(1));
+        var br = new BitReaderLSB(src[1..]);
 
         for (int y = 0; y < height; y++)
         {
@@ -458,7 +466,7 @@ public static class ScummDecoders
 
     public ref struct BitReaderLSB(ReadOnlySpan<byte> src, int startIndex = 0)
     {
-        private ReadOnlySpan<byte> _src = src;
+        private readonly ReadOnlySpan<byte> _src = src;
         private int _index = startIndex;
 
         private uint _bits = 0;

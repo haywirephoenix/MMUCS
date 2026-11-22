@@ -20,7 +20,7 @@ public static class ScummBackgroundCache
     
     private const string CacheBucket = "backgrounds";
     
-    private static readonly Dictionary<int, BackgroundResult> RamCache = new();
+    private static readonly Dictionary<int, BackgroundResult> RamCache = [];
     private const int HeaderSize = 12;
     public static string GetBackgroundCachePath(int roomId)
     {

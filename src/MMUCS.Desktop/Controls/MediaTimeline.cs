@@ -42,7 +42,11 @@ public sealed class MediaTimeline : Control
 
     private void EnsureBrushes()
     {
-        if (_back != null) return;
+        if (_back != null)
+        {
+            return;
+        }
+
         _back = this.FindBrush("ListBackgroundBrush");
         _regionA = new SolidColorBrush(this.FindColor("TagRoomBrush"), 0.55);
         _regionB = new SolidColorBrush(this.FindColor("TagScriptBrush"), 0.55);
@@ -61,7 +65,11 @@ public sealed class MediaTimeline : Control
         EnsureBrushes();
         ctx.FillRectangle(_back, new Rect(Bounds.Size));
         var s = Sound;
-        if (s == null) return;
+        if (s == null)
+        {
+            return;
+        }
+
         long total = Math.Max(1, s.FrameCount);
         long F(long offset) => s.ToFrame(offset);
 
@@ -72,7 +80,10 @@ public sealed class MediaTimeline : Control
             double x0 = X(F(r.Offset), total), x1 = X(F(r.Offset + r.Length), total);
             var rect = new Rect(x0, BarTop, Math.Max(1, x1 - x0 - 1), BarHeight);
             ctx.DrawRectangle(i % 2 == 0 ? _regionA : _regionB, null, rect, 3, 3);
-            if (x1 - x0 > 30) Label(ctx, $"{i + 1}", new Point(x0 + 5, BarTop + 6), _text, 11);
+            if (x1 - x0 > 30)
+            {
+                Label(ctx, $"{i + 1}", new Point(x0 + 5, BarTop + 6), _text, 11);
+            }
         }
 
         // Jumps: an arc above the bars from where they leave to where they land.
@@ -80,7 +91,7 @@ public sealed class MediaTimeline : Control
         {
             double from = X(F(j.Offset), total), to = X(F(j.Destination), total);
             double lift = Math.Clamp(Math.Abs(to - from) / 3, 14, BarTop - 22);
-            var pen = new Pen(j.Hook == 0 ? _unhooked : _hooked, 1.5, j.Hook == 0 ? null : new DashStyle(new double[] { 4, 3 }, 0));
+            var pen = new Pen(j.Hook == 0 ? _unhooked : _hooked, 1.5, j.Hook == 0 ? null : new DashStyle([4, 3], 0));
             var geo = new StreamGeometry();
             using (var g = geo.Open())
             {
@@ -99,10 +110,18 @@ public sealed class MediaTimeline : Control
         var tick = new Pen(_subtle, 1);
         foreach (var m in s.Markers)
         {
-            if (m.Text.Trim('*').Length == 0) continue;
+            if (m.Text.Trim('*').Length == 0)
+            {
+                continue;
+            }
+
             double x = X(F(m.Offset), total);
             ctx.DrawLine(tick, new Point(x, BarTop + BarHeight), new Point(x, BarTop + BarHeight + 6));
-            if (x < lastLabelEnd) continue;
+            if (x < lastLabelEnd)
+            {
+                continue;
+            }
+
             var t = Text(m.Text, _subtle, 10);
             ctx.DrawText(t, new Point(x + 2, BarTop + BarHeight + 6));
             lastLabelEnd = x + t.Width + 8;
@@ -121,7 +140,11 @@ public sealed class MediaTimeline : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || Sound == null) return;
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || Sound == null)
+        {
+            return;
+        }
+
         _dragging = true;
         e.Pointer.Capture(this);
         Seek(e.GetPosition(this).X);
@@ -130,7 +153,10 @@ public sealed class MediaTimeline : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (_dragging) Seek(e.GetPosition(this).X);
+        if (_dragging)
+        {
+            Seek(e.GetPosition(this).X);
+        }
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)

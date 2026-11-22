@@ -2,3 +2,7 @@ root = true
 
 [*]
 charset = utf-8
+
+[tests/**.cs]
+# Expected values written inline (Assert.Equal(new[] { 1, 32 }, …)) read better than hoisted fields, and each test runs once.
+dotnet_diagnostic.CA1861.severity = none

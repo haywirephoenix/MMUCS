@@ -45,16 +45,29 @@ public static class ScummDecompiler
         ["=="] = "!=", ["!="] = "==", [">"] = "<=", ["<"] = ">=", ["<="] = ">", [">="] = "<",
     };
 
-    private static string Wrap(Expr e, int prec) => e.Prec < prec ? $"({e.Text})" : e.Text;
+    private static string Wrap(Expr e, int prec)
+    {
+        return e.Prec < prec ? $"({e.Text})" : e.Text;
+    }
 
     private static Expr Atom(string text, int start, bool call = false, int? literal = null)
-        => new() { Text = text, Prec = PAtom, Start = start, Call = call, Literal = literal };
-
-    private static Expr MakeBinary(Expr a, Expr b, string op, int prec) => new()
     {
-        Text = $"{Wrap(a, prec)} {op} {Wrap(b, prec + 1)}", Prec = prec, Start = Math.Min(a.Start, b.Start),
-        Call = a.Call || b.Call, Op = op, Left = a, Right = b,
-    };
+        return new() { Text = text, Prec = PAtom, Start = start, Call = call, Literal = literal };
+    }
+
+    private static Expr MakeBinary(Expr a, Expr b, string op, int prec)
+    {
+        return new()
+        {
+            Text = $"{Wrap(a, prec)} {op} {Wrap(b, prec + 1)}",
+            Prec = prec,
+            Start = Math.Min(a.Start, b.Start),
+            Call = a.Call || b.Call,
+            Op = op,
+            Left = a,
+            Right = b,
+        };
+    }
 
     private static Expr Not(Expr e)
     {
@@ -105,9 +118,9 @@ public static class ScummDecompiler
 
     private sealed class Builder(ObjectNamer objectName)
     {
-        private readonly List<Stmt> _out = new();
-        private List<Expr> _stack = new();
-        private readonly Dictionary<int, List<Expr>> _stackAt = new();
+        private readonly List<Stmt> _out = [];
+        private List<Expr> _stack = [];
+        private readonly Dictionary<int, List<Expr>> _stackAt = [];
         private int _temps;
         private string _actor = "?", _verb = "?";
         private StringBuilder _print;
@@ -124,7 +137,7 @@ public static class ScummDecompiler
                 {
                     // Code after an unconditional jump is reached only by a jump: take the stack it saw.
                     // Restamped so statements built from it start at this label, where the jump lands.
-                    _stack = _stackAt.TryGetValue(ins.Offset, out var s) ? s.Select(e => Restamp(e, ins.Offset)).ToList() : new List<Expr>();
+                    _stack = _stackAt.TryGetValue(ins.Offset, out var s) ? [.. s.Select(e => Restamp(e, ins.Offset))] : [];
                     dead = false;
                 }
                 if (_print != null && (ins.Opcode != _printOp || ins.SubOp == 0xC8)) FlushPrint(null);
@@ -162,10 +175,20 @@ public static class ScummDecompiler
             return _out;
         }
 
-        private static Expr Restamp(Expr e, int start) => new()
+        private static Expr Restamp(Expr e, int start)
         {
-            Text = e.Text, Prec = e.Prec, Start = start, Call = e.Call, Literal = e.Literal, Op = e.Op, Left = e.Left, Right = e.Right,
-        };
+            return new()
+            {
+                Text = e.Text,
+                Prec = e.Prec,
+                Start = start,
+                Call = e.Call,
+                Literal = e.Literal,
+                Op = e.Op,
+                Left = e.Left,
+                Right = e.Right,
+            };
+        }
 
         private Expr Pop(int at)
         {
@@ -175,7 +198,10 @@ public static class ScummDecompiler
             return e;
         }
 
-        private void Push(Expr e) => _stack.Add(e);
+        private void Push(Expr e)
+        {
+            _stack.Add(e);
+        }
 
         /// <summary>A stack list: the count on top, then that many values (last pushed last).</summary>
         private Expr PopList(int at)
@@ -210,11 +236,13 @@ public static class ScummDecompiler
         }
 
         private void Emit(int offset, string text, Kind kind = Kind.Plain)
-            => _out.Add(new Stmt { Kind = kind, Offset = offset, Text = text });
+        {
+            _out.Add(new Stmt { Kind = kind, Offset = offset, Text = text });
+        }
 
         private void SaveStack(int target)
         {
-            if (target >= 0 && !_stackAt.ContainsKey(target)) _stackAt[target] = new List<Expr>(_stack);
+            if (target >= 0 && !_stackAt.ContainsKey(target)) _stackAt[target] = [.. _stack];
         }
 
         private static string Fill(string template, Expr[] args, ScriptInstruction ins)
@@ -350,7 +378,10 @@ public static class ScummDecompiler
             else Emit(start, text);
         }
 
-        private static bool IsPrint(byte op) => op is 0x8f or 0x90 or 0x93 or 0x94 or 0x95 or 0x96 or 0x97;
+        private static bool IsPrint(byte op)
+        {
+            return op is 0x8f or 0x90 or 0x93 or 0x94 or 0x95 or 0x96 or 0x97;
+        }
 
         /// <summary>Print ops come one sub-op per instruction; they're joined into one line.</summary>
         private void Print(ScriptInstruction ins, Expr[] args, int start)
@@ -385,12 +416,15 @@ public static class ScummDecompiler
             _print = null;
         }
 
-        private static string Flags(Expr flags) => flags.Literal switch
+        private static string Flags(Expr flags)
         {
-            0 => "",
-            int f => ((f & 1) != 0 ? " bak" : "") + ((f & 2) != 0 ? " rec" : "") + ((f & ~3) != 0 ? $" flags {f}" : ""),
-            _ => $" flags {flags.Text}",
-        };
+            return flags.Literal switch
+            {
+                0 => "",
+                int f => ((f & 1) != 0 ? " bak" : "") + ((f & 2) != 0 ? " rec" : "") + ((f & ~3) != 0 ? $" flags {f}" : ""),
+                _ => $" flags {flags.Text}",
+            };
+        }
 
         /// <summary>"[a, b]" → "(a, b)"; an empty list → "" (or "()" when <paramref name="always"/>).</summary>
         private static string CallArgs(Expr list, bool always = false)
@@ -434,21 +468,24 @@ public static class ScummDecompiler
 
     private sealed class Structurer(List<Stmt> stmts, int endOffset)
     {
-        private readonly List<ScriptLine> _lines = new();
-        private readonly HashSet<int> _labels = new();
+        private readonly List<ScriptLine> _lines = [];
+        private readonly HashSet<int> _labels = [];
         private int _extraIndent;
         /// <summary>Enclosing loops: a jump to Head is a continue (unless the test is at the end), to Exit a break.</summary>
-        private readonly List<(int Head, int Exit, bool TestAtEnd)> _loops = new();
+        private readonly List<(int Head, int Exit, bool TestAtEnd)> _loops = [];
 
-        private int OffsetOf(int index) => index < stmts.Count ? stmts[index].Offset : endOffset;
+        private int OffsetOf(int index)
+        {
+            return index < stmts.Count ? stmts[index].Offset : endOffset;
+        }
 
         /// <summary>"break" / "continue" for a jump to the innermost loop's exit / head, else null.</summary>
         private string LoopJump(int target)
         {
             if (_loops.Count == 0) return null;
-            var loop = _loops[^1];
-            if (target == loop.Exit) return "break";
-            if (target == loop.Head && !loop.TestAtEnd) return "continue";
+            var (Head, Exit, TestAtEnd) = _loops[^1];
+            if (target == Exit) return "break";
+            if (target == Head && !TestAtEnd) return "continue";
             return null;
         }
 
@@ -503,7 +540,9 @@ public static class ScummDecompiler
         }
 
         private void Line(int offset, int indent, string text)
-            => _lines.Add(new ScriptLine(offset, Math.Max(0, indent + _extraIndent), text));
+        {
+            _lines.Add(new ScriptLine(offset, Math.Max(0, indent + _extraIndent), text));
+        }
 
         private void Emit(int i, int j, int indent, int noLoopAt = -1)
         {

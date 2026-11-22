@@ -15,6 +15,8 @@ public static class ToolTabPlacement
         TemplatedControl.TemplateAppliedEvent.AddClassHandler<ToolControl>((control, e) =>
         {
             if (e.NameScope.Find<ToolTabStrip>("PART_TabStrip") is { } strip)
+            {
                 DockPanel.SetDock(strip, Avalonia.Controls.Dock.Top);
+            }
         });
 }

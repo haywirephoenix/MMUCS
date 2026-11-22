@@ -88,16 +88,16 @@ public class CostumeDockTests(ITestOutputHelper output)
     private static IRootDock SideBySide(CostumeDockFactory factory)
     {
         DockLayoutStore.Node Pane(string kind, string id, double share, params string[] panels) =>
-            new() { Kind = kind, Id = id, Proportion = share, Active = panels[0], Panels = new(panels) };
+            new() { Kind = kind, Id = id, Proportion = share, Active = panels[0], Panels = [.. panels] };
         var root = factory.TryRestore(new DockLayoutStore.Node
         {
             Kind = "split", Id = "CostumeMain", Orientation = "Horizontal",
-            Children = new()
-            {
+            Children =
+            [
                 Pane("tools", "CelsDock", 0.18, CostumeDockFactory.CelsId),
                 Pane("documents", "PreviewDock", 0.60, CostumeDockFactory.PreviewId),
                 Pane("tools", "SideDock", 0.22, CostumeDockFactory.ChoresId, CostumeDockFactory.PaletteId),
-            },
+            ],
         });
         Assert.NotNull(root);
         return root;

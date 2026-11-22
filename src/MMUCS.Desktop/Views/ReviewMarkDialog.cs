@@ -64,7 +64,7 @@ public sealed class ReviewMarkDialog : Window
             Margin = new Thickness(0, 8, 0, 0), Children = { cancel, ok },
         });
         Content = panel;
-        KeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
+        KeyDown += (_, e) => { if (e.Key == Key.Escape) { Close(); } };
     }
 
     /// <summary>Shows the dialog; null when cancelled.</summary>

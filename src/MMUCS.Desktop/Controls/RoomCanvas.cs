@@ -151,16 +151,29 @@ public sealed class RoomCanvas : SkiaViewport
     {
         base.OnPropertyChanged(change);
         if (change.Property == SelectionOutlineColorProperty || change.Property == SelectionOutlineThicknessProperty)
+        {
             _selectStroke = null; // rebuilt on the next scene
+        }
+
         if (change.Property == HoldSceneProperty)
         {
-            if (!HoldScene) ContentChanged(); // re-fit to the new content and draw it
+            if (!HoldScene)
+            {
+                ContentChanged(); // re-fit to the new content and draw it
+            }
+
             return;
         }
-        if (HoldScene) return; // applied when the hold ends
+        if (HoldScene)
+        {
+            return; // applied when the hold ends
+        }
+
         if (change.Property == RoomSizeProperty || change.Property == BackgroundImageProperty
             || change.Property == ObjectLayersProperty || change.Property == BackgroundObjectProperty)
+        {
             ContentChanged();
+        }
     }
 
     protected override Size ContentSize
@@ -168,7 +181,11 @@ public sealed class RoomCanvas : SkiaViewport
         get
         {
             var s = RoomSize;
-            if (s.Width > 0 && s.Height > 0) return s;
+            if (s.Width > 0 && s.Height > 0)
+            {
+                return s;
+            }
+
             var bg = BackgroundImage;
             if (bg != null)
             {
@@ -178,9 +195,13 @@ public sealed class RoomCanvas : SkiaViewport
 
             // Background-less rooms (e.g. the icons/inventory library): fit to the objects' extent.
             double w = 0, h = 0;
-            foreach (var l in ObjectLayers ?? Array.Empty<RoomObjectLayer>())
+            foreach (var l in ObjectLayers ?? [])
             {
-                if (l.Image == null) continue;
+                if (l.Image == null)
+                {
+                    continue;
+                }
+
                 w = Math.Max(w, l.Object.X + l.Image.Width);
                 h = Math.Max(h, l.Object.Y + l.Image.Height);
             }
@@ -197,7 +218,11 @@ public sealed class RoomCanvas : SkiaViewport
     {
         get
         {
-            if (_selectStroke != null) return _selectStroke;
+            if (_selectStroke != null)
+            {
+                return _selectStroke;
+            }
+
             var c = SelectionOutlineColor;
             // Not disposed when replaced: a scene already handed out may still draw with it.
             return _selectStroke = new SKPaint
@@ -254,7 +279,10 @@ public sealed class RoomCanvas : SkiaViewport
             LabelShadow = new() { Color = c.FindSKColor("RoomLabelShadowBrush"), IsAntialias = true };
             BoxLabelPaint = new() { Color = c.FindSKColor("RoomWalkboxLabelBrush"), IsAntialias = true };
             PlaneColors = new SKColor[7];
-            for (int i = 0; i < PlaneColors.Length; i++) PlaneColors[i] = c.FindSKColor($"RoomZPlane{i + 1}Brush");
+            for (int i = 0; i < PlaneColors.Length; i++)
+            {
+                PlaneColors[i] = c.FindSKColor($"RoomZPlane{i + 1}Brush");
+            }
         }
     }
 
@@ -265,7 +293,10 @@ public sealed class RoomCanvas : SkiaViewport
         if (mods != KeyModifiers.None)
         {
             // Ctrl / Shift: the topmost thing under the pointer joins or leaves the selection.
-            if (hits.Count > 0) ObjectModifierClicked?.Invoke(hits[0], mods);
+            if (hits.Count > 0)
+            {
+                ObjectModifierClicked?.Invoke(hits[0], mods);
+            }
         }
         else
         {
@@ -297,10 +328,14 @@ public sealed class RoomCanvas : SkiaViewport
     {
         var result = new List<RoomObject>();
         var layers = ObjectLayers;
-        if (layers == null) return result;
+        if (layers == null)
+        {
+            return result;
+        }
+
         var visible = VisibleObjects;
         bool Shown(RoomObject o) => visible == null || visible.Contains(o);
-        void Add(RoomObject o) { if (!result.Contains(o)) result.Add(o); }
+        void Add(RoomObject o) { if (!result.Contains(o)) { result.Add(o); } }
 
         // Actors, front first: the reverse of SCUMM's draw order.
         foreach (var l in layers.Where(l => l.CostumeImage != null && Shown(l.Object))
@@ -308,28 +343,51 @@ public sealed class RoomCanvas : SkiaViewport
         {
             float s = l.CostumeScale <= 0 ? 1 : l.CostumeScale;
             double ix = (p.X - l.CostumeX) / s, iy = (p.Y - l.CostumeY) / s;
-            if (!Opaque(l.CostumeImage, ix, iy)) continue;
+            if (!Opaque(l.CostumeImage, ix, iy))
+            {
+                continue;
+            }
+
             var masks = MaskActors ? ZMasks : null;
             if (l.CostumeZPlane > 0 && masks != null && l.CostumeZPlane <= masks.Count && Opaque(masks[l.CostumeZPlane - 1], p.X, p.Y))
+            {
                 continue; // behind the foreground there
+            }
+
             Add(l.Object);
         }
 
         // Object images, front first (later layers are drawn over earlier ones).
         if (ShowObjects)
+        {
             for (int i = layers.Count - 1; i >= 0; i--)
             {
                 var l = layers[i];
-                if (l.Image == null || !Shown(l.Object) || ReferenceEquals(l.Object, BackgroundObject)) continue;
-                if (l.Image.Width >= 640 && !ShowFullScreenObjects) continue; // not drawn
-                if (Opaque(l.Image, p.X - l.Object.X, p.Y - l.Object.Y)) Add(l.Object);
+                if (l.Image == null || !Shown(l.Object) || ReferenceEquals(l.Object, BackgroundObject))
+                {
+                    continue;
+                }
+
+                if (l.Image.Width >= 640 && !ShowFullScreenObjects)
+                {
+                    continue; // not drawn
+                }
+
+                if (Opaque(l.Image, p.X - l.Object.X, p.Y - l.Object.Y))
+                {
+                    Add(l.Object);
+                }
             }
+        }
 
         // Hotspots (objects without a drawn image), smallest first, as before.
         foreach (var o in layers.Select(l => l.Object)
                      .Where(o => o.Width > 0 && o.Height > 0 && p.X >= o.X && p.Y >= o.Y && p.X < o.X + o.Width && p.Y < o.Y + o.Height)
                      .OrderBy(o => (double)o.Width * o.Height))
+        {
             Add(o);
+        }
+
         return result;
     }
 
@@ -337,39 +395,35 @@ public sealed class RoomCanvas : SkiaViewport
     private static bool Opaque(SKImage image, double x, double y)
     {
         int px = (int)Math.Floor(x), py = (int)Math.Floor(y);
-        if (image == null || px < 0 || py < 0 || px >= image.Width || py >= image.Height) return false;
+        if (image == null || px < 0 || py < 0 || px >= image.Width || py >= image.Height)
+        {
+            return false;
+        }
+
         using var pixmap = image.PeekPixels();
         return pixmap == null || pixmap.GetPixelColor(px, py).Alpha > 0; // not raster: count the box
     }
 
-    private sealed class Scene : IViewportScene
+    private sealed class Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
+        IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
+        IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke, RoomCanvas.OverlayPaints paints) : IViewportScene
     {
-        private readonly SKImage _bg;
-        private readonly IReadOnlyList<RoomObjectLayer> _drawLayers;
-        private readonly IReadOnlyList<RoomObjectLayer> _allLayers;
-        private readonly IReadOnlyList<Walkbox> _boxes;
-        private readonly RoomObject _selected;
-        private readonly bool _hotspots, _labels, _bounds, _fullScreenObjects;
-        private readonly RoomObject _bgObject;
-        private readonly IReadOnlySet<RoomObject> _visible;
-        private readonly LiveCostume _live;
-        private readonly IReadOnlyList<SKImage> _zMasks;
-        private readonly IReadOnlyList<SKImage> _overlayMasks;
-        private readonly int _overlayPlane;
-        private readonly IReadOnlySet<RoomObject> _selectedAll;
-        private readonly SKPaint _selectStroke;
-        private readonly Size _size;
-
-        public Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
-            IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
-            IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke, OverlayPaints paints)
-        {
-            _bg = bg; _drawLayers = drawLayers; _allLayers = allLayers; _boxes = boxes;
-            _selected = selected; _hotspots = hotspots; _labels = labels; _bounds = bounds; _size = size; _fullScreenObjects = fullScreenObjects; _bgObject = bgObject; _visible = visible; _live = live; _zMasks = zMasks;
-            _overlayMasks = overlayMasks; _overlayPlane = overlayPlane; _selectedAll = selectedAll; _selectStroke = selectStroke; _paints = paints;
-        }
-
-        private readonly OverlayPaints _paints;
+        private readonly SKImage _bg = bg;
+        private readonly IReadOnlyList<RoomObjectLayer> _drawLayers = drawLayers;
+        private readonly IReadOnlyList<RoomObjectLayer> _allLayers = allLayers;
+        private readonly IReadOnlyList<Walkbox> _boxes = boxes;
+        private readonly RoomObject _selected = selected;
+        private readonly bool _hotspots = hotspots, _labels = labels, _bounds = bounds, _fullScreenObjects = fullScreenObjects;
+        private readonly RoomObject _bgObject = bgObject;
+        private readonly IReadOnlySet<RoomObject> _visible = visible;
+        private readonly LiveCostume _live = live;
+        private readonly IReadOnlyList<SKImage> _zMasks = zMasks;
+        private readonly IReadOnlyList<SKImage> _overlayMasks = overlayMasks;
+        private readonly int _overlayPlane = overlayPlane;
+        private readonly IReadOnlySet<RoomObject> _selectedAll = selectedAll;
+        private readonly SKPaint _selectStroke = selectStroke;
+        private readonly Size _size = size;
+        private readonly OverlayPaints _paints = paints;
         private SKPaint HotspotFill => _paints.HotspotFill;
         private SKPaint HotspotStroke => _paints.HotspotStroke;
         private SKPaint BoxFill => _paints.BoxFill;
@@ -405,8 +459,14 @@ public sealed class RoomCanvas : SkiaViewport
 
         private static void DrawScaled(SKCanvas canvas, SKImage image, int x, int y, float scale, SKSamplingOptions sampling)
         {
-            if (scale == 1) canvas.DrawImage(image, x, y, sampling);
-            else canvas.DrawImage(image, SKRect.Create(x, y, image.Width * scale, image.Height * scale), sampling);
+            if (scale == 1)
+            {
+                canvas.DrawImage(image, x, y, sampling);
+            }
+            else
+            {
+                canvas.DrawImage(image, SKRect.Create(x, y, image.Width * scale, image.Height * scale), sampling);
+            }
         }
 
         public void Render(SKCanvas canvas, in ViewTransform view, SKRect viewBounds)
@@ -418,30 +478,47 @@ public sealed class RoomCanvas : SkiaViewport
 
             // The chosen background: the room's own image, or a full-width object image at its position.
             if (_bg != null)
+            {
                 canvas.DrawImage(_bg, _bgObject?.X ?? 0, _bgObject?.Y ?? 0, sampling);
+            }
 
             if (_drawLayers != null)
             {
                 foreach (var layer in _drawLayers)
                 {
-                    if (layer.Image == null || ReferenceEquals(layer.Object, _bgObject)) continue; // already the background
-                    if (_visible == null || !_visible.Contains(layer.Object)) continue;        // toggled off, or not in the current list (stale layers)
+                    if (layer.Image == null || ReferenceEquals(layer.Object, _bgObject))
+                    {
+                        continue; // already the background
+                    }
+
+                    if (_visible == null || !_visible.Contains(layer.Object))
+                    {
+                        continue;        // toggled off, or not in the current list (stale layers)
+                    }
                     // Other full-screen (640px) object images would cover the background (in the wrong
                     // palette), so they're drawn only when asked for; the Background spinbox switches to them.
                     bool isFullWidth = layer.Image.Width >= 640;
-                    if (isFullWidth && !_fullScreenObjects) continue;
+                    if (isFullWidth && !_fullScreenObjects)
+                    {
+                        continue;
+                    }
+
                     canvas.DrawImage(layer.Image, layer.Object.X, layer.Object.Y, sampling);
                 }
 
                 // The z-planes, tinted, between the scene and the actors: what each plane hides shows
                 // through the actors' cut-outs.
                 if (_overlayMasks != null)
+                {
                     for (int k = 0; k < _overlayMasks.Count; k++)
+                    {
                         if (_overlayMasks[k] != null && (_overlayPlane == 0 || _overlayPlane == k + 1))
                         {
                             PlanePaint.Color = PlaneColors[k % PlaneColors.Length];
                             canvas.DrawImage(_overlayMasks[k], 0, 0, PlanePaint);
                         }
+                    }
+                }
 
                 // Actors are drawn over the objects, in SCUMM's order: by y before elevation, then actor
                 // number, so an actor lifted by elevation still sorts by where it stands (cannon-v's cannon
@@ -453,15 +530,26 @@ public sealed class RoomCanvas : SkiaViewport
                     {
                         // The playing frame, in its actor's place in the order; shown even when its entry is
                         // hidden: it was asked for from the Costume viewer.
-                        if (_live.Image != null) DrawActor(canvas, _live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, sampling);
+                        if (_live.Image != null)
+                        {
+                            DrawActor(canvas, _live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, sampling);
+                        }
+
                         liveDrawn = true;
                         continue;
                     }
-                    if (_visible == null || !_visible.Contains(layer.Object)) continue;
+                    if (_visible == null || !_visible.Contains(layer.Object))
+                    {
+                        continue;
+                    }
+
                     DrawActor(canvas, layer.CostumeImage, layer.CostumeX, layer.CostumeY, layer.CostumeScale, layer.CostumeZPlane, sampling);
                 }
                 // A costume whose usual frame draws nothing has no place in the order: on top.
-                if (!liveDrawn && _live?.Image != null) DrawActor(canvas, _live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, sampling);
+                if (!liveDrawn && _live?.Image != null)
+                {
+                    DrawActor(canvas, _live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, sampling);
+                }
             }
             canvas.Restore();
 
@@ -471,7 +559,11 @@ public sealed class RoomCanvas : SkiaViewport
                 using var path = new SKPath();
                 foreach (var b in _boxes)
                 {
-                    if (b.IsPlaceholder) continue;
+                    if (b.IsPlaceholder)
+                    {
+                        continue;
+                    }
+
                     path.Reset();
                     path.MoveTo(view.Map(b.UpperLeft.X, b.UpperLeft.Y));
                     path.LineTo(view.Map(b.UpperRight.X, b.UpperRight.Y));
@@ -497,7 +589,10 @@ public sealed class RoomCanvas : SkiaViewport
                 {
                     var o = layer.Object;
                     bool isSel = ReferenceEquals(o, _selected) || _selectedAll?.Contains(o) == true;
-                    if (!_hotspots && !isSel) continue;
+                    if (!_hotspots && !isSel)
+                    {
+                        continue;
+                    }
 
                     int w = o.Width > 0 ? o.Width : 100, h = o.Height > 0 ? o.Height : 100;
                     var r = Snap(view.Map(new SKRect(o.X, o.Y, o.X + w, o.Y + h)));
@@ -507,7 +602,10 @@ public sealed class RoomCanvas : SkiaViewport
                         canvas.DrawRect(r, HotspotFill);
                         canvas.DrawRect(r, HotspotStroke);
                     }
-                    if (isSel && _selectStroke.StrokeWidth > 0) canvas.DrawRect(r, _selectStroke);
+                    if (isSel && _selectStroke.StrokeWidth > 0)
+                    {
+                        canvas.DrawRect(r, _selectStroke);
+                    }
 
                     if (_labels && (_hotspots || isSel))
                     {
@@ -519,7 +617,9 @@ public sealed class RoomCanvas : SkiaViewport
             }
 
             if (_bounds && _size.Width > 0)
+            {
                 canvas.DrawRect(Snap(view.Map(new SKRect(0, 0, (float)_size.Width, (float)_size.Height))), BoundsStroke);
+            }
         }
 
         /// <summary>Nearest-neighbour when magnifying (crisp pixels), mipmapped linear when minifying (no shimmer).</summary>

@@ -22,13 +22,13 @@ public sealed partial class InspectorViewModel : ObservableObject
     public ObservableCollection<MetadataRow> Metadata { get; }
 
     /// <summary>Metadata section open (saved).</summary>
-    [ObservableProperty] private bool _isMetadataExpanded = true;
+    [ObservableProperty] public partial bool IsMetadataExpanded { get; set; } = true;
 
     /// <summary>Viewer section open (saved).</summary>
-    [ObservableProperty] private bool _isViewerExpanded = true;
+    [ObservableProperty] public partial bool IsViewerExpanded { get; set; } = true;
 
     /// <summary>The viewer shown (Costume or Object); null when the selection has nothing to view.</summary>
-    [ObservableProperty] private ViewerDock _content;
+    [ObservableProperty] public partial ViewerDock Content { get; set; }
 
     public bool IsEmpty => Content == null;
 

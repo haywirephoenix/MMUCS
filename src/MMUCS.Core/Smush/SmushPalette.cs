@@ -18,7 +18,10 @@ public sealed class SmushPalette
 
     public SmushPalette(ReadOnlySpan<byte> initial) => Set(initial);
 
-    public void Set(ReadOnlySpan<byte> rgb) => rgb[..Math.Min(rgb.Length, Size)].CopyTo(Rgb);
+    public void Set(ReadOnlySpan<byte> rgb)
+    {
+        rgb[..Math.Min(rgb.Length, Size)].CopyTo(Rgb);
+    }
 
     /// <summary>Applies an XPAL chunk. Returns false for one it doesn't understand.</summary>
     public bool ApplyDelta(ReadOnlySpan<byte> xpal)
@@ -45,5 +48,8 @@ public sealed class SmushPalette
     /// One fade step: the delta is in 1/128ths, on top of the channel grown by 1/128th. C-style
     /// (truncating) division, then clamped.
     /// </summary>
-    internal static byte Step(byte value, short delta) => (byte)Math.Clamp((value * 129 + delta) / 128, 0, 255);
+    internal static byte Step(byte value, short delta)
+    {
+        return (byte)Math.Clamp((value * 129 + delta) / 128, 0, 255);
+    }
 }

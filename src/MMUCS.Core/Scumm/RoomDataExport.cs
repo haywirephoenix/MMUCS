@@ -128,7 +128,7 @@ public static class RoomDataExport
         var images = room.Objects.GroupBy(o => o.Name ?? "").ToDictionary(g => g.Key, g => new Queue<RoomObject>(g));
         Dictionary<RoomObject, int> entryStates;
         try { entryStates = RoomObjectStates.Initial(room); }
-        catch { entryStates = new(); }
+        catch { entryStates = []; }
         var code = new List<(int Id, string Name, string Title, List<int> Verbs)>();
         var rmsc = room.Lflf.FindChild(ScummTag.RMSC);
         foreach (var obcd in (rmsc ?? room.Room).Children.Where(c => c.Tag == ScummTag.OBCD))
@@ -257,7 +257,7 @@ public static class RoomDataExport
     {
         List<RoomActor> actors;
         try { actors = RoomActors.Analyze(room); }
-        catch { actors = new(); }
+        catch { actors = []; }
 
         w.WriteStartArray("costumes");
         foreach (var akos in room.Lflf.Children.Where(c => c.Tag == ScummTag.AKOS))
@@ -270,7 +270,7 @@ public static class RoomDataExport
             var owner = uses.Select(a => a.Owner?.Name).FirstOrDefault(n => !string.IsNullOrEmpty(n));
             if (owner != null) w.WriteString("object", owner);
             // An actor a script dresses in it but places through variables: worn, never placed.
-            var worn = uses.Where(a => a.Actor > 0 && !a.HasPosition).SelectMany(a => a.Actors ?? new[] { a.Actor }).Distinct().ToList();
+            var worn = uses.Where(a => a.Actor > 0 && !a.HasPosition).SelectMany(a => a.Actors ?? [a.Actor]).Distinct().ToList();
             if (worn.Count > 0) WriteInts(w, "worn_by", worn);
             // Offered by a script a script here starts (script 88's chickens), but placed nowhere readable.
             if (!uses.Any(a => a.HasPosition) && uses.FirstOrDefault(a => a.DressedBy >= 0) is { } offered)
@@ -307,14 +307,17 @@ public static class RoomDataExport
     }
 
     /// <summary>"entry", "entry-if", "cutscene" or "later" (null when not worked out).</summary>
-    public static string WhenText(PlacementTime t) => t switch
+    public static string WhenText(PlacementTime t)
     {
-        PlacementTime.OnEntry => "entry",
-        PlacementTime.OnEntryIf => "entry-if",
-        PlacementTime.Cutscene => "cutscene",
-        PlacementTime.Later => "later",
-        _ => null,
-    };
+        return t switch
+        {
+            PlacementTime.OnEntry => "entry",
+            PlacementTime.OnEntryIf => "entry-if",
+            PlacementTime.Cutscene => "cutscene",
+            PlacementTime.Later => "later",
+            _ => null,
+        };
+    }
 
     private static void WriteInts(Utf8JsonWriter w, string name, IEnumerable<int> values)
     {

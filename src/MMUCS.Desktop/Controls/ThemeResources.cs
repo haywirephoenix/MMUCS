@@ -21,8 +21,15 @@ internal static class ThemeResources
     {
         if (control.TryFindResource(key, control.ActualThemeVariant, out var value))
         {
-            if (value is IBrush brush) return brush;
-            if (value is Color color) return new ImmutableSolidColorBrush(color);
+            if (value is IBrush brush)
+            {
+                return brush;
+            }
+
+            if (value is Color color)
+            {
+                return new ImmutableSolidColorBrush(color);
+            }
         }
         return Missing;
     }

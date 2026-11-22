@@ -15,15 +15,17 @@ public partial class BlockTreeView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (_vm != null) _vm.FocusFilterRequested -= FocusFilter;
+        _vm?.FocusFilterRequested -= FocusFilter;
+
         _vm = DataContext as MainWindowViewModel;
-        if (_vm != null) _vm.FocusFilterRequested += FocusFilter;
+        _vm?.FocusFilterRequested += FocusFilter;
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         // The panel can move between the main window and floating windows; don't leak the handler.
-        if (_vm != null) _vm.FocusFilterRequested -= FocusFilter;
+        _vm?.FocusFilterRequested -= FocusFilter;
+
         base.OnDetachedFromVisualTree(e);
     }
 

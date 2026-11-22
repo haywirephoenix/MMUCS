@@ -49,7 +49,10 @@ public sealed class MixerVoice
     }
 
     /// <summary>Fades the sound's fade gain (on top of <see cref="Volume"/>) to <paramref name="target"/>.</summary>
-    public void FadeTo(float target, int ms) => StartFade(target, ms, OutputRate);
+    public void FadeTo(float target, int ms)
+    {
+        StartFade(target, ms, OutputRate);
+    }
 
     private void StartFade(float target, int ms, int rate)
     {
@@ -98,17 +101,15 @@ public sealed class MixerVoice
 /// when rendering offline) pulls blocks with <see cref="Read"/>; how many frames it has pulled is the
 /// media clock everything else (cutscene frames, game time) follows. Play and stop from any thread.
 /// </summary>
-public sealed class Mixer
+public sealed class Mixer(int sampleRate = 44100)
 {
-    private readonly List<MixerVoice> _voices = new();
+    private readonly List<MixerVoice> _voices = [];
     private readonly object _lock = new();
-    private readonly float[] _groupVolume = { 1f, 1f, 1f, 1f };
+    private readonly float[] _groupVolume = [1f, 1f, 1f, 1f];
     private float[] _scratch = new float[4096];
     private long _position;
 
-    public Mixer(int sampleRate = 44100) => SampleRate = sampleRate;
-
-    public int SampleRate { get; }
+    public int SampleRate { get; } = sampleRate;
     public const int Channels = 2;
     public float MasterVolume { get; set; } = 1f;
 
@@ -119,8 +120,15 @@ public sealed class Mixer
     /// <summary>Samples that had to be clipped to −1…1 so far (the mix got too loud).</summary>
     public long ClippedSamples { get; private set; }
 
-    public float GetGroupVolume(MixGroup g) => _groupVolume[(int)g];
-    public void SetGroupVolume(MixGroup g, float v) => _groupVolume[(int)g] = Math.Max(0f, v);
+    public float GetGroupVolume(MixGroup g)
+    {
+        return _groupVolume[(int)g];
+    }
+
+    public void SetGroupVolume(MixGroup g, float v)
+    {
+        _groupVolume[(int)g] = Math.Max(0f, v);
+    }
 
     public int VoiceCount { get { lock (_lock) return _voices.Count; } }
 
@@ -148,14 +156,14 @@ public sealed class Mixer
         if (_scratch.Length < frames * 2) _scratch = new float[frames * 2];
 
         MixerVoice[] voices;
-        lock (_lock) voices = _voices.ToArray();
+        lock (_lock) voices = [.. _voices];
 
         List<MixerVoice> ended = null;
         foreach (var v in voices)
         {
             _scratch.AsSpan(0, frames * 2).Clear();
             if (!v.MixInto(stereo, _scratch, frames, _groupVolume[(int)v.Group]))
-                (ended ??= new()).Add(v);
+                (ended ??= []).Add(v);
         }
         if (ended != null)
             lock (_lock)

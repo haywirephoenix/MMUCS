@@ -23,12 +23,26 @@ public sealed class RgbaImage
         Data = rgba;
     }
 
-    public static RgbaImage CreateEmpty(int width, int height) => new(width, height, new byte[width * height * 4]);
+    public static RgbaImage CreateEmpty(int width, int height)
+    {
+        return new(width, height, new byte[width * height * 4]);
+    }
 
     // Kept for readability of code ported from Godot.
-    public int GetWidth() => Width;
-    public int GetHeight() => Height;
-    public byte[] GetData() => Data;
+    public int GetWidth()
+    {
+        return Width;
+    }
+
+    public int GetHeight()
+    {
+        return Height;
+    }
+
+    public byte[] GetData()
+    {
+        return Data;
+    }
 
     public ScummColor GetPixel(int x, int y)
     {

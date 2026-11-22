@@ -40,14 +40,14 @@ public sealed class ImusSound
     public int DataOffset { get; private set; }
     public int DataLength { get; private set; }
     public long? Stop { get; private set; }
-    public List<Region> Regions { get; } = new();
-    public List<Jump> Jumps { get; } = new();
-    public List<Marker> Markers { get; } = new();
-    public List<Sync> Syncs { get; } = new();
+    public List<Region> Regions { get; } = [];
+    public List<Jump> Jumps { get; } = [];
+    public List<Marker> Markers { get; } = [];
+    public List<Sync> Syncs { get; } = [];
     /// <summary>MAP events this parser doesn't know, by tag.</summary>
-    public List<string> UnknownEvents { get; } = new();
+    public List<string> UnknownEvents { get; } = [];
     /// <summary>Every region, jump, marker, sync and stop in map order: the order playback handles events that share a position.</summary>
-    public List<Event> Events { get; } = new();
+    public List<Event> Events { get; } = [];
 
     public byte[] Bytes { get; }
     public ReadOnlySpan<byte> Samples => Bytes.AsSpan(DataOffset, DataLength);
@@ -55,7 +55,10 @@ public sealed class ImusSound
     public long FrameCount => DataLength / BytesPerFrame;
 
     /// <summary>A position in the file as a sample frame from the start of the data (what a WAV uses).</summary>
-    public long ToFrame(long offset) => (offset - DataOffset) / BytesPerFrame;
+    public long ToFrame(long offset)
+    {
+        return (offset - DataOffset) / BytesPerFrame;
+    }
 
     /// <summary>The track's own name, the first TEXT that isn't a row of asterisks.</summary>
     public string Title
@@ -112,7 +115,7 @@ public sealed class ImusSound
             else if (tag == STOP) { Stop = Field(b, 0); Events.Add(new Event(EventKind.Stop, Field(b, 0), 0)); }
             else if (tag == TEXT)
             {
-                var chars = b.Length > 4 ? b[4..] : ReadOnlySpan<byte>.Empty;
+                var chars = b.Length > 4 ? b[4..] : [];
                 int end = chars.IndexOf((byte)0);
                 string text = Encoding.Latin1.GetString(end < 0 ? chars : chars[..end]);
                 // The last marker of some tracks is padding: no text, at an offset past the file.
@@ -135,5 +138,8 @@ public sealed class ImusSound
         }
     }
 
-    private static uint Field(ReadOnlySpan<byte> b, int i) => i + 4 <= b.Length ? BinaryPrimitives.ReadUInt32BigEndian(b[i..]) : 0;
+    private static uint Field(ReadOnlySpan<byte> b, int i)
+    {
+        return i + 4 <= b.Length ? BinaryPrimitives.ReadUInt32BigEndian(b[i..]) : 0;
+    }
 }

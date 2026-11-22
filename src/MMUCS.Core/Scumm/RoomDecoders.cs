@@ -8,18 +8,12 @@ namespace MMUCS.Core.Scumm;
 
 public static class RoomDecoders
 {
-    public struct RoomInfo
+    public readonly struct RoomInfo(int totalPalettes, int defaultPaletteIndex)
     {
-        public int TotalPalettes { get; }
-        public int DefaultPaletteIndex { get; }
-
-        public RoomInfo(int totalPalettes, int defaultPaletteIndex)
-        {
-            TotalPalettes = totalPalettes;
-            DefaultPaletteIndex = defaultPaletteIndex;
-        }
+        public int TotalPalettes { get; } = totalPalettes;
+        public int DefaultPaletteIndex { get; } = defaultPaletteIndex;
     }
-    
+
     public static bool TryGetRoomInfo(ScummBlock rmhdBlock, ScummBlock roomBlock, out RoomInfo info)
     {
         info = default;

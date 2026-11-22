@@ -32,7 +32,10 @@ public sealed record SmushHeader(int Version, int FrameCount, byte[] Palette, in
         return new SmushHeader(version, frames, palette, rate > 0 ? rate : DefaultFrameRate, maxFrame, sampleRate);
     }
 
-    private static uint U32(ReadOnlySpan<byte> s, int o) => (uint)(s[o] | (s[o + 1] << 8) | (s[o + 2] << 16) | (s[o + 3] << 24));
+    private static uint U32(ReadOnlySpan<byte> s, int o)
+    {
+        return (uint)(s[o] | (s[o + 1] << 8) | (s[o + 2] << 16) | (s[o + 3] << 24));
+    }
 }
 
 /// <summary>
@@ -83,7 +86,10 @@ public sealed class SmushVideo
         Height = h > 0 ? h : 480;
     }
 
-    public static SmushVideo Load(string path) => new(path, File.ReadAllBytes(path));
+    public static SmushVideo Load(string path)
+    {
+        return new(path, File.ReadAllBytes(path));
+    }
 
     /// <summary>Reads only the header, for counting frames without loading a whole file.</summary>
     public static SmushHeader ReadHeader(string path)
@@ -102,7 +108,10 @@ public sealed class SmushVideo
     /// The game's cutscenes: every .san beside the resource file or in its resource folder (any case),
     /// sorted by name.
     /// </summary>
-    public static IReadOnlyList<string> FindAll(string gameFile) => GameFiles.Find(gameFile, ".san");
+    public static IReadOnlyList<string> FindAll(string gameFile)
+    {
+        return GameFiles.Find(gameFile, ".san");
+    }
 }
 
 /// <summary>The 14-byte header of a frame object (FOBJ): codec, position and size.</summary>
@@ -110,10 +119,13 @@ public readonly record struct FrameObject(int Codec, int Left, int Top, int Widt
 {
     public const int HeaderSize = 14;
 
-    public static FrameObject ReadHeader(ReadOnlySpan<byte> d) => new(
+    public static FrameObject ReadHeader(ReadOnlySpan<byte> d)
+    {
+        return new(
         d[0] | (d[1] << 8),
         (short)(d[2] | (d[3] << 8)),
         (short)(d[4] | (d[5] << 8)),
         d[6] | (d[7] << 8),
         d[8] | (d[9] << 8));
+    }
 }

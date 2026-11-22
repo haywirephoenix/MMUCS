@@ -22,27 +22,27 @@ public enum ViewerTab { Room = 0, Costume = 1, Script = 2 }
 
 public sealed partial class MainWindowViewModel : ObservableObject
 {
-    [ObservableProperty] private string _title = $"MMUCS {AppInfo.Version}";
-    [ObservableProperty] private string _status = "Open a SCUMM resource file (File ▸ Open…, or drag one onto the window).";
-    [ObservableProperty] private bool _isLoading;
-    [ObservableProperty] private BlockNodeViewModel _selectedNode;
-    [ObservableProperty] private ReadOnlyMemory<byte> _hexData;
-    [ObservableProperty] private long _hexBaseOffset;
-    [ObservableProperty] private int _selectedViewerIndex;
+    [ObservableProperty] public partial string Title { get; set; } = $"MMUCS {AppInfo.Version}";
+    [ObservableProperty] public partial string Status { get; set; } = "Open a SCUMM resource file (File ▸ Open…, or drag one onto the window).";
+    [ObservableProperty] public partial bool IsLoading { get; set; }
+    [ObservableProperty] public partial BlockNodeViewModel SelectedNode { get; set; }
+    [ObservableProperty] public partial ReadOnlyMemory<byte> HexData { get; set; }
+    [ObservableProperty] public partial long HexBaseOffset { get; set; }
+    [ObservableProperty] public partial int SelectedViewerIndex { get; set; }
 
-    public ObservableCollection<BlockNodeViewModel> Roots { get; } = new();
-    public ObservableCollection<MetadataRow> Metadata { get; } = new();
+    public ObservableCollection<BlockNodeViewModel> Roots { get; } = [];
+    public ObservableCollection<MetadataRow> Metadata { get; } = [];
 
     public TreeOptions TreeOptions { get; } = new();
 
     public AppSettings Settings { get; }
 
     /// <summary>Most-recent-first list of opened files (mirrors <see cref="AppSettings.RecentFiles"/>).</summary>
-    public ObservableCollection<string> RecentFiles { get; } = new();
+    public ObservableCollection<string> RecentFiles { get; } = [];
 
-    [ObservableProperty] private bool _reopenLastFileOnStartup;
-    [ObservableProperty] private string _filterText;
-    [ObservableProperty] private string _filterSummary;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("MvvmToolkit", "MVVMTK0042", Justification = "The constructor sets the field so loading the setting does not save it back.")] [ObservableProperty] private bool _reopenLastFileOnStartup;
+    [ObservableProperty] public partial string FilterText { get; set; }
+    [ObservableProperty] public partial string FilterSummary { get; set; }
 
     private ScummBlock _rootBlock;
 
@@ -67,7 +67,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     /// <summary>Docking layout: panels are views over this view model (see Docking/DockLayout.cs).</summary>
     public MmucsDockFactory DockFactory { get; }
-    [ObservableProperty] private IRootDock _layout;
+    [ObservableProperty] public partial IRootDock Layout { get; set; }
 
     /// <summary>Main window position/size from the last run (null on first run).</summary>
     public WindowPlacement SavedMainWindow { get; }
@@ -80,16 +80,20 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public event Action FocusFilterRequested;
     public void RequestFilterFocus() => FocusFilterRequested?.Invoke();
 
-    private static readonly HashSet<uint> ScriptTags = new()
-    {
+    private static readonly HashSet<uint> ScriptTags =
+    [
         ScummTag.SCRP, ScummTag.LSCR, ScummTag.ENCD, ScummTag.EXCD, ScummTag.VERB,
-    };
+    ];
 
     public MainWindowViewModel()
     {
         ObjectImage = new ObjectImageViewModel(Room);
         Settings = AppSettings.Load();
-        foreach (var f in Settings.RecentFiles) RecentFiles.Add(f);
+        foreach (var f in Settings.RecentFiles)
+        {
+            RecentFiles.Add(f);
+        }
+
         _reopenLastFileOnStartup = Settings.ReopenLastFileOnStartup;
         TreeOptions.ShowRoomNames = Settings.ShowRoomNames;
         TreeOptions.ShowObjectNames = Settings.ShowObjectNames;
@@ -104,7 +108,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         };
         Inspector.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is not (nameof(InspectorViewModel.IsMetadataExpanded) or nameof(InspectorViewModel.IsViewerExpanded))) return;
+            if (e.PropertyName is not (nameof(InspectorViewModel.IsMetadataExpanded) or nameof(InspectorViewModel.IsViewerExpanded)))
+            {
+                return;
+            }
+
             Settings.InspectorMetadataExpanded = Inspector.IsMetadataExpanded;
             Settings.InspectorViewerExpanded = Inspector.IsViewerExpanded;
             Settings.Save();
@@ -112,22 +120,25 @@ public sealed partial class MainWindowViewModel : ObservableObject
         DockFactory = new MmucsDockFactory(this);
         var saved = DockLayoutStore.Read();
         SavedMainWindow = saved?.MainWindow;
-        _layout = DockLayoutStore.TryRestore(DockFactory, saved) ?? DockFactory.CreateLayout();
+        Layout = DockLayoutStore.TryRestore(DockFactory, saved) ?? DockFactory.CreateLayout();
         Costume.ViewerLayout.Restore(saved?.Costume);
         Room.ViewerLayout.Restore(saved?.Room);
         ObjectImage.ViewerLayout.Restore(saved?.Object);
-        DockFactory.InitLayout(_layout);
-        DockFactory.PlaceNewPanel(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, _layout);
-        DockFactory.AdoptInspector(_layout);
+        DockFactory.InitLayout(Layout);
+        DockFactory.PlaceNewPanel(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, Layout);
+        DockFactory.AdoptInspector(Layout);
 
-        DockFactory.ActiveDockableChanged += (_, e) => { if (e.Dockable is { IsModified: true } d) d.IsModified = false; };
+        DockFactory.ActiveDockableChanged += (_, e) => { if (e.Dockable is { IsModified: true } d) { d.IsModified = false; } };
         Room.BlockFocusRequested += RevealFromViewer;
         // The Object viewer follows the room's selection, and the Inspector shows what the selection is:
         // a costume or an object image. (Where the Costume and Object panels are open and share a dock,
         // they still swap places.)
         Room.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(RoomViewModel.SelectedObjectItem) && Room.SelectedObjectItem != null) InspectRoomSelection();
+            if (e.PropertyName == nameof(RoomViewModel.SelectedObjectItem) && Room.SelectedObjectItem != null)
+            {
+                InspectRoomSelection();
+            }
         };
         Script.BlockFocusRequested += RevealFromViewer;
         Script.ShowScumm = Settings.ScriptShowScumm;
@@ -137,13 +148,25 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             if (e.PropertyName == nameof(ScriptViewModel.FontSize))
             {
-                if (Settings.ScriptFontSize == Script.FontSize) return;
+                if (Settings.ScriptFontSize == Script.FontSize)
+                {
+                    return;
+                }
+
                 Settings.ScriptFontSize = Script.FontSize;
                 ScheduleSettingsSave(); // wheel steps come in bursts
                 return;
             }
-            if (e.PropertyName is not (nameof(ScriptViewModel.ShowScumm) or nameof(ScriptViewModel.ShowOffsets))) return;
-            if (Settings.ScriptShowScumm == Script.ShowScumm && Settings.ScriptShowOffsets == Script.ShowOffsets) return;
+            if (e.PropertyName is not (nameof(ScriptViewModel.ShowScumm) or nameof(ScriptViewModel.ShowOffsets)))
+            {
+                return;
+            }
+
+            if (Settings.ScriptShowScumm == Script.ShowScumm && Settings.ScriptShowOffsets == Script.ShowOffsets)
+            {
+                return;
+            }
+
             Settings.ScriptShowScumm = Script.ShowScumm;
             Settings.ScriptShowOffsets = Script.ShowOffsets;
             Settings.Save();
@@ -153,23 +176,31 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Costume.LiveFrameChanged += Room.ShowLiveFrame;
         Costume.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName != nameof(AkosViewModel.PlayInPlace) || Settings.CostumePlayInPlace == Costume.PlayInPlace) return;
+            if (e.PropertyName != nameof(AkosViewModel.PlayInPlace) || Settings.CostumePlayInPlace == Costume.PlayInPlace)
+            {
+                return;
+            }
+
             Settings.CostumePlayInPlace = Costume.PlayInPlace;
             Settings.Save();
         };
-        Room.PropertyChanged += (_, e) => { if (RoomViewOptionNames.Contains(e.PropertyName)) SaveRoomViewOptions(); };
+        Room.PropertyChanged += (_, e) => { if (RoomViewOptionNames.Contains(e.PropertyName)) { SaveRoomViewOptions(); } };
         RoomActors.Links = Settings.CostumeLinks;
         Room.LinksChanged += () =>
         {
             Settings.Save();
             // The room is re-analysed on its next use; relabel its AKOS blocks in the hierarchy.
-            Dispatcher.UIThread.Post(() => { foreach (var r in Roots) r.RefreshLabels(); }, DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(() => { foreach (var r in Roots) { r.RefreshLabels(); } }, DispatcherPriority.Background);
         };
 
         // Warnings stay in the debug log so parser noise doesn't overwrite useful status text.
         Log.Message += (level, msg) =>
         {
-            if (level == LogLevel.Warning) return;
+            if (level == LogLevel.Warning)
+            {
+                return;
+            }
+
             Dispatcher.UIThread.Post(() => Status = level == LogLevel.Error ? $"⚠ {msg}" : msg);
         };
     }
@@ -189,20 +220,32 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// </summary>
     private void ShowViewer(ViewerTab tab)
     {
-        if (SelectedViewerIndex != (int)tab) SelectedViewerIndex = (int)tab; // activates via OnSelectedViewerIndexChanged
-        else OnSelectedViewerIndexChanged((int)tab);
+        if (SelectedViewerIndex != (int)tab)
+        {
+            SelectedViewerIndex = (int)tab; // activates via OnSelectedViewerIndexChanged
+        }
+        else
+        {
+            OnSelectedViewerIndexChanged((int)tab);
+        }
     }
 
     /// <summary>Brings a panel to the front, putting it back first if it was hidden or its window closed.</summary>
     public void ShowPanel(string id) => DockFactory.ShowPanel(id, Layout);
 
-    public bool IsPanelOpen(string id) => DockFactory.IsPanelOpen(id, Layout);
+    public bool IsPanelOpen(string id) => MmucsDockFactory.IsPanelOpen(id, Layout);
 
     /// <summary>Hides a placed panel, or puts a hidden one back.</summary>
     public void TogglePanel(string id)
     {
-        if (IsPanelOpen(id)) DockFactory.HidePanel(id, Layout);
-        else ShowPanel(id);
+        if (IsPanelOpen(id))
+        {
+            DockFactory.HidePanel(id, Layout);
+        }
+        else
+        {
+            ShowPanel(id);
+        }
     }
 
     /// <summary>Shows or hides the title bars and Preview tabs inside the viewers (saved).</summary>
@@ -211,7 +254,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         get => ViewerDock.ShowHeaders;
         set
         {
-            if (ViewerDock.ShowHeaders == value) return;
+            if (ViewerDock.ShowHeaders == value)
+            {
+                return;
+            }
+
             ViewerDock.ShowHeaders = value;
             Settings.ShowViewerPanelHeaders = value;
             Settings.Save();
@@ -223,7 +270,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public void ResetLayout()
     {
         if (Layout?.Windows != null)
-            foreach (var w in Layout.Windows.ToList()) w.Exit();
+        {
+            foreach (var w in Layout.Windows.ToList())
+            {
+                w.Exit();
+            }
+        }
 
         var layout = DockFactory.CreateLayout();
         DockFactory.InitLayout(layout);
@@ -244,8 +296,17 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (property is nameof(TreeOptions.ShowRoomNames) or nameof(TreeOptions.ShowObjectNames))
         {
             // The filter matches label text, so an active filter must be re-run.
-            if (!string.IsNullOrWhiteSpace(FilterText)) ApplyFilter();
-            else foreach (var r in Roots) r.RefreshLabels();
+            if (!string.IsNullOrWhiteSpace(FilterText))
+            {
+                ApplyFilter();
+            }
+            else
+            {
+                foreach (var r in Roots)
+                {
+                    r.RefreshLabels();
+                }
+            }
         }
     }
 
@@ -261,8 +322,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>Opens the command-line file if given, otherwise the last file when that option is on.</summary>
     public Task StartupAsync(string[] args)
     {
-        if (args is { Length: > 0 }) return OpenFileAsync(args[0]);
-        if (ReopenLastFileOnStartup && Settings.LastFile is { } last && File.Exists(last)) return OpenFileAsync(last);
+        if (args is { Length: > 0 })
+        {
+            return OpenFileAsync(args[0]);
+        }
+
+        if (ReopenLastFileOnStartup && Settings.LastFile is { } last && File.Exists(last))
+        {
+            return OpenFileAsync(last);
+        }
+
         return Task.CompletedTask;
     }
 
@@ -278,12 +347,19 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Settings.AddRecent(path);
         Settings.Save();
         RecentFiles.Clear();
-        foreach (var f in Settings.RecentFiles) RecentFiles.Add(f);
+        foreach (var f in Settings.RecentFiles)
+        {
+            RecentFiles.Add(f);
+        }
     }
 
     private void ForgetRecent(string path)
     {
-        if (Settings.RecentFiles.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)) == 0) return;
+        if (Settings.RecentFiles.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)) == 0)
+        {
+            return;
+        }
+
         Settings.Save();
         RecentFiles.Remove(path);
     }
@@ -363,7 +439,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public void ApplyFilter()
     {
         _filterDebounce?.Stop();
-        if (_rootBlock == null) return;
+        if (_rootBlock == null)
+        {
+            return;
+        }
+
         var previouslySelected = SelectedNode?.Block;
         string q = FilterText?.Trim();
         List<ScummBlock> matches = null;
@@ -377,7 +457,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             uint? tag = null;
             string upper = q.ToUpperInvariant();
-            if (q.Length == 4 && ScummTag.TryGetMeta(upper, out _)) tag = ScummTag.FromString(upper);
+            if (q.Length == 4 && ScummTag.TryGetMeta(upper, out _))
+            {
+                tag = ScummTag.FromString(upper);
+            }
 
             var visible = new HashSet<ScummBlock>();
             var found = new List<ScummBlock>();
@@ -390,15 +473,31 @@ public sealed partial class MainWindowViewModel : ObservableObject
             bool Walk(ScummBlock b, bool ancestorMatched)
             {
                 bool self = IsMatch(b);
-                if (self) found.Add(b);
+                if (self)
+                {
+                    found.Add(b);
+                }
+
                 bool shown = self || ancestorMatched;
                 bool anyChild = false;
-                foreach (var c in b.Children) anyChild |= Walk(c, shown);
-                if (shown || anyChild) visible.Add(b);
+                foreach (var c in b.Children)
+                {
+                    anyChild |= Walk(c, shown);
+                }
+
+                if (shown || anyChild)
+                {
+                    visible.Add(b);
+                }
+
                 return shown || anyChild;
             }
 
-            foreach (var c in _rootBlock.Children) Walk(c, false);
+            foreach (var c in _rootBlock.Children)
+            {
+                Walk(c, false);
+            }
+
             visible.Add(_rootBlock);
             TreeOptions.VisibleBlocks = visible;
             matches = found;
@@ -420,12 +519,20 @@ public sealed partial class MainWindowViewModel : ObservableObject
             {
                 c.IsExpanded = c.Block.Tag is 0 or ScummTag.LECF;
                 if (c.Block.Tag == 0)
-                    foreach (var cc in c.Children) cc.IsExpanded = cc.Block.Tag == ScummTag.LECF;
+                {
+                    foreach (var cc in c.Children)
+                    {
+                        cc.IsExpanded = cc.Block.Tag == ScummTag.LECF;
+                    }
+                }
             }
         }
         else if (matches.Count <= MaxAutoExpandMatches)
         {
-            foreach (var m in matches) Reveal(m, expandTarget: false);
+            foreach (var m in matches)
+            {
+                Reveal(m, expandTarget: false);
+            }
         }
 
         SelectedNode = previouslySelected != null ? Reveal(previouslySelected, expandTarget: false) : null;
@@ -435,21 +542,38 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public BlockNodeViewModel Reveal(ScummBlock target, bool expandTarget)
     {
         var root = Roots.FirstOrDefault();
-        if (root == null || target == null) return null;
+        if (root == null || target == null)
+        {
+            return null;
+        }
 
         var chain = new List<ScummBlock>();
-        for (var b = target; b != null; b = b.Parent) chain.Add(b);
+        for (var b = target; b != null; b = b.Parent)
+        {
+            chain.Add(b);
+        }
+
         chain.Reverse();
-        if (!ReferenceEquals(chain[0], root.Block)) return null;
+        if (!ReferenceEquals(chain[0], root.Block))
+        {
+            return null;
+        }
 
         var node = root;
         for (int i = 1; i < chain.Count; i++)
         {
             node.IsExpanded = true;
             node = node.Children.FirstOrDefault(c => ReferenceEquals(c.Block, chain[i]));
-            if (node == null) return null;
+            if (node == null)
+            {
+                return null;
+            }
         }
-        if (expandTarget) node.IsExpanded = true;
+        if (expandTarget)
+        {
+            node.IsExpanded = true;
+        }
+
         return node;
     }
 
@@ -467,9 +591,17 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// </summary>
     public void RevealFromViewer(ScummBlock block)
     {
-        if (_routingFromTree || block == null || ReferenceEquals(SelectedNode?.Block, block)) return;
+        if (_routingFromTree || block == null || ReferenceEquals(SelectedNode?.Block, block))
+        {
+            return;
+        }
+
         var node = Reveal(block, expandTarget: false);
-        if (node == null) return;
+        if (node == null)
+        {
+            return;
+        }
+
         _selectingFromViewer = true;
         try { SelectedNode = node; }
         finally { _selectingFromViewer = false; }
@@ -487,7 +619,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private static string PathOf(ScummBlock b)
     {
         var parts = new List<int>();
-        for (; b?.Parent != null; b = b.Parent) parts.Add(b.Parent.Children.IndexOf(b));
+        for (; b?.Parent != null; b = b.Parent)
+        {
+            parts.Add(b.Parent.Children.IndexOf(b));
+        }
+
         parts.Reverse();
         return string.Join("/", parts);
     }
@@ -495,10 +631,18 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private static ScummBlock BlockAt(ScummBlock root, string path)
     {
         var b = root;
-        if (string.IsNullOrEmpty(path)) return b;
+        if (string.IsNullOrEmpty(path))
+        {
+            return b;
+        }
+
         foreach (var part in path.Split('/'))
         {
-            if (!int.TryParse(part, out int i) || i < 0 || i >= b.Children.Count) return null;
+            if (!int.TryParse(part, out int i) || i < 0 || i >= b.Children.Count)
+            {
+                return null;
+            }
+
             b = b.Children[i];
         }
         return b;
@@ -511,8 +655,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// </summary>
     private void RestoreSelection()
     {
-        if (_rootBlock == null || _selectionKey == null) return;
-        Settings.LastRoom ??= new();
+        if (_rootBlock == null || _selectionKey == null)
+        {
+            return;
+        }
+
+        Settings.LastRoom ??= [];
         if (Settings.LastRoom.TryGetValue(_selectionKey, out var roomPath)
             && BlockAt(_rootBlock, roomPath) is { Tag: ScummTag.LFLF } lflf && RoomModel.TryCreate(lflf, out var room))
         {
@@ -522,16 +670,26 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
         if (Settings.LastSelection.TryGetValue(_selectionKey, out var path)
             && BlockAt(_rootBlock, path) is { } block && Reveal(block, expandTarget: false) is { } node)
+        {
             SelectedNode = node;
+        }
     }
 
     /// <summary>Remembers the room the Room viewer shows, for the next time this game is opened.</summary>
     private void RememberRoom(ScummBlock lflf)
     {
-        if (_selectionKey == null || lflf == null) return;
-        Settings.LastRoom ??= new();
+        if (_selectionKey == null || lflf == null)
+        {
+            return;
+        }
+
+        Settings.LastRoom ??= [];
         string path = PathOf(lflf);
-        if (Settings.LastRoom.TryGetValue(_selectionKey, out var old) && old == path) return;
+        if (Settings.LastRoom.TryGetValue(_selectionKey, out var old) && old == path)
+        {
+            return;
+        }
+
         Settings.LastRoom[_selectionKey] = path;
         ScheduleSettingsSave();
     }
@@ -539,7 +697,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>Remembers the selection (written after a short pause so arrowing through the tree doesn't write each step).</summary>
     private void RememberSelection(ScummBlock block)
     {
-        if (_selectionKey == null || block == null) return;
+        if (_selectionKey == null || block == null)
+        {
+            return;
+        }
+
         Settings.LastSelection[_selectionKey] = PathOf(block);
         ScheduleSettingsSave();
     }
@@ -561,9 +723,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// </summary>
     private void Inspect(ViewerDock viewer)
     {
-        if (ReferenceEquals(Inspector.Content, viewer)) return;
+        if (ReferenceEquals(Inspector.Content, viewer))
+        {
+            return;
+        }
+
         Inspector.Content = viewer;
-        if (viewer != null) MarkUpdated(MmucsDockFactory.InspectorId);
+        if (viewer != null)
+        {
+            MarkUpdated(MmucsDockFactory.InspectorId);
+        }
     }
 
     /// <summary>Inspects the Room viewer's selected object: its costume, its image, or nothing.</summary>
@@ -582,7 +751,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
             Inspect(ObjectImage.ViewerLayout);
             DockFactory.BringForwardOver(MmucsDockFactory.ObjectId, MmucsDockFactory.CostumeId, Layout);
         }
-        else Inspect(null); // an object without an image: don't leave the last one up
+        else
+        {
+            Inspect(null); // an object without an image: don't leave the last one up
+        }
     }
 
     // ── Tab update dots ───────────────────────────────────────────────────────
@@ -596,9 +768,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         // Checked after the routing finishes: the viewer may be brought to the front right after loading.
         Dispatcher.UIThread.Post(() =>
         {
-            if (DockFactory.FindPanel(panelId, Layout) is { } panel && panel.Owner is Dock.Model.Core.IDock owner
+            if (MmucsDockFactory.FindPanel(panelId, Layout) is { } panel && panel.Owner is Dock.Model.Core.IDock owner
                 && !ReferenceEquals(owner.ActiveDockable, panel))
+            {
                 panel.IsModified = true;
+            }
         }, DispatcherPriority.Background);
     }
 
@@ -650,8 +824,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
         // An object image is inspected through the room's selection (below, or by the Room viewer that
         // revealed it); anything else has nothing to show there.
-        if (b.Tag != ScummTag.OBIM && b.FindParent(ScummTag.OBIM) == null) Inspect(null);
-        if (_selectingFromViewer) return; // the viewer already shows it
+        if (b.Tag != ScummTag.OBIM && b.FindParent(ScummTag.OBIM) == null)
+        {
+            Inspect(null);
+        }
+
+        if (_selectingFromViewer)
+        {
+            return; // the viewer already shows it
+        }
 
         if (ScriptTags.Contains(b.Tag))
         {
@@ -659,11 +840,18 @@ public sealed partial class MainWindowViewModel : ObservableObject
             ShowViewer(ViewerTab.Script);
             return;
         }
-        if (Script.ShowRoom(b)) MarkUpdated(MmucsDockFactory.ScriptId); // the Script viewer lists the selected room's scripts
+        if (Script.ShowRoom(b))
+        {
+            MarkUpdated(MmucsDockFactory.ScriptId); // the Script viewer lists the selected room's scripts
+        }
 
         if ((b.Tag == ScummTag.LFLF || b.FindParent(ScummTag.LFLF) != null) && RoomModel.TryCreate(b, out var room))
         {
-            if (!ReferenceEquals(_lastRoom, room.Lflf)) MarkUpdated(MmucsDockFactory.RoomId);
+            if (!ReferenceEquals(_lastRoom, room.Lflf))
+            {
+                MarkUpdated(MmucsDockFactory.RoomId);
+            }
+
             _lastRoom = room.Lflf;
             RememberRoom(room.Lflf);
             _ = Room.LoadAsync(room);
@@ -673,7 +861,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 var before = Room.SelectedObjectItem;
                 Room.SelectedObject = Room.Room?.Objects.FirstOrDefault(o => ReferenceEquals(o.Block, obim));
                 // Reselecting the same object raises no change; nothing selectable clears the Inspector.
-                if (ReferenceEquals(before, Room.SelectedObjectItem) || Room.SelectedObjectItem == null) InspectRoomSelection();
+                if (ReferenceEquals(before, Room.SelectedObjectItem) || Room.SelectedObjectItem == null)
+                {
+                    InspectRoomSelection();
+                }
             }
             ShowViewer(ViewerTab.Room);
         }
@@ -681,15 +872,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     // ── Room viewer display choices, kept across sessions ──
 
-    private static readonly HashSet<string> RoomViewOptionNames = new()
-    {
+    private static readonly HashSet<string> RoomViewOptionNames =
+    [
         // Not Objects / Unmatched costumes: they follow the current room's checkboxes (each room starts as
         // the game shows it), so saving them would carry one room's state into the next launch.
         nameof(RoomViewModel.ShowBackground), nameof(RoomViewModel.ShowFullScreenObjects),
         nameof(RoomViewModel.ShowHotspots), nameof(RoomViewModel.ShowWalkboxes),
         nameof(RoomViewModel.ShowLabels), nameof(RoomViewModel.ShowBounds), nameof(RoomViewModel.ShowSelectionOutline), nameof(RoomViewModel.ShowObjectsPanel),
         nameof(RoomViewModel.ZPlaneMasking), nameof(RoomViewModel.ShowZPlanes), nameof(RoomViewModel.ShowMode), nameof(RoomViewModel.ShowUnused),
-    };
+    ];
     private bool _applyingRoomView;
 
     private void ApplyRoomViewOptions()
@@ -713,7 +904,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private void SaveRoomViewOptions()
     {
-        if (_applyingRoomView) return;
+        if (_applyingRoomView)
+        {
+            return;
+        }
+
         var next = new RoomViewOptions
         {
             ShowBackground = Room.ShowBackground,
@@ -730,7 +925,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
             ShowUnused = Room.ShowUnused,
         };
         var json = System.Text.Json.JsonSerializer.Serialize(next);
-        if (json == System.Text.Json.JsonSerializer.Serialize(Settings.RoomView)) return;
+        if (json == System.Text.Json.JsonSerializer.Serialize(Settings.RoomView))
+        {
+            return;
+        }
+
         Settings.RoomView = next;
         Settings.Save();
     }

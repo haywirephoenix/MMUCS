@@ -19,7 +19,7 @@ public class ScummBlock
     public int Size { get; set; } // total block size including header
     public int DataOffset { get; set; } // offset to data after block header
     // public byte[] RawData { get; set; }     // raw bytes, lazy-loaded
-    public List<ScummBlock> Children { get; set; } = new();
+    public List<ScummBlock> Children { get; set; } = [];
     public ScummBlock Parent { get; set; }
     public int TagSiblingIndex { get; set; } = 0;
     
@@ -44,14 +44,24 @@ public class ScummBlock
         }
     }
 
-    private Dictionary<MetaValue, MetaValue> Metadata { get; set; } = new();
+    private Dictionary<MetaValue, MetaValue> Metadata { get; set; } = [];
 
     public Type MetaSchema { get; set; }
 
-    public void SetMetaSchema(Type type) => MetaSchema = type;
+    public void SetMetaSchema(Type type)
+    {
+        MetaSchema = type;
+    }
 
-    public Dictionary<MetaValue, MetaValue> GetMetaDataDict() => Metadata;
-    public void SetMetaDataDict(Dictionary<MetaValue, MetaValue> newdict) => Metadata = newdict;
+    public Dictionary<MetaValue, MetaValue> GetMetaDataDict()
+    {
+        return Metadata;
+    }
+
+    public void SetMetaDataDict(Dictionary<MetaValue, MetaValue> newdict)
+    {
+        Metadata = newdict;
+    }
 
     public void SetMetaDataItem<T>(T key, MetaValue value, bool propagate = false) where T : Enum
     {
@@ -88,12 +98,12 @@ public class ScummBlock
 
     public ReadOnlySpan<byte> DataSpan =>
         FileData == null
-            ? ReadOnlySpan<byte>.Empty
+            ? []
             : new ReadOnlySpan<byte>(FileData, DataOffset, DataLength);
 
     public ReadOnlySpan<byte> FullSpan =>
         FileData == null
-            ? ReadOnlySpan<byte>.Empty
+            ? []
             : new ReadOnlySpan<byte>(FileData, Offset, Size);
 
     public ReadOnlyMemory<byte> DataMemory =>
@@ -103,7 +113,7 @@ public class ScummBlock
 
     public ReadOnlySpan<byte> Slice(int offset)
     {
-        return DataSpan.Slice(offset);
+        return DataSpan[offset..];
     }
 
     public ReadOnlySpan<byte> Slice(int offset, int length)
@@ -144,7 +154,7 @@ public class ScummBlock
     }
     public List<ScummBlock> FindChildrenRecursive(uint tag)
     {
-        List<ScummBlock> results = new();
+        List<ScummBlock> results = [];
 
         foreach (var child in Children)
         {
@@ -176,7 +186,7 @@ public class ScummBlock
 
     public List<ScummBlock> FindSiblings(uint tag, bool includeSelf = false)
     {
-        List<ScummBlock> results = new();
+        List<ScummBlock> results = [];
 
         if (Parent == null) return results;
 

@@ -37,23 +37,15 @@ public sealed class SmushFrame
 /// <item>IACT (audio) and TEXT (subtitles) are counted, not decoded yet.</item>
 /// </list>
 /// </summary>
-public sealed class SmushDecoder
+public sealed class SmushDecoder(SmushVideo video)
 {
-    private readonly SmushVideo _video;
-    private readonly SmushPalette _palette;
-    private readonly byte[] _screen;
-    private readonly byte[] _objectBuffer;
+    private readonly SmushVideo _video = video;
+    private readonly SmushPalette _palette = new(video.Header.Palette);
+    private readonly byte[] _screen = new byte[video.Width * video.Height];
+    private readonly byte[] _objectBuffer = new byte[video.Width * video.Height];
     private byte[] _stored;
     private Codec47 _codec47;
-    private readonly HashSet<string> _warned = new();
-
-    public SmushDecoder(SmushVideo video)
-    {
-        _video = video;
-        _palette = new SmushPalette(video.Header.Palette);
-        _screen = new byte[video.Width * video.Height];
-        _objectBuffer = new byte[video.Width * video.Height];
-    }
+    private readonly HashSet<string> _warned = [];
 
     /// <summary>Frames that failed or used something unsupported; each kind is logged once.</summary>
     public int Problems { get; private set; }

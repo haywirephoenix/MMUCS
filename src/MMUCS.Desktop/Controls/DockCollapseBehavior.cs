@@ -52,7 +52,7 @@ public static class DockCollapseBehavior
         public EventHandler<AvaloniaPropertyChangedEventArgs> WindowStateHandler;
     }
 
-    private static readonly ConditionalWeakTable<IDock, State> States = new();
+    private static readonly ConditionalWeakTable<IDock, State> States = [];
 
     /// <summary>
     /// The share to persist for <paramref name="dockable"/>: its remembered expanded share when it is
@@ -72,7 +72,10 @@ public static class DockCollapseBehavior
     private static void OnTemplateApplied(ToolChromeControl chrome, TemplateAppliedEventArgs e)
     {
         var button = e.NameScope.Find<Button>("PART_MenuButton");
-        if (button == null) return;
+        if (button == null)
+        {
+            return;
+        }
 
         // Local value beats the template binding, so the arrow no longer opens the menu.
         button.Flyout = null;
@@ -82,7 +85,10 @@ public static class DockCollapseBehavior
         // The chrome is re-templated when its panel moves (floated, re-docked). A collapsed panel
         // expands on the move: its saved sizes belonged to the old location.
         if (chrome.DataContext is IDock dock && States.TryGetValue(dock, out var state) && state.Collapsed)
+        {
             ResetOnMove(dock, state);
+        }
+
         ToolTip.SetTip(button, "Collapse");
     }
 
@@ -97,7 +103,10 @@ public static class DockCollapseBehavior
         if (state.Window != null)
         {
             state.Window.MinHeight = state.SavedWindowMinHeight;
-            if (state.WindowStateHandler != null) state.Window.PropertyChanged -= state.WindowStateHandler;
+            if (state.WindowStateHandler != null)
+            {
+                state.Window.PropertyChanged -= state.WindowStateHandler;
+            }
         }
         state.Window = null;
         state.WindowStateHandler = null;
@@ -109,11 +118,26 @@ public static class DockCollapseBehavior
 
     private static void OnArrowClick(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { TemplatedParent: ToolChromeControl chrome }) return;
-        if (chrome.DataContext is not IDock dock) return;
+        if (sender is not Button { TemplatedParent: ToolChromeControl chrome })
+        {
+            return;
+        }
+
+        if (chrome.DataContext is not IDock dock)
+        {
+            return;
+        }
+
         var state = States.GetOrCreateValue(dock);
-        if (state.Collapsed) Expand(chrome, dock, state);
-        else Collapse(chrome, dock, state);
+        if (state.Collapsed)
+        {
+            Expand(chrome, dock, state);
+        }
+        else
+        {
+            Collapse(chrome, dock, state);
+        }
+
         e.Handled = true;
     }
 
@@ -136,10 +160,15 @@ public static class DockCollapseBehavior
                 var panes = VerticalPanes(dock);
                 bool sharing = panes.Any(p => !ReferenceEquals(p, dock) && !IsCollapsed(p));
                 if (sharing && double.IsFinite(dock.Proportion) && dock.Proportion > CollapsedShare * 2)
-                    state.ExpandedShare = dock.Proportion;
-                else if (!double.IsFinite(state.ExpandedShare))
-                    state.ExpandedShare = 1.0 / panes.Count;
-                state.SavedMinHeight = dock.MinHeight;
+                    {
+                        state.ExpandedShare = dock.Proportion;
+                    }
+                    else if (!double.IsFinite(state.ExpandedShare))
+                    {
+                        state.ExpandedShare = 1.0 / panes.Count;
+                    }
+
+                    state.SavedMinHeight = dock.MinHeight;
                 state.SavedMaxHeight = dock.MaxHeight;
                 dock.MinHeight = header;
                 dock.MaxHeight = header;
@@ -184,8 +213,12 @@ public static class DockCollapseBehavior
             case Mode.FloatingWindow when state.Window != null:
             {
                 state.Window.MinHeight = state.SavedWindowMinHeight;
-                if (!fromMaximize) RestoreWindowHeight(state);
-                break;
+                if (!fromMaximize)
+                    {
+                        RestoreWindowHeight(state);
+                    }
+
+                    break;
             }
         }
 
@@ -194,7 +227,11 @@ public static class DockCollapseBehavior
 
     private static void OnWindowStateChanged(ToolChromeControl chrome, IDock dock, State state, AvaloniaPropertyChangedEventArgs args)
     {
-        if (args.Property != Window.WindowStateProperty || state.Window == null) return;
+        if (args.Property != Window.WindowStateProperty || state.Window == null)
+        {
+            return;
+        }
+
         var window = state.Window;
         var ws = window.WindowState;
         double height = state.SavedWindowHeight;
@@ -210,7 +247,9 @@ public static class DockCollapseBehavior
 
             // Windows: rewrite the stored restore size in place — no visible change.
             if (double.IsFinite(grow) && WindowRestoreBounds.TryAdjustRestoreHeight(window, grow))
+            {
                 return;
+            }
 
             // Elsewhere: briefly drop back to normal, set the height, and maximize again. Each step
             // waits for the previous state change to settle so the old bounds aren't re-applied.
@@ -219,7 +258,11 @@ public static class DockCollapseBehavior
                 window.WindowState = WindowState.Normal;
                 DispatcherTimer.RunOnce(() =>
                 {
-                    if (double.IsFinite(height)) SetWindowHeight(window, height);
+                    if (double.IsFinite(height))
+                    {
+                        SetWindowHeight(window, height);
+                    }
+
                     DispatcherTimer.RunOnce(() => window.WindowState = WindowState.Maximized, TimeSpan.FromMilliseconds(40));
                 }, TimeSpan.FromMilliseconds(40));
             }, DispatcherPriority.Background);
@@ -235,11 +278,17 @@ public static class DockCollapseBehavior
         {
             state.RestoreOnNormal = false;
             DetachWindow(state);
-            if (!double.IsFinite(height)) return;
+            if (!double.IsFinite(height))
+            {
+                return;
+            }
             // Avalonia applies its saved (collapsed) bounds just after this event.
             DispatcherTimer.RunOnce(() =>
             {
-                if (window.WindowState == WindowState.Normal) SetWindowHeight(window, height);
+                if (window.WindowState == WindowState.Normal)
+                {
+                    SetWindowHeight(window, height);
+                }
             }, TimeSpan.FromMilliseconds(50));
         }
     }
@@ -247,7 +296,10 @@ public static class DockCollapseBehavior
     private static void DetachWindow(State state)
     {
         if (state.Window != null && state.WindowStateHandler != null)
+        {
             state.Window.PropertyChanged -= state.WindowStateHandler;
+        }
+
         state.WindowStateHandler = null;
         state.SavedWindowHeight = double.NaN;
         state.CollapsedWindowHeight = double.NaN;
@@ -260,17 +312,32 @@ public static class DockCollapseBehavior
     /// </summary>
     private static void SetWindowHeight(Window window, double height)
     {
-        if (Math.Abs(window.Bounds.Height - height) <= 1) return;
-        if (Math.Abs(window.Height - height) <= 0.5) window.Height = height + 1;
+        if (Math.Abs(window.Bounds.Height - height) <= 1)
+        {
+            return;
+        }
+
+        if (Math.Abs(window.Height - height) <= 0.5)
+        {
+            window.Height = height + 1;
+        }
+
         window.Height = height;
     }
 
     private static void RestoreWindowHeight(State state)
     {
         var window = state.Window;
-        if (window == null) return;
+        if (window == null)
+        {
+            return;
+        }
+
         if (double.IsFinite(state.SavedWindowHeight) && window.WindowState == WindowState.Normal)
+        {
             SetWindowHeight(window, state.SavedWindowHeight);
+        }
+
         DetachWindow(state);
     }
 
@@ -280,7 +347,10 @@ public static class DockCollapseBehavior
     private static List<IDockable> VerticalPanes(IDock dock)
     {
         if (dock.Owner is not IProportionalDock { Orientation: Orientation.Vertical, VisibleDockables: { } children })
+        {
             return null;
+        }
+
         var panes = children.Where(d => d is not IProportionalDockSplitter).ToList();
         return panes.Count >= 2 ? panes : null;
     }
@@ -295,13 +365,19 @@ public static class DockCollapseBehavior
     private static void Redistribute(IDock dock, double target)
     {
         var panes = VerticalPanes(dock);
-        if (panes == null) return;
+        if (panes == null)
+        {
+            return;
+        }
 
         var collapsed = panes.Where(p => !ReferenceEquals(p, dock) && IsCollapsed(p)).ToList();
         var expanded = panes.Where(p => !ReferenceEquals(p, dock) && !IsCollapsed(p)).ToList();
         double available = 1.0 - collapsed.Count * CollapsedShare;
 
-        foreach (var c in collapsed) Set(c, CollapsedShare);
+        foreach (var c in collapsed)
+        {
+            Set(c, CollapsedShare);
+        }
 
         if (expanded.Count == 0)
         {
@@ -362,8 +438,13 @@ public static class DockCollapseBehavior
     private static double HeaderHeight(ToolChromeControl chrome)
     {
         foreach (var child in TemplateParts(chrome))
+        {
             if (child is Border { Name: "PART_Border" } border && border.Bounds.Height > 0)
+            {
                 return Math.Ceiling(border.Bounds.Height) + 1;
+            }
+        }
+
         return 26;
     }
 }

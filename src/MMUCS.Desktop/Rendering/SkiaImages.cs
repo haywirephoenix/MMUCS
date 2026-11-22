@@ -10,7 +10,11 @@ public static class SkiaImages
     /// <summary>Copies a straight-alpha RGBA8 Core image into an immutable (thread-safe) SKImage.</summary>
     public static SKImage ToSkImage(this RgbaImage image)
     {
-        if (image == null) return null;
+        if (image == null)
+        {
+            return null;
+        }
+
         var info = new SKImageInfo(image.Width, image.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         var handle = GCHandle.Alloc(image.Data, GCHandleType.Pinned);
         try
@@ -27,12 +31,19 @@ public static class SkiaImages
     /// <summary>Copies a straight-alpha RGBA8 Core image into an Avalonia bitmap (for list thumbnails).</summary>
     public static Avalonia.Media.Imaging.Bitmap ToBitmap(this RgbaImage image)
     {
-        if (image == null) return null;
+        if (image == null)
+        {
+            return null;
+        }
+
         var bitmap = new Avalonia.Media.Imaging.WriteableBitmap(new Avalonia.PixelSize(image.Width, image.Height),
             new Avalonia.Vector(96, 96), Avalonia.Platform.PixelFormat.Rgba8888, Avalonia.Platform.AlphaFormat.Unpremul);
         using var buffer = bitmap.Lock();
         for (int y = 0; y < image.Height; y++)
+        {
             Marshal.Copy(image.Data, y * image.Stride, buffer.Address + y * buffer.RowBytes, image.Stride);
+        }
+
         return bitmap;
     }
 

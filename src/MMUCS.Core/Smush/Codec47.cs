@@ -227,7 +227,7 @@ public sealed class Codec47
 
     /// <summary>The 248 motion vectors (x, y) block codes 0x00–0xF7 refer to; part of the format.</summary>
     private static readonly sbyte[] MotionVectors =
-    {
+    [
           0,  0,  -1,-43,   6,-43,  -9,-42,  13,-41, -16,-40,  19,-39, -23,-36,
          26,-34,  -2,-33,   4,-33, -29,-32,  -9,-32,  11,-31, -16,-29,  32,-29,
          18,-28, -34,-26, -22,-25,  -1,-25,   3,-25,  -7,-24,   8,-24,  24,-23,
@@ -259,7 +259,7 @@ public sealed class Codec47
          27, 19,  38, 20, -13, 21,  12, 22, -36, 23, -24, 23,  -8, 24,   7, 24,
          -3, 25,   1, 25,  22, 25,  34, 26, -18, 28, -32, 29,  16, 29, -11, 31,
           9, 32,  29, 32,  -4, 33,   2, 33, -26, 34,  23, 36, -19, 39,  16, 40,
-    };
+    ];
 
     /// <summary>
     /// The two-colour glyphs for code 0xFD: 256 per block size, one for each pair of points from a
@@ -269,12 +269,12 @@ public sealed class Codec47
     private static class Glyphs
     {
         public static readonly ulong[] Small = Build(4,
-            new[] { 0, 1, 2, 3, 3, 3, 3, 2, 1, 0, 0, 0, 1, 2, 2, 1 },
-            new[] { 0, 0, 0, 0, 1, 2, 3, 3, 3, 3, 2, 1, 1, 1, 2, 2 });
+            [0, 1, 2, 3, 3, 3, 3, 2, 1, 0, 0, 0, 1, 2, 2, 1],
+            [0, 0, 0, 0, 1, 2, 3, 3, 3, 3, 2, 1, 1, 1, 2, 2]);
 
         public static readonly ulong[] Large = Build(8,
-            new[] { 0, 2, 5, 7, 7, 7, 7, 7, 7, 5, 2, 0, 0, 0, 0, 0 },
-            new[] { 0, 0, 0, 0, 1, 3, 4, 6, 7, 7, 7, 7, 6, 4, 3, 1 });
+            [0, 2, 5, 7, 7, 7, 7, 7, 7, 5, 2, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 3, 4, 6, 7, 7, 7, 7, 6, 4, 3, 1]);
 
         private enum Edge { Left, Top, Right, Bottom, None }
         private enum Side { Left, Up, Right, Down, None }
@@ -309,11 +309,16 @@ public sealed class Codec47
             return bits;
         }
 
-        private static ulong Bit(int x, int y, int size) => 1UL << (y * size + x);
+        private static ulong Bit(int x, int y, int size)
+        {
+            return 1UL << (y * size + x);
+        }
 
         // Row 0 counts as the bottom edge and the last row as the top: the original's naming.
-        private static Edge EdgeOf(int x, int y, int size) =>
-            y == 0 ? Edge.Bottom : y == size - 1 ? Edge.Top : x == 0 ? Edge.Left : x == size - 1 ? Edge.Right : Edge.None;
+        private static Edge EdgeOf(int x, int y, int size)
+        {
+            return y == 0 ? Edge.Bottom : y == size - 1 ? Edge.Top : x == 0 ? Edge.Left : x == size - 1 ? Edge.Right : Edge.None;
+        }
 
         private static Side FillSide(Edge e0, Edge e1)
         {

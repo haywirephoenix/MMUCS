@@ -14,14 +14,20 @@ public static class IndexedRenderer
         DataVisualization
     }
 
-    public static RgbaImage CreateImage(IndexedSurface surface, AkosData akos) =>
-        RenderInternal(surface, akos, RenderMode.Raw);
+    public static RgbaImage CreateImage(IndexedSurface surface, AkosData akos)
+    {
+        return RenderInternal(surface, akos, RenderMode.Raw);
+    }
 
-    public static RgbaImage CreateImage_Processed(IndexedSurface surface, AkosData akos) =>
-        RenderInternal(surface, akos, RenderMode.Processed);
+    public static RgbaImage CreateImage_Processed(IndexedSurface surface, AkosData akos)
+    {
+        return RenderInternal(surface, akos, RenderMode.Processed);
+    }
 
-    public static RgbaImage CreateDataImage(IndexedSurface surface, AkosData akos) =>
-        RenderInternal(surface, akos, RenderMode.DataVisualization);
+    public static RgbaImage CreateDataImage(IndexedSurface surface, AkosData akos)
+    {
+        return RenderInternal(surface, akos, RenderMode.DataVisualization);
+    }
 
     private static RgbaImage RenderInternal(IndexedSurface surface, AkosData akos, RenderMode mode)
     {

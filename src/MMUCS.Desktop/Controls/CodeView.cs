@@ -44,13 +44,13 @@ public sealed class CodeView : Control
     /// <summary>One line: its text and coloured spans (start, length, brush).</summary>
     private sealed record Line(string Text, (int Start, int Length, ScriptTokenKind Kind)[] Spans);
 
-    private List<Line> _lines = new();
+    private List<Line> _lines = [];
     private bool _dirty = true;
     private int _maxLength;
     private double _lineHeight, _charWidth;
     private Typeface _typeface;
     private bool _metricsValid;
-    private readonly Dictionary<int, FormattedText> _cache = new();
+    private readonly Dictionary<int, FormattedText> _cache = [];
     private IBrush[] _brushes;
     private ScrollViewer _scroll;
 
@@ -87,9 +87,12 @@ public sealed class CodeView : Control
             if (change.Property != ShowOffsetsProperty)
             {
                 _anchor = _caret = default;
-                if (_scroll != null) _scroll.Offset = default; // a new script starts at the top
+                _scroll?.Offset = default; // a new script starts at the top
             }
-            else _anchor = _caret = default; // columns shift when the gutter comes and goes
+            else
+            {
+                _anchor = _caret = default; // columns shift when the gutter comes and goes
+            }
         }
         else if (change.Property == FontFamilyProperty || change.Property == FontSizeProperty || change.Property == ForegroundProperty)
         {
@@ -102,14 +105,16 @@ public sealed class CodeView : Control
     {
         base.OnAttachedToVisualTree(e);
         _scroll = this.FindAncestorOfType<ScrollViewer>();
-        if (_scroll != null) _scroll.ScrollChanged += OnScrollChanged;
+        _scroll?.ScrollChanged += OnScrollChanged;
+
         _brushes = null;
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        if (_scroll != null) _scroll.ScrollChanged -= OnScrollChanged;
+        _scroll?.ScrollChanged -= OnScrollChanged;
+
         _scroll = null;
     }
 
@@ -120,12 +125,16 @@ public sealed class CodeView : Control
     private void Rebuild()
     {
         _dirty = false;
-        _lines = new List<Line>();
+        _lines = [];
         _maxLength = 0;
         var tokens = Tokens;
         if (tokens == null)
         {
-            foreach (var l in (Text ?? "").Replace("\r\n", "\n").Split('\n')) AddLine(l, Array.Empty<(int, int, ScriptTokenKind)>());
+            foreach (var l in (Text ?? "").Replace("\r\n", "\n").Split('\n'))
+            {
+                AddLine(l, []);
+            }
+
             return;
         }
         bool offsets = ShowOffsets;
@@ -133,7 +142,11 @@ public sealed class CodeView : Control
         var spans = new List<(int, int, ScriptTokenKind)>();
         foreach (var t in tokens)
         {
-            if (t.Kind == ScriptTokenKind.Offset && !offsets) continue;
+            if (t.Kind == ScriptTokenKind.Offset && !offsets)
+            {
+                continue;
+            }
+
             var text = t.Text;
             int from = 0;
             while (true)
@@ -142,17 +155,28 @@ public sealed class CodeView : Control
                 int end = nl < 0 ? text.Length : nl;
                 if (end > from)
                 {
-                    if (t.Kind != ScriptTokenKind.Plain) spans.Add((sb.Length, end - from, t.Kind));
+                    if (t.Kind != ScriptTokenKind.Plain)
+                    {
+                        spans.Add((sb.Length, end - from, t.Kind));
+                    }
+
                     sb.Append(text, from, end - from);
                 }
-                if (nl < 0) break;
-                AddLine(sb.ToString(), spans.ToArray());
+                if (nl < 0)
+                {
+                    break;
+                }
+
+                AddLine(sb.ToString(), [.. spans]);
                 sb.Clear();
                 spans.Clear();
                 from = nl + 1;
             }
         }
-        if (sb.Length > 0) AddLine(sb.ToString(), spans.ToArray());
+        if (sb.Length > 0)
+        {
+            AddLine(sb.ToString(), [.. spans]);
+        }
     }
 
     private void AddLine(string text, (int, int, ScriptTokenKind)[] spans)
@@ -163,7 +187,11 @@ public sealed class CodeView : Control
 
     private void EnsureMetrics()
     {
-        if (_metricsValid) return;
+        if (_metricsValid)
+        {
+            return;
+        }
+
         _metricsValid = true;
         _typeface = new Typeface(FontFamily ?? FontFamily.Default);
         var probe = new FormattedText("MMMMMMMMMM", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, _typeface, FontSize, Brushes.White);
@@ -178,27 +206,49 @@ public sealed class CodeView : Control
             var kinds = Enum.GetValues<ScriptTokenKind>();
             _brushes = new IBrush[kinds.Length];
             foreach (var k in kinds)
+            {
                 if (k != ScriptTokenKind.Plain && this.TryFindResource($"Script{k}Brush", out var r) && r is IBrush b)
+                {
                     _brushes[(int)k] = b;
+                }
+            }
         }
         return _brushes[(int)kind];
     }
 
     private FormattedText Layout(int index)
     {
-        if (_cache.TryGetValue(index, out var ft)) return ft;
-        if (_cache.Count > 4000) _cache.Clear(); // only lines that were in view are kept; drop them now and then
+        if (_cache.TryGetValue(index, out var ft))
+        {
+            return ft;
+        }
+
+        if (_cache.Count > 4000)
+        {
+            _cache.Clear(); // only lines that were in view are kept; drop them now and then
+        }
+
         var line = _lines[index];
         ft = new FormattedText(line.Text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, _typeface, FontSize, Foreground ?? Brushes.White);
         foreach (var (start, length, kind) in line.Spans)
-            if (BrushFor(kind) is { } brush) ft.SetForegroundBrush(brush, start, length);
+        {
+            if (BrushFor(kind) is { } brush)
+            {
+                ft.SetForegroundBrush(brush, start, length);
+            }
+        }
+
         _cache[index] = ft;
         return ft;
     }
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        if (_dirty) Rebuild();
+        if (_dirty)
+        {
+            Rebuild();
+        }
+
         EnsureMetrics();
         return new Size(_maxLength * _charWidth + _charWidth, _lines.Count * _lineHeight);
     }
@@ -207,11 +257,18 @@ public sealed class CodeView : Control
 
     public override void Render(DrawingContext context)
     {
-        if (_dirty) Rebuild();
+        if (_dirty)
+        {
+            Rebuild();
+        }
+
         EnsureMetrics();
         // Transparent fill so the whole area takes pointer input.
         context.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
-        if (_lines.Count == 0) return;
+        if (_lines.Count == 0)
+        {
+            return;
+        }
 
         // The part of this control the ScrollViewer shows.
         double top = 0, height = Bounds.Height;
@@ -232,9 +289,15 @@ public sealed class CodeView : Control
             {
                 int c0 = i == s.Line ? s.Col : 0;
                 int c1 = i == e.Line ? e.Col : _lines[i].Text.Length + 1; // +1: the line break
-                if (c1 > c0 && SelectionBrush != null) context.FillRectangle(SelectionBrush, new Rect(c0 * _charWidth, y, (c1 - c0) * _charWidth, _lineHeight));
+                if (c1 > c0 && SelectionBrush != null)
+                {
+                    context.FillRectangle(SelectionBrush, new Rect(c0 * _charWidth, y, (c1 - c0) * _charWidth, _lineHeight));
+                }
             }
-            if (_lines[i].Text.Length > 0) context.DrawText(Layout(i), new Point(0, y));
+            if (_lines[i].Text.Length > 0)
+            {
+                context.DrawText(Layout(i), new Point(0, y));
+            }
         }
     }
 
@@ -245,7 +308,11 @@ public sealed class CodeView : Control
 
     private (int Line, int Col) HitTest(Point p)
     {
-        if (_lines.Count == 0) return default;
+        if (_lines.Count == 0)
+        {
+            return default;
+        }
+
         int line = Math.Clamp((int)(p.Y / _lineHeight), 0, _lines.Count - 1);
         int col = Math.Clamp((int)Math.Round(p.X / _charWidth), 0, _lines[line].Text.Length);
         return (line, col);
@@ -256,13 +323,24 @@ public sealed class CodeView : Control
         base.OnPointerPressed(e);
         Focus();
         var point = e.GetCurrentPoint(this);
-        if (!point.Properties.IsLeftButtonPressed) return;
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
         var hit = HitTest(point.Position);
-        if (e.ClickCount == 2) SelectWord(hit);
+        if (e.ClickCount == 2)
+        {
+            SelectWord(hit);
+        }
         else if (e.ClickCount >= 3) { _anchor = (hit.Line, 0); _caret = (hit.Line, _lines.Count > 0 ? _lines[hit.Line].Text.Length : 0); }
         else
         {
-            if ((e.KeyModifiers & KeyModifiers.Shift) == 0) _anchor = hit;
+            if ((e.KeyModifiers & KeyModifiers.Shift) == 0)
+            {
+                _anchor = hit;
+            }
+
             _caret = hit;
             _selecting = true;
             e.Pointer.Capture(this);
@@ -274,14 +352,24 @@ public sealed class CodeView : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (!_selecting) return;
+        if (!_selecting)
+        {
+            return;
+        }
+
         var p = e.GetPosition(this);
         _caret = HitTest(p);
         // Drag past the visible edge: scroll along.
         if (_scroll != null && this.TranslatePoint(p, _scroll) is { } q)
         {
-            if (q.Y < 0) _scroll.Offset = _scroll.Offset.WithY(Math.Max(0, _scroll.Offset.Y - _lineHeight));
-            else if (q.Y > _scroll.Viewport.Height) _scroll.Offset = _scroll.Offset.WithY(_scroll.Offset.Y + _lineHeight);
+            if (q.Y < 0)
+            {
+                _scroll.Offset = _scroll.Offset.WithY(Math.Max(0, _scroll.Offset.Y - _lineHeight));
+            }
+            else if (q.Y > _scroll.Viewport.Height)
+            {
+                _scroll.Offset = _scroll.Offset.WithY(_scroll.Offset.Y + _lineHeight);
+            }
         }
         InvalidateVisual();
     }
@@ -289,27 +377,51 @@ public sealed class CodeView : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
-        if (!_selecting) return;
+        if (!_selecting)
+        {
+            return;
+        }
+
         _selecting = false;
         e.Pointer.Capture(null);
     }
 
     private void SelectWord((int Line, int Col) at)
     {
-        if (_lines.Count == 0) return;
+        if (_lines.Count == 0)
+        {
+            return;
+        }
+
         var t = _lines[at.Line].Text;
         static bool Word(char c) => char.IsLetterOrDigit(c) || c is '_' or '-' or '$' or '.';
         int a = Math.Min(at.Col, t.Length), b = a;
-        while (a > 0 && Word(t[a - 1])) a--;
-        while (b < t.Length && Word(t[b])) b++;
+        while (a > 0 && Word(t[a - 1]))
+        {
+            a--;
+        }
+
+        while (b < t.Length && Word(t[b]))
+        {
+            b++;
+        }
+
         _anchor = (at.Line, a);
         _caret = (at.Line, b);
     }
 
     public void SelectAll()
     {
-        if (_dirty) Rebuild();
-        if (_lines.Count == 0) return;
+        if (_dirty)
+        {
+            Rebuild();
+        }
+
+        if (_lines.Count == 0)
+        {
+            return;
+        }
+
         _anchor = (0, 0);
         _caret = (_lines.Count - 1, _lines[^1].Text.Length);
         InvalidateVisual();
@@ -318,7 +430,11 @@ public sealed class CodeView : Control
     /// <summary>The selected text, or everything when nothing is selected.</summary>
     public string SelectedText()
     {
-        if (_dirty) Rebuild();
+        if (_dirty)
+        {
+            Rebuild();
+        }
+
         var (s, e) = Ordered();
         if (s == e) { s = (0, 0); e = (_lines.Count - 1, _lines.Count > 0 ? _lines[^1].Text.Length : 0); }
         var sb = new StringBuilder();
@@ -328,7 +444,10 @@ public sealed class CodeView : Control
             int c0 = i == s.Line ? Math.Min(s.Col, t.Length) : 0;
             int c1 = i == e.Line ? Math.Min(e.Col, t.Length) : t.Length;
             sb.Append(t, c0, c1 - c0);
-            if (i < e.Line) sb.Append(Environment.NewLine);
+            if (i < e.Line)
+            {
+                sb.Append(Environment.NewLine);
+            }
         }
         return sb.ToString();
     }
@@ -336,14 +455,20 @@ public sealed class CodeView : Control
     public async void Copy()
     {
         if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+        {
             await clipboard.SetTextAsync(SelectedText());
+        }
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
         bool ctrl = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
-        if (!ctrl) return;
+        if (!ctrl)
+        {
+            return;
+        }
+
         switch (e.Key)
         {
             case Key.C: Copy(); break;
@@ -375,7 +500,11 @@ public sealed class CodeView : Control
     private void Zoom(int step)
     {
         double size = step == 0 ? DefaultFontSize : Math.Clamp(Math.Round(FontSize) + step, MinFontSize, MaxFontSize);
-        if (size == FontSize) return;
+        if (size == FontSize)
+        {
+            return;
+        }
+
         double topLine = _scroll != null && _lineHeight > 0 ? _scroll.Offset.Y / _lineHeight : 0;
         double left = _scroll != null && _charWidth > 0 ? _scroll.Offset.X / _charWidth : 0;
         SetCurrentValue(FontSizeProperty, size); // TwoWay-bound: the setting follows

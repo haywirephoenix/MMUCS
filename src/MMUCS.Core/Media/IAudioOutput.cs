@@ -31,6 +31,8 @@ public interface IAudioOutput : IDisposable
 
 public static class AudioOutputExtensions
 {
-    public static TimeSpan PlayedTime(this IAudioOutput output) =>
-        TimeSpan.FromSeconds((double)output.PlayedFrames / output.Mixer.SampleRate);
+    public static TimeSpan PlayedTime(this IAudioOutput output)
+    {
+        return TimeSpan.FromSeconds((double)output.PlayedFrames / output.Mixer.SampleRate);
+    }
 }

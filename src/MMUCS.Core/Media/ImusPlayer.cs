@@ -54,7 +54,7 @@ public sealed class ImusPlayer : IAudioSource
     // Crossfade after a jump: the old position keeps playing and fades out while the new one fades in.
     private long _fadeOffset;
     private long _fadeTotal, _fadeDone;
-    private float[] _fadeBuffer = Array.Empty<float>();
+    private float[] _fadeBuffer = [];
 
     public ImusPlayer(ImusSound sound)
     {
@@ -267,6 +267,13 @@ public sealed class ImusPlayer : IAudioSource
         Raise(new ImusEvent(ImusEvent.EventKind.Stop, ToFrame(_offset)));
     }
 
-    private long ToFrame(long offset) => (offset - _dataStart) / _bpf;
-    private void Raise(ImusEvent e) => EventRaised?.Invoke(e);
+    private long ToFrame(long offset)
+    {
+        return (offset - _dataStart) / _bpf;
+    }
+
+    private void Raise(ImusEvent e)
+    {
+        EventRaised?.Invoke(e);
+    }
 }

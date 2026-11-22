@@ -12,12 +12,12 @@ namespace MMUCS.Core.Scumm;
 /// </summary>
 internal sealed class FreshGame
 {
-    public Dictionary<int, uint> Classes { get; } = new();
+    public Dictionary<int, uint> Classes { get; } = [];
     /// <summary>Boot values by raw variable reference (bit 31 for a bit variable).</summary>
-    public Dictionary<uint, int> Vars { get; } = new();
-    public Dictionary<(uint Array, int Index), int> Arrays { get; } = new();
+    public Dictionary<uint, int> Vars { get; } = [];
+    public Dictionary<(uint Array, int Index), int> Arrays { get; } = [];
 
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ScummBlock, FreshGame> Cache = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ScummBlock, FreshGame> Cache = [];
 
     /// <summary>The fresh game of the project <paramref name="any"/> belongs to (worked out once).</summary>
     public static FreshGame For(ScummBlock any)
@@ -66,13 +66,14 @@ public enum PlacementTime
 /// wherever it is. Positions are byte offsets into a script block's data, as <see cref="RoomActors"/>
 /// scans them; each maps to the decompiled line it belongs to.
 /// </summary>
-internal sealed class PlacementTiming
+internal sealed partial class PlacementTiming
 {
-    private static readonly Regex StartLocal = new(@"^(?:start-script|start-script-quick|chain-script)\b(?: [a-z]+)* (\d+)\b", RegexOptions.Compiled);
+    [GeneratedRegex(@"^(?:start-script|start-script-quick|chain-script)\b(?: [a-z]+)* (\d+)\b")]
+    private static partial Regex StartLocal();
 
-    private readonly Dictionary<ScummBlock, List<ScriptLine>> _lines = new();
-    private readonly HashSet<ScummBlock> _onEntry = new();
-    private readonly Dictionary<ScummBlock, List<Branch>> _branches = new();
+    private readonly Dictionary<ScummBlock, List<ScriptLine>> _lines = [];
+    private readonly HashSet<ScummBlock> _onEntry = [];
+    private readonly Dictionary<ScummBlock, List<Branch>> _branches = [];
     private readonly int _room;
     private readonly FreshGame _fresh;
 
@@ -89,20 +90,23 @@ internal sealed class PlacementTiming
         {
             if (b == null || !_onEntry.Add(b)) return;
             foreach (var line in Lines(b).Where(l => l.Indent == 0))
-                if (StartLocal.Match(line.Text.Trim()) is { Success: true } m && int.TryParse(m.Groups[1].Value, out int no)
+                if (StartLocal().Match(line.Text.Trim()) is { Success: true } m && int.TryParse(m.Groups[1].Value, out int no)
                     && no >= 2000 && locals.TryGetValue(no, out var local))
                     Walk(local);
         }
         Walk(all.FirstOrDefault(b => b.Tag == ScummTag.ENCD));
     }
 
-    public bool RunsOnEntry(ScummBlock script) => _onEntry.Contains(script);
+    public bool RunsOnEntry(ScummBlock script)
+    {
+        return _onEntry.Contains(script);
+    }
 
     private List<ScriptLine> Lines(ScummBlock b)
     {
         if (_lines.TryGetValue(b, out var lines)) return lines;
-        try { lines = RoomScripts.For(b) is { } e ? RoomScripts.Decompile(e) : new(); }
-        catch { lines = new(); } // a script that doesn't decompile: its lines can't be placed
+        try { lines = RoomScripts.For(b) is { } e ? RoomScripts.Decompile(e) : []; }
+        catch { lines = []; } // a script that doesn't decompile: its lines can't be placed
         return _lines[b] = lines;
     }
 
@@ -132,7 +136,7 @@ internal sealed class PlacementTiming
         if (!_branches.TryGetValue(script, out var branches))
         {
             branches = RoomScripts.For(script) is { Parts.Count: > 0 } e
-                ? Branches(script.DataSpan, e.Parts[0].Start, e.Parts[0].End, _room, _fresh) : new();
+                ? Branches(script.DataSpan, e.Parts[0].Start, e.Parts[0].End, _room, _fresh) : [];
             _branches[script] = branches;
         }
         return positions.Where(p => p >= 0).All(p => Reached(branches, p));

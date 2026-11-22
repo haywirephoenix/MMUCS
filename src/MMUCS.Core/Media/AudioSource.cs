@@ -21,7 +21,10 @@ public interface IAudioSource
 /// <summary>Converts the game's PCM (8-bit unsigned or 16-bit signed little-endian) to float samples.</summary>
 public static class Pcm
 {
-    public static int BytesPerSample(int bits) => bits <= 8 ? 1 : 2;
+    public static int BytesPerSample(int bits)
+    {
+        return bits <= 8 ? 1 : 2;
+    }
 
     /// <summary>Converts <paramref name="count"/> samples starting at byte <paramref name="offset"/>; bytes past the end read as silence.</summary>
     public static void ToFloat(ReadOnlySpan<byte> pcm, int bits, long offset, Span<float> output, int count)

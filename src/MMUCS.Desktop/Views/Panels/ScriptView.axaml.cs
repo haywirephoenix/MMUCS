@@ -15,15 +15,20 @@ public partial class ScriptView : UserControl
     protected override void OnDataContextChanged(System.EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (_vm != null) _vm.PropertyChanged -= OnVmPropertyChanged;
+        _vm?.PropertyChanged -= OnVmPropertyChanged;
+
         _vm = DataContext as ScriptViewModel;
-        if (_vm != null) _vm.PropertyChanged += OnVmPropertyChanged;
+        _vm?.PropertyChanged += OnVmPropertyChanged;
+
         ApplyScriptsPanel();
     }
 
     private void OnVmPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ScriptViewModel.ShowScriptsPanel)) ApplyScriptsPanel();
+        if (e.PropertyName == nameof(ScriptViewModel.ShowScriptsPanel))
+        {
+            ApplyScriptsPanel();
+        }
     }
 
     /// <summary>Collapses or restores the script list column (keeping the width it had).</summary>
@@ -31,7 +36,11 @@ public partial class ScriptView : UserControl
     {
         bool show = _vm?.ShowScriptsPanel ?? true;
         var column = ContentGrid.ColumnDefinitions[0];
-        if (!show && column.Width.Value > 0) _listWidth = column.Width;
+        if (!show && column.Width.Value > 0)
+        {
+            _listWidth = column.Width;
+        }
+
         column.Width = show ? _listWidth : new GridLength(0);
         ContentGrid.ColumnDefinitions[1].Width = new GridLength(show ? 4 : 0);
         ScriptsSplitter.IsVisible = show;

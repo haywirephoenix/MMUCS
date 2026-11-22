@@ -11,7 +11,7 @@ namespace MMUCS.Core.Imaging;
 /// </summary>
 public static class PngWriter
 {
-    private static readonly byte[] Signature = { 137, 80, 78, 71, 13, 10, 26, 10 };
+    private static readonly byte[] Signature = [137, 80, 78, 71, 13, 10, 26, 10];
     private static readonly uint[] CrcTable = BuildCrcTable();
 
     public static void Write(Stream output, int width, int height, ReadOnlySpan<byte> rgba)
@@ -42,7 +42,7 @@ public static class PngWriter
             WriteChunk(output, "IDAT", idat.GetBuffer().AsSpan(0, (int)idat.Length));
         }
 
-        WriteChunk(output, "IEND", ReadOnlySpan<byte>.Empty);
+        WriteChunk(output, "IEND", []);
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public static class PngWriter
             WriteChunk(output, "IDAT", idat.GetBuffer().AsSpan(0, (int)idat.Length));
         }
 
-        WriteChunk(output, "IEND", ReadOnlySpan<byte>.Empty);
+        WriteChunk(output, "IEND", []);
     }
 
     private static void WriteChunk(Stream s, string type, ReadOnlySpan<byte> data)

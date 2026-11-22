@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>MMUCS</AssemblyName>
     <RootNamespace>MMUCS.Desktop</RootNamespace>

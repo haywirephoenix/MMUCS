@@ -17,7 +17,7 @@ public readonly record struct AkosPlacedCel(int Cel, int X, int Y, int Width, in
 /// <summary>A composed costume frame: the cels of every limb at one point in their sequences.</summary>
 public sealed class AkosFrame
 {
-    public List<AkosPlacedCel> Cels { get; } = new();
+    public List<AkosPlacedCel> Cels { get; } = [];
     public bool IsEmpty => Cels.Count == 0;
 
     /// <summary>Bounds relative to the actor origin.</summary>
@@ -55,7 +55,10 @@ public static class AkosFrames
     /// costumes (0 W, 1 E, 2 S, 3 N), anim × 8 + dir for eight-direction ones (0 N, then clockwise),
     /// as the engine indexes them (ScummVM akosDecodeData).
     /// </summary>
-    public static int ChoreIndex(AkosData d, int anim, int dir) => anim * d.DirectionCount + dir;
+    public static int ChoreIndex(AkosData d, int anim, int dir)
+    {
+        return anim * d.DirectionCount + dir;
+    }
 
     /// <summary>The costume direction for a facing in degrees (0 north, 90 east, 180 south).</summary>
     public static int DirectionOf(AkosData d, int degrees)
@@ -88,11 +91,17 @@ public static class AkosFrames
     }
 
     /// <summary>Names of the costume's directions, by direction index.</summary>
-    public static IReadOnlyList<string> DirectionNames(AkosData d) => d.DirectionCount == 8
+    public static IReadOnlyList<string> DirectionNames(AkosData d)
+    {
+        return d.DirectionCount == 8
         ? ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
         : ["W", "E", "S", "N"];
+    }
 
-    public static int ChoreCount(AkosData d) => Math.Min(d.Header.ChoreCount, d.ChoreData.Length / 2);
+    public static int ChoreCount(AkosData d)
+    {
+        return Math.Min(d.Header.ChoreCount, d.ChoreData.Length / 2);
+    }
 
     public static bool HasChore(AkosData d, int chore)
     {
@@ -141,10 +150,15 @@ public static class AkosFrames
         return -1;
     }
 
-    private static int ReadCode(ReadOnlySpan<byte> seq, int pos) =>
-        (seq[pos] & 0x80) != 0 && pos + 1 < seq.Length ? (seq[pos] << 8) | seq[pos + 1] : seq[pos];
+    private static int ReadCode(ReadOnlySpan<byte> seq, int pos)
+    {
+        return (seq[pos] & 0x80) != 0 && pos + 1 < seq.Length ? (seq[pos] << 8) | seq[pos + 1] : seq[pos];
+    }
 
-    private static bool IsDrawStep(int code) => (code & 0xC000) != 0xC000 || code is OpEmptyCel or OpDrawMany;
+    private static bool IsDrawStep(int code)
+    {
+        return (code & 0xC000) != 0xC000 || code is OpEmptyCel or OpDrawMany;
+    }
 
     /// <summary>Byte length of the step at <paramref name="pos"/>, or 0 if unknown.</summary>
     public static int StepLength(ReadOnlySpan<byte> seq, int pos)
@@ -307,7 +321,7 @@ public static class AkosFrames
     /// black. <paramref name="originX"/>/<paramref name="originY"/> give the actor origin within the image.
     /// </summary>
     /// <param name="mirror">Flip it about the actor's origin (<see cref="IsMirrored"/>).</param>
-    public static RgbaImage Render(AkosData d, AkosFrame frame, out int originX, out int originY, CancellationToken token = default, bool mirror = false)
+    public static RgbaImage Render(AkosData d, AkosFrame frame, out int originX, out int originY, bool mirror = false, CancellationToken token = default)
     {
         originX = originY = 0;
         if (frame == null || frame.IsEmpty) return null;
@@ -372,8 +386,8 @@ public static class AkosFrames
         {
             var f = Compose(d, chore, i);
             if (f.IsEmpty) continue;
-            var fb = f.Bounds;
-            l = Math.Min(l, fb.Left); t = Math.Min(t, fb.Top); r = Math.Max(r, fb.Right); b = Math.Max(b, fb.Bottom);
+            var (Left, Top, Right, Bottom) = f.Bounds;
+            l = Math.Min(l, Left); t = Math.Min(t, Top); r = Math.Max(r, Right); b = Math.Max(b, Bottom);
         }
         return l == int.MaxValue ? default : (l, t, r, b);
     }

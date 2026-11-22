@@ -8,24 +8,19 @@ namespace MMUCS.Core.Scumm;
 /// One z-plane: a 1-bit mask over an image, stored as SCUMM keeps it, one byte per 8-pixel strip per
 /// row (the leftmost pixel in the high bit). A set bit hides the pixels of an actor masked by this plane.
 /// </summary>
-public sealed class ZPlane
+public sealed class ZPlane(int strips, int height)
 {
-    public int Strips { get; }
-    public int Height { get; }
+    public int Strips { get; } = strips;
+    public int Height { get; } = height;
     /// <summary>Data[row * Strips + strip].</summary>
-    public byte[] Data { get; }
-
-    public ZPlane(int strips, int height)
-    {
-        Strips = strips;
-        Height = height;
-        Data = new byte[strips * height];
-    }
+    public byte[] Data { get; } = new byte[strips * height];
 
     public int Width => Strips * 8;
 
-    public bool IsSet(int x, int y) =>
-        x >= 0 && y >= 0 && y < Height && x < Strips * 8 && (Data[y * Strips + (x >> 3)] & (0x80 >> (x & 7))) != 0;
+    public bool IsSet(int x, int y)
+    {
+        return x >= 0 && y >= 0 && y < Height && x < Strips * 8 && (Data[y * Strips + (x >> 3)] & (0x80 >> (x & 7))) != 0;
+    }
 
     public ZPlane Clone()
     {
@@ -44,14 +39,16 @@ public sealed class ZPlane
 public static class ZPlanes
 {
     /// <summary>How many z-planes the room has (planes 1..N): the RMHD's z-buffer count.</summary>
-    public static int Count(RoomModel room) =>
-        room?.Rmhd is { DataLength: >= 20 } rmhd ? (int)Math.Clamp(rmhd.DataSpan.U32LE(16), 0u, 7u) : 0;
+    public static int Count(RoomModel room)
+    {
+        return room?.Rmhd is { DataLength: >= 20 } rmhd ? (int)Math.Clamp(rmhd.DataSpan.U32LE(16), 0u, 7u) : 0;
+    }
 
     /// <summary>The room background's planes, index 0 = plane 1 (null where the image has no such plane).</summary>
     public static ZPlane[] Room(RoomModel room)
     {
         var smap = room?.Room?.FindChild(ScummTag.IMAG)?.FindChild(ScummTag.WRAP)?.FindChild(ScummTag.SMAP);
-        return smap == null || room.Width <= 0 ? Array.Empty<ZPlane>() : Decode(smap, room.Width, room.Height);
+        return smap == null || room.Width <= 0 ? [] : Decode(smap, room.Width, room.Height);
     }
 
     /// <summary>An object image's planes for one of its images (frame), index 0 = plane 1.</summary>
@@ -59,7 +56,7 @@ public static class ZPlanes
     {
         var wrap = obj?.Block?.FindChild(ScummTag.IMAG)?.FindChild(ScummTag.WRAP);
         var smaps = wrap?.Children.Where(c => c.Tag == ScummTag.SMAP).ToList();
-        if (smaps == null || smaps.Count == 0 || obj.Width <= 0 || obj.Height <= 0) return Array.Empty<ZPlane>();
+        if (smaps == null || smaps.Count == 0 || obj.Width <= 0 || obj.Height <= 0) return [];
         return Decode(smaps[Math.Clamp(frame, 0, smaps.Count - 1)], obj.Width, obj.Height);
     }
 
@@ -67,7 +64,7 @@ public static class ZPlanes
     public static ZPlane[] Decode(ScummBlock smap, int width, int height)
     {
         var zstrs = smap?.FindChild(ScummTag.ZPLN)?.FindChild(ScummTag.WRAP)?.Children.Where(c => c.Tag == ScummTag.ZSTR).ToList();
-        if (zstrs == null || zstrs.Count == 0) return Array.Empty<ZPlane>();
+        if (zstrs == null || zstrs.Count == 0) return [];
         int strips = (width + 7) / 8;
         var planes = new ZPlane[zstrs.Count];
         for (int k = 0; k < zstrs.Count; k++)

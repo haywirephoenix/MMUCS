@@ -59,7 +59,7 @@ public class ScummExporters
     /// <summary>A room to export; <paramref name="BaseName"/> is its folder name without a per-disc suffix.</summary>
     private sealed record RoomJob(RoomModel Room, string Folder, string BaseName, List<ScummBlock> Costumes);
 
-    public async Task<ExportSummary> ExportProjectAsync(
+    public static async Task<ExportSummary> ExportProjectAsync(
         ScummBlock root,
         string outputFolder,
         ExportOptions options,
@@ -78,8 +78,8 @@ public class ScummExporters
             + (options.Costumes ? j.Costumes.Count : 0)
             + (options.Scripts ? scripts[j].Count : 0)
             + (options.RoomData ? 1 : 0));
-        var cutscenes = options.Cutscenes ? Smush.SmushVideo.FindAll(options.GameFile) : Array.Empty<string>();
-        var bundles = options.Audio ? GameFiles.Find(options.GameFile, ".bun") : Array.Empty<string>();
+        var cutscenes = options.Cutscenes ? Smush.SmushVideo.FindAll(options.GameFile) : [];
+        var bundles = options.Audio ? GameFiles.Find(options.GameFile, ".bun") : [];
         foreach (var bun in bundles)
         {
             try { using var b = Audio.Bundle.Open(bun); total += b.Entries.Count; }
@@ -422,7 +422,7 @@ public class ScummExporters
         AkosData akos;
         try
         {
-            akos = await Task.Run(() => new AkosParser().Parse(akosBlock), token);
+            akos = await Task.Run(() => AkosParser.Parse(akosBlock), token);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
@@ -460,8 +460,10 @@ public class ScummExporters
     }
 
     /// <summary>Single-costume export used by File ▸ Export costume cels.</summary>
-    public async Task ExportAkosCelsAsync(AkosData akos, CelExportConfig userConfig, string targetDir) =>
+    public static async Task ExportAkosCelsAsync(AkosData akos, CelExportConfig userConfig, string targetDir)
+    {
         await ExportCelsAsync(akos, userConfig, targetDir);
+    }
 
     /// <summary>Name of the file root (e.g. COMI.LA2) that contains <paramref name="block"/>.</summary>
     internal static string FileRootName(ScummBlock block)

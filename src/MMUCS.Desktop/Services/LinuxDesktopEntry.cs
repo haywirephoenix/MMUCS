@@ -23,7 +23,11 @@ public static class LinuxDesktopEntry
 
     public static void Register()
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
         Task.Run(() =>
         {
             try { Write(); }
@@ -34,11 +38,16 @@ public static class LinuxDesktopEntry
     private static void Write()
     {
         string exec = ExecCommand();
-        if (exec == null) return;
+        if (exec == null)
+        {
+            return;
+        }
 
         string data = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
         if (string.IsNullOrEmpty(data))
+        {
             data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share");
+        }
 
         string iconDir = Path.Combine(data, "icons", "hicolor", "256x256", "apps");
         string iconPath = Path.Combine(iconDir, IconName + ".png");
@@ -68,7 +77,11 @@ public static class LinuxDesktopEntry
 
         string appsDir = Path.Combine(data, "applications");
         string entryPath = Path.Combine(appsDir, "mmucs.desktop");
-        if (File.Exists(entryPath) && File.ReadAllText(entryPath) == entry) return;
+        if (File.Exists(entryPath) && File.ReadAllText(entryPath) == entry)
+        {
+            return;
+        }
+
         Directory.CreateDirectory(appsDir);
         File.WriteAllText(entryPath + ".tmp", entry);
         File.Move(entryPath + ".tmp", entryPath, overwrite: true);
@@ -78,9 +91,16 @@ public static class LinuxDesktopEntry
     private static string ExecCommand()
     {
         string process = Environment.ProcessPath;
-        if (string.IsNullOrEmpty(process)) return null;
+        if (string.IsNullOrEmpty(process))
+        {
+            return null;
+        }
+
         if (!Path.GetFileNameWithoutExtension(process).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+        {
             return Quote(process);
+        }
+
         string dll = typeof(LinuxDesktopEntry).Assembly.Location;
         return string.IsNullOrEmpty(dll) ? null : Quote(process) + " " + Quote(dll);
     }
@@ -91,7 +111,11 @@ public static class LinuxDesktopEntry
         var sb = new StringBuilder("\"");
         foreach (char c in arg)
         {
-            if (c is '"' or '`' or '$' or '\\') sb.Append('\\');
+            if (c is '"' or '`' or '$' or '\\')
+            {
+                sb.Append('\\');
+            }
+
             sb.Append(c);
         }
         return sb.Append('"').ToString().Replace("\\", "\\\\");

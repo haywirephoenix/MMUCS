@@ -17,17 +17,17 @@ public sealed class CostumeDockFactory(AkosViewModel akos) : ViewerDockFactory(G
 {
     public const string GroupId = "costume";
     public const string CelsId = "Cels", ChoresId = "Chores", PaletteId = "Palette", PreviewId = "Preview";
-    public static readonly string[] PanelIds = { CelsId, ChoresId, PaletteId, PreviewId };
+    public static readonly string[] PanelIds = [CelsId, ChoresId, PaletteId, PreviewId];
 
     public override IReadOnlyList<string> Ids => PanelIds;
 
-    protected override IEnumerable<ViewerPanel> DefinePanels() => new ViewerPanel[]
-    {
+    protected override IEnumerable<ViewerPanel> DefinePanels() =>
+    [
         new(CelsId, "Cels", new CostumeCelsTool(akos)),
         new(ChoresId, "Chores", new CostumeChoresTool(akos)),
         new(PaletteId, "Resolved palette", new CostumePaletteTool(akos)),
         new(PreviewId, "Preview", new CostumePreviewDocument(akos)),
-    };
+    ];
 
     protected override IDockable CreateBuiltInContent(Dictionary<string, IDockable> p)
     {

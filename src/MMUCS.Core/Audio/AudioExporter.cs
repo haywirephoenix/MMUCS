@@ -53,7 +53,7 @@ public static class AudioExporter
             while (digits < stem.Length && char.IsAsciiDigit(stem[digits])) digits++;
             if (digits > 0 && int.TryParse(stem.AsSpan(0, digits), out int number)) return $"music/{number:D4}";
         }
-        var clean = new string(stem.ToLowerInvariant().Select(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' ? c : '_').ToArray());
+        var clean = new string([.. stem.ToLowerInvariant().Select(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' ? c : '_')]);
         return $"{kind}/{clean}";
     }
 

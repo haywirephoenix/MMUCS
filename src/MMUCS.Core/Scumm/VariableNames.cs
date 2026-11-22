@@ -17,7 +17,7 @@ namespace MMUCS.Core.Scumm;
 /// </list>
 /// Anything unnamed stays varN / bitN.
 /// </summary>
-public static class VariableNames
+public static partial class VariableNames
 {
     /// <summary>The app data copy that overrides the embedded map (read once, at first use).</summary>
     public static string LocalFile => Path.Combine(CorePaths.Root, "variables.json");
@@ -52,30 +52,44 @@ public static class VariableNames
     };
 
     /// <summary>A variable name: lower-case kebab-case, each part starting with a letter (e.g. item-icon, timer2).</summary>
-    private static readonly Regex ValidName = new(@"^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*$", RegexOptions.Compiled);
+    [GeneratedRegex(@"^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*$")]
+    private static partial Regex ValidName();
     /// <summary>Names that would read as a numbered variable.</summary>
-    private static readonly Regex Reserved = new(@"^(var|local|bit)\d+$", RegexOptions.Compiled);
+    [GeneratedRegex(@"^(var|local|bit)\d+$")]
+    private static partial Regex Reserved();
 
     private sealed class Maps
     {
         public readonly Dictionary<int, string> Globals = new(EngineVars);
-        public readonly Dictionary<int, string> Bits = new();
+        public readonly Dictionary<int, string> Bits = [];
         public readonly HashSet<string> Names = new(StringComparer.Ordinal);
     }
 
     private static readonly Lazy<Maps> _maps = new(Load);
 
     /// <summary>The name of global <paramref name="n"/>, or null.</summary>
-    public static string Global(int n) => _maps.Value.Globals.TryGetValue(n, out var s) ? s : null;
+    public static string Global(int n)
+    {
+        return _maps.Value.Globals.TryGetValue(n, out var s) ? s : null;
+    }
 
     /// <summary>The name of bit variable <paramref name="n"/>, or null.</summary>
-    public static string Bit(int n) => _maps.Value.Bits.TryGetValue(n, out var s) ? s : null;
+    public static string Bit(int n)
+    {
+        return _maps.Value.Bits.TryGetValue(n, out var s) ? s : null;
+    }
 
     /// <summary>True for any name this gives a variable (engine or mapped).</summary>
-    public static bool IsName(string name) => _maps.Value.Names.Contains(name);
+    public static bool IsName(string name)
+    {
+        return _maps.Value.Names.Contains(name);
+    }
 
     /// <summary>True when global <paramref name="n"/> is one the engine itself uses.</summary>
-    public static bool IsEngine(int n) => EngineVars.ContainsKey(n);
+    public static bool IsEngine(int n)
+    {
+        return EngineVars.ContainsKey(n);
+    }
 
     /// <summary>Every named global (engine and mapped), as used by the decompiler.</summary>
     public static IReadOnlyDictionary<int, string> Globals => _maps.Value.Globals;
@@ -102,8 +116,10 @@ public static class VariableNames
             Globals = Section(Globals, true),
             Bits = Section(Bits, false),
         };
-        return JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true }).Replace("\r\n", "\n") + "\n";
+        return JsonSerializer.Serialize(doc, IndentedJson).Replace("\r\n", "\n") + "\n";
     }
+
+    private static readonly JsonSerializerOptions IndentedJson = new() { WriteIndented = true };
 
     // ── Loading ──
 
@@ -158,8 +174,8 @@ public static class VariableNames
                 string name = entry?.Name?.Trim();
                 if (!int.TryParse(key, out int n) || n < 0) { problems.Add($"{what} \"{key}\" isn't a number"); continue; }
                 if (string.IsNullOrEmpty(name)) continue; // listed, not named yet
-                if (!ValidName.IsMatch(name) || Reserved.IsMatch(name)) { problems.Add($"{what} {n}: \"{name}\" isn't a valid name (lower-case-kebab, parts start with a letter)"); continue; }
-                if (isGlobal && EngineVars.ContainsKey(n)) { problems.Add($"global {n} is an engine variable ({EngineVars[n]})"); continue; }
+                if (!ValidName().IsMatch(name) || Reserved().IsMatch(name)) { problems.Add($"{what} {n}: \"{name}\" isn't a valid name (lower-case-kebab, parts start with a letter)"); continue; }
+                if (isGlobal && EngineVars.TryGetValue(n, out string value)) { problems.Add($"global {n} is an engine variable ({value})"); continue; }
                 bool taken = false;
                 foreach (var (m, existing) in into) if (m != n && existing == name) taken = true;
                 foreach (var existing in other.Values) if (existing == name) taken = true;

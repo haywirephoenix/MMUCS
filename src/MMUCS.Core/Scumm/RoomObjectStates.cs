@@ -14,10 +14,12 @@ namespace MMUCS.Core.Scumm;
 /// "if (class-of(lid) is [32]) … else state 1"), so this is the room as it looks before anything the
 /// player has done changes it.
 /// </summary>
-public static class RoomObjectStates
+public static partial class RoomObjectStates
 {
-    private static readonly Regex SetState = new(@"^state-of ([\w-]+) is (-?\d+)$", RegexOptions.Compiled);
-    private static readonly Regex StartLocal = new(@"^(?:start-script|start-script-quick|chain-script)\b(?: [a-z]+)* (\d+)\b", RegexOptions.Compiled);
+    [GeneratedRegex(@"^state-of ([\w-]+) is (-?\d+)$")]
+    private static partial Regex SetState();
+    [GeneratedRegex(@"^(?:start-script|start-script-quick|chain-script)\b(?: [a-z]+)* (\d+)\b")]
+    private static partial Regex StartLocal();
 
     /// <summary>State on entry for each of the room's object images (by <see cref="RoomObject"/>).</summary>
     public static Dictionary<RoomObject, int> Initial(RoomModel room)
@@ -50,7 +52,7 @@ public static class RoomObjectStates
             List<ScriptLine> lines;
             try { lines = RoomScripts.Decompile(e); }
             catch { return; } // a script that doesn't decompile sets nothing we can read
-            var part = e.Parts.FirstOrDefault();
+            var part = e.Parts.Count > 0 ? e.Parts[0] : default;
             var branches = PlacementTiming.Branches(e.Block.DataSpan, part.Start, part.End, room.RoomNo, fresh);
             // A line at the top of the decompiled script may still sit inside a condition written with goto
             // ("if (!(class-of(crakwall-lantern-on-ledge) is [32] && …)) goto L0095"): skip it when a fresh
@@ -60,14 +62,14 @@ public static class RoomObjectStates
                          : l.Indent == 0))
             {
                 string t = line.Text.Trim();
-                if (SetState.Match(t) is { Success: true } m)
+                if (SetState().Match(t) is { Success: true } m)
                 {
                     string name = m.Groups[1].Value;
                     if (int.TryParse(name, out int id) && byId.TryGetValue(id, out var n)) name = n;
                     byName[name] = int.Parse(m.Groups[2].Value);
                 }
                 // Local scripts the entry starts run as the room opens: follow them, in order.
-                else if (StartLocal.Match(t) is { Success: true } s && int.TryParse(s.Groups[1].Value, out int no)
+                else if (StartLocal().Match(t) is { Success: true } s && int.TryParse(s.Groups[1].Value, out int no)
                          && no >= 2000 && locals.TryGetValue(no, out var local))
                     Run(local);
             }
@@ -80,5 +82,8 @@ public static class RoomObjectStates
     }
 
     /// <summary>The image frame a state shows (state N is the object's image N), or 0 when it shows none.</summary>
-    public static int FrameFor(int state, int frames) => state <= 0 ? 0 : Math.Clamp(state - 1, 0, Math.Max(0, frames - 1));
+    public static int FrameFor(int state, int frames)
+    {
+        return state <= 0 ? 0 : Math.Clamp(state - 1, 0, Math.Max(0, frames - 1));
+    }
 }

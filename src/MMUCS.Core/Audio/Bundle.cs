@@ -62,7 +62,10 @@ public sealed class Bundle : IDisposable
         Entries = entries;
     }
 
-    public static Bundle Open(string path) => new(path);
+    public static Bundle Open(string path)
+    {
+        return new(path);
+    }
 
     /// <summary>The entry's stored (compressed) bytes.</summary>
     public byte[] Read(BundleEntry entry)
@@ -78,7 +81,10 @@ public sealed class Bundle : IDisposable
         return data;
     }
 
-    public void Dispose() => _file.Dispose();
+    public void Dispose()
+    {
+        _file.Dispose();
+    }
 
     private static string Ascii(ReadOnlySpan<byte> s)
     {

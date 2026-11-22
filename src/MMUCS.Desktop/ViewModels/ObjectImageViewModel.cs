@@ -40,12 +40,12 @@ public sealed partial class ObjectImageViewModel : ObservableObject
     /// <summary>The viewer's own panels (States, Preview).</summary>
     public Docking.ViewerDock ViewerLayout { get; }
 
-    [ObservableProperty] private RoomObject _object;
-    [ObservableProperty] private string _title = "No object selected";
-    [ObservableProperty] private string _info;
-    [ObservableProperty] private SKImage _previewImage;
-    [ObservableProperty] private ObjectStateItem _selectedState;
-    public ObservableCollection<ObjectStateItem> States { get; } = new();
+    [ObservableProperty] public partial RoomObject Object { get; set; }
+    [ObservableProperty] public partial string Title { get; set; } = "No object selected";
+    [ObservableProperty] public partial string Info { get; set; }
+    [ObservableProperty] public partial SKImage PreviewImage { get; set; }
+    [ObservableProperty] public partial ObjectStateItem SelectedState { get; set; }
+    public ObservableCollection<ObjectStateItem> States { get; } = [];
 
     /// <summary>Shows <paramref name="obj"/>'s states, decoded in the room's current palette.</summary>
     public async Task LoadAsync(RoomObject obj)
@@ -79,7 +79,11 @@ public sealed partial class ObjectImageViewModel : ObservableObject
             for (int f = 0; f < frames; f++)
             {
                 var result = await ObimCache.GetCachedObimAsync(obj.Block, f, _room.PaletteOf(obj), bakeImage: true, token);
-                if (token.IsCancellationRequested) return;
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 States.Add(new ObjectStateItem
                 {
                     State = f + 1, Image = result.ExecutedImage?.ToSkImage(), Thumbnail = result.ExecutedImage?.ToBitmap(), Label = $"State {f + 1}",

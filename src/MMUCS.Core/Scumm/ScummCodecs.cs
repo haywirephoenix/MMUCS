@@ -27,151 +27,89 @@ public static class ScummCodecs
     
     public static string EcodecToName(ECodec eCodec)
     {
-        switch (eCodec)
+        return eCodec switch
         {
-            case ECodec.Raw: return "Raw";
-            case ECodec.RawT: return "RawT";
-            case ECodec.ZigZagV:  return "ZigZagV";
-            case ECodec.ZigZagVT:  return "ZigZagT";
-            case ECodec.ZigZagH: return "ZigZagH";
-            case ECodec.ZigZagHT: return "ZigZagHT";
-            case ECodec.MajMin: return "MajMin";
-            case ECodec.MajMinT: return "MajMinT";
+            ECodec.Raw => "Raw",
+            ECodec.RawT => "RawT",
+            ECodec.ZigZagV => "ZigZagV",
+            ECodec.ZigZagVT => "ZigZagT",
+            ECodec.ZigZagH => "ZigZagH",
+            ECodec.ZigZagHT => "ZigZagHT",
+            ECodec.MajMin => "MajMin",
+            ECodec.MajMinT => "MajMinT",
             // case ECodec.MajMinHE: DecodeMajMinHE(src, dst, pitch, height, codec, false); break;
             // case ECodec.MajMinHET: DecodeMajMinHE(src, dst, pitch, height, codec, true); break;
-            case ECodec.UNKNOWN:
-            default: return "UNKNOWN";
-        }
+            _ => "UNKNOWN",
+        };
     }
 
     public static ECodec ByteToECodec(this byte codec)
     {
-        switch (codec)
+        return codec switch
         {
-
-            case BMCOMP_RAW256: return ECodec.Raw;
+            BMCOMP_RAW256 => ECodec.Raw,
             // DecodeRaw(src, dst, pitch, height, codec, false);
             /*
-            case BMCOMP_TOWNS_2:
-                unkDecode8(src, pitch, src, numLinesToProcess);       // Ender - Zak256/Indy256
-                break;
+                        case BMCOMP_TOWNS_2:
+                            unkDecode8(src, pitch, src, numLinesToProcess);       // Ender - Zak256/Indy256
+                            break;
 
-            case BMCOMP_TOWNS_3:
-                unkDecode9(src, pitch, src, numLinesToProcess);       // Ender - Zak256/Indy256
-                break;
+                        case BMCOMP_TOWNS_3:
+                            unkDecode9(src, pitch, src, numLinesToProcess);       // Ender - Zak256/Indy256
+                            break;
 
-            case BMCOMP_TOWNS_4:
-                unkDecode10(src, pitch, src, numLinesToProcess);      // Ender - Zak256/Indy256
-                break;
+                        case BMCOMP_TOWNS_4:
+                            unkDecode10(src, pitch, src, numLinesToProcess);      // Ender - Zak256/Indy256
+                            break;
 
-            case BMCOMP_TOWNS_7:
-                unkDecode11(src, pitch, src, numLinesToProcess);      // Ender - Zak256/Indy256
-                break;
+                        case BMCOMP_TOWNS_7:
+                            unkDecode11(src, pitch, src, numLinesToProcess);      // Ender - Zak256/Indy256
+                            break;
 
-            case BMCOMP_TRLE8BIT:
-                // Used in 3DO versions of HE games
-                transpStrip = true;
-                drawStrip3DO(src, pitch, src, numLinesToProcess, true);
-                break;
+                        case BMCOMP_TRLE8BIT:
+                            // Used in 3DO versions of HE games
+                            transpStrip = true;
+                            drawStrip3DO(src, pitch, src, numLinesToProcess, true);
+                            break;
 
-            case BMCOMP_RLE8BIT:
-                drawStrip3DO(src, pitch, src, numLinesToProcess, false);
-                break;
+                        case BMCOMP_RLE8BIT:
+                            drawStrip3DO(src, pitch, src, numLinesToProcess, false);
+                            break;
 
-            case BMCOMP_PIX32:
-                // Used in Amiga version of Monkey Island 1
-                drawStripEGA(src, pitch, src, numLinesToProcess);
-                break;*/
-
-            case BMCOMP_ZIGZAG_V4:
-            case BMCOMP_ZIGZAG_V5:
-            case BMCOMP_ZIGZAG_V6:
-            case BMCOMP_ZIGZAG_V7:
-            case BMCOMP_ZIGZAG_V8:
-                return ECodec.ZigZagV;
+                        case BMCOMP_PIX32:
+                            // Used in Amiga version of Monkey Island 1
+                            drawStripEGA(src, pitch, src, numLinesToProcess);
+                            break;*/
+            BMCOMP_ZIGZAG_V4 or BMCOMP_ZIGZAG_V5 or BMCOMP_ZIGZAG_V6 or BMCOMP_ZIGZAG_V7 or BMCOMP_ZIGZAG_V8 => ECodec.ZigZagV,
             // DecodeZigZagV(src, dst, pitch, height, codec, false);
             // drawStripBasicV(src, pitch, src, numLinesToProcess, false);
-
-            case BMCOMP_ZIGZAG_H4:
-            case BMCOMP_ZIGZAG_H5:
-            case BMCOMP_ZIGZAG_H6:
-            case BMCOMP_ZIGZAG_H7:
-            case BMCOMP_ZIGZAG_H8:
-                return ECodec.ZigZagH;
+            BMCOMP_ZIGZAG_H4 or BMCOMP_ZIGZAG_H5 or BMCOMP_ZIGZAG_H6 or BMCOMP_ZIGZAG_H7 or BMCOMP_ZIGZAG_H8 => ECodec.ZigZagH,
             // DecodeZigZagH(src, dst, pitch, height, codec, false);
             // drawStripBasicH(src, pitch, src, numLinesToProcess, false);
-
-            case BMCOMP_ZIGZAG_VT4:
-            case BMCOMP_ZIGZAG_VT5:
-            case BMCOMP_ZIGZAG_VT6:
-            case BMCOMP_ZIGZAG_VT7:
-            case BMCOMP_ZIGZAG_VT8:
-                return ECodec.ZigZagVT;
+            BMCOMP_ZIGZAG_VT4 or BMCOMP_ZIGZAG_VT5 or BMCOMP_ZIGZAG_VT6 or BMCOMP_ZIGZAG_VT7 or BMCOMP_ZIGZAG_VT8 => ECodec.ZigZagVT,
             // DecodeZigZagV(src, dst, pitch, height, codec,true);
             // drawStripBasicV(dst, dstPitch, src, numLinesToProcess, true);
-
-            case BMCOMP_ZIGZAG_HT4:
-            case BMCOMP_ZIGZAG_HT5:
-            case BMCOMP_ZIGZAG_HT6:
-            case BMCOMP_ZIGZAG_HT7:
-            case BMCOMP_ZIGZAG_HT8:
-                return ECodec.ZigZagHT;
+            BMCOMP_ZIGZAG_HT4 or BMCOMP_ZIGZAG_HT5 or BMCOMP_ZIGZAG_HT6 or BMCOMP_ZIGZAG_HT7 or BMCOMP_ZIGZAG_HT8 => ECodec.ZigZagHT,
             // DecodeZigZagH(src, dst, pitch, height, codec, true);
             // drawStripBasicH(src, pitch, src, numLinesToProcess, true);
-
-            case BMCOMP_MAJMIN_H4:
-            case BMCOMP_MAJMIN_H5:
-            case BMCOMP_MAJMIN_H6:
-            case BMCOMP_MAJMIN_H7:
-            case BMCOMP_MAJMIN_H8:
-            case BMCOMP_RMAJMIN_H4:
-            case BMCOMP_RMAJMIN_H5:
-            case BMCOMP_RMAJMIN_H6:
-            case BMCOMP_RMAJMIN_H7:
-            case BMCOMP_RMAJMIN_H8:
-                return ECodec.MajMin;
+            BMCOMP_MAJMIN_H4 or BMCOMP_MAJMIN_H5 or BMCOMP_MAJMIN_H6 or BMCOMP_MAJMIN_H7 or BMCOMP_MAJMIN_H8 or BMCOMP_RMAJMIN_H4 or BMCOMP_RMAJMIN_H5 or BMCOMP_RMAJMIN_H6 or BMCOMP_RMAJMIN_H7 or BMCOMP_RMAJMIN_H8 => ECodec.MajMin,
             // DecodeMajMin(src, dst, pitch, height, codec, false);
             // drawStripComplex(src, pitch, src, numLinesToProcess, false);
-
-            case BMCOMP_MAJMIN_HT4:
-            case BMCOMP_MAJMIN_HT5:
-            case BMCOMP_MAJMIN_HT6:
-            case BMCOMP_MAJMIN_HT7:
-            case BMCOMP_MAJMIN_HT8:
-            case BMCOMP_RMAJMIN_HT4:
-            case BMCOMP_RMAJMIN_HT5:
-            case BMCOMP_RMAJMIN_HT6:
-            case BMCOMP_RMAJMIN_HT7:
-            case BMCOMP_RMAJMIN_HT8:
-                return ECodec.MajMinT;
+            BMCOMP_MAJMIN_HT4 or BMCOMP_MAJMIN_HT5 or BMCOMP_MAJMIN_HT6 or BMCOMP_MAJMIN_HT7 or BMCOMP_MAJMIN_HT8 or BMCOMP_RMAJMIN_HT4 or BMCOMP_RMAJMIN_HT5 or BMCOMP_RMAJMIN_HT6 or BMCOMP_RMAJMIN_HT7 or BMCOMP_RMAJMIN_HT8 => ECodec.MajMinT,
             // DecodeMajMin(src, dst, pitch, height, codec, true);
             // drawStripComplex(src, pitch, src, numLinesToProcess, true);
-
-            case BMCOMP_NMAJMIN_H4:
-            case BMCOMP_NMAJMIN_H5:
-            case BMCOMP_NMAJMIN_H6:
-            case BMCOMP_NMAJMIN_H7:
-            case BMCOMP_NMAJMIN_H8:
-                return ECodec.MajMinHE;
+            BMCOMP_NMAJMIN_H4 or BMCOMP_NMAJMIN_H5 or BMCOMP_NMAJMIN_H6 or BMCOMP_NMAJMIN_H7 or BMCOMP_NMAJMIN_H8 => ECodec.MajMinHE,
             // DecodeMajMinHE(src, dst, pitch, height, codec, false);
             // drawStripHE(src, pitch, src, 8, numLinesToProcess, false);
-
-            case BMCOMP_CUSTOM_RU_TR: // Triggered by Russian water
-            case BMCOMP_NMAJMIN_HT4:
-            case BMCOMP_NMAJMIN_HT5:
-            case BMCOMP_NMAJMIN_HT6:
-            case BMCOMP_NMAJMIN_HT7:
-            case BMCOMP_NMAJMIN_HT8:
-                return ECodec.MajMinHET;
+            // Triggered by Russian water
+            BMCOMP_CUSTOM_RU_TR or BMCOMP_NMAJMIN_HT4 or BMCOMP_NMAJMIN_HT5 or BMCOMP_NMAJMIN_HT6 or BMCOMP_NMAJMIN_HT7 or BMCOMP_NMAJMIN_HT8 => ECodec.MajMinHET,
             // DecodeMajMinHE(src, dst, pitch, height, codec, true);
             // drawStripHE(src, pitch, src, 8, numLinesToProcess, true);
-
-            case BMCOMP_TPIX256:
-                return ECodec.RawT;
+            BMCOMP_TPIX256 => ECodec.RawT,
             // DecodeRaw(src, dst, pitch, height, codec, true);
             // drawStripRaw(src, pitch, src, numLinesToProcess, true);
-            default: return ECodec.UNKNOWN;
-        }
+            _ => ECodec.UNKNOWN,
+        };
     }
 
     public static void LogMissingCodec(byte codec)
@@ -432,7 +370,7 @@ public static class ScummCodecs
             _color = src[0]; 
         
             // Feed the rest of the stream into your standard BitReaderLSB (src + 1)
-            _br = new ScummDecoders.BitReaderLSB(src.Slice(1)); 
+            _br = new ScummDecoders.BitReaderLSB(src[1..]); 
         }
 
         public void DecodeLine(Span<byte> lineBuffer, int width)

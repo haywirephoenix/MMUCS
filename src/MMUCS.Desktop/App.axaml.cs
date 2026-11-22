@@ -42,9 +42,16 @@ public partial class App : Application
             var window = desktop.MainWindow;
             Services.SingleInstance.Listen(file => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+                if (window.WindowState == WindowState.Minimized)
+                {
+                    window.WindowState = WindowState.Normal;
+                }
+
                 window.Activate();
-                if (!string.IsNullOrEmpty(file)) _ = vm.OpenFileAsync(file);
+                if (!string.IsNullOrEmpty(file))
+                {
+                    _ = vm.OpenFileAsync(file);
+                }
             }));
         }
 

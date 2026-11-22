@@ -110,7 +110,7 @@ public class MediaPlayerViewModelTests
     /// <summary>A single-threaded synchronisation context, so the view model's UI continuations run as in the app.</summary>
     private sealed class UiThread : SynchronizationContext
     {
-        private readonly BlockingCollection<(SendOrPostCallback, object)> _queue = new();
+        private readonly BlockingCollection<(SendOrPostCallback, object)> _queue = [];
 
         public override void Post(SendOrPostCallback d, object state) => _queue.Add((d, state));
 
@@ -131,6 +131,7 @@ public class MediaPlayerViewModelTests
             if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Called through the UI-thread handle the test is given.")]
         public async Task Ticks(MediaPlayerViewModel vm, int ms)
         {
             var end = DateTime.UtcNow.AddMilliseconds(ms);
@@ -138,6 +139,7 @@ public class MediaPlayerViewModelTests
             vm.Tick();
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Called through the UI-thread handle the test is given.")]
         public async Task Until(Func<bool> condition, string what, int timeoutMs = 10000)
         {
             var end = DateTime.UtcNow.AddMilliseconds(timeoutMs);

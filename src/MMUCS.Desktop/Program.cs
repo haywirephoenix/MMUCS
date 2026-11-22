@@ -46,7 +46,11 @@ internal static class Program
     /// <summary>Appends crash details to %LocalAppData%/MMUCS/crash.log.</summary>
     private static void WriteCrash(Exception ex)
     {
-        if (ex == null) return;
+        if (ex == null)
+        {
+            return;
+        }
+
         try
         {
             Directory.CreateDirectory(CorePaths.Root);

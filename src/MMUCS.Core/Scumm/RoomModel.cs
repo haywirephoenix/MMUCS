@@ -23,7 +23,10 @@ public sealed class RoomObject
 
     public string Summary => $"{X},{Y}   {Width}×{Height}   frames {ImageCount}";
 
-    public override string ToString() => string.IsNullOrEmpty(Name) ? $"Object {Index}" : Name;
+    public override string ToString()
+    {
+        return string.IsNullOrEmpty(Name) ? $"Object {Index}" : Name;
+    }
 }
 
 /// <summary>
@@ -40,16 +43,21 @@ public sealed class RoomModel
     public int Height { get; init; }
     public int TransparentIndex { get; init; }
     public int PaletteCount { get; init; }
-    public IReadOnlyList<RoomObject> Objects { get; init; } = Array.Empty<RoomObject>();
-    public IReadOnlyList<Walkbox> Walkboxes { get; init; } = Array.Empty<Walkbox>();
+    public IReadOnlyList<RoomObject> Objects { get; init; } = [];
+    public IReadOnlyList<Walkbox> Walkboxes { get; init; } = [];
     /// <summary>The room's scale slots (SCAL), which walkboxes may scale their actors by.</summary>
-    public IReadOnlyList<ScaleSlot> ScaleSlots { get; init; } = Array.Empty<ScaleSlot>();
+    public IReadOnlyList<ScaleSlot> ScaleSlots { get; init; } = [];
 
     /// <summary>How many images (states) an OBIM's header (IMHD) declares; 0 for a hotspot with none.</summary>
-    public static int ImageCountOf(ScummBlock obim) =>
-        obim?.Tag == ScummTag.OBIM && obim.FindChild(ScummTag.IMHD) is { } imhd ? ImageCountOf(imhd.DataSpan) : 0;
+    public static int ImageCountOf(ScummBlock obim)
+    {
+        return obim?.Tag == ScummTag.OBIM && obim.FindChild(ScummTag.IMHD) is { } imhd ? ImageCountOf(imhd.DataSpan) : 0;
+    }
 
-    private static int ImageCountOf(ReadOnlySpan<byte> imhd) => imhd.Length >= 48 ? (int)imhd.U32LE(44) : 0;
+    private static int ImageCountOf(ReadOnlySpan<byte> imhd)
+    {
+        return imhd.Length >= 48 ? (int)imhd.U32LE(44) : 0;
+    }
 
     /// <summary>Resolves a room from any block inside (or equal to) an LFLF.</summary>
     public static bool TryCreate(ScummBlock any, out RoomModel model)
@@ -87,7 +95,7 @@ public sealed class RoomModel
             objects.Add(new RoomObject
             {
                 Index = idx++,
-                Name = System.Text.Encoding.ASCII.GetString(s.Slice(0, len)),
+                Name = System.Text.Encoding.ASCII.GetString(s[..len]),
                 ImageCount = ImageCountOf(s),
                 X = s.S32LE(48),
                 Y = s.S32LE(52),

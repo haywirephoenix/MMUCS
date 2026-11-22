@@ -8,7 +8,7 @@ namespace MMUCS.Desktop.Controls;
 /// Adjusts the size a maximized window will restore to, without un-maximizing it. On Windows that
 /// size lives in the window placement (rcNormalPosition), which also drives drag-to-restore.
 /// </summary>
-internal static class WindowRestoreBounds
+internal static partial class WindowRestoreBounds
 {
     /// <summary>
     /// Grows or shrinks the stored restore rectangle by <paramref name="clientDelta"/> DIPs of height.
@@ -16,12 +16,22 @@ internal static class WindowRestoreBounds
     /// </summary>
     public static bool TryAdjustRestoreHeight(Window window, double clientDelta)
     {
-        if (!OperatingSystem.IsWindows()) return false;
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
         var handle = window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-        if (handle == IntPtr.Zero) return false;
+        if (handle == IntPtr.Zero)
+        {
+            return false;
+        }
 
         var placement = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
-        if (!GetWindowPlacement(handle, ref placement)) return false;
+        if (!GetWindowPlacement(handle, ref placement))
+        {
+            return false;
+        }
 
         // The placement is in physical pixels; keep left/top/width and extend the bottom edge.
         int delta = (int)Math.Round(clientDelta * window.RenderScaling);
@@ -46,9 +56,11 @@ internal static class WindowRestoreBounds
         public RECT rcNormalPosition;
     }
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
 }

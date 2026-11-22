@@ -69,12 +69,15 @@ public class ViewerPreview : ContentControl
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
         base.OnApplyTemplate(e);
-        if (_fit != null) _fit.Click -= OnFitClick;
-        if (_actual != null) _actual.Click -= OnActualClick;
+        _fit?.Click -= OnFitClick;
+
+        _actual?.Click -= OnActualClick;
+
         _fit = e.NameScope.Find<Button>(FitPart);
         _actual = e.NameScope.Find<Button>(ActualPart);
-        if (_fit != null) _fit.Click += OnFitClick;
-        if (_actual != null) _actual.Click += OnActualClick;
+        _fit?.Click += OnFitClick;
+
+        _actual?.Click += OnActualClick;
     }
 
     private void OnFitClick(object sender, RoutedEventArgs e) => Target?.ZoomToFit();

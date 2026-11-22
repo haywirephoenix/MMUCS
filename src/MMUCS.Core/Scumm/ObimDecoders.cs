@@ -41,7 +41,7 @@ public static class ObimDecoders
     private static List<ScummBlock> Smaps(ScummBlock imag)
     {
         var wrap = imag.FindChild(ScummTag.WRAP);
-        var list = wrap?.Children.Where(c => c.Tag == ScummTag.SMAP).ToList() ?? new List<ScummBlock>();
+        var list = wrap?.Children.Where(c => c.Tag == ScummTag.SMAP).ToList() ?? [];
         if (list.Count == 0 && imag.FindChildRecursive(ScummTag.SMAP) is { } one) list.Add(one);
         return list;
     }
@@ -78,12 +78,12 @@ public static class ObimDecoders
     
     public static bool TryDecodeObimFrame(
         ScummBlock objectBlock,
-        CancellationToken token,
         int frameIndex,
         int paletteIndex,
         out ObimDecodeRawResult result,
         out RgbaImage bakedImage,
-        bool generateImage = false)
+        bool generateImage = false,
+        CancellationToken token = default)
     {
         result = default;
         bakedImage = null;

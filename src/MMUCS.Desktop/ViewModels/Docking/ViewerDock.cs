@@ -26,19 +26,14 @@ public sealed record ViewerPanel(string Id, string Title, DockableBase Dockable)
 /// (<see cref="DefaultNode"/>); the rest is shared.
 /// </para>
 /// </summary>
-public abstract class ViewerDockFactory : Factory, ILayoutBuilder
+public abstract class ViewerDockFactory(string group, string name) : Factory, ILayoutBuilder
 {
-    protected ViewerDockFactory(string group, string name)
-    {
-        Group = group;
-        Name = name;
-    }
 
     /// <summary>The dock group every dockable of this viewer carries.</summary>
-    public string Group { get; }
+    public string Group { get; } = group;
 
     /// <summary>Prefix of the root and main split ids ("Costume" → CostumeRoot, CostumeMain).</summary>
-    public string Name { get; }
+    public string Name { get; } = name;
 
     /// <summary>Every panel's id; a restored layout must place (or hide) each one.</summary>
     public abstract IReadOnlyList<string> Ids { get; }
@@ -53,7 +48,7 @@ public abstract class ViewerDockFactory : Factory, ILayoutBuilder
     public abstract DockLayoutStore.Node DefaultNode(DockLayoutStore.LayoutFile file);
 
     /// <summary>The panels of the current layout, placed or hidden (set whenever panels are created).</summary>
-    public Dictionary<string, IDockable> Panels { get; private set; } = new();
+    public Dictionary<string, IDockable> Panels { get; private set; } = [];
 
     public Dictionary<string, IDockable> CreatePanels()
     {
@@ -99,7 +94,11 @@ public abstract class ViewerDockFactory : Factory, ILayoutBuilder
         var items = new List<IDockable>();
         for (int i = 0; i < panes.Length; i++)
         {
-            if (i > 0) items.Add(new ProportionalDockSplitter());
+            if (i > 0)
+            {
+                items.Add(new ProportionalDockSplitter());
+            }
+
             items.Add(panes[i]);
         }
         return new ProportionalDock
@@ -136,7 +135,11 @@ public abstract class ViewerDockFactory : Factory, ILayoutBuilder
     /// <summary>Rebuilds a saved arrangement; null when it doesn't hold exactly this viewer's panels.</summary>
     public IRootDock TryRestore(DockLayoutStore.Node node)
     {
-        if (node == null) return null;
+        if (node == null)
+        {
+            return null;
+        }
+
         var panels = CreatePanels();
         var used = new HashSet<string>();
         var content = DockLayoutStore.Build(this, node, panels, used);
@@ -155,7 +158,12 @@ public abstract class ViewerDockFactory : Factory, ILayoutBuilder
         d.DockGroup = Group;
         d.CanFloat = false;
         if (d is IDock dock && dock.VisibleDockables != null)
-            foreach (var child in dock.VisibleDockables) SetGroup(child);
+        {
+            foreach (var child in dock.VisibleDockables)
+            {
+                SetGroup(child);
+            }
+        }
     }
 
     public override void InitLayout(IDockable layout)
@@ -169,16 +177,16 @@ public abstract class ViewerDockFactory : Factory, ILayoutBuilder
     /// <summary>Where a hidden panel was: the dock it left (kept, empty and collapsed, while it's hidden).</summary>
     private sealed record Placement(IDock Dock, int Index);
 
-    private readonly Dictionary<string, Placement> _hiddenAt = new();
+    private readonly Dictionary<string, Placement> _hiddenAt = [];
 
     /// <summary>The hidden panels that go back into <paramref name="dock"/> (saved with the layout).</summary>
     public List<string> HiddenIn(IDock dock) =>
-        _hiddenAt.Where(kv => ReferenceEquals(kv.Value.Dock, dock)).OrderBy(kv => kv.Value.Index).Select(kv => kv.Key).ToList();
+        [.. _hiddenAt.Where(kv => ReferenceEquals(kv.Value.Dock, dock)).OrderBy(kv => kv.Value.Index).Select(kv => kv.Key)];
 
     /// <summary>Records a hidden panel's dock when a saved layout is restored.</summary>
     public void RememberHidden(string id, IDock dock) => _hiddenAt[id] = new Placement(dock, int.MaxValue);
 
-    public bool IsPanelShown(string id, IRootDock layout) => layout != null && Find(layout, d => d.Id == id && d is not IDock) != null;
+    public static bool IsPanelShown(string id, IRootDock layout) => layout != null && Find(layout, d => d.Id == id && d is not IDock) != null;
 
     /// <summary>
     /// Hides a panel (its dock stays, collapsed, so it can go back) or shows it again: in the dock it was
@@ -186,16 +194,32 @@ public abstract class ViewerDockFactory : Factory, ILayoutBuilder
     /// </summary>
     public void SetPanelShown(string id, bool shown, IRootDock layout)
     {
-        if (layout == null) return;
+        if (layout == null)
+        {
+            return;
+        }
+
         var placed = Find(layout, d => d.Id == id && d is not IDock);
         if (!shown)
         {
-            if (placed == null) return;
-            if (placed.Owner is IDock owner) _hiddenAt[id] = new Placement(owner, owner.VisibleDockables?.IndexOf(placed) ?? 0);
+            if (placed == null)
+            {
+                return;
+            }
+
+            if (placed.Owner is IDock owner)
+            {
+                _hiddenAt[id] = new Placement(owner, owner.VisibleDockables?.IndexOf(placed) ?? 0);
+            }
+
             RemoveDockable(placed, false);
             return;
         }
-        if (placed != null || !Panels.TryGetValue(id, out var panel)) return;
+        if (placed != null || !Panels.TryGetValue(id, out var panel))
+        {
+            return;
+        }
+
         if (_hiddenAt.Remove(id, out var at) && Find(layout, d => ReferenceEquals(d, at.Dock)) != null)
         {
             InsertDockable(at.Dock, panel, Math.Clamp(at.Index, 0, at.Dock.VisibleDockables?.Count ?? 0));
@@ -218,10 +242,22 @@ public abstract class ViewerDockFactory : Factory, ILayoutBuilder
 
     private static IDockable Find(IDockable node, Func<IDockable, bool> match)
     {
-        if (match(node)) return node;
+        if (match(node))
+        {
+            return node;
+        }
+
         if (node is IDock dock && dock.VisibleDockables != null)
+        {
             foreach (var child in dock.VisibleDockables)
-                if (Find(child, match) is { } found) return found;
+            {
+                if (Find(child, match) is { } found)
+                {
+                    return found;
+                }
+            }
+        }
+
         return null;
     }
 
@@ -246,7 +282,11 @@ public abstract class ViewerDockFactory : Factory, ILayoutBuilder
     public override void CollapseDock(IDock dock)
     {
         // A dock kept for a hidden panel stays in the tree so the panel can go back into it.
-        if (_hiddenAt.Values.Any(p => ReferenceEquals(p.Dock, dock))) return;
+        if (_hiddenAt.Values.Any(p => ReferenceEquals(p.Dock, dock)))
+        {
+            return;
+        }
+
         EdgeDockSizing.GiveSpaceToNeighbour(dock, emptied: true);
         base.CollapseDock(dock);
     }
@@ -269,7 +309,11 @@ public abstract class ViewerDockFactory : Factory, ILayoutBuilder
     public override void RemoveDockable(IDockable dockable, bool collapse)
     {
         // Only panel docks: Dock also removes split containers when it flattens the tree, and those keep their share.
-        if (dockable is IToolDock or IDocumentDock) EdgeDockSizing.GiveSpaceToNeighbour((IDock)dockable, emptied: false);
+        if (dockable is IToolDock or IDocumentDock)
+        {
+            EdgeDockSizing.GiveSpaceToNeighbour((IDock)dockable, emptied: false);
+        }
+
         base.RemoveDockable(dockable, collapse);
     }
 }
@@ -289,7 +333,11 @@ public sealed partial class ViewerDock : ObservableObject
         get => _showHeaders;
         set
         {
-            if (_showHeaders == value) return;
+            if (_showHeaders == value)
+            {
+                return;
+            }
+
             _showHeaders = value;
             ShowHeadersChanged?.Invoke();
         }
@@ -306,7 +354,7 @@ public sealed partial class ViewerDock : ObservableObject
 
     public ViewerDockFactory Factory { get; }
 
-    [ObservableProperty] private IRootDock _layout;
+    [ObservableProperty] public partial IRootDock Layout { get; set; }
 
     /// <summary>Raised after a new layout is in place (restored or reset), so the viewer can re-apply hidden panels.</summary>
     public event Action LayoutReplaced;
@@ -316,7 +364,7 @@ public sealed partial class ViewerDock : ObservableObject
 
     public void Reset() => UseLayout(Factory.CreateLayout());
 
-    public bool IsPanelShown(string id) => Factory.IsPanelShown(id, Layout);
+    public bool IsPanelShown(string id) => ViewerDockFactory.IsPanelShown(id, Layout);
 
     public void SetPanelShown(string id, bool shown) => Factory.SetPanelShown(id, shown, Layout);
 

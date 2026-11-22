@@ -99,10 +99,17 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         if (size != _lastContentSize)
         {
             _lastContentSize = size;
-            if (AutoFit) _fitPending = true;
+            if (AutoFit)
+            {
+                _fitPending = true;
+            }
         }
         // Never fit from inside Render(): Avalonia 12 throws if a visual is invalidated mid-render.
-        if (_fitPending && Bounds.Width > 0) ZoomToFit();
+        if (_fitPending && Bounds.Width > 0)
+        {
+            ZoomToFit();
+        }
+
         InvalidateVisual();
     }
 
@@ -110,7 +117,10 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
     {
         var content = ContentSize;
         var bounds = Bounds.Size;
-        if (content.Width <= 0 || content.Height <= 0 || bounds.Width <= 0 || bounds.Height <= 0) return;
+        if (content.Width <= 0 || content.Height <= 0 || bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return;
+        }
 
         const double pad = 16;
         double z = Math.Min((bounds.Width - pad * 2) / content.Width, (bounds.Height - pad * 2) / content.Height);
@@ -118,7 +128,10 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
 
         // Snap to integer scale when magnifying so pixels stay perfectly square on screen.
         double dpi = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
-        if (z * dpi >= 2) z = Math.Floor(z * dpi) / dpi;
+        if (z * dpi >= 2)
+        {
+            z = Math.Floor(z * dpi) / dpi;
+        }
 
         Zoom = z;
         _offset = new Vector(
@@ -149,7 +162,10 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
     protected override void OnSizeChanged(SizeChangedEventArgs e)
     {
         base.OnSizeChanged(e);
-        if (AutoFit || _fitPending) ZoomToFit();
+        if (AutoFit || _fitPending)
+        {
+            ZoomToFit();
+        }
     }
 
     // ── Input ────────────────────────────────────────────────────────────────
@@ -188,7 +204,9 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         }
 
         if (props.IsLeftButtonPressed)
+        {
             OnContentClicked(View.Unmap(e.GetPosition(this)), e);
+        }
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -197,7 +215,11 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         if (_panStart is { } start)
         {
             var p = e.GetPosition(this);
-            if (Math.Abs(p.X - start.X) > 3 || Math.Abs(p.Y - start.Y) > 3) _panMoved = true;
+            if (Math.Abs(p.X - start.X) > 3 || Math.Abs(p.Y - start.Y) > 3)
+            {
+                _panMoved = true;
+            }
+
             _offset = _panStartOffset + (p - start);
             InvalidateVisual();
         }
@@ -214,7 +236,10 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
             e.Pointer.Capture(null);
             Cursor = Cursor.Default;
             // A right-click that didn't drag is a context-menu request, not a pan.
-            if (contextClick) OnContentContextRequested(View.Unmap(e.GetPosition(this)));
+            if (contextClick)
+            {
+                OnContentContextRequested(View.Unmap(e.GetPosition(this)));
+            }
         }
     }
 
@@ -234,7 +259,10 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
     protected override void OnKeyUp(KeyEventArgs e)
     {
         base.OnKeyUp(e);
-        if (e.Key == Key.Space) _spaceHeld = false;
+        if (e.Key == Key.Space)
+        {
+            _spaceHeld = false;
+        }
     }
 
     protected virtual void OnContentClicked(Point contentPoint, PointerPressedEventArgs e) { }
@@ -249,7 +277,10 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         // Transparent fill guarantees pointer hit-testing across the whole surface.
         context.FillRectangle(Brushes.Transparent, bounds);
         if (!HoldFrame || _lastFrame is not { } frame)
+        {
             _lastFrame = frame = (View, ContentSize, CreateScene());
+        }
+
         context.Custom(new SceneDrawOperation(bounds, frame.View, ShowCheckerboard ? CheckerPaint : null, frame.Size, frame.Scene));
     }
 
@@ -282,23 +313,14 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         };
     }
 
-    private sealed class SceneDrawOperation : ICustomDrawOperation
+    private sealed class SceneDrawOperation(Rect bounds, ViewTransform view, SKPaint checker, Size contentSize, IViewportScene scene) : ICustomDrawOperation
     {
-        private readonly ViewTransform _view;
-        private readonly SKPaint _checker;
-        private readonly Size _contentSize;
-        private readonly IViewportScene _scene;
+        private readonly ViewTransform _view = view;
+        private readonly SKPaint _checker = checker;
+        private readonly Size _contentSize = contentSize;
+        private readonly IViewportScene _scene = scene;
 
-        public SceneDrawOperation(Rect bounds, ViewTransform view, SKPaint checker, Size contentSize, IViewportScene scene)
-        {
-            Bounds = bounds;
-            _view = view;
-            _checker = checker;
-            _contentSize = contentSize;
-            _scene = scene;
-        }
-
-        public Rect Bounds { get; }
+        public Rect Bounds { get; } = bounds;
         public bool HitTest(Point p) => Bounds.Contains(p);
         public bool Equals(ICustomDrawOperation other) => false;
         public void Dispose() { }
@@ -306,7 +328,10 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         public void Render(ImmediateDrawingContext context)
         {
             var feature = context.TryGetFeature<ISkiaSharpApiLeaseFeature>();
-            if (feature == null) return;
+            if (feature == null)
+            {
+                return;
+            }
 
             using var lease = feature.Lease();
             var canvas = lease.SkCanvas;
@@ -315,7 +340,9 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
             canvas.ClipRect(clip);
 
             if (_checker != null && _contentSize.Width > 0)
+            {
                 canvas.DrawRect(_view.Map(new SKRect(0, 0, (float)_contentSize.Width, (float)_contentSize.Height)), _checker);
+            }
 
             _scene?.Render(canvas, _view, clip);
             canvas.Restore();

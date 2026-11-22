@@ -32,7 +32,11 @@ public sealed class PaletteGrid : Control
     {
         base.OnPointerMoved(e);
         var colors = Colors;
-        if (colors == null) return;
+        if (colors == null)
+        {
+            return;
+        }
+
         double cell = Math.Min(Bounds.Width, Bounds.Height) / 16;
         var p = e.GetPosition(this);
         int cx = (int)(p.X / cell), cy = (int)(p.Y / cell);
@@ -54,7 +58,11 @@ public sealed class PaletteGrid : Control
         var colors = Colors;
         double cell = Math.Min(Bounds.Width, Bounds.Height) / 16;
         ctx.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
-        if (colors == null) return;
+        if (colors == null)
+        {
+            return;
+        }
+
         IPen emptyPen = null;
 
         for (int i = 0; i < 256; i++)

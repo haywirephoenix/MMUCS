@@ -16,21 +16,21 @@ namespace MMUCS.Desktop.ViewModels;
 /// </summary>
 public sealed partial class ScriptViewModel : ObservableObject
 {
-    public ObservableCollection<ScriptEntry> Scripts { get; } = new();
+    public ObservableCollection<ScriptEntry> Scripts { get; } = [];
 
-    [ObservableProperty] private ScriptEntry _selectedScript;
-    [ObservableProperty] private string _text = "Select a room or a script in the hierarchy.";
-    [ObservableProperty] private string _title = "No room";
-    [ObservableProperty] private string _info;
+    [ObservableProperty] public partial ScriptEntry SelectedScript { get; set; }
+    [ObservableProperty] public partial string Text { get; set; } = "Select a room or a script in the hierarchy.";
+    [ObservableProperty] public partial string Title { get; set; } = "No room";
+    [ObservableProperty] public partial string Info { get; set; }
     /// <summary>SCUMM source (true) or the instruction listing (false).</summary>
-    [ObservableProperty] private bool _showScumm = true;
-    [ObservableProperty] private bool _showScriptsPanel = true;
+    [ObservableProperty] public partial bool ShowScumm { get; set; } = true;
+    [ObservableProperty] public partial bool ShowScriptsPanel { get; set; } = true;
     /// <summary>The script as coloured runs (null while <see cref="Text"/> is a message).</summary>
-    [ObservableProperty] private IReadOnlyList<ScriptToken> _tokens;
+    [ObservableProperty] public partial IReadOnlyList<ScriptToken> Tokens { get; set; }
     /// <summary>Show each line's byte offset in the gutter.</summary>
-    [ObservableProperty] private bool _showOffsets = true;
+    [ObservableProperty] public partial bool ShowOffsets { get; set; } = true;
     /// <summary>Code font size (Ctrl+wheel, Ctrl +/-).</summary>
-    [ObservableProperty] private double _fontSize = 12;
+    [ObservableProperty] public partial double FontSize { get; set; } = 12;
 
     /// <summary>A script picked in the sidebar: the hierarchy follows without switching viewers.</summary>
     public event Action<ScummBlock> BlockFocusRequested;
@@ -55,7 +55,11 @@ public sealed partial class ScriptViewModel : ObservableObject
     public bool ShowRoom(ScummBlock any)
     {
         var lflf = any?.Tag == ScummTag.LFLF ? any : any?.FindParent(ScummTag.LFLF);
-        if (ReferenceEquals(lflf, _lflf)) return false;
+        if (ReferenceEquals(lflf, _lflf))
+        {
+            return false;
+        }
+
         _lflf = lflf;
         Scripts.Clear();
         if (lflf == null)
@@ -63,7 +67,11 @@ public sealed partial class ScriptViewModel : ObservableObject
             Title = "No room";
             return true;
         }
-        foreach (var e in RoomScripts.List(lflf)) Scripts.Add(e);
+        foreach (var e in RoomScripts.List(lflf))
+        {
+            Scripts.Add(e);
+        }
+
         Title = RoomModel.TryCreate(lflf, out var room)
             ? $"Room {room.RoomNo}{(string.IsNullOrEmpty(room.Name) ? "" : $"  {room.Name}")}  —  {Scripts.Count} scripts"
             : $"{Scripts.Count} scripts";
@@ -75,7 +83,11 @@ public sealed partial class ScriptViewModel : ObservableObject
     {
         ShowRoom(block);
         var entry = RoomScripts.For(block);
-        if (entry == null) return;
+        if (entry == null)
+        {
+            return;
+        }
+
         var listed = Scripts.FirstOrDefault(s => ReferenceEquals(s.Block, entry.Block));
         if (listed == null)
         {
@@ -86,8 +98,14 @@ public sealed partial class ScriptViewModel : ObservableObject
         _selectingFromTree = true;
         try
         {
-            if (ReferenceEquals(SelectedScript, listed)) Refresh();
-            else SelectedScript = listed;
+            if (ReferenceEquals(SelectedScript, listed))
+            {
+                Refresh();
+            }
+            else
+            {
+                SelectedScript = listed;
+            }
         }
         finally { _selectingFromTree = false; }
     }
@@ -125,7 +143,11 @@ public sealed partial class ScriptViewModel : ObservableObject
                 var listing = RoomScripts.Disassemble(entry);
                 return (listing, ScriptHighlighter.Listing(listing));
             }, cts.Token);
-            if (cts.IsCancellationRequested) return;
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
             Tokens = text.Length > 0 ? tokens : null;
             Text = text.Length > 0 ? text : "(empty)";
             Info = $"{entry.Detail}  ·  {text.Count(c => c == '\n'):N0} lines  ·  {sw.ElapsedMilliseconds} ms";

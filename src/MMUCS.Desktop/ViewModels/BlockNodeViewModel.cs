@@ -10,9 +10,9 @@ namespace MMUCS.Desktop.ViewModels;
 /// <summary>Display options shared by every node of one tree.</summary>
 public sealed partial class TreeOptions : ObservableObject
 {
-    [ObservableProperty] private bool _showRoomNames = true;
-    [ObservableProperty] private bool _showObjectNames = true;
-    [ObservableProperty] private bool _colorizeTags = true;
+    [ObservableProperty] public partial bool ShowRoomNames { get; set; } = true;
+    [ObservableProperty] public partial bool ShowObjectNames { get; set; } = true;
+    [ObservableProperty] public partial bool ColorizeTags { get; set; } = true;
 
     // Menu items invoke these; their IsChecked is bound one-way, so the state lives here only.
     [RelayCommand] private void ToggleRoomNames() => ShowRoomNames = !ShowRoomNames;
@@ -24,23 +24,16 @@ public sealed partial class TreeOptions : ObservableObject
 }
 
 /// <summary>Tree node wrapping a <see cref="ScummBlock"/>. Children are materialised lazily.</summary>
-public sealed partial class BlockNodeViewModel : ObservableObject
+public sealed partial class BlockNodeViewModel(ScummBlock block, TreeOptions options, BlockNodeViewModel parent = null) : ObservableObject
 {
-    public ScummBlock Block { get; }
-    public BlockNodeViewModel Parent { get; }
+    public ScummBlock Block { get; } = block;
+    public BlockNodeViewModel Parent { get; } = parent;
 
-    [ObservableProperty] private bool _isExpanded;
+    [ObservableProperty] public partial bool IsExpanded { get; set; }
 
     private ObservableCollection<BlockNodeViewModel> _children;
 
-    public TreeOptions Options { get; }
-
-    public BlockNodeViewModel(ScummBlock block, TreeOptions options, BlockNodeViewModel parent = null)
-    {
-        Block = block;
-        Options = options;
-        Parent = parent;
-    }
+    public TreeOptions Options { get; } = options;
 
     /// <summary>
     /// Re-raises Label on this node and its already-materialised descendants. Called when a naming
@@ -48,9 +41,20 @@ public sealed partial class BlockNodeViewModel : ObservableObject
     /// </summary>
     public void RefreshLabels()
     {
-        if (Block.Tag is ScummTag.LFLF or ScummTag.OBIM or ScummTag.AKOS) OnPropertyChanged(nameof(Label));
-        if (_children == null) return;
-        foreach (var c in _children) c.RefreshLabels();
+        if (Block.Tag is ScummTag.LFLF or ScummTag.OBIM or ScummTag.AKOS)
+        {
+            OnPropertyChanged(nameof(Label));
+        }
+
+        if (_children == null)
+        {
+            return;
+        }
+
+        foreach (var c in _children)
+        {
+            c.RefreshLabels();
+        }
     }
 
     /// <summary>Tag colours, as resource keys in Styles/Colors.axaml (same palette as the Godot tree).</summary>
@@ -86,11 +90,18 @@ public sealed partial class BlockNodeViewModel : ObservableObject
     public static string LabelFor(ScummBlock block, TreeOptions options)
     {
         string tag = block.TagName ?? ScummTag.ToString(block.Tag);
-        if (block.Tag == ScummTag.LFLF) return LflfLabel(block, tag, options?.ShowRoomNames == true);
+        if (block.Tag == ScummTag.LFLF)
+        {
+            return LflfLabel(block, tag, options?.ShowRoomNames == true);
+        }
+
         if (block.Tag == ScummTag.OBIM && options?.ShowObjectNames == true
             && block.GetMetaDataDict().TryGetValue(MetaValue.From(ScummMeta.OBIM.name), out var objName)
             && !string.IsNullOrEmpty((string)objName))
+        {
             return $"{tag}  {(string)objName}";
+        }
+
         if (block.Tag == ScummTag.AKOS && options?.ShowObjectNames == true && RoomActors.CostumeNumber(block) is int costume)
         {
             // Costume number from the index, plus the object it belongs to (matched or linked).
@@ -98,7 +109,11 @@ public sealed partial class BlockNodeViewModel : ObservableObject
             return string.IsNullOrEmpty(owner) ? $"{tag}  #{costume}" : $"{tag}  #{costume}  {owner}";
         }
         string name = block.FullName;
-        if (string.IsNullOrEmpty(name) || name == tag) return tag;
+        if (string.IsNullOrEmpty(name) || name == tag)
+        {
+            return tag;
+        }
+
         return $"{tag}  {name}";
     }
 
@@ -129,11 +144,15 @@ public sealed partial class BlockNodeViewModel : ObservableObject
         {
             if (_children == null)
             {
-                _children = new ObservableCollection<BlockNodeViewModel>();
+                _children = [];
                 var visible = Options?.VisibleBlocks;
                 foreach (var c in Block.Children)
+                {
                     if (visible == null || visible.Contains(c))
+                    {
                         _children.Add(new BlockNodeViewModel(c, Options, this));
+                    }
+                }
             }
             return _children;
         }
@@ -141,7 +160,10 @@ public sealed partial class BlockNodeViewModel : ObservableObject
 
     public IEnumerable<BlockNodeViewModel> Ancestors()
     {
-        for (var p = Parent; p != null; p = p.Parent) yield return p;
+        for (var p = Parent; p != null; p = p.Parent)
+        {
+            yield return p;
+        }
     }
 
     private static string FormatSize(long bytes) => bytes switch

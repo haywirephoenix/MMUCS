@@ -104,7 +104,7 @@ async Task<int> Export(List<string> a)
         Scripts = scripts, ScriptOffsets = a.Contains("--offsets"), RoomData = data,
         Cutscenes = cutscenes, Audio = audio, GameFile = game,
     };
-    var summary = await new ScummExporters().ExportProjectAsync(root, outDir, options);
+    var summary = await ScummExporters.ExportProjectAsync(root, outDir, options);
     Console.WriteLine($"{summary.FilesWritten} files written, {summary.Failures} failed, {summary.Elapsed.TotalSeconds:0.0} s → {outDir}");
     return summary.Failures > 0 ? 1 : 0;
 }

@@ -60,13 +60,19 @@ public static class ScummScript
     internal static readonly OpDef[] Ops = new OpDef[256];
 
     private static OpDef Op(byte code, string name, string args = "", string scumm = null, Imm imm = Imm.None, bool push = false)
-        => Ops[code] = new OpDef { Name = name, Args = args, Scumm = scumm, Imm = imm, Push = push };
+    {
+        return Ops[code] = new OpDef { Name = name, Args = args, Scumm = scumm, Imm = imm, Push = push };
+    }
 
     private static OpDef Group(byte code, string name, Imm afterSub = Imm.None, string args = "")
-        => Ops[code] = new OpDef { Name = name, Subs = new(), AfterSub = afterSub, Args = args };
+    {
+        return Ops[code] = new OpDef { Name = name, Subs = [], AfterSub = afterSub, Args = args };
+    }
 
     private static void Sub(OpDef g, byte sub, string name, string args = "", string scumm = null, Imm imm = Imm.None)
-        => g.Subs[sub] = new OpDef { Name = $"{g.Name}.{name}", Args = args, Scumm = scumm, Imm = imm };
+    {
+        g.Subs[sub] = new OpDef { Name = $"{g.Name}.{name}", Args = args, Scumm = scumm, Imm = imm };
+    }
 
     static ScummScript()
     {
@@ -213,9 +219,9 @@ public static class ScummScript
         Op(0xa8, "createBoxMatrix", scumm: "set-box-path");
 
         var res = Group(0xaa, "resourceRoutines");
-        string[] resKinds = { "charset", "costume", "object", "room", "script", "sound" };
+        string[] resKinds = ["charset", "costume", "object", "room", "script", "sound"];
         for (int i = 0; i < 6; i++) Sub(res, (byte)(0x3C + i), $"load{Cap(resKinds[i])}", "a", $"load-{resKinds[i]} {{0}}");
-        string[] lockKinds = { "costume", "room", "script", "sound" };
+        string[] lockKinds = ["costume", "room", "script", "sound"];
         for (int i = 0; i < 4; i++)
         {
             Sub(res, (byte)(0x42 + i), $"lock{Cap(lockKinds[i])}", "a", $"lock-{lockKinds[i]} {{0}}");
@@ -362,7 +368,10 @@ public static class ScummScript
         Op(0xf7, "getActorZPlane", "a", "actor-zplane({0})", push: true);
     }
 
-    private static string Cap(string s) => char.ToUpperInvariant(s[0]) + s[1..];
+    private static string Cap(string s)
+    {
+        return char.ToUpperInvariant(s[0]) + s[1..];
+    }
 
     /// <summary>Decodes <paramref name="code"/>[start, end). Stops at the first unknown opcode.</summary>
     public static List<ScriptInstruction> Disassemble(ReadOnlySpan<byte> code, int start = 0, int end = -1)
@@ -387,13 +396,11 @@ public static class ScummScript
         var def = Ops[opcode];
         if (def == null)
             return new ScriptInstruction { Offset = at, Length = 1, Opcode = opcode, Name = $"unknown 0x{opcode:X2}", Unknown = true };
-
-        int sub = -1;
         Imm imm = def.Imm;
         if (def.Subs != null)
         {
             if (pos >= end) return Truncated(at, end, opcode, def.Name);
-            sub = code[pos++];
+            int sub = code[pos++];
             if (!def.Subs.TryGetValue((byte)sub, out var sd))
                 return new ScriptInstruction { Offset = at, Length = pos - at, Opcode = opcode, SubOp = sub, Name = $"{def.Name}.unknown 0x{sub:X2}", Unknown = true };
             // Grouped ops read their variable right after the sub-op; a sub-op's own immediate follows.
@@ -419,7 +426,9 @@ public static class ScummScript
     }
 
     private static ScriptInstruction Truncated(int at, int end, byte opcode, string name)
-        => new() { Offset = at, Length = end - at, Opcode = opcode, Name = $"{name} (truncated)", Unknown = true };
+    {
+        return new() { Offset = at, Length = end - at, Opcode = opcode, Name = $"{name} (truncated)", Unknown = true };
+    }
 
     private static bool ReadImm(ReadOnlySpan<byte> code, ref int pos, int end, Imm imm, out int value, out string text)
     {

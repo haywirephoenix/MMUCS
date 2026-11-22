@@ -16,7 +16,10 @@ internal static class RoomObjectMenu
     /// </summary>
     public static void Show(RoomViewModel vm, RoomObject obj, Control target)
     {
-        if (vm?.Room == null) return;
+        if (vm?.Room == null)
+        {
+            return;
+        }
 
         static MenuItem Item(string header, System.Action action, bool enabled = true)
         {
@@ -44,8 +47,16 @@ internal static class RoomObjectMenu
             menu.Items.Add(Item(visible ? $"Hide {name}" : $"Show {name}", () => vm.SetVisible(obj, !visible)));
             menu.Items.Add(Item($"Show only {name}", () => vm.ShowOnly(obj)));
             menu.Items.Add(Item("Select", () => vm.SelectedObject = obj));
-            if (CostumeMenu(vm, obj) is { } costumeMenu) menu.Items.Add(costumeMenu);
-            if (vm.ItemFor(obj) is { } entry) AddReviewItems(menu, vm, new[] { entry }, Item, target);
+            if (CostumeMenu(vm, obj) is { } costumeMenu)
+            {
+                menu.Items.Add(costumeMenu);
+            }
+
+            if (vm.ItemFor(obj) is { } entry)
+            {
+                AddReviewItems(menu, vm, [entry], Item, target);
+            }
+
             menu.Items.Add(new Separator());
         }
         menu.Items.Add(Item("Show all objects", () => vm.SetAllVisible(true), vm.AllObjectsVisible != true));
@@ -58,22 +69,36 @@ internal static class RoomObjectMenu
         System.Func<string, System.Action, bool, MenuItem> item, Control target)
     {
         var markable = items.Where(i => vm.TargetOf(i) != null).ToList();
-        if (markable.Count == 0) return;
+        if (markable.Count == 0)
+        {
+            return;
+        }
+
         var existing = vm.MarkFor(markable);
         string what = markable.Count > 1 ? $" {markable.Count} together" : "";
         menu.Items.Add(new Separator());
         menu.Items.Add(item(existing != null ? $"Edit review mark{what}…" : $"Mark{what} for review…", () => _ = MarkAsync(target, vm, markable, existing), true));
         int marks = markable.SelectMany(i => i.ReviewMarks).Select(m => m.Id).Distinct().Count();
-        if (marks > 0) menu.Items.Add(item(marks == 1 ? "Clear review mark" : $"Clear {marks} review marks", () => vm.ClearReviewMarks(markable), true));
+        if (marks > 0)
+        {
+            menu.Items.Add(item(marks == 1 ? "Clear review mark" : $"Clear {marks} review marks", () => vm.ClearReviewMarks(markable), true));
+        }
     }
 
     /// <summary>Asks what looks wrong (tags and a note) and saves one mark for the entries, for mroom's review command.</summary>
-    private static async System.Threading.Tasks.Task MarkAsync(Control target, RoomViewModel vm, IReadOnlyList<RoomObjectItem> items, ReviewMark existing)
+    private static async System.Threading.Tasks.Task MarkAsync(Control target, RoomViewModel vm, List<RoomObjectItem> items, ReviewMark existing)
     {
-        if (TopLevel.GetTopLevel(target) is not Window owner) return;
+        if (TopLevel.GetTopLevel(target) is not Window owner)
+        {
+            return;
+        }
+
         string name = items.Count == 1 ? items[0].Name : $"{items.Count} together: " + string.Join(", ", items.Select(i => i.Name));
         var result = await ReviewMarkDialog.Ask(owner, name, existing);
-        if (result is { } r) vm.MarkForReview(items, r.Tags, r.Note);
+        if (result is { } r)
+        {
+            vm.MarkForReview(items, r.Tags, r.Note);
+        }
     }
 
     /// <summary>
@@ -91,18 +116,32 @@ internal static class RoomObjectMenu
         }
 
         var costumes = vm.RoomCostumes;
-        if (costumes.Count == 0 || vm.Room == null) return null;
+        if (costumes.Count == 0 || vm.Room == null)
+        {
+            return null;
+        }
 
         if (obj.Index < 0)
         {
             // An unclaimed costume: pick the object it belongs to.
             var actor = vm.ItemFor(obj)?.Costume;
-            if (actor == null) return null;
+            if (actor == null)
+            {
+                return null;
+            }
+
             var targets = vm.Room.Objects.Where(o => o.ImageCount == 0).OrderBy(o => o.Name).ToList();
-            if (targets.Count == 0) return null;
+            if (targets.Count == 0)
+            {
+                return null;
+            }
+
             var toObject = new MenuItem { Header = "Link to object" };
             foreach (var o in targets)
+            {
                 toObject.Items.Add(Radio(o.ToString(), false, () => _ = vm.SetCostumeLinkAsync(o, actor.Costume)));
+            }
+
             return toObject;
         }
 

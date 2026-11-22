@@ -64,18 +64,18 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
         _ => "",
     }) + (a.IsPlayer ? ", player" : "") + (a.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf && !a.StartsShown && !a.IsPlayer ? ", another costume starts" : "");
 
-    [ObservableProperty] private bool _isVisible = true;
+    [ObservableProperty] public partial bool IsVisible { get; set; } = true;
     /// <summary>The review marks that include it (Mark for review…), alone or with other entries.</summary>
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsMarked), nameof(MarkText))] private IReadOnlyList<ReviewMark> _reviewMarks = Array.Empty<ReviewMark>();
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsMarked), nameof(MarkText))] public partial IReadOnlyList<ReviewMark> ReviewMarks { get; set; } = Array.Empty<ReviewMark>();
     public bool IsMarked => ReviewMarks.Count > 0;
     public string MarkText => ReviewMarks.Count == 0 ? null : string.Join("\n\n", ReviewMarks.Select(m =>
         $"Marked for review (#{m.Id}{(m.Targets.Count > 1 ? $", with {m.Targets.Count - 1} more" : "")})"
         + (m.Tags.Count > 0 ? ": " + string.Join(", ", m.Tags) : "")
         + (string.IsNullOrWhiteSpace(m.Note) ? "" : "\n" + m.Note)));
     /// <summary>False for objects with no image (or a fully transparent one).</summary>
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasToggle))] private bool _hasImage;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasToggle))] public partial bool HasImage { get; set; }
     /// <summary>The costumed actor drawn in this object's hotspot (image-less objects only).</summary>
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasCostume), nameof(HasToggle), nameof(Summary))] private RoomActor _costume;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasCostume), nameof(HasToggle), nameof(Summary))] public partial RoomActor Costume { get; set; }
     public bool HasCostume => Costume != null;
     /// <summary>Whether there is anything to show or hide: an image or a costume frame.</summary>
     public bool HasToggle => HasImage || Costume is { CanDraw: true };
@@ -86,54 +86,54 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>Object images at least this wide are treated as alternative backgrounds.</summary>
     public const int FullWidth = 640;
 
-    [ObservableProperty] private RoomModel _room;
-    [ObservableProperty] private string _title = "No room selected";
-    [ObservableProperty] private SKImage _backgroundImage;
-    [ObservableProperty] private IReadOnlyList<RoomObjectLayer> _objectLayers;
-    [ObservableProperty] private IReadOnlyList<Walkbox> _walkboxes;
-    [ObservableProperty] private Size _roomSize;
-    [ObservableProperty] private RoomObject _selectedObject;
-    [ObservableProperty] private int _backgroundIndex;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasBackgroundChoices))] private int _maxBackgroundIndex;
-    [ObservableProperty] private string _backgroundLabel;
-    [ObservableProperty] private RoomObject _backgroundObject;
-    [ObservableProperty] private bool _isBusy;
+    [ObservableProperty] public partial RoomModel Room { get; set; }
+    [ObservableProperty] public partial string Title { get; set; } = "No room selected";
+    [ObservableProperty] public partial SKImage BackgroundImage { get; set; }
+    [ObservableProperty] public partial IReadOnlyList<RoomObjectLayer> ObjectLayers { get; set; }
+    [ObservableProperty] public partial IReadOnlyList<Walkbox> Walkboxes { get; set; }
+    [ObservableProperty] public partial Size RoomSize { get; set; }
+    [ObservableProperty] public partial RoomObject SelectedObject { get; set; }
+    [ObservableProperty] public partial int BackgroundIndex { get; set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasBackgroundChoices))] public partial int MaxBackgroundIndex { get; set; }
+    [ObservableProperty] public partial string BackgroundLabel { get; set; }
+    [ObservableProperty] public partial RoomObject BackgroundObject { get; set; }
+    [ObservableProperty] public partial bool IsBusy { get; set; }
     /// <summary>The Costume viewer's playing frame at its costume's place in this room (Play in place), or null.</summary>
-    [ObservableProperty] private LiveCostume _liveCostume;
+    [ObservableProperty] public partial LiveCostume LiveCostume { get; set; }
     /// <summary>A new room is loading: the canvas keeps the old picture until its images are ready.</summary>
-    [ObservableProperty] private bool _isSwitchingRoom;
+    [ObservableProperty] public partial bool IsSwitchingRoom { get; set; }
 
-    [ObservableProperty] private bool _showBackground = true;
-    [ObservableProperty] private bool _showHotspots;
-    [ObservableProperty] private bool _showWalkboxes;
-    [ObservableProperty] private bool _showLabels = true;
-    [ObservableProperty] private bool _showBounds;
+    [ObservableProperty] public partial bool ShowBackground { get; set; } = true;
+    [ObservableProperty] public partial bool ShowHotspots { get; set; }
+    [ObservableProperty] public partial bool ShowWalkboxes { get; set; }
+    [ObservableProperty] public partial bool ShowLabels { get; set; } = true;
+    [ObservableProperty] public partial bool ShowBounds { get; set; }
     /// <summary>Outline the selected object(s) on the canvas.</summary>
-    [ObservableProperty] private bool _showSelectionOutline = true;
+    [ObservableProperty] public partial bool ShowSelectionOutline { get; set; } = true;
     /// <summary>Hide the parts of actors behind the room's z-planes, as the game does.</summary>
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ZPlaneOverlay))] private bool _zPlaneMasking = true;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ZPlaneOverlay))] public partial bool ZPlaneMasking { get; set; } = true;
     /// <summary>Tint the room's z-planes over the scene (each plane its own colour) to see what hides actors.</summary>
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ZPlaneOverlay))] private bool _showZPlanes;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ZPlaneOverlay))] public partial bool ShowZPlanes { get; set; }
     /// <summary>Which plane the overlay draws: 0 for all, else plane N (the index in <see cref="ZPlaneChoices"/>).</summary>
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ZPlaneOverlay))] private int _zPlaneShown;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ZPlaneOverlay))] public partial int ZPlaneShown { get; set; }
     /// <summary>"All planes", "Plane 1" … for the room's planes.</summary>
-    [ObservableProperty] private IReadOnlyList<string> _zPlaneChoices = new[] { "All planes" };
+    [ObservableProperty] public partial IReadOnlyList<string> ZPlaneChoices { get; set; } = new[] { "All planes" };
     /// <summary>For the canvas: -1 draws no planes, 0 all of them, N plane N.</summary>
     public int ZPlaneOverlay => ShowZPlanes ? Math.Max(0, ZPlaneShown) : -1;
     /// <summary>
     /// The room's z-plane masks as drawn now (index 0 = plane 1): the background's planes with the shown
     /// objects' planes over them, as alpha images. Null when masking is off or the room has none.
     /// </summary>
-    [ObservableProperty] private IReadOnlyList<SKImage> _zMasks;
-    [ObservableProperty] private bool _showFullScreenObjects;
+    [ObservableProperty] public partial IReadOnlyList<SKImage> ZMasks { get; set; }
+    [ObservableProperty] public partial bool ShowFullScreenObjects { get; set; }
     /// <summary>
     /// What each room starts with, and what Reset goes back to: <see cref="ShowModes"/> by index. Room start
     /// is what the game shows on entry; Everything every object image and placed costume, ignoring the
     /// entry scripts (for checking positions and scales); Hidden at start the reverse of Room start; None
     /// nothing. The Objects panel's checkboxes still change single entries.
     /// </summary>
-    [ObservableProperty] private int _showMode;
-    public static IReadOnlyList<string> ShowModes { get; } = new[] { "Room start", "Everything", "Hidden at start", "None" };
+    [ObservableProperty] public partial int ShowMode { get; set; }
+    public static IReadOnlyList<string> ShowModes { get; } = ["Room start", "Everything", "Hidden at start", "None"];
     public const int ShowRoomStart = 0, ShowEverything = 1, ShowHiddenAtStart = 2, ShowNone = 3;
 
     /// <summary>Whether an entry is shown under the current <see cref="ShowMode"/>. Entries with nothing to
@@ -141,9 +141,16 @@ public sealed partial class RoomViewModel : ObservableObject
     private bool ShownByMode(RoomObjectItem o)
     {
         bool drawable = o.Object.ImageCount > 0 || o.Costume is { CanDraw: true };
-        if (!drawable) return o.InitialVisible;
+        if (!drawable)
+        {
+            return o.InitialVisible;
+        }
         // Unused art only when asked for; then the mode decides, as for anything else.
-        if (o.Unused != null && !ShowUnused) return false;
+        if (o.Unused != null && !ShowUnused)
+        {
+            return false;
+        }
+
         return ShowMode switch
         {
             ShowEverything => true,
@@ -156,12 +163,12 @@ public sealed partial class RoomViewModel : ObservableObject
     partial void OnShowModeChanged(int value) => SetVisibility(o => ShownByMode(o));
 
     /// <summary>Include the art the game never shows (<see cref="UnusedArt"/>) in what the Show mode shows.</summary>
-    [ObservableProperty] private bool _showUnused;
+    [ObservableProperty] public partial bool ShowUnused { get; set; }
 
     partial void OnShowUnusedChanged(bool value) => SetVisibility(o => o.Unused != null ? ShownByMode(o) : null);
     [RelayCommand] private void ToggleUnused() => ShowUnused = !ShowUnused;
     /// <summary>Whether the Objects side panel is shown (toolbar toggle).</summary>
-    [ObservableProperty] private bool _showObjectsPanel = true;
+    [ObservableProperty] public partial bool ShowObjectsPanel { get; set; } = true;
 
     partial void OnShowObjectsPanelChanged(bool value) => ViewerLayout?.SetPanelShown(Docking.RoomDockFactory.ObjectsId, value);
 
@@ -182,18 +189,21 @@ public sealed partial class RoomViewModel : ObservableObject
 
     public void RequestModifierSelect(RoomObject obj, Avalonia.Input.KeyModifiers mods)
     {
-        if (ItemFor(obj) is { } item) ModifierSelectRequested?.Invoke(item, mods);
+        if (ItemFor(obj) is { } item)
+        {
+            ModifierSelectRequested?.Invoke(item, mods);
+        }
     }
 
-    public ObservableCollection<RoomObjectItem> Objects { get; } = new();
+    public ObservableCollection<RoomObjectItem> Objects { get; } = [];
 
-    [ObservableProperty] private RoomObjectItem _selectedObjectItem;
+    [ObservableProperty] public partial RoomObjectItem SelectedObjectItem { get; set; }
     /// <summary>
     /// Objects whose image is drawn (a new set on every change, so bindings refresh). Listing the
     /// visible ones rather than the hidden ones means layers still on screen from the previous room,
     /// or from before the costumes were re-analysed, aren't drawn while the new ones decode.
     /// </summary>
-    [ObservableProperty] private IReadOnlySet<RoomObject> _visibleObjects = new HashSet<RoomObject>();
+    [ObservableProperty] public partial IReadOnlySet<RoomObject> VisibleObjects { get; set; } = new HashSet<RoomObject>();
     private bool _batchVisibility;
 
     /// <summary>Header checkbox: true when all are visible, false when none, null (mixed) otherwise.</summary>
@@ -203,7 +213,11 @@ public sealed partial class RoomViewModel : ObservableObject
         {
             // Only objects with an image or costume have a toggle, so only they count.
             int total = Objects.Count(o => o.HasToggle);
-            if (total == 0) return true;
+            if (total == 0)
+            {
+                return true;
+            }
+
             int visible = Objects.Count(o => o.HasToggle && o.IsVisible);
             return visible == total ? true : visible == 0 ? false : null;
         }
@@ -212,9 +226,9 @@ public sealed partial class RoomViewModel : ObservableObject
 
     public void SetAllVisible(bool visible) => SetVisibility(_ => visible);
 
-    private Dictionary<RoomObject, int> _initialStates = new();
+    private Dictionary<RoomObject, int> _initialStates = [];
     /// <summary>States picked in the Object viewer, drawn instead of the state on entry.</summary>
-    private readonly Dictionary<RoomObject, int> _shownStates = new();
+    private readonly Dictionary<RoomObject, int> _shownStates = [];
 
     /// <summary>The state an object is drawn in: the one picked in the Object viewer, else its state on entry.</summary>
     public int StateOf(RoomObject obj) =>
@@ -229,7 +243,11 @@ public sealed partial class RoomViewModel : ObservableObject
     /// </summary>
     public async Task ShowObjectStateAsync(RoomObject obj, int state)
     {
-        if (obj == null || Room == null || !Room.Objects.Contains(obj)) return;
+        if (obj == null || Room == null || !Room.Objects.Contains(obj))
+        {
+            return;
+        }
+
         _shownStates[obj] = state;
         _objectPlanes.Remove(obj);
         _zMaskKey = null;
@@ -237,14 +255,25 @@ public sealed partial class RoomViewModel : ObservableObject
         {
             int frame = RoomObjectStates.FrameFor(state, info.TotalFrames > 0 ? info.TotalFrames : 1);
             var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(obj), bakeImage: true, CancellationToken.None);
-            if (Room?.Objects.Contains(obj) != true) return; // another room opened meanwhile
+            if (Room?.Objects.Contains(obj) != true)
+            {
+                return; // another room opened meanwhile
+            }
+
             var image = result.ExecutedImage?.ToSkImage();
             if (ObjectLayers != null)
-                ObjectLayers = ObjectLayers.Select(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly ? l with { Image = image } : l).ToList();
+            {
+                ObjectLayers = [.. ObjectLayers.Select(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly ? l with { Image = image } : l)];
+            }
         }
         if (Objects.FirstOrDefault(o => ReferenceEquals(o.Object, obj)) is { HasToggle: true } item && item.IsVisible != state > 0)
+        {
             item.IsVisible = state > 0; // refreshes the masks too
-        else UpdateZMasks();
+        }
+        else
+        {
+            UpdateZMasks();
+        }
     }
     private bool _startVisibilityApplied;
 
@@ -263,14 +292,23 @@ public sealed partial class RoomViewModel : ObservableObject
     {
         _batchVisibility = true;
         foreach (var item in Objects)
-            if (rule(item) is bool v) item.IsVisible = v;
+        {
+            if (rule(item) is bool v)
+            {
+                item.IsVisible = v;
+            }
+        }
+
         _batchVisibility = false;
         RefreshVisibility();
     }
 
     private void OnItemChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(RoomObjectItem.IsVisible) && !_batchVisibility) RefreshVisibility();
+        if (e.PropertyName == nameof(RoomObjectItem.IsVisible) && !_batchVisibility)
+        {
+            RefreshVisibility();
+        }
     }
 
     private void RefreshVisibility()
@@ -312,9 +350,9 @@ public sealed partial class RoomViewModel : ObservableObject
     partial void OnShowFullScreenObjectsChanged(bool value) => UpdateZMasks();
     partial void OnBackgroundObjectChanged(RoomObject value) => UpdateZMasks();
 
-    private ZPlane[] _roomPlanes = Array.Empty<ZPlane>();
+    private ZPlane[] _roomPlanes = [];
     private int _planeCount;
-    private readonly Dictionary<RoomObject, ZPlane[]> _objectPlanes = new();
+    private readonly Dictionary<RoomObject, ZPlane[]> _objectPlanes = [];
     private string _zMaskKey;
 
     /// <summary>Rebuilds <see cref="ZMasks"/> from the room's planes and the objects shown now.</summary>
@@ -335,22 +373,30 @@ public sealed partial class RoomViewModel : ObservableObject
                                        && (ReferenceEquals(o.Object, BackgroundObject)
                                            || (o.IsVisible && (ShowFullScreenObjects || o.Object.Width < 640))))
             .Select(o => o.Object).ToList();
-        shown = room.InDrawOrder(shown).ToList(); // an object drawn later writes its planes over an earlier one's
+        shown = [.. room.InDrawOrder(shown)]; // an object drawn later writes its planes over an earlier one's
         string key = room.Room.Offset + ":" + string.Join(",", shown.Select(o => $"{o.Index}/{StateOf(o)}"));
-        if (key == _zMaskKey && ZMasks != null) return; // a costume or hotspot toggled: the masks are the same
+        if (key == _zMaskKey && ZMasks != null)
+        {
+            return; // a costume or hotspot toggled: the masks are the same
+        }
+
         _zMaskKey = key;
         var planes = ZPlanes.Compose(_roomPlanes, _planeCount, room.Width, room.Height, shown.Select(o =>
         {
             if (!_objectPlanes.TryGetValue(o, out var p))
             {
                 try { p = ZPlanes.Object(o, Math.Max(0, StateOf(o) - 1)); }
-                catch (Exception ex) { Log.Warn($"Z-planes of {o}: {ex.Message}"); p = Array.Empty<ZPlane>(); }
+                catch (Exception ex) { Log.Warn($"Z-planes of {o}: {ex.Message}"); p = []; }
                 _objectPlanes[o] = p;
             }
             return (o, p);
         }));
         var masks = new SKImage[planes.Length];
-        for (int k = 0; k < planes.Length; k++) masks[k] = MaskImage(planes[k], room.Width, room.Height);
+        for (int k = 0; k < planes.Length; k++)
+        {
+            masks[k] = MaskImage(planes[k], room.Width, room.Height);
+        }
+
         ZMasks = masks;
     }
 
@@ -364,9 +410,18 @@ public sealed partial class RoomViewModel : ObservableObject
             for (int s = 0; s < plane.Strips; s++)
             {
                 byte b = plane.Data[row + s];
-                if (b == 0) continue;
+                if (b == 0)
+                {
+                    continue;
+                }
+
                 for (int bit = 0, x = s * 8; bit < 8 && x < width; bit++, x++)
-                    if ((b & (0x80 >> bit)) != 0) alpha[o + x] = 255;
+                {
+                    if ((b & (0x80 >> bit)) != 0)
+                    {
+                        alpha[o + x] = 255;
+                    }
+                }
             }
         }
         var info = new SKImageInfo(width, height, SKColorType.Alpha8, SKAlphaType.Premul);
@@ -374,17 +429,17 @@ public sealed partial class RoomViewModel : ObservableObject
     }
     [RelayCommand] private void ToggleFullScreenObjects() => ShowFullScreenObjects = !ShowFullScreenObjects;
 
-    private IReadOnlyList<BackgroundChoice> _backgroundChoices = Array.Empty<BackgroundChoice>();
+    private List<BackgroundChoice> _backgroundChoices = [];
     /// <summary>The room's costumed actors (from its scripts), with their parsed costumes and default frames.</summary>
-    private List<RoomActor> _actors = new();
+    private List<RoomActor> _actors = [];
     /// <summary>Where each drawable actor is shown: its object's entry, or its own stand-in entry.</summary>
-    private Dictionary<RoomActor, RoomObject> _actorTargets = new();
+    private Dictionary<RoomActor, RoomObject> _actorTargets = [];
     private readonly AkosParser _akosParser = new();
 
     /// <summary>The room's costumes (one per AKOS), for the Link costume menu.</summary>
-    public IReadOnlyList<RoomActor> RoomCostumes => _actors
+    public IReadOnlyList<RoomActor> RoomCostumes => [.. _actors
         .GroupBy(a => a.Akos).Select(g => g.OrderByDescending(a => a.CanDraw).First())
-        .OrderBy(a => a.Costume).ToList();
+        .OrderBy(a => a.Costume)];
 
     /// <summary>Raised after a manual link changes (so it can be saved and the hierarchy relabelled).</summary>
     public event Action LinksChanged;
@@ -393,7 +448,11 @@ public sealed partial class RoomViewModel : ObservableObject
     public async Task SetCostumeLinkAsync(RoomObject obj, int? costume)
     {
         var room = Room;
-        if (room == null || obj == null || obj.Index < 0) return;
+        if (room == null || obj == null || obj.Index < 0)
+        {
+            return;
+        }
+
         RoomActors.SetLink(room, obj, costume);
         await RefreshActorsAsync(room);
         LinksChanged?.Invoke(); // after the re-analysis, so the hierarchy picks up the new names
@@ -413,7 +472,10 @@ public sealed partial class RoomViewModel : ObservableObject
 
     public async Task LoadAsync(RoomModel room)
     {
-        if (room == null || ReferenceEquals(room.Room, Room?.Room)) return;
+        if (room == null || ReferenceEquals(room.Room, Room?.Room))
+        {
+            return;
+        }
 
         IsSwitchingRoom = true;
         LiveCostume = null;
@@ -425,12 +487,16 @@ public sealed partial class RoomViewModel : ObservableObject
 
         RoomSize = new Size(room.Width, room.Height);
         Walkboxes = room.Walkboxes;
-        foreach (var item in Objects) item.PropertyChanged -= OnItemChanged;
+        foreach (var item in Objects)
+        {
+            item.PropertyChanged -= OnItemChanged;
+        }
+
         Objects.Clear();
         // Object images start as the game shows them on entry: hidden while their state is 0.
         Dictionary<RoomObject, int> states;
         try { states = RoomObjectStates.Initial(room); }
-        catch (Exception ex) { Log.Warn($"Object states for room {room.RoomNo}: {ex.Message}"); states = new(); }
+        catch (Exception ex) { Log.Warn($"Object states for room {room.RoomNo}: {ex.Message}"); states = []; }
         _initialStates = states;
         _shownStates.Clear();
         _startVisibilityApplied = false;
@@ -440,13 +506,16 @@ public sealed partial class RoomViewModel : ObservableObject
         {
             _roomPlanes = ZPlanes.Room(room);
             _planeCount = ZPlanes.Count(room);
-            ZPlaneChoices = new[] { "All planes" }.Concat(Enumerable.Range(1, _planeCount).Select(n => $"Plane {n}")).ToList();
-            if (ZPlaneShown > _planeCount) ZPlaneShown = 0;
+            ZPlaneChoices = ["All planes", .. Enumerable.Range(1, _planeCount).Select(n => $"Plane {n}")];
+            if (ZPlaneShown > _planeCount)
+            {
+                ZPlaneShown = 0;
+            }
         }
         catch (Exception ex)
         {
             Log.Warn($"Z-planes for room {room.RoomNo}: {ex.Message}");
-            _roomPlanes = Array.Empty<ZPlane>();
+            _roomPlanes = [];
             _planeCount = 0;
         }
         foreach (var o in room.Objects)
@@ -471,11 +540,17 @@ public sealed partial class RoomViewModel : ObservableObject
         if (ShowMode == ShowNone)
         {
             await ShowBackgroundFirstAsync(room);
-            if (!ReferenceEquals(Room, room)) return;
+            if (!ReferenceEquals(Room, room))
+            {
+                return;
+            }
         }
 
         await RefreshActorsAsync(room);
-        if (!ReferenceEquals(Room, room)) return;
+        if (!ReferenceEquals(Room, room))
+        {
+            return;
+        }
 
         await ReloadImagesAsync();
     }
@@ -513,7 +588,7 @@ public sealed partial class RoomViewModel : ObservableObject
             {
                 if (_livePalette != (actor.Data, palette))
                 {
-                    _akosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
+                    AkosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
                     _livePalette = (actor.Data, palette);
                 }
                 rgba = AkosFrames.Render(actor.Data, frame, out ox, out oy, mirror: actor.Mirrored);
@@ -539,8 +614,12 @@ public sealed partial class RoomViewModel : ObservableObject
         {
             var bg = await ScummBackgroundCache.GetCachedBackgroundAsync(
                 BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, 0, CancellationToken.None);
-            if (!ReferenceEquals(Room, room) || bg.ExecutedImage == null) return; // no image of its own: wait for the full load
-            ObjectLayers = Array.Empty<RoomObjectLayer>(); // the old room's labels and hotspots go too
+            if (!ReferenceEquals(Room, room) || bg.ExecutedImage == null)
+            {
+                return; // no image of its own: wait for the full load
+            }
+
+            ObjectLayers = []; // the old room's labels and hotspots go too
             BackgroundObject = null;
             BackgroundImage = bg.ExecutedImage.ToSkImage();
             BackgroundLabel = "room";
@@ -565,10 +644,14 @@ public sealed partial class RoomViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            actors = new();
+            actors = [];
             Log.Error($"Costume analysis failed: {ex.Message}");
         }
-        if (!ReferenceEquals(Room, room)) return;
+        if (!ReferenceEquals(Room, room))
+        {
+            return;
+        }
+
         _actors = actors;
         ApplyActors();
     }
@@ -584,7 +667,7 @@ public sealed partial class RoomViewModel : ObservableObject
         }
 
         // The analysis may be cached from another RoomModel of the same room, so match by OBIM block.
-        _actorTargets = new Dictionary<RoomActor, RoomObject>();
+        _actorTargets = [];
         // The first analysis of a room sets how its costumes start (later ones, after a link change, keep
         // what the user toggled): a hotspot's costume shows only if it's there as the room opens.
         bool applyStart = !_startVisibilityApplied;
@@ -592,7 +675,11 @@ public sealed partial class RoomViewModel : ObservableObject
         foreach (var item in Objects)
         {
             item.Costume = _actors.FirstOrDefault(a => a.Object != null && ReferenceEquals(a.Object.Block, item.Object.Block));
-            if (item.Costume is { CanDraw: true } a) _actorTargets[a] = item.Object;
+            if (item.Costume is { CanDraw: true } a)
+            {
+                _actorTargets[a] = item.Object;
+            }
+
             if (applyStart && item.Object.ImageCount <= 0 && item.Costume is { CanDraw: true } c)
             {
                 item.InitialVisible = c.StartsShown;
@@ -620,7 +707,10 @@ public sealed partial class RoomViewModel : ObservableObject
                 item.IsVisible = ShownByMode(item);
                 item.PropertyChanged += OnItemChanged;
                 Objects.Add(item);
-                if (actor.CanDraw) _actorTargets[actor] = standIn;
+                if (actor.CanDraw)
+                {
+                    _actorTargets[actor] = standIn;
+                }
             }
         }
         _batchVisibility = false;
@@ -634,11 +724,11 @@ public sealed partial class RoomViewModel : ObservableObject
     public void ApplyReviewMarks()
     {
         var room = Room;
-        var marks = room == null ? new List<ReviewMark>() : ReviewMarks.Load().Where(m => m.Room == room.RoomNo).ToList();
+        var marks = room == null ? [] : ReviewMarks.Load().Where(m => m.Room == room.RoomNo).ToList();
         foreach (var item in Objects)
         {
             var target = TargetOf(item);
-            var mine = target == null ? new List<ReviewMark>() : marks.Where(m => m.Includes(room.RoomNo, target)).ToList();
+            var mine = target == null ? [] : marks.Where(m => m.Includes(room.RoomNo, target)).ToList();
             item.ReviewMarks = mine;
         }
     }
@@ -649,8 +739,13 @@ public sealed partial class RoomViewModel : ObservableObject
     /// </summary>
     public ReviewTarget TargetOf(RoomObjectItem item)
     {
-        if (Room == null || item == null) return null;
+        if (Room == null || item == null)
+        {
+            return null;
+        }
+
         if (item.Costume is { } a)
+        {
             return new ReviewTarget
             {
                 Kind = "costume", Costume = a.Costume, Akos = $"0x{a.Akos.Offset:X8}",
@@ -669,7 +764,13 @@ public sealed partial class RoomViewModel : ObservableObject
                     When = RoomDataExport.WhenText(a.When),
                 },
             };
-        if (item.IsActorOnly) return null;
+        }
+
+        if (item.IsActorOnly)
+        {
+            return null;
+        }
+
         var o = item.Object;
         return new ReviewTarget
         {
@@ -689,7 +790,11 @@ public sealed partial class RoomViewModel : ObservableObject
     {
         var room = Room;
         var targets = items.Select(TargetOf).Where(t => t != null).ToList();
-        if (room == null || targets.Count == 0) return null;
+        if (room == null || targets.Count == 0)
+        {
+            return null;
+        }
+
         return new ReviewMark { Room = room.RoomNo, RoomName = room.Name, Targets = targets };
     }
 
@@ -697,8 +802,12 @@ public sealed partial class RoomViewModel : ObservableObject
     public void MarkForReview(IReadOnlyList<RoomObjectItem> items, IEnumerable<string> tags, string note)
     {
         var mark = NewMark(items);
-        if (mark == null) return;
-        mark.Tags = tags.ToList();
+        if (mark == null)
+        {
+            return;
+        }
+
+        mark.Tags = [.. tags];
         mark.Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
         ReviewMarks.Add(mark);
         ApplyReviewMarks();
@@ -708,7 +817,10 @@ public sealed partial class RoomViewModel : ObservableObject
     public void ClearReviewMarks(IReadOnlyList<RoomObjectItem> items)
     {
         foreach (int id in items.SelectMany(i => i.ReviewMarks).Select(m => m.Id).Distinct().ToList())
+        {
             ReviewMarks.Remove(id);
+        }
+
         ApplyReviewMarks();
     }
 
@@ -720,18 +832,18 @@ public sealed partial class RoomViewModel : ObservableObject
         get => _selectedItems;
         set
         {
-            _selectedItems = value ?? Array.Empty<RoomObjectItem>();
+            _selectedItems = value ?? [];
             SelectedObjects = _selectedItems.Select(i => i.Object).ToHashSet();
         }
     }
-    private IReadOnlyList<RoomObjectItem> _selectedItems = Array.Empty<RoomObjectItem>();
+    private IReadOnlyList<RoomObjectItem> _selectedItems = [];
 
     /// <summary>The selected entries' objects, for the canvas to outline.</summary>
-    [ObservableProperty] private IReadOnlySet<RoomObject> _selectedObjects = new HashSet<RoomObject>();
+    [ObservableProperty] public partial IReadOnlySet<RoomObject> SelectedObjects { get; set; } = new HashSet<RoomObject>();
 
     /// <summary>The entries an action on <paramref name="item"/> applies to: the selection when it holds it, else just it.</summary>
     public IReadOnlyList<RoomObjectItem> ActionItems(RoomObjectItem item) =>
-        item != null && SelectedItems.Count > 1 && SelectedItems.Contains(item) ? SelectedItems : item == null ? Array.Empty<RoomObjectItem>() : new[] { item };
+        item != null && SelectedItems.Count > 1 && SelectedItems.Contains(item) ? SelectedItems : item == null ? Array.Empty<RoomObjectItem>() : [item];
 
     /// <summary>Shows or hides several entries at once.</summary>
     public void SetVisible(IReadOnlyList<RoomObjectItem> items, bool visible) =>
@@ -747,15 +859,26 @@ public sealed partial class RoomViewModel : ObservableObject
         var result = new Dictionary<RoomObject, (SKImage, int, int, int, int, float, int)>();
         foreach (var (actor, target) in targets)
         {
-            if (token.IsCancellationRequested) break;
+            if (token.IsCancellationRequested)
+            {
+                break;
+            }
+
             lock (actor.Data)
             {
-                _akosParser.UpdatePaletteOnly(actor.Data, actor.Akos, actor.Data.DefaultPaletteIndex);
-                if (ReferenceEquals(_livePalette.Item1, actor.Data)) _livePalette = default;
-                var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, token, actor.Mirrored);
+                AkosParser.UpdatePaletteOnly(actor.Data, actor.Akos, actor.Data.DefaultPaletteIndex);
+                if (ReferenceEquals(_livePalette.Item1, actor.Data))
+                {
+                    _livePalette = default;
+                }
+
+                var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, actor.Mirrored, token);
                 // Scaled about the actor's origin: the frame's offset from it shrinks with the frame.
                 float f = actor.ScaleFactor;
-                if (rgba != null) result[target] = (rgba.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), actor.SortY, actor.Actor, f, actor.ZPlane);
+                if (rgba != null)
+                {
+                    result[target] = (rgba.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), actor.SortY, actor.Actor, f, actor.ZPlane);
+                }
             }
         }
         return result;
@@ -764,7 +887,10 @@ public sealed partial class RoomViewModel : ObservableObject
     private async Task ReloadImagesAsync()
     {
         var room = Room;
-        if (room == null) return;
+        if (room == null)
+        {
+            return;
+        }
 
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
@@ -775,13 +901,19 @@ public sealed partial class RoomViewModel : ObservableObject
         {
             var bg = await ScummBackgroundCache.GetCachedBackgroundAsync(
                 BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, 0, token);
-            if (token.IsCancellationRequested) return;
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
 
             var roomBackground = bg.ExecutedImage;
 
             var targets = _actorTargets;
             var costumes = await Task.Run(() => RenderActors(targets, token), token);
-            if (token.IsCancellationRequested) return;
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
 
             var layers = new List<RoomObjectLayer>(room.Objects.Count + targets.Count);
             var fullWidth = new List<BackgroundChoice>();
@@ -798,28 +930,47 @@ public sealed partial class RoomViewModel : ObservableObject
                     // The image for its state on entry (state N shows image N); the first when it starts hidden.
                     int frame = RoomObjectStates.FrameFor(StateOf(obj), info.TotalFrames > 0 ? info.TotalFrames : 1);
                     var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(obj), bakeImage: true, token);
-                    if (token.IsCancellationRequested) return;
+                    if (token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
                     rgba = result.ExecutedImage;
                     image = rgba?.ToSkImage();
                 }
                 costumes.TryGetValue(obj, out var costume);
                 layers.Add(new RoomObjectLayer(obj, image, costume.Image, costume.X, costume.Y, CostumeDepth: costume.Depth, CostumeActor: costume.Actor, CostumeScale: costume.Scale == 0 ? 1 : costume.Scale, CostumeZPlane: costume.ZPlane));
                 hasImage[obj] = rgba != null && !IsFullyTransparent(rgba);
-                if (image != null && image.Width >= FullWidth) fullWidth.Add(new BackgroundChoice(obj.ToString(), image, rgba, obj));
+                if (image != null && image.Width >= FullWidth)
+                {
+                    fullWidth.Add(new BackgroundChoice(obj.ToString(), image, rgba, obj));
+                }
             }
 
             // Stand-ins for costumes no object claims.
             foreach (var item in Objects.Where(o => o.IsActorOnly))
+            {
                 if (costumes.TryGetValue(item.Object, out var c))
+                {
                     layers.Add(new RoomObjectLayer(item.Object, null, c.Image, c.X, c.Y, IsActorOnly: true, CostumeDepth: c.Depth, CostumeActor: c.Actor, CostumeScale: c.Scale, CostumeZPlane: c.ZPlane));
+                }
+            }
 
             // Background choices: the room's own image first, then every full-width object image.
             var choices = new List<BackgroundChoice>();
-            if (roomBackground != null) choices.Add(new BackgroundChoice("room", roomBackground.ToSkImage(), roomBackground, null));
+            if (roomBackground != null)
+            {
+                choices.Add(new BackgroundChoice("room", roomBackground.ToSkImage(), roomBackground, null));
+            }
+
             choices.AddRange(fullWidth);
 
             ObjectLayers = layers;
-            foreach (var item in Objects.Where(o => !o.IsActorOnly)) item.HasImage = hasImage.TryGetValue(item.Object, out var h) && h;
+            foreach (var item in Objects.Where(o => !o.IsActorOnly))
+            {
+                item.HasImage = hasImage.TryGetValue(item.Object, out var h) && h;
+            }
+
             OnPropertyChanged(nameof(AllObjectsVisible));
             _backgroundChoices = choices;
             MaxBackgroundIndex = Math.Max(0, choices.Count - 1);
@@ -827,8 +978,15 @@ public sealed partial class RoomViewModel : ObservableObject
             // a reload keeps the current choice.
             int index = _resetBackgroundChoice ? 0 : Math.Clamp(BackgroundIndex, 0, MaxBackgroundIndex);
             _resetBackgroundChoice = false;
-            if (BackgroundIndex != index) BackgroundIndex = index; // applies via OnBackgroundIndexChanged
-            else ApplyBackgroundChoice();
+            if (BackgroundIndex != index)
+            {
+                BackgroundIndex = index; // applies via OnBackgroundIndexChanged
+            }
+            else
+            {
+                ApplyBackgroundChoice();
+            }
+
             IsSwitchingRoom = false; // background, objects and overlays all show together
         }
         catch (OperationCanceledException) { }
@@ -851,7 +1009,13 @@ public sealed partial class RoomViewModel : ObservableObject
     {
         var data = image.Data;
         for (int i = 3; i < data.Length; i += 4)
-            if (data[i] != 0) return false;
+        {
+            if (data[i] != 0)
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -861,7 +1025,10 @@ public sealed partial class RoomViewModel : ObservableObject
         // Several selected: all follow the current one's new state.
         var items = ActionItems(SelectedObjectItem).Where(o => o.HasToggle).ToList();
         if (items.Count > 1) { SetVisible(items, !SelectedObjectItem.IsVisible); return; }
-        if (SelectedObjectItem is { HasToggle: true } item) item.IsVisible = !item.IsVisible;
+        if (SelectedObjectItem is { HasToggle: true } item)
+        {
+            item.IsVisible = !item.IsVisible;
+        }
     }
 
     /// <summary>Each background is already in its own palette (the room's 0, stancrpt's office 1).</summary>
@@ -879,7 +1046,11 @@ public sealed partial class RoomViewModel : ObservableObject
     public void ExportBackground(string folder)
     {
         var choice = BackgroundIndex >= 0 && BackgroundIndex < _backgroundChoices.Count ? _backgroundChoices[BackgroundIndex] : null;
-        if (choice?.Rgba == null || Room == null) return;
+        if (choice?.Rgba == null || Room == null)
+        {
+            return;
+        }
+
         string room = Room.RoomNo > 0 ? Room.RoomNo.ToString("D3") : Room.Room.Offset.ToString("X8");
         string suffix = choice.Object == null ? "room" : string.Join("_", choice.Label.Split(Path.GetInvalidFileNameChars()));
         string path = Path.Combine(folder, $"room_{room}_{suffix}.png");
