@@ -35,6 +35,9 @@ public partial class App : Application
             // "MMUCS.exe path/to/COMI.LA1" opens that file; otherwise optionally reopen the last one.
             _ = vm.StartupAsync(desktop.Args);
 
+            // Linux: a .desktop entry so the dock and Alt-Tab show the app icon.
+            Services.LinuxDesktopEntry.Register();
+
             // A second launch brings this window forward and opens the file it was given.
             var window = desktop.MainWindow;
             Services.SingleInstance.Listen(file => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
