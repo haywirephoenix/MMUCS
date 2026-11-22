@@ -10,9 +10,9 @@ public sealed class ObjectStatesTool(ObjectImageViewModel obj) : Tool { public O
 public sealed class ObjectPreviewDocument(ObjectImageViewModel obj) : Document { public ObjectImageViewModel Object { get; } = obj; }
 
 /// <summary>Docking inside the Object viewer: States above the Preview (see <see cref="ViewerDockFactory"/>).</summary>
-public sealed class ObjectDockFactory(ObjectImageViewModel obj) : ViewerDockFactory(Group, "Object")
+public sealed class ObjectDockFactory(ObjectImageViewModel obj) : ViewerDockFactory(GroupId, "Object")
 {
-    public const string Group = "object";
+    public const string GroupId = "object";
     public const string StatesId = "States", PreviewId = "Preview";
     public static readonly string[] PanelIds = { StatesId, PreviewId };
 

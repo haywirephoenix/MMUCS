@@ -13,9 +13,9 @@ public sealed class CostumePaletteTool(AkosViewModel akos) : Tool { public AkosV
 public sealed class CostumePreviewDocument(AkosViewModel akos) : Document { public AkosViewModel Akos { get; } = akos; }
 
 /// <summary>Docking inside the Costume viewer, stacked for the Inspector: Chores, Cels and Resolved palette as tabs over the Preview (see <see cref="ViewerDockFactory"/>).</summary>
-public sealed class CostumeDockFactory(AkosViewModel akos) : ViewerDockFactory(Group, "Costume")
+public sealed class CostumeDockFactory(AkosViewModel akos) : ViewerDockFactory(GroupId, "Costume")
 {
-    public const string Group = "costume";
+    public const string GroupId = "costume";
     public const string CelsId = "Cels", ChoresId = "Chores", PaletteId = "Palette", PreviewId = "Preview";
     public static readonly string[] PanelIds = { CelsId, ChoresId, PaletteId, PreviewId };
 

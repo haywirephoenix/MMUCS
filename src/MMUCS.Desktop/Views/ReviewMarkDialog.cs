@@ -17,7 +17,7 @@ public sealed class ReviewMarkDialog : Window
 {
     public sealed record Result(IReadOnlyList<string> Tags, string Note);
 
-    private readonly List<(string Tag, CheckBox Box)> _boxes = new();
+    private readonly List<(string Tag, CheckBox Box)> _boxes = [];
     private readonly TextBox _note;
     private Result _result;
 
@@ -44,7 +44,7 @@ public sealed class ReviewMarkDialog : Window
         }
         _note = new TextBox
         {
-            Watermark = "Note: what you expected, e.g. \"should be behind the fence\"",
+            PlaceholderText = "Note: what you expected, e.g. \"should be behind the fence\"",
             Text = existing?.Note ?? "", AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             MinHeight = 60, Margin = new Thickness(0, 6, 0, 0),
         };
@@ -54,7 +54,7 @@ public sealed class ReviewMarkDialog : Window
         var cancel = new Button { Content = "Cancel", IsCancel = true, MinWidth = 72 };
         ok.Click += (_, _) =>
         {
-            _result = new Result(_boxes.Where(b => b.Box.IsChecked == true).Select(b => b.Tag).ToList(), _note.Text);
+            _result = new Result([.. _boxes.Where(b => b.Box.IsChecked == true).Select(b => b.Tag)], _note.Text);
             Close();
         };
         cancel.Click += (_, _) => Close();

@@ -13,19 +13,19 @@ public sealed class RoomPreviewDocument(RoomViewModel room) : Document { public 
 /// Docking inside the Room viewer: the Preview with Objects beside it (see <see cref="ViewerDockFactory"/>).
 /// The toolbar's Objects toggle hides and shows the Objects panel.
 /// </summary>
-public sealed class RoomDockFactory(RoomViewModel room) : ViewerDockFactory(Group, "Room")
+public sealed class RoomDockFactory(RoomViewModel room) : ViewerDockFactory(GroupId, "Room")
 {
-    public const string Group = "room";
+    public const string GroupId = "room";
     public const string ObjectsId = "Objects", PreviewId = "Preview";
-    public static readonly string[] PanelIds = { ObjectsId, PreviewId };
+    public static readonly string[] PanelIds = [ObjectsId, PreviewId];
 
     public override IReadOnlyList<string> Ids => PanelIds;
 
-    protected override IEnumerable<ViewerPanel> DefinePanels() => new ViewerPanel[]
-    {
+    protected override IEnumerable<ViewerPanel> DefinePanels() =>
+    [
         new(ObjectsId, "Objects", new RoomObjectsTool(room)),
         new(PreviewId, "Preview", new RoomPreviewDocument(room)),
-    };
+    ];
 
     protected override IDockable CreateBuiltInContent(Dictionary<string, IDockable> p)
     {
