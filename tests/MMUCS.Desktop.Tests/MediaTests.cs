@@ -99,3 +99,47 @@ public class CutsceneOrderTests
         Assert.False(CutsceneOrder.TryGet("video/nope", out _, out _));
     }
 }
+
+public class VoiceLineTests
+{
+    private static string Game => Environment.GetEnvironmentVariable("MMUCS_GAME") is { } g && File.Exists(g) ? g : null;
+
+    [Theory]
+    [InlineData("BCCB301", "BC", "CB", 301)]
+    [InlineData("ADGT1017", "AD", "GT", 1017)]
+    [InlineData("PU_CP124", "PU", "CP", 124)]
+    [InlineData("b2gt301", "B2", "GT", 301)]
+    public void A_speech_code_splits_into_scene_speaker_and_number(string code, string scene, string speaker, int number)
+        => Assert.Equal((scene, speaker, number), VoiceLines.Split(code));
+
+    [Fact]
+    public void Script_strings_give_the_code_and_the_text_without_control_codes()
+    {
+        var bytes = new byte[] { 1, 2 }.Concat(System.Text.Encoding.ASCII.GetBytes("/BCCB301/IT'S EL"))
+            .Concat(new byte[] { 0xFF, 0x03 }).Concat(System.Text.Encoding.ASCII.GetBytes("POLLO!")).Concat(new byte[] { 0, 9 }).ToArray();
+        Assert.Equal(new[] { ("BCCB301", "IT'S EL POLLO!") }, VoiceLines.Strings(bytes));
+    }
+
+    [Fact]
+    public void Speech_gets_its_text_scene_and_speaker_and_sorts_by_line_number()
+    {
+        if (Game == null) return;
+        var root = MMUCS.Core.Scumm.ScummProject.Load(MMUCS.Core.Scumm.ScummProject.FindRelatedFiles(Game));
+        var speech = MediaLibrary.Scan(Game, root).Where(i => i.Kind == MediaKind.Voice).ToList();
+
+        var pollo = speech.Single(i => i.Id == "voice/bccb301");
+        Assert.Equal("IT'S EL POLLO DIABLO!", pollo.Title);
+        Assert.Equal(("BC", "CB", 301), (pollo.Scene, pollo.Speaker, pollo.Number));
+        Assert.Equal("bchclub", pollo.SceneName);
+        Assert.Equal("Guybrush Threepwood", speech.First(i => i.Speaker == "GT").SpeakerName);
+        Assert.True(speech.Count(i => !string.IsNullOrEmpty(i.Title)) >= 8073);
+
+        // Within a scene and speaker, line numbers run in numeric order.
+        foreach (var group in speech.GroupBy(i => (i.Scene, i.Speaker)))
+        {
+            var numbers = group.Select(i => i.Number).ToList();
+            Assert.Equal(numbers.OrderBy(n => n), numbers);
+        }
+        Assert.Equal(speech.Select(i => i.Scene).Distinct().OrderBy(s => s, StringComparer.Ordinal), speech.Select(i => i.Scene).Distinct());
+    }
+}

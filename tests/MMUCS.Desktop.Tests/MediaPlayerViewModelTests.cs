@@ -69,6 +69,42 @@ public class MediaPlayerViewModelTests
         });
     }
 
+    [Fact]
+    public void Speech_filters_by_scene_speaker_and_words()
+    {
+        if (Game == null) return;
+        var root = MMUCS.Core.Scumm.ScummProject.Load(MMUCS.Core.Scumm.ScummProject.FindRelatedFiles(Game));
+        UiThread.Run(async ui =>
+        {
+            var vm = new MediaPlayerViewModel(Game, root);
+            try
+            {
+                await ui.Until(() => vm.Items.Count > 0, "the library to load");
+                vm.SelectedCategory = vm.Categories.Single(c => c.Kind == MediaKind.Voice);
+                Assert.True(vm.IsSpeech);
+                Assert.Equal(8076, vm.Items.Count);
+                Assert.StartsWith("All scenes", vm.Scenes[0].Label);
+
+                vm.SelectedScene = vm.Scenes.Single(f => f.Code == "BC");
+                Assert.All(vm.Items, i => Assert.Equal("BC", i.Scene));
+                Assert.Contains(vm.Speakers, f => f.Code == "CB");
+
+                vm.SelectedSpeaker = vm.Speakers.Single(f => f.Code == "CB");
+                Assert.All(vm.Items, i => Assert.Equal(("BC", "CB"), (i.Scene, i.Speaker)));
+
+                vm.Filter = "pollo diablo";
+                Assert.Contains(vm.Items, i => i.Id == "voice/bccb301");
+
+                // Back to all scenes: the speaker choice stays when that speaker is still listed.
+                vm.Filter = "";
+                vm.SelectedScene = vm.Scenes[0];
+                Assert.Equal("CB", vm.SelectedSpeaker.Code);
+                Assert.All(vm.Items, i => Assert.Equal("CB", i.Speaker));
+            }
+            finally { vm.Dispose(); }
+        });
+    }
+
     /// <summary>A single-threaded synchronisation context, so the view model's UI continuations run as in the app.</summary>
     private sealed class UiThread : SynchronizationContext
     {
