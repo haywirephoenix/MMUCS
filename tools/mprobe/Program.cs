@@ -43,6 +43,8 @@ usage: mprobe [--game FILE] COMMAND ...
                        As play, but out loud through OpenAL Soft (the default sound device). Hooks follow
                        the played clock. Reports the latency, underruns and how the played clock kept
                        time with the wall clock.
+  cutscene-audio [OUT]  Decode and check every cutscene's sound (packets, leftover bytes, length against the
+                       picture); with OUT, write each as OUT/NAME.wav.
   cutscenes OUT [NAME…]
                        Decode the SMUSH cutscenes (.san beside the game or in its resource folder) into
                        OUT/video/NAME/: one indexed PNG per distinct picture under frame/, and video.json
@@ -78,6 +80,7 @@ try
         "masked" => await DrawMasked(argv),
         "box" => ShowBox(argv),
         "cutscenes" => await ExportCutscenes(argv),
+        "cutscene-audio" => CutsceneAudio(argv),
         "audio" => await ExportAudio(argv),
         "play" => Play(argv),
         "listen" => Listen(argv),
@@ -252,6 +255,30 @@ async Task<int> ExportAudio(List<string> a)
             $"checks: over-read max {s.MaxOverRead} B, map problems {s.MapProblems}, disc conflicts {s.Conflicts}");
     }
     if (!check) Console.WriteLine($"→ {outDir}");
+    return bad > 0 ? 1 : 0;
+}
+
+int CutsceneAudio(List<string> a)
+{
+    string outDir = a.Where(x => !x.StartsWith("--")).Skip(1).FirstOrDefault();
+    int bad = 0;
+    foreach (var file in MMUCS.Core.Smush.SmushVideo.FindAll(game))
+    {
+        var video = MMUCS.Core.Smush.SmushVideo.Load(file);
+        var track = MMUCS.Core.Smush.SmushAudio.Decode(video);
+        double videoSeconds = video.Frames.Count / (double)video.Header.FrameRate;
+        if (track == null) { Console.WriteLine($"{video.Name,-10} no sound"); continue; }
+        bool ok = track.LeftoverBytes == 0;
+        if (!ok) bad++;
+        Console.WriteLine($"{video.Name,-10} {track.Chunks,5} chunks  {track.Packets,5} packets  {track.Escapes,7} escaped  leftover {track.LeftoverBytes} B  " +
+                          $"sound {track.Duration.TotalSeconds,7:0.000} s  picture {videoSeconds,7:0.000} s  ({track.Duration.TotalSeconds - videoSeconds:+0.000;-0.000} s)");
+        if (outDir != null)
+        {
+            Directory.CreateDirectory(outDir);
+            using var fs = File.Create(Path.Combine(outDir, video.Name + ".wav"));
+            MMUCS.Core.Audio.WavWriter.Write(fs, track.Pcm, track.Channels, track.SampleRate, 16);
+        }
+    }
     return bad > 0 ? 1 : 0;
 }
 
