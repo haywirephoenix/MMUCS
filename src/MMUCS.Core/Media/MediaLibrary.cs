@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MMUCS.Core.Audio;
 using MMUCS.Core.Diagnostics;
+using MMUCS.Core.Scumm;
 using MMUCS.Core.Smush;
 
 namespace MMUCS.Core.Media;
@@ -19,6 +20,13 @@ public enum MediaKind { Cutscene, Music, Voice }
 /// </summary>
 public sealed record MediaItem(MediaKind Kind, string Id, string Title, TimeSpan Duration, string File, int Entry)
 {
+    /// <summary>Speech: the code's scene and speaker parts and line number (BC·CB·301), and their names where known.</summary>
+    public string Scene { get; init; }
+    public string SceneName { get; init; }
+    public string Speaker { get; init; }
+    public string SpeakerName { get; init; }
+    public int Number { get; init; }
+
     /// <summary>What a list shows: the ID's last part, then the title when it adds something.</summary>
     public string Label
     {
@@ -28,6 +36,9 @@ public sealed record MediaItem(MediaKind Kind, string Id, string Title, TimeSpan
             return string.IsNullOrEmpty(Title) || Title == key ? key : $"{key}  {Title}";
         }
     }
+
+    /// <summary>Speech: where and who, for a tooltip ("bchclub · CB").</summary>
+    public string Detail => Kind == MediaKind.Voice ? $"scene {Scene} · {SceneName ?? "?"} · speaker {(SpeakerName != null ? $"{Speaker} {SpeakerName}" : Speaker)}" : null;
 
     public string DurationText => Duration.TotalHours >= 1 ? Duration.ToString(@"h\:mm\:ss") : Duration.ToString(@"m\:ss");
 }
@@ -39,7 +50,8 @@ public sealed record MediaItem(MediaKind Kind, string Id, string Title, TimeSpan
 /// </summary>
 public static class MediaLibrary
 {
-    public static IReadOnlyList<MediaItem> Scan(string gameFile, CancellationToken token = default)
+    /// <param name="root">The loaded project, when there is one: speech then gets its text and scenes from the scripts.</param>
+    public static IReadOnlyList<MediaItem> Scan(string gameFile, ScummBlock root = null, CancellationToken token = default)
     {
         var items = new ConcurrentBag<MediaItem>();
 
@@ -90,12 +102,57 @@ public static class MediaLibrary
             });
         }
 
+        var list = items.ToList();
+        Describe(list, root);
+
         // Cutscenes in the order they play (Names/cutscenes.json), any it doesn't list after them; sounds by ID.
-        return items
+        // Speech by scene, speaker and line number (so 999 comes before 1017).
+        return list
             .OrderBy(i => i.Kind)
             .ThenBy(i => i.Kind == MediaKind.Cutscene && CutsceneOrder.TryGet(i.Id, out int order, out _) ? order : int.MaxValue)
+            .ThenBy(i => i.Scene ?? "", StringComparer.Ordinal)
+            .ThenBy(i => i.Speaker ?? "", StringComparer.Ordinal)
+            .ThenBy(i => i.Number)
             .ThenBy(i => i.Id, StringComparer.Ordinal)
             .ToList();
+    }
+
+    /// <summary>
+    /// Gives speech its code parts, its text from the scripts, and names: a scene is named after the room
+    /// most of its lines are spoken in ("global scripts" when only global scripts speak it), unless
+    /// Names/voice.json names it.
+    /// </summary>
+    private static void Describe(List<MediaItem> items, ScummBlock root)
+    {
+        var lines = VoiceLines.Index(root);
+        var sceneRooms = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+        foreach (var line in lines.Values)
+        {
+            if (line.Room == 0 || line.RoomName == null) continue;
+            string scene = VoiceLines.Split(line.Code).Scene;
+            if (!sceneRooms.TryGetValue(scene, out var rooms)) sceneRooms[scene] = rooms = new();
+            rooms[line.RoomName] = rooms.GetValueOrDefault(line.RoomName) + 1;
+        }
+
+        for (int i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            if (item.Kind != MediaKind.Voice) continue;
+            string code = item.Id[(item.Id.IndexOf('/') + 1)..].ToUpperInvariant();
+            var (scene, speaker, number) = VoiceLines.Split(code);
+            string sceneName = VoiceNames.Scene(scene)
+                ?? (sceneRooms.TryGetValue(scene, out var rooms) ? rooms.MaxBy(r => r.Value).Key
+                    : root != null ? "global scripts" : null);
+            items[i] = item with
+            {
+                Title = lines.TryGetValue(code, out var line) ? line.Text : item.Title,
+                Scene = scene,
+                SceneName = sceneName,
+                Speaker = speaker,
+                SpeakerName = VoiceNames.Speaker(speaker),
+                Number = number,
+            };
+        }
     }
 
     /// <summary>Loads a music track or speech line in full.</summary>

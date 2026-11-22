@@ -21,5 +21,7 @@
     <EmbeddedResource Include="Names\unused-art.json" LogicalName="unused-art.json" />
     <!-- The order the cutscenes play in (see Media/CutsceneOrder.cs). -->
     <EmbeddedResource Include="Names\cutscenes.json" LogicalName="cutscenes.json" />
+    <!-- Names for the scene and speaker parts of speech codes (see Media/VoiceLines.cs). -->
+    <EmbeddedResource Include="Names\voice.json" LogicalName="voice.json" />
   </ItemGroup>
 </Project>

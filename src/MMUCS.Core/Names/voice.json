@@ -1,0 +1,9 @@
+{
+  "Note": "Names for the parts of COMI's speech codes: BC·CB·301 is scene BC, speaker CB, line 301. Scenes are named after the room most of their lines are spoken in unless named here. Add speakers as they're identified; only certain ones are listed.",
+  "Speakers": {
+    "GT": "Guybrush Threepwood",
+    "LC": "LeChuck",
+    "MR": "Murray"
+  },
+  "Scenes": {}
+}
