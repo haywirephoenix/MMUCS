@@ -56,51 +56,55 @@
         <TextBlock Text="{Binding Status}" Classes="hint" />
       </StackPanel>
 
-      <!-- Cutscene: the viewers' shared preview panel (Controls/ViewerPreview.cs): title, Fit / 1:1, info, canvas.
-           The frame readout is an overlay, so its changing length never resizes the canvas (which would refit it). -->
-      <c:ViewerPreview IsVisible="{Binding IsVideo}" Title="{Binding Title}" Info="{Binding VideoInfo}"
-                       Viewport="{Binding #Video}">
-        <c:ViewerPreview.Tools>
-          <ToggleButton Content="Frame info" IsChecked="{Binding ShowFrameInfo}" Margin="0,0,8,0"
-                        ToolTip.Tip="Show the frame number and time over the picture" />
-        </c:ViewerPreview.Tools>
+      <!-- The cutscene, music/speech and empty views share the space left under the heading. (As DockPanel
+           children they would dock left at their natural width, and not grow with the window.) -->
+      <Grid>
+        <!-- Cutscene: the viewers' shared preview panel (Controls/ViewerPreview.cs): title, Fit / 1:1, info, canvas.
+             The frame readout is an overlay, so its changing length never resizes the canvas (which would refit it). -->
+        <c:ViewerPreview IsVisible="{Binding IsVideo}" Title="{Binding Title}" Info="{Binding VideoInfo}"
+                         Viewport="{Binding #Video}">
+          <c:ViewerPreview.Tools>
+            <ToggleButton Content="Frame info" IsChecked="{Binding ShowFrameInfo}" Margin="0,0,8,0"
+                          ToolTip.Tip="Show the frame number and time over the picture" />
+          </c:ViewerPreview.Tools>
 
-        <Border Background="Black">
-          <c:VideoCanvas x:Name="Video" Image="{Binding Frame}" />
-        </Border>
-
-        <c:ViewerPreview.Overlay>
-          <Border IsVisible="{Binding ShowFrameInfo}"
-                  VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="8"
-                  Background="{DynamicResource OverlayBackgroundBrush}" CornerRadius="3">
-            <TextBlock Text="{Binding FrameText}" Classes="mono" FontSize="11" Margin="8,4"
-                       Foreground="{DynamicResource SubtleTextBrush}" />
+          <Border Background="Black">
+            <c:VideoCanvas x:Name="Video" Image="{Binding Frame}" />
           </Border>
-        </c:ViewerPreview.Overlay>
-      </c:ViewerPreview>
 
-      <!-- Music / speech -->
-      <DockPanel IsVisible="{Binding IsAudio}">
-        <c:MediaTimeline x:Name="Timeline" DockPanel.Dock="Top" Height="128"
-                         Sound="{Binding Sound}" Position="{Binding SoundFrame}" />
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,10,0,10">
-          <TextBlock Text="Hook" VerticalAlignment="Center" />
-          <NumericUpDown Value="{Binding Hook}" Minimum="0" Maximum="255" Increment="1" FormatString="0" Width="120" />
-          <Button Content="Set hook" Command="{Binding SetHookCommand}"
-                  ToolTip.Tip="The next jump carrying this hook is taken (and the hook goes back to 0)" />
-          <Button Content="Leave loop" Command="{Binding ExitLoopCommand}"
-                  ToolTip.Tip="Hook 128: the next unhooked jump (a loop) falls through once" />
-          <TextBlock Text="{Binding HookText}" Classes="hint" VerticalAlignment="Center" Margin="8,0,0,0" />
-        </StackPanel>
-        <TextBlock DockPanel.Dock="Top" Text="Events (newest first)" Classes="hint" Margin="0,0,0,4" />
-        <Border BorderBrush="{DynamicResource DockBorderSubtleBrush}" BorderThickness="1" CornerRadius="3">
-          <ListBox ItemsSource="{Binding Events}" FontFamily="monospace" FontSize="12" Background="Transparent" />
-        </Border>
-      </DockPanel>
+          <c:ViewerPreview.Overlay>
+            <Border IsVisible="{Binding ShowFrameInfo}"
+                    VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="8"
+                    Background="{DynamicResource OverlayBackgroundBrush}" CornerRadius="3">
+              <TextBlock Text="{Binding FrameText}" Classes="mono" FontSize="11" Margin="8,4"
+                         Foreground="{DynamicResource SubtleTextBrush}" />
+            </Border>
+          </c:ViewerPreview.Overlay>
+        </c:ViewerPreview>
 
-      <TextBlock Text="Pick a cutscene, music track or speech line." Classes="hint"
-                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                 IsVisible="{Binding IsEmpty}" />
+        <!-- Music / speech -->
+        <DockPanel IsVisible="{Binding IsAudio}">
+          <c:MediaTimeline x:Name="Timeline" DockPanel.Dock="Top" Height="128"
+                           Sound="{Binding Sound}" Position="{Binding SoundFrame}" />
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,10,0,10">
+            <TextBlock Text="Hook" VerticalAlignment="Center" />
+            <NumericUpDown Value="{Binding Hook}" Minimum="0" Maximum="255" Increment="1" FormatString="0" Width="120" />
+            <Button Content="Set hook" Command="{Binding SetHookCommand}"
+                    ToolTip.Tip="The next jump carrying this hook is taken (and the hook goes back to 0)" />
+            <Button Content="Leave loop" Command="{Binding ExitLoopCommand}"
+                    ToolTip.Tip="Hook 128: the next unhooked jump (a loop) falls through once" />
+            <TextBlock Text="{Binding HookText}" Classes="hint" VerticalAlignment="Center" Margin="8,0,0,0" />
+          </StackPanel>
+          <TextBlock DockPanel.Dock="Top" Text="Events (newest first)" Classes="hint" Margin="0,0,0,4" />
+          <Border BorderBrush="{DynamicResource DockBorderSubtleBrush}" BorderThickness="1" CornerRadius="3">
+            <ListBox ItemsSource="{Binding Events}" FontFamily="monospace" FontSize="12" Background="Transparent" />
+          </Border>
+        </DockPanel>
+
+        <TextBlock Text="Pick a cutscene, music track or speech line." Classes="hint"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   IsVisible="{Binding IsEmpty}" />
+      </Grid>
     </DockPanel>
 
     <!-- Transport -->

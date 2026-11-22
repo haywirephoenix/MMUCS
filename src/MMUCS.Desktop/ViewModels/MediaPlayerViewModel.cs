@@ -55,7 +55,10 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
 
     // Picture
     private SmushPlayer _video;
-    private Task _decoding = Task.CompletedTask;
+    // The cutscene's sound: the picture follows it as it is heard.
+    private PcmSource _videoSound;
+    private MixerVoice _videoVoice;
+    private bool _decodingBusy;
     private int _shownFrame = -1;
     private int _wantedFrame = -1;
     private byte[] _rgba;
@@ -202,18 +205,25 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         {
             if (item.Kind == MediaKind.Cutscene)
             {
-                var video = await Task.Run(() => MediaLibrary.LoadVideo(item));
+                var (video, sound) = await Task.Run(() =>
+                {
+                    var v = MediaLibrary.LoadVideo(item);
+                    return (v, MMUCS.Core.Smush.SmushAudio.Decode(v));
+                });
                 if (generation != _loadGeneration) return;
+                if (sound != null) _videoSound = new PcmSource(sound.Pcm, sound.SampleRate, sound.Channels);
                 _video = new SmushPlayer(video);
                 _rgba = new byte[video.Width * video.Height * 4];
                 Duration = _video.Duration.TotalSeconds;
                 IsVideo = true;
-                VideoInfo = $"{video.Width}×{video.Height} · {_video.FrameRate} fps · {_video.FrameCount} frames · picture only (sound not decoded yet)";
+                VideoInfo = $"{video.Width}×{video.Height} · {_video.FrameRate} fps · {_video.FrameCount} frames · " +
+                            (sound != null ? $"sound {sound.SampleRate:N0} Hz stereo, {sound.Duration.TotalSeconds:0.0} s" : "no sound");
                 FrameText = null;
                 _clock.Pause();
                 _clock.Seek(TimeSpan.Zero);
                 RequestFrame(0);
                 if (play) { _clock.Play(); IsPlaying = true; }
+                SetVideoSound(IsPlaying);
             }
             else
             {
@@ -248,6 +258,9 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         _voice = null;
         _player = null;
         _video = null;
+        _videoVoice?.Stop();
+        _videoVoice = null;
+        _videoSound = null;
         _shownFrame = _wantedFrame = -1;
         _clock.Pause();
         Sound = null;
@@ -269,9 +282,10 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         }
         else if (_video != null)
         {
-            if (!IsPlaying && _clock.Position >= _video.Duration) _clock.Seek(TimeSpan.Zero);
+            if (!IsPlaying && _clock.Position >= _video.Duration) { _clock.Seek(TimeSpan.Zero); _videoSound?.Seek(0); }
             IsPlaying = !IsPlaying;
             if (IsPlaying) _clock.Play(); else _clock.Pause();
+            SetVideoSound(IsPlaying);
         }
     }
 
@@ -289,6 +303,8 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         {
             _clock.Pause();
             _clock.Seek(TimeSpan.Zero);
+            _videoSound?.Seek(0);
+            SetVideoSound(false);
             RequestFrame(0);
         }
         IsPlaying = false;
@@ -332,6 +348,8 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         if (_video != null)
         {
             _clock.Seek(TimeSpan.FromSeconds(value));
+            _videoSound?.Seek((long)(value * _videoSound.SampleRate));
+            SetVideoSound(IsPlaying);
             RequestFrame(_video.FrameAt(TimeSpan.FromSeconds(value)));
         }
         else if (_player != null)
@@ -354,6 +372,13 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         }
         else if (_video != null)
         {
+            // While the sound plays, the clock follows it as heard (what's mixed reaches the speakers one
+            // latency later); once it ends, the clock runs on by itself to the last frame.
+            if (IsPlaying && _videoSound != null && !_videoSound.Ended)
+            {
+                double heard = _videoSound.Frame / (double)_videoSound.SampleRate - _engine.Output.Latency.TotalSeconds;
+                _clock.Seek(TimeSpan.FromSeconds(Math.Max(0, heard)));
+            }
             var t = _clock.Position;
             if (IsPlaying && t >= _video.Duration)
             {
@@ -367,6 +392,15 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Plays or pauses the cutscene's sound, adding it to the mixer again if it had played to its end.</summary>
+    private void SetVideoSound(bool playing)
+    {
+        if (_videoSound == null) return;
+        if (_videoVoice == null || (_videoVoice.Finished && !_videoSound.Ended))
+            _videoVoice = _engine.Mixer.Play(_videoSound, MixGroup.Video);
+        _videoVoice.Paused = !playing;
+    }
+
     /// <summary>Asks for a frame; the newest request wins.</summary>
     private void RequestFrame(int index)
     {
@@ -375,31 +409,43 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Decodes the wanted frame in the background, one decode at a time; a frame asked for meanwhile is
-    /// decoded when the current one finishes.
+    /// Decodes the wanted frame in the background, one decode at a time, and keeps going while a newer
+    /// frame is wanted (seeking or playing on meanwhile).
     /// </summary>
-    private void DecodeWanted()
+    private async void DecodeWanted()
     {
+        if (_decodingBusy) return;
         var video = _video;
-        int index = _wantedFrame;
-        if (video == null || index < 0 || index == _shownFrame || !_decoding.IsCompleted) return;
-        var rgba = _rgba;
-        _decoding = Task.Run(() =>
+        if (video == null) return;
+        _decodingBusy = true;
+        try
         {
-            video.ShowFrame(index);
-            video.CopyRgba(rgba);
-            var info = new SKImageInfo(video.Video.Width, video.Video.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            return SKImage.FromPixelCopy(info, rgba, video.Video.Width * 4);
-        }).ContinueWith(t =>
+            while (_video == video && _wantedFrame >= 0 && _wantedFrame != _shownFrame)
+            {
+                int index = _wantedFrame;
+                var rgba = _rgba;
+                var image = await Task.Run(() =>
+                {
+                    video.ShowFrame(index);
+                    video.CopyRgba(rgba);
+                    var info = new SKImageInfo(video.Video.Width, video.Video.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+                    return SKImage.FromPixelCopy(info, rgba, video.Video.Width * 4);
+                });
+                // Frames aren't disposed here: the render thread may still be drawing the previous one.
+                if (_video != video) return;
+                Frame = image;
+                _shownFrame = index;
+                FrameText = $"frame {video.CurrentIndex + 1} / {video.FrameCount}  ·  {Format(video.CurrentIndex / video.FrameRate)}";
+            }
+        }
+        catch (Exception ex)
         {
-            if (t.IsFaulted) { Log.Warn($"Media player: frame {index}: {t.Exception?.GetBaseException().Message}"); return; }
-            // Frames aren't disposed here: the render thread may still be drawing the previous one.
-            if (_video != video) return;
-            Frame = t.Result;
-            _shownFrame = index;
-            FrameText = $"frame {video.CurrentIndex + 1} / {video.FrameCount}  ·  {Format(video.CurrentIndex / video.FrameRate)}";
-            DecodeWanted();
-        }, TaskScheduler.FromCurrentSynchronizationContext());
+            Log.Warn($"Media player: frame {_wantedFrame}: {ex.Message}");
+        }
+        finally
+        {
+            _decodingBusy = false;
+        }
     }
 
     private void SetPosition(double seconds)
