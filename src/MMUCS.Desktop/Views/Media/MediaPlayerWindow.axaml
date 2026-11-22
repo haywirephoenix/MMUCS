@@ -1,0 +1,113 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MMUCS.Desktop.ViewModels"
+        xmlns:c="using:MMUCS.Desktop.Controls"
+        xmlns:media="using:MMUCS.Core.Media"
+        x:Class="MMUCS.Desktop.Views.Media.MediaPlayerWindow"
+        x:DataType="vm:MediaPlayerViewModel"
+        Title="Media player"
+        Icon="/Assets/mmucs.ico"
+        Width="1100" Height="720" MinWidth="720" MinHeight="460">
+
+  <Window.Styles>
+    <Style Selector="TextBlock.hint">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="Button.transport">
+      <Setter Property="MinWidth" Value="76" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+  </Window.Styles>
+
+  <Grid ColumnDefinitions="320,4,*" RowDefinitions="*,Auto">
+
+    <!-- Library -->
+    <DockPanel Grid.Row="0" Background="{DynamicResource ListBackgroundBrush}">
+      <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="8">
+        <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" HorizontalAlignment="Stretch" />
+        <TextBox Text="{Binding Filter}" Watermark="Filter (number, code or title)" />
+      </StackPanel>
+      <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" Background="Transparent">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="media:MediaItem">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Grid.Column="1" Text="{Binding DurationText}" Classes="hint" Margin="8,0,0,0" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+
+    <GridSplitter Grid.Column="1" ResizeDirection="Columns" Background="{DynamicResource DockSeparatorBrush}" />
+
+    <!-- Player -->
+    <DockPanel Grid.Column="2" Margin="10,8,10,4">
+      <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,8">
+        <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding Status}" Classes="hint" />
+      </StackPanel>
+
+      <!-- Cutscene: the viewers' shared preview panel (Controls/ViewerPreview.cs): title, Fit / 1:1, info, canvas.
+           The frame readout is an overlay, so its changing length never resizes the canvas (which would refit it). -->
+      <c:ViewerPreview IsVisible="{Binding IsVideo}" Title="{Binding Title}" Info="{Binding VideoInfo}"
+                       Viewport="{Binding #Video}">
+        <c:ViewerPreview.Tools>
+          <ToggleButton Content="Frame info" IsChecked="{Binding ShowFrameInfo}" Margin="0,0,8,0"
+                        ToolTip.Tip="Show the frame number and time over the picture" />
+        </c:ViewerPreview.Tools>
+
+        <Border Background="Black">
+          <c:VideoCanvas x:Name="Video" Image="{Binding Frame}" />
+        </Border>
+
+        <c:ViewerPreview.Overlay>
+          <Border IsVisible="{Binding ShowFrameInfo}"
+                  VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="8"
+                  Background="{DynamicResource OverlayBackgroundBrush}" CornerRadius="3">
+            <TextBlock Text="{Binding FrameText}" Classes="mono" FontSize="11" Margin="8,4"
+                       Foreground="{DynamicResource SubtleTextBrush}" />
+          </Border>
+        </c:ViewerPreview.Overlay>
+      </c:ViewerPreview>
+
+      <!-- Music / speech -->
+      <DockPanel IsVisible="{Binding IsAudio}">
+        <c:MediaTimeline x:Name="Timeline" DockPanel.Dock="Top" Height="128"
+                         Sound="{Binding Sound}" Position="{Binding SoundFrame}" />
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,10,0,10">
+          <TextBlock Text="Hook" VerticalAlignment="Center" />
+          <NumericUpDown Value="{Binding Hook}" Minimum="0" Maximum="255" Increment="1" FormatString="0" Width="120" />
+          <Button Content="Set hook" Command="{Binding SetHookCommand}"
+                  ToolTip.Tip="The next jump carrying this hook is taken (and the hook goes back to 0)" />
+          <Button Content="Leave loop" Command="{Binding ExitLoopCommand}"
+                  ToolTip.Tip="Hook 128: the next unhooked jump (a loop) falls through once" />
+          <TextBlock Text="{Binding HookText}" Classes="hint" VerticalAlignment="Center" Margin="8,0,0,0" />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Top" Text="Events (newest first)" Classes="hint" Margin="0,0,0,4" />
+        <Border BorderBrush="{DynamicResource DockBorderSubtleBrush}" BorderThickness="1" CornerRadius="3">
+          <ListBox ItemsSource="{Binding Events}" FontFamily="monospace" FontSize="12" Background="Transparent" />
+        </Border>
+      </DockPanel>
+
+      <TextBlock Text="Pick a cutscene, music track or speech line." Classes="hint"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 IsVisible="{Binding IsEmpty}" />
+    </DockPanel>
+
+    <!-- Transport -->
+    <Border Grid.Row="1" Grid.ColumnSpan="3" Background="{DynamicResource PanelHeaderBrush}" Padding="10,8">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,120">
+        <Button Classes="transport" Content="{Binding IsPlaying, Converter={x:Static vm:MediaPlayerViewModel.PlayPauseLabel}}"
+                Command="{Binding PlayPauseCommand}" HotKey="Space" />
+        <Button Grid.Column="1" Classes="transport" Content="Stop" Command="{Binding StopCommand}" Margin="6,0,10,0" />
+        <Slider Grid.Column="2" Minimum="0" Maximum="{Binding Duration}" Value="{Binding Position}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="3" Text="{Binding PositionText}" FontFamily="monospace" VerticalAlignment="Center" Margin="10,0" />
+        <TextBlock Grid.Column="4" Text="Volume" VerticalAlignment="Center" Margin="10,0,6,0" />
+        <Slider Grid.Column="5" Minimum="0" Maximum="1" Value="{Binding Volume}" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

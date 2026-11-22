@@ -209,6 +209,8 @@ public partial class MainWindow : Window
         PanelItem(MmucsDockFactory.BlocksId, "Blocks");
         PanelItem(MmucsDockFactory.MetadataId, "Metadata");
         PanelItem(MmucsDockFactory.HexId, "Hex");
+        window.Items.Add(new NativeMenuItemSeparator());
+        window.Items.Add(Item("Media player", new RelayCommand(ShowMediaPlayer), Shortcut(Key.M)));
         window.Opening += (_, _) => UpdatePanelItems();
 
         // Layout templates will join this menu later.
@@ -333,6 +335,17 @@ public partial class MainWindow : Window
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = title });
         return folders.FirstOrDefault()?.TryGetLocalPath();
+    }
+
+    private Views.Media.MediaPlayerWindow _mediaPlayer;
+
+    /// <summary>Opens the media player for the loaded game, or brings it forward when it's open.</summary>
+    private void ShowMediaPlayer()
+    {
+        if (_mediaPlayer != null) { _mediaPlayer.Activate(); return; }
+        _mediaPlayer = new Views.Media.MediaPlayerWindow { DataContext = new MediaPlayerViewModel(Vm.GameFile) };
+        _mediaPlayer.Closed += (_, _) => _mediaPlayer = null;
+        _mediaPlayer.Show(this);
     }
 
     private async Task ShowExportWizardAsync()
