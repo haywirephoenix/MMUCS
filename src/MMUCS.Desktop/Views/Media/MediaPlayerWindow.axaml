@@ -33,7 +33,7 @@
           <ComboBox Grid.Column="2" ItemsSource="{Binding Speakers}" SelectedItem="{Binding SelectedSpeaker}" HorizontalAlignment="Stretch"
                     ToolTip.Tip="A speech code's next two characters: the speaker (names from Names/voice.json)" />
         </Grid>
-        <TextBox Text="{Binding Filter}" Watermark="Filter (number, code, title or words spoken)" />
+        <TextBox Text="{Binding Filter}" PlaceholderText="Filter (number, code, title or words spoken)" />
       </StackPanel>
       <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" Background="Transparent">
         <ListBox.ItemTemplate>
