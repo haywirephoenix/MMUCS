@@ -45,6 +45,43 @@ public static class PngWriter
         WriteChunk(output, "IEND", ReadOnlySpan<byte>.Empty);
     }
 
+    /// <summary>
+    /// Writes an 8-bit indexed PNG: <paramref name="indices"/> is width × height palette indices and
+    /// <paramref name="paletteRgb"/> 256 RGB triplets. Keeps the original indices, so palette effects
+    /// can still be applied to the image later.
+    /// </summary>
+    public static void WriteIndexed(Stream output, int width, int height, ReadOnlySpan<byte> indices,
+        ReadOnlySpan<byte> paletteRgb, CompressionLevel level = CompressionLevel.Optimal)
+    {
+        output.Write(Signature);
+
+        Span<byte> ihdr = stackalloc byte[13];
+        BinaryPrimitives.WriteInt32BigEndian(ihdr, width);
+        BinaryPrimitives.WriteInt32BigEndian(ihdr[4..], height);
+        ihdr[8] = 8;  // bit depth
+        ihdr[9] = 3;  // colour type: indexed
+        ihdr[10] = 0;
+        ihdr[11] = 0;
+        ihdr[12] = 0;
+        WriteChunk(output, "IHDR", ihdr);
+        WriteChunk(output, "PLTE", paletteRgb[..Math.Min(paletteRgb.Length, 768)]);
+
+        using (var idat = new MemoryStream())
+        {
+            using (var z = new ZLibStream(idat, level, leaveOpen: true))
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    z.WriteByte(0);
+                    z.Write(indices.Slice(y * width, width));
+                }
+            }
+            WriteChunk(output, "IDAT", idat.GetBuffer().AsSpan(0, (int)idat.Length));
+        }
+
+        WriteChunk(output, "IEND", ReadOnlySpan<byte>.Empty);
+    }
+
     private static void WriteChunk(Stream s, string type, ReadOnlySpan<byte> data)
     {
         Span<byte> len = stackalloc byte[4];
