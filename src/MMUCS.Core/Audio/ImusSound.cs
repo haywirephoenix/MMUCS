@@ -29,6 +29,10 @@ public sealed class ImusSound
     public readonly record struct Marker(long Offset, string Text);
     public readonly record struct Sync(long Offset, uint[] Data);
 
+    public enum EventKind { Region, Jump, Marker, Sync, Stop }
+    /// <summary>A map event in map order: its kind, position, and index into that kind's list (<see cref="Regions"/>, …).</summary>
+    public readonly record struct Event(EventKind Kind, long Offset, int Index);
+
     public int Bits { get; private set; } = 16;
     public int SampleRate { get; private set; } = 22050;
     public int Channels { get; private set; } = 1;
@@ -42,6 +46,8 @@ public sealed class ImusSound
     public List<Sync> Syncs { get; } = new();
     /// <summary>MAP events this parser doesn't know, by tag.</summary>
     public List<string> UnknownEvents { get; } = new();
+    /// <summary>Every region, jump, marker, sync and stop in map order: the order playback handles events that share a position.</summary>
+    public List<Event> Events { get; } = new();
 
     public byte[] Bytes { get; }
     public ReadOnlySpan<byte> Samples => Bytes.AsSpan(DataOffset, DataLength);
@@ -101,21 +107,26 @@ public sealed class ImusSound
             var b = map.Slice(pos + 8, size);
 
             if (tag == FRMT) { Bits = (int)Field(b, 8); SampleRate = (int)Field(b, 12); Channels = (int)Field(b, 16); }
-            else if (tag == REGN) Regions.Add(new Region(Field(b, 0), Field(b, 4)));
-            else if (tag == JUMP) Jumps.Add(new Jump(Field(b, 0), Field(b, 4), (int)Field(b, 8), (int)Field(b, 12)));
-            else if (tag == STOP) Stop = Field(b, 0);
+            else if (tag == REGN) { Events.Add(new Event(EventKind.Region, Field(b, 0), Regions.Count)); Regions.Add(new Region(Field(b, 0), Field(b, 4))); }
+            else if (tag == JUMP) { Events.Add(new Event(EventKind.Jump, Field(b, 0), Jumps.Count)); Jumps.Add(new Jump(Field(b, 0), Field(b, 4), (int)Field(b, 8), (int)Field(b, 12))); }
+            else if (tag == STOP) { Stop = Field(b, 0); Events.Add(new Event(EventKind.Stop, Field(b, 0), 0)); }
             else if (tag == TEXT)
             {
                 var chars = b.Length > 4 ? b[4..] : ReadOnlySpan<byte>.Empty;
                 int end = chars.IndexOf((byte)0);
                 string text = Encoding.Latin1.GetString(end < 0 ? chars : chars[..end]);
                 // The last marker of some tracks is padding: no text, at an offset past the file.
-                if (text.Length > 0 || Field(b, 0) <= Bytes.Length) Markers.Add(new Marker(Field(b, 0), text));
+                if (text.Length > 0 || Field(b, 0) <= Bytes.Length)
+                {
+                    Events.Add(new Event(EventKind.Marker, Field(b, 0), Markers.Count));
+                    Markers.Add(new Marker(Field(b, 0), text));
+                }
             }
             else if (tag == SYNC)
             {
                 var data = new uint[Math.Max(0, (b.Length - 4) / 4)];
                 for (int i = 0; i < data.Length; i++) data[i] = Field(b, 4 + i * 4);
+                Events.Add(new Event(EventKind.Sync, Field(b, 0), Syncs.Count));
                 Syncs.Add(new Sync(Field(b, 0), data));
             }
             else UnknownEvents.Add(Encoding.ASCII.GetString(map.Slice(pos, 4)));
