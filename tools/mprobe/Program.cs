@@ -6,10 +6,11 @@ using MMUCS.Core.Scumm;
 const string Usage = """
 usage: mprobe [--game FILE] COMMAND ...
 
-  export OUT [--scripts] [--data] [--images] [--offsets]
+  export OUT [--scripts] [--data] [--images] [--offsets] [--cutscenes]
                        Export like File > Export into OUT. With no option: scripts and room data
                        (what tools/mscripts and tools/mroom read). --images adds backgrounds,
-                       object frames and costume cels.
+                       object frames and costume cels; --cutscenes the SMUSH frames (as the cutscenes
+                       command).
   zplanes ROOM OUT     Write the room's background with each z-plane tinted, one PNG per plane
                        (roomN_planeK.png): plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan.
   masked ROOM OUT [--debug] [--only C,C…] [--start]
@@ -25,6 +26,11 @@ usage: mprobe [--game FILE] COMMAND ...
                        The walkboxes at a point: each box holding it or near it, with its flags and mask,
                        and the box the engine puts an actor there in (and where it moves it), as an actor
                        that follows the boxes. --player for the player's actor (player-only boxes).
+
+  cutscenes OUT [NAME…]
+                       Decode the SMUSH cutscenes (.san beside the game or in its resource folder) into
+                       OUT/video/NAME/: one indexed PNG per distinct picture under frame/, and video.json
+                       mapping every frame to the picture it shows. NAME picks videos (opening, finale…).
 
 The game is the first resource file (COMI.LA0); the others beside it are loaded too. It comes from
 --game, else the MMUCS_GAME environment variable.
@@ -55,6 +61,7 @@ try
         "zplanes" => await DrawZPlanes(argv),
         "masked" => await DrawMasked(argv),
         "box" => ShowBox(argv),
+        "cutscenes" => await ExportCutscenes(argv),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }
@@ -67,15 +74,39 @@ async Task<int> Export(List<string> a)
 {
     string outDir = Positional(a, 1, "OUT");
     bool scripts = a.Contains("--scripts"), data = a.Contains("--data"), images = a.Contains("--images");
-    if (!scripts && !data && !images) scripts = data = true;
+    bool cutscenes = a.Contains("--cutscenes");
+    if (!scripts && !data && !images && !cutscenes) scripts = data = true;
     var options = new ExportOptions
     {
         Backgrounds = images, Objects = images, Costumes = images,
         Scripts = scripts, ScriptOffsets = a.Contains("--offsets"), RoomData = data,
+        Cutscenes = cutscenes, GameFile = game,
     };
     var summary = await new ScummExporters().ExportProjectAsync(root, outDir, options);
     Console.WriteLine($"{summary.FilesWritten} files written, {summary.Failures} failed, {summary.Elapsed.TotalSeconds:0.0} s → {outDir}");
     return summary.Failures > 0 ? 1 : 0;
+}
+
+async Task<int> ExportCutscenes(List<string> a)
+{
+    string outDir = Positional(a, 1, "OUT");
+    var wanted = a.Where(x => !x.StartsWith("--")).Skip(2).Select(n => n.ToLowerInvariant()).ToHashSet();
+    var files = MMUCS.Core.Smush.SmushVideo.FindAll(game)
+        .Where(f => wanted.Count == 0 || wanted.Contains(Path.GetFileNameWithoutExtension(f).ToLowerInvariant()))
+        .ToList();
+    if (files.Count == 0) throw new UsageException(wanted.Count == 0 ? "no .san files beside the game or in its resource folder" : "no cutscene by that name");
+
+    MMUCS.Core.Diagnostics.Log.Message += (_, m) => Console.Error.WriteLine("  " + m);
+    int problems = 0;
+    foreach (var file in files)
+    {
+        var s = await MMUCS.Core.Smush.SmushExporter.ExportAsync(file, outDir);
+        problems += s.Problems;
+        Console.WriteLine($"{s.Name,-10} {s.Frames,5} frames  {s.ImagesWritten,5} images  {s.Problems} problems  {s.Elapsed.TotalSeconds,5:0.0} s  " +
+            $"unread: {s.FramesWithUnreadBytes} frames (max {s.MaxUnreadBytes} B)  outside copies: {s.OutsideCopies}");
+    }
+    Console.WriteLine($"→ {Path.Combine(outDir, "video")}");
+    return problems > 0 ? 1 : 0;
 }
 
 async Task<int> DrawZPlanes(List<string> a)
