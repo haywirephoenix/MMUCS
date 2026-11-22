@@ -1,3 +1,4 @@
+using MMUCS.Core;
 using MMUCS.Core.Imaging;
 using MMUCS.Core.Scumm;
 
@@ -6,11 +7,11 @@ using MMUCS.Core.Scumm;
 const string Usage = """
 usage: mprobe [--game FILE] COMMAND ...
 
-  export OUT [--scripts] [--data] [--images] [--offsets] [--cutscenes]
+  export OUT [--scripts] [--data] [--images] [--offsets] [--cutscenes] [--audio]
                        Export like File > Export into OUT. With no option: scripts and room data
                        (what tools/mscripts and tools/mroom read). --images adds backgrounds,
                        object frames and costume cels; --cutscenes the SMUSH frames (as the cutscenes
-                       command).
+                       command); --audio the music and speech (as the audio command).
   zplanes ROOM OUT     Write the room's background with each z-plane tinted, one PNG per plane
                        (roomN_planeK.png): plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan.
   masked ROOM OUT [--debug] [--only C,C…] [--start]
@@ -27,6 +28,11 @@ usage: mprobe [--game FILE] COMMAND ...
                        and the box the engine puts an actor there in (and where it moves it), as an actor
                        that follows the boxes. --player for the player's actor (player-only boxes).
 
+  audio OUT [music|voice] [--check]
+                       Decode the Digital iMUSE bundles (.bun) into OUT/music/NNNN.wav and OUT/voice/CODE.wav,
+                       each with a .meta.json (format, title, regions, jumps, markers, lip sync, in sample
+                       frames). Sounds on both discs are written once. --check decodes and checks everything
+                       without writing.
   cutscenes OUT [NAME…]
                        Decode the SMUSH cutscenes (.san beside the game or in its resource folder) into
                        OUT/video/NAME/: one indexed PNG per distinct picture under frame/, and video.json
@@ -62,6 +68,7 @@ try
         "masked" => await DrawMasked(argv),
         "box" => ShowBox(argv),
         "cutscenes" => await ExportCutscenes(argv),
+        "audio" => await ExportAudio(argv),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }
@@ -74,17 +81,42 @@ async Task<int> Export(List<string> a)
 {
     string outDir = Positional(a, 1, "OUT");
     bool scripts = a.Contains("--scripts"), data = a.Contains("--data"), images = a.Contains("--images");
-    bool cutscenes = a.Contains("--cutscenes");
-    if (!scripts && !data && !images && !cutscenes) scripts = data = true;
+    bool cutscenes = a.Contains("--cutscenes"), audio = a.Contains("--audio");
+    if (!scripts && !data && !images && !cutscenes && !audio) scripts = data = true;
     var options = new ExportOptions
     {
         Backgrounds = images, Objects = images, Costumes = images,
         Scripts = scripts, ScriptOffsets = a.Contains("--offsets"), RoomData = data,
-        Cutscenes = cutscenes, GameFile = game,
+        Cutscenes = cutscenes, Audio = audio, GameFile = game,
     };
     var summary = await new ScummExporters().ExportProjectAsync(root, outDir, options);
     Console.WriteLine($"{summary.FilesWritten} files written, {summary.Failures} failed, {summary.Elapsed.TotalSeconds:0.0} s → {outDir}");
     return summary.Failures > 0 ? 1 : 0;
+}
+
+async Task<int> ExportAudio(List<string> a)
+{
+    string outDir = Positional(a, 1, "OUT");
+    bool check = a.Contains("--check");
+    var kinds = a.Where(x => !x.StartsWith("--")).Skip(2).Select(k => k.ToLowerInvariant()).ToHashSet();
+    var bundles = GameFiles.Find(game, ".bun")
+        .Where(b => kinds.Count == 0 || kinds.Contains(MMUCS.Core.Audio.AudioExporter.KindOf(b)))
+        .ToList();
+    if (bundles.Count == 0) throw new UsageException("no .bun bundles beside the game or in its resource folder");
+
+    MMUCS.Core.Diagnostics.Log.Message += (_, m) => Console.Error.WriteLine("  " + m);
+    var seen = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
+    int bad = 0;
+    foreach (var file in bundles)
+    {
+        var s = await MMUCS.Core.Audio.AudioExporter.ExportBundleAsync(file, outDir, seen, write: !check);
+        bad += s.Failures + s.MapProblems + s.Conflicts;
+        Console.WriteLine($"{s.Bundle,-13} {s.Entries,5} entries  {s.Written,5} {(check ? "decoded" : "written")}  {s.Duplicates,4} on an earlier disc  " +
+            $"{s.Skipped} skipped  {s.Failures} failed  {s.PcmBytes / 1048576.0,7:0.0} MB PCM  {s.Elapsed.TotalSeconds,5:0.0} s  " +
+            $"checks: over-read max {s.MaxOverRead} B, map problems {s.MapProblems}, disc conflicts {s.Conflicts}");
+    }
+    if (!check) Console.WriteLine($"→ {outDir}");
+    return bad > 0 ? 1 : 0;
 }
 
 async Task<int> ExportCutscenes(List<string> a)
