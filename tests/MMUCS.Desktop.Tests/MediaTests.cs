@@ -82,6 +82,19 @@ public class MediaTests
         Assert.Equal("Credits1", credits.Title);
         Assert.Equal(7682624 / 22050.0, credits.Duration.TotalSeconds, 2);
     }
+
+    [Fact]
+    public void Scanning_a_kind_at_a_time_gives_the_whole_library_in_its_order()
+    {
+        if (Game == null) return;
+        var whole = MediaLibrary.Scan(Game);
+        foreach (var kind in new[] { MediaKind.Cutscene, MediaKind.Music, MediaKind.Voice })
+        {
+            var one = MediaLibrary.Scan(Game, kind);
+            Assert.All(one, i => Assert.Equal(kind, i.Kind));
+            Assert.Equal(whole.Where(i => i.Kind == kind).Select(i => i.Id), one.Select(i => i.Id));
+        }
+    }
 }
 
 public class CutsceneOrderTests

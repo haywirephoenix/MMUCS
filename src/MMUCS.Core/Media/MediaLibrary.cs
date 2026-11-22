@@ -46,15 +46,39 @@ public sealed record MediaItem(MediaKind Kind, string Id, string Title, TimeSpan
 /// <summary>
 /// Everything playable in a game's loose files: the .san cutscenes and the sounds in the .bun bundles
 /// (sounds on both discs listed once). Scanning reads each cutscene's header and each sound's first
-/// block only, so it takes well under a second.
+/// block only, so it takes well under a second; a kind can be scanned on its own.
 /// </summary>
 public static class MediaLibrary
 {
     /// <param name="root">The loaded project, when there is one: speech then gets its text and scenes from the scripts.</param>
     public static IReadOnlyList<MediaItem> Scan(string gameFile, ScummBlock root = null, CancellationToken token = default)
     {
-        var items = new ConcurrentBag<MediaItem>();
+        return [.. Scan(gameFile, MediaKind.Cutscene, root, token), .. Scan(gameFile, MediaKind.Music, root, token), .. Scan(gameFile, MediaKind.Voice, root, token)];
+    }
 
+    /// <summary>
+    /// One kind of media, so a list can show what it needs first: cutscenes read only their headers (a few
+    /// milliseconds), music its two bundles, speech its thousands of lines and their text from the scripts.
+    /// </summary>
+    /// <param name="root">The loaded project, when there is one: speech then gets its text and scenes from the scripts.</param>
+    public static IReadOnlyList<MediaItem> Scan(string gameFile, MediaKind kind, ScummBlock root = null, CancellationToken token = default)
+    {
+        var list = kind == MediaKind.Cutscene ? ScanCutscenes(gameFile) : ScanBundles(gameFile, kind, token);
+        if (kind == MediaKind.Voice) Describe(list, root);
+
+        // Cutscenes in the order they play (Names/cutscenes.json), any it doesn't list after them; sounds by ID.
+        // Speech by scene, speaker and line number (so 999 comes before 1017).
+        return [.. list
+            .OrderBy(i => i.Kind == MediaKind.Cutscene && CutsceneOrder.TryGet(i.Id, out int order, out _) ? order : int.MaxValue)
+            .ThenBy(i => i.Scene ?? "", StringComparer.Ordinal)
+            .ThenBy(i => i.Speaker ?? "", StringComparer.Ordinal)
+            .ThenBy(i => i.Number)
+            .ThenBy(i => i.Id, StringComparer.Ordinal)];
+    }
+
+    private static List<MediaItem> ScanCutscenes(string gameFile)
+    {
+        var items = new List<MediaItem>();
         foreach (var san in SmushVideo.FindAll(gameFile))
         {
             try
@@ -70,13 +94,19 @@ public static class MediaLibrary
             }
             catch (Exception ex) { Log.Warn($"Media library: {Path.GetFileName(san)}: {ex.Message}"); }
         }
+        return items;
+    }
 
+    /// <summary>The music or speech sounds in the bundles, each listed once though it may be on both discs.</summary>
+    private static List<MediaItem> ScanBundles(string gameFile, MediaKind mediaKind, CancellationToken token)
+    {
+        var items = new ConcurrentBag<MediaItem>();
         var seen = new ConcurrentDictionary<string, bool>();
         foreach (var bun in GameFiles.Find(gameFile, ".bun"))
         {
             token.ThrowIfCancellationRequested();
             string kind = AudioExporter.KindOf(bun);
-            var mediaKind = kind == "music" ? MediaKind.Music : MediaKind.Voice;
+            if ((kind == "music" ? MediaKind.Music : MediaKind.Voice) != mediaKind) continue;
             using var bundle = Bundle.Open(bun);
             Parallel.ForEach(bundle.Entries, new ParallelOptions { CancellationToken = token }, e =>
             {
@@ -101,19 +131,7 @@ public static class MediaLibrary
                 catch (Exception ex) { Log.Warn($"Media library: {Path.GetFileName(bun)} {e.Name}: {ex.Message}"); }
             });
         }
-
-        var list = items.ToList();
-        Describe(list, root);
-
-        // Cutscenes in the order they play (Names/cutscenes.json), any it doesn't list after them; sounds by ID.
-        // Speech by scene, speaker and line number (so 999 comes before 1017).
-        return [.. list
-            .OrderBy(i => i.Kind)
-            .ThenBy(i => i.Kind == MediaKind.Cutscene && CutsceneOrder.TryGet(i.Id, out int order, out _) ? order : int.MaxValue)
-            .ThenBy(i => i.Scene ?? "", StringComparer.Ordinal)
-            .ThenBy(i => i.Speaker ?? "", StringComparer.Ordinal)
-            .ThenBy(i => i.Number)
-            .ThenBy(i => i.Id, StringComparer.Ordinal)];
+        return [.. items];
     }
 
     /// <summary>
