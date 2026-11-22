@@ -120,7 +120,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         _engine = new MediaEngine();
         _engine.Mixer.MasterVolume = (float)Volume;
         _clock = new MediaClock(_engine.Output);
-        _selectedCategory = Categories[1];
+        _selectedCategory = Categories[0];
         Status = gameFile == null ? "Open the game (COMI.LA0) first: the media player lists its cutscenes and bundles." : "Scanning…";
         if (gameFile != null)
         {

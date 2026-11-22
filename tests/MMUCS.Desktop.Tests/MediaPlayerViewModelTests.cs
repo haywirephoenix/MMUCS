@@ -29,7 +29,13 @@ public class MediaPlayerViewModelTests
             try
             {
                 await ui.Until(() => vm.Items.Count > 0, "the library to load");
-                Assert.Equal(129, vm.Items.Count); // Music is the first category shown
+                Assert.Equal(MediaKind.Cutscene, vm.SelectedCategory.Kind); // Cutscenes are the first category shown
+                Assert.Equal(15, vm.Items.Count);
+
+                // Music.
+                vm.SelectedCategory = vm.Categories.Single(c => c.Kind == MediaKind.Music);
+                await ui.Until(() => vm.Items.Count > 0, "the music to load");
+                Assert.Equal(129, vm.Items.Count);
 
                 // Music: plays, raises events, and takes a hooked jump when its hook is set.
                 vm.SelectedItem = vm.Items.Single(i => i.Id == "music/1200");
