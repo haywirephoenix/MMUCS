@@ -343,7 +343,7 @@ public partial class MainWindow : Window
     private void ShowMediaPlayer()
     {
         if (_mediaPlayer != null) { _mediaPlayer.Activate(); return; }
-        _mediaPlayer = new Views.Media.MediaPlayerWindow { DataContext = new MediaPlayerViewModel(Vm.GameFile) };
+        _mediaPlayer = new Views.Media.MediaPlayerWindow { DataContext = new MediaPlayerViewModel(Vm.GameFile, Vm.RootBlock) };
         _mediaPlayer.Closed += (_, _) => _mediaPlayer = null;
         _mediaPlayer.Show(this);
     }

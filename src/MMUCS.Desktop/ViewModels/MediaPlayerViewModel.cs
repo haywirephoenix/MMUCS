@@ -32,9 +32,16 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         public override string ToString() => Title;
     }
 
+    /// <summary>A Speech filter choice: a scene or speaker code (null for all) and what the list shows.</summary>
+    public sealed record CodeFilter(string Code, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
     private const int MaxEvents = 300;
 
     private readonly string _gameFile;
+    private readonly MMUCS.Core.Scumm.ScummBlock _root;
     private readonly MediaEngine _engine;
     private readonly MediaClock _clock;
     private IReadOnlyList<MediaItem> _all = Array.Empty<MediaItem>();
@@ -55,7 +62,13 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
 
     private bool _updatingPosition;
 
-    [ObservableProperty] private Category _selectedCategory;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsSpeech))] private Category _selectedCategory;
+    [ObservableProperty] private IReadOnlyList<CodeFilter> _scenes = Array.Empty<CodeFilter>();
+    [ObservableProperty] private CodeFilter _selectedScene;
+    [ObservableProperty] private IReadOnlyList<CodeFilter> _speakers = Array.Empty<CodeFilter>();
+    [ObservableProperty] private CodeFilter _selectedSpeaker;
+    /// <summary>The library list, replaced as a whole when the filter changes (speech has thousands of lines).</summary>
+    [ObservableProperty] private IReadOnlyList<MediaItem> _items = Array.Empty<MediaItem>();
     [ObservableProperty] private string _filter = "";
     [ObservableProperty] private MediaItem _selectedItem;
     [ObservableProperty] private string _title = "Nothing loaded";
@@ -86,19 +99,21 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         new Category(MediaKind.Voice, "Speech"),
     };
 
-    public ObservableCollection<MediaItem> Items { get; } = new();
     public ObservableCollection<string> Events { get; } = new();
 
     public string OutputName => _engine.Output.Name;
     public bool IsEmpty => !IsVideo && !IsAudio;
+    public bool IsSpeech => SelectedCategory?.Kind == MediaKind.Voice;
 
     public static readonly Avalonia.Data.Converters.IValueConverter PlayPauseLabel =
         new Avalonia.Data.Converters.FuncValueConverter<bool, string>(playing => playing ? "Pause" : "Play");
     public bool HasGame => _gameFile != null;
 
-    public MediaPlayerViewModel(string gameFile)
+    /// <param name="root">The loaded project: speech gets its text, scenes and speakers from its scripts.</param>
+    public MediaPlayerViewModel(string gameFile, MMUCS.Core.Scumm.ScummBlock root = null)
     {
         _gameFile = gameFile;
+        _root = root;
         _engine = new MediaEngine();
         _engine.Mixer.MasterVolume = (float)Volume;
         _clock = new MediaClock(_engine.Output);
@@ -112,7 +127,8 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         IsLoading = true;
         try
         {
-            _all = await Task.Run(() => MediaLibrary.Scan(_gameFile));
+            _all = await Task.Run(() => MediaLibrary.Scan(_gameFile, _root));
+            BuildScenes();
             Status = $"{_all.Count(i => i.Kind == MediaKind.Cutscene)} cutscenes · {_all.Count(i => i.Kind == MediaKind.Music)} music tracks · " +
                      $"{_all.Count(i => i.Kind == MediaKind.Voice):N0} speech lines · {OutputName}";
             ApplyFilter();
@@ -126,17 +142,48 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedCategoryChanged(Category value) => ApplyFilter();
     partial void OnFilterChanged(string value) => ApplyFilter();
+    partial void OnSelectedSceneChanged(CodeFilter value) { BuildSpeakers(); ApplyFilter(); }
+    partial void OnSelectedSpeakerChanged(CodeFilter value) => ApplyFilter();
+
+    private IEnumerable<MediaItem> Speech => _all.Where(i => i.Kind == MediaKind.Voice);
+
+    /// <summary>Speech scenes with their line counts, biggest first after "All".</summary>
+    private void BuildScenes()
+    {
+        var scenes = Speech.GroupBy(i => i.Scene)
+            .Select(g => new CodeFilter(g.Key, $"{g.Key} · {g.First().SceneName ?? "?"}  ({g.Count():N0})"))
+            .OrderBy(f => f.Code, StringComparer.Ordinal);
+        Scenes = new[] { new CodeFilter(null, $"All scenes  ({Speech.Count():N0})") }.Concat(scenes).ToList();
+        SelectedScene = Scenes[0];
+    }
+
+    /// <summary>The speakers in the chosen scene, most lines first; keeps the speaker chosen when it's there.</summary>
+    private void BuildSpeakers()
+    {
+        string keep = SelectedSpeaker?.Code;
+        var lines = Speech.Where(i => SelectedScene?.Code == null || i.Scene == SelectedScene.Code).ToList();
+        var speakers = lines.GroupBy(i => i.Speaker)
+            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => new CodeFilter(g.Key, $"{g.Key}{(g.First().SpeakerName is { } n ? " · " + n : "")}  ({g.Count():N0})"));
+        Speakers = new[] { new CodeFilter(null, $"All speakers  ({lines.Count:N0})") }.Concat(speakers).ToList();
+        SelectedSpeaker = Speakers.FirstOrDefault(s => s.Code == keep) ?? Speakers[0];
+    }
     partial void OnVolumeChanged(double value) => _engine.Mixer.MasterVolume = (float)Math.Clamp(value, 0, 1);
 
     private void ApplyFilter()
     {
         var kind = SelectedCategory?.Kind ?? MediaKind.Music;
         string f = Filter?.Trim() ?? "";
+        string scene = kind == MediaKind.Voice ? SelectedScene?.Code : null;
+        string speaker = kind == MediaKind.Voice ? SelectedSpeaker?.Code : null;
         var keep = SelectedItem;
-        Items.Clear();
-        foreach (var i in _all)
-            if (i.Kind == kind && (f.Length == 0 || i.Label.Contains(f, StringComparison.OrdinalIgnoreCase)))
-                Items.Add(i);
+        Items = _all.Where(i => i.Kind == kind
+                && (scene == null || i.Scene == scene)
+                && (speaker == null || i.Speaker == speaker)
+                && (f.Length == 0 || i.Label.Contains(f, StringComparison.OrdinalIgnoreCase)
+                    || (i.SceneName?.Contains(f, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (i.SpeakerName?.Contains(f, StringComparison.OrdinalIgnoreCase) ?? false)))
+            .ToList();
         if (keep != null && Items.Contains(keep)) SelectedItem = keep;
     }
 

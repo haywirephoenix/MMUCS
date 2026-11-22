@@ -27,12 +27,18 @@
     <DockPanel Grid.Row="0" Background="{DynamicResource ListBackgroundBrush}">
       <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="8">
         <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" HorizontalAlignment="Stretch" />
-        <TextBox Text="{Binding Filter}" Watermark="Filter (number, code or title)" />
+        <Grid ColumnDefinitions="*,6,*" IsVisible="{Binding IsSpeech}">
+          <ComboBox ItemsSource="{Binding Scenes}" SelectedItem="{Binding SelectedScene}" HorizontalAlignment="Stretch"
+                    ToolTip.Tip="A speech code's first two characters: the scene, named after the room most of its lines are spoken in" />
+          <ComboBox Grid.Column="2" ItemsSource="{Binding Speakers}" SelectedItem="{Binding SelectedSpeaker}" HorizontalAlignment="Stretch"
+                    ToolTip.Tip="A speech code's next two characters: the speaker (names from Names/voice.json)" />
+        </Grid>
+        <TextBox Text="{Binding Filter}" Watermark="Filter (number, code, title or words spoken)" />
       </StackPanel>
       <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" Background="Transparent">
         <ListBox.ItemTemplate>
           <DataTemplate DataType="media:MediaItem">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto" Background="Transparent" ToolTip.Tip="{Binding Detail}">
               <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
               <TextBlock Grid.Column="1" Text="{Binding DurationText}" Classes="hint" Margin="8,0,0,0" />
             </Grid>
