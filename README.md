@@ -58,7 +58,7 @@ The **[wiki](https://github.com/haywirephoenix/MMUCS/wiki)** covers everything:
 
 Self-contained builds for Windows, Linux and macOS. The legacy Godot build is on the `godot` branch.
 
-To build it yourself, you need the .NET 8 SDK or newer:
+To build it yourself, you need the .NET 10 SDK or newer (Avalonia 12's source generators require Roslyn 4.14):
 
 ```bash
 dotnet run --project src/MMUCS.Desktop -c Release -- "path/to/COMI.LA1"

@@ -23,7 +23,7 @@ permissions:
   contents: write
 
 env:
-  DOTNET_VERSION: 8.0.x
+  DOTNET_VERSION: 10.0.x
   PROJECT: src/MMUCS.Desktop/MMUCS.Desktop.csproj
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
