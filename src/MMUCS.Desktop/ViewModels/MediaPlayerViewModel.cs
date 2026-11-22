@@ -42,8 +42,10 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
 
     private readonly string _gameFile;
     private readonly MMUCS.Core.Scumm.ScummBlock _root;
-    private readonly MediaEngine _engine;
-    private readonly MediaClock _clock;
+    // Opened off the UI thread (finding the sound device takes a moment), so both are null until it's ready.
+    private MediaEngine _engine;
+    private MediaClock _clock;
+    private readonly Task _engineReady = Task.CompletedTask;
     private bool _disposed;
     // Each kind as its scan finishes: the category shown first, the rest after it.
     private readonly Dictionary<MediaKind, IReadOnlyList<MediaItem>> _library = [];
@@ -107,7 +109,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<string> Events { get; } = [];
 
-    public string OutputName => _engine.Output.Name;
+    public string OutputName => _engine?.Output.Name;
     public bool IsEmpty => !IsVideo && !IsAudio;
     public bool IsSpeech => SelectedCategory?.Kind == MediaKind.Voice;
 
@@ -120,10 +122,8 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     {
         _gameFile = gameFile;
         _root = root;
-        _engine = new MediaEngine();
-        _engine.Mixer.MasterVolume = (float)Volume;
-        _clock = new MediaClock(_engine.Output);
         _selectedCategory = Categories[0];
+        _engineReady = StartEngineAsync();
         if (gameFile == null)
         {
             Status = "Open the game (COMI.LA0) first: the media player lists its cutscenes and bundles.";
@@ -132,6 +132,22 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         {
             _ = ScanAsync();
         }
+    }
+
+    /// <summary>Opens the sound output on a worker thread; playback waits for it, the window doesn't.</summary>
+    private async Task StartEngineAsync()
+    {
+        var engine = await Task.Run(() => new MediaEngine());
+        if (_disposed)
+        {
+            engine.Dispose();
+            return;
+        }
+        _engine = engine;
+        _engine.Mixer.MasterVolume = (float)Math.Clamp(Volume, 0, 1);
+        _clock = new MediaClock(_engine.Output);
+        OnPropertyChanged(nameof(OutputName));
+        UpdateStatus();
     }
 
     /// <summary>
@@ -194,7 +210,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
             else pending.Add(name);
         }
         if (pending.Count > 0) parts.Add($"scanning {string.Join(" and ", pending)}…");
-        parts.Add(OutputName);
+        if (OutputName != null) parts.Add(OutputName);
         Status = string.Join(" · ", parts);
     }
 
@@ -234,7 +250,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         Speakers = [new CodeFilter(null, $"All speakers  ({lines.Count:N0})"), .. speakers];
         SelectedSpeaker = Speakers.FirstOrDefault(s => s.Code == keep) ?? Speakers[0];
     }
-    partial void OnVolumeChanged(double value) => _engine.Mixer.MasterVolume = (float)Math.Clamp(value, 0, 1);
+    partial void OnVolumeChanged(double value) => _engine?.Mixer.MasterVolume = (float)Math.Clamp(value, 0, 1);
 
     private void ApplyFilter()
     {
@@ -267,6 +283,12 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         IsLoading = true;
         try
         {
+            await _engineReady;
+            if (generation != _loadGeneration || _engine == null)
+            {
+                return;
+            }
+
             if (item.Kind == MediaKind.Cutscene)
             {
                 var (video, sound) = await Task.Run(() =>
@@ -341,7 +363,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         _videoVoice = null;
         _videoSound = null;
         _shownFrame = _wantedFrame = -1;
-        _clock.Pause();
+        _clock?.Pause();
         Sound = null;
         Frame = null;
         IsAudio = IsVideo = IsPlaying = false;
@@ -623,6 +645,6 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         _disposed = true;
         _loadGeneration++;
         Unload();
-        _engine.Dispose();
+        _engine?.Dispose(); // still opening: StartEngineAsync disposes it when it's ready
     }
 }
