@@ -86,8 +86,11 @@ jobs:
       - name: Publish
         shell: bash
         run: |
+          # ReadyToRun: compiled ahead of time, so startup and first-opened windows don't wait on the JIT
+          # (about twice as fast to start, for ~20 MB more download).
           dotnet publish "$PROJECT" -c Release -r ${{ matrix.rid }} --self-contained true \
             -p:PublishSingleFile=true \
+            -p:PublishReadyToRun=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
             -p:DebugType=none \
             -o publish
