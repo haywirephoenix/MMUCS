@@ -100,6 +100,17 @@ public class CutsceneOrderTests
     }
 }
 
+/// <summary>
+/// Tests that load the game's resource files. The parser keeps its room tables in shared static state
+/// (ScummStatics), so two loads must not run at once.
+/// </summary>
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class GameProjectCollection
+{
+    public const string Name = "Loads the game project";
+}
+
+[Collection(GameProjectCollection.Name)]
 public class VoiceLineTests
 {
     private static string Game => Environment.GetEnvironmentVariable("MMUCS_GAME") is { } g && File.Exists(g) ? g : null;
@@ -141,5 +152,42 @@ public class VoiceLineTests
             Assert.Equal(numbers.OrderBy(n => n), numbers);
         }
         Assert.Equal(speech.Select(i => i.Scene).Distinct().OrderBy(s => s, StringComparer.Ordinal), speech.Select(i => i.Scene).Distinct());
+    }
+}
+
+public class CutsceneAudioTests
+{
+    private static string Game => Environment.GetEnvironmentVariable("MMUCS_GAME") is { } g && File.Exists(g) ? g : null;
+
+    [Fact]
+    public void Every_cutscene_sound_parses_exactly_and_lasts_as_long_as_its_picture()
+    {
+        if (Game == null) return;
+        foreach (var file in MMUCS.Core.Smush.SmushVideo.FindAll(Game))
+        {
+            var video = MMUCS.Core.Smush.SmushVideo.Load(file);
+            var sound = MMUCS.Core.Smush.SmushAudio.Decode(video);
+            Assert.NotNull(sound);
+            Assert.Equal(0, sound.LeftoverBytes);
+            Assert.Equal(sound.Packets * 1024L, sound.FrameCount);
+            double picture = video.Frames.Count / (double)video.Header.FrameRate;
+            Assert.InRange(sound.Duration.TotalSeconds - picture, -1.0, 1.0);
+        }
+    }
+
+    [Fact]
+    public void A_pcm_source_reads_on_from_where_it_was_sought()
+    {
+        var pcm = new byte[400]; // 100 stereo frames, 16-bit
+        for (int i = 0; i < 200; i++) BitConverter.TryWriteBytes(pcm.AsSpan(i * 2), (short)(i * 100));
+        var src = new PcmSource(pcm, 22050, 2);
+        src.Seek(50);
+        var buf = new float[20];
+        Assert.Equal(10, src.Read(buf));
+        Assert.Equal(100 * 100 / 32768f, buf[0], 5);
+        Assert.Equal(60, src.Frame);
+        src.Seek(95);
+        Assert.Equal(5, src.Read(buf));
+        Assert.True(src.Ended);
     }
 }
