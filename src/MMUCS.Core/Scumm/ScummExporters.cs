@@ -25,7 +25,9 @@ public sealed class ExportOptions
     public bool RoomData { get; set; }
     /// <summary>SMUSH cutscene frames under video/ (see <see cref="Smush.SmushExporter"/>). Needs <see cref="GameFile"/>.</summary>
     public bool Cutscenes { get; set; }
-    /// <summary>The project's first resource file (COMI.LA0); cutscenes are found beside it or in its resource folder.</summary>
+    /// <summary>Music and speech from the .bun bundles under music/ and voice/ (see <see cref="Audio.AudioExporter"/>). Needs <see cref="GameFile"/>.</summary>
+    public bool Audio { get; set; }
+    /// <summary>The project's first resource file (COMI.LA0); cutscenes and bundles are found beside it or in its resource folder.</summary>
     public string GameFile { get; set; }
 
     /// <summary>Write one background per room palette instead of only the default palette.</summary>
@@ -77,6 +79,12 @@ public class ScummExporters
             + (options.Scripts ? scripts[j].Count : 0)
             + (options.RoomData ? 1 : 0));
         var cutscenes = options.Cutscenes ? Smush.SmushVideo.FindAll(options.GameFile) : Array.Empty<string>();
+        var bundles = options.Audio ? GameFiles.Find(options.GameFile, ".bun") : Array.Empty<string>();
+        foreach (var bun in bundles)
+        {
+            try { using var b = Audio.Bundle.Open(bun); total += b.Entries.Count; }
+            catch (Exception ex) { Log.Warn($"Bundle {Path.GetFileName(bun)}: {ex.Message}"); }
+        }
         foreach (var san in cutscenes)
         {
             try { total += Smush.SmushVideo.ReadHeader(san).FrameCount; }
@@ -198,6 +206,28 @@ public class ScummExporters
                 {
                     failures++;
                     Log.Warn($"Cutscene export failed for {name}: {ex.Message}");
+                }
+            }
+            var seenSounds = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
+            foreach (var bun in bundles)
+            {
+                token.ThrowIfCancellationRequested();
+                string name = Path.GetFileName(bun);
+                int startDone = done;
+                try
+                {
+                    var s = await Audio.AudioExporter.ExportBundleAsync(bun, outputFolder, seenSounds, true, n =>
+                    {
+                        done = startDone + n;
+                        if (n % 50 == 0) Report($"{name}: {n} sounds");
+                    }, token);
+                    written += s.Written * 2;
+                    failures += s.Failures;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    failures++;
+                    Log.Warn($"Audio export failed for {name}: {ex.Message}");
                 }
             }
             Report("Done");

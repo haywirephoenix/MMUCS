@@ -55,6 +55,7 @@ public sealed class AppSettings
     public bool ExportScriptOffsets { get; set; }
     public bool ExportRoomData { get; set; }
     public bool ExportCutscenes { get; set; }
+    public bool ExportAudio { get; set; }
     public bool CelAlphaEnabled { get; set; } = true;
     public bool CelShadowColorEnabled { get; set; } = true;
     public double CelShadowAmount { get; set; } = 0.4;

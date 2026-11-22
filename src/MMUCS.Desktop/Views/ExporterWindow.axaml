@@ -62,8 +62,10 @@
         <CheckBox Content="Room data (objects, walkboxes, costumes as JSON)" IsChecked="{Binding ExportRoomData}" />
         <CheckBox Content="Cutscenes (every distinct SMUSH frame, as indexed PNG)" IsChecked="{Binding ExportCutscenes}"
                   IsEnabled="{Binding HasCutscenes}" />
+        <CheckBox Content="Music and speech (every bundle sound, as WAV)" IsChecked="{Binding ExportAudio}"
+                  IsEnabled="{Binding HasAudio}" />
         <TextBlock Classes="hint" Margin="0,12,0,0"
-                   Text="Images are written as PNG under rooms/&lt;number_name&gt;/ with objects/ and costumes/ subfolders. Scripts are written as .scumm files under scripts/global/ and scripts/rooms/&lt;number_name&gt;/, using the variable names MMUCS knows. Room data is written as JSON under data/, for tools/mroom. Cutscenes go under video/&lt;name&gt;/: frame/NNNN.png plus video.json, which maps every frame to the picture it shows." />
+                   Text="Images are written as PNG under rooms/&lt;number_name&gt;/ with objects/ and costumes/ subfolders. Scripts are written as .scumm files under scripts/global/ and scripts/rooms/&lt;number_name&gt;/, using the variable names MMUCS knows. Room data is written as JSON under data/, for tools/mroom. Cutscenes go under video/&lt;name&gt;/: frame/NNNN.png plus video.json, which maps every frame to the picture it shows. Music and speech go under music/NNNN.wav and voice/CODE.wav, each with a .meta.json giving its regions, loops, markers and lip sync." />
       </StackPanel>
 
       <!-- 2. Costume shading -->

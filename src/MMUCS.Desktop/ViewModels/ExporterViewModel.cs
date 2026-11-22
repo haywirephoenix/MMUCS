@@ -45,6 +45,7 @@ public sealed partial class ExporterViewModel : ObservableObject
     [ObservableProperty] private bool _scriptOffsets;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportRoomData;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportCutscenes;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportAudio;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private string _outputFolder;
 
     [ObservableProperty] private CostumeChoice _selectedCostume;
@@ -84,6 +85,8 @@ public sealed partial class ExporterViewModel : ObservableObject
         _exportRoomData = settings.ExportRoomData;
         CutsceneCount = MMUCS.Core.Smush.SmushVideo.FindAll(gameFile).Count;
         _exportCutscenes = settings.ExportCutscenes && CutsceneCount > 0;
+        BundleCount = MMUCS.Core.GameFiles.Find(gameFile, ".bun").Count;
+        _exportAudio = settings.ExportAudio && BundleCount > 0;
         _outputFolder = settings.LastExportFolder;
 
         Preview.AlphaEnabled = settings.CelAlphaEnabled;
@@ -92,7 +95,7 @@ public sealed partial class ExporterViewModel : ObservableObject
         Preview.LinearFilter = settings.CelLinearFilter;
 
         var (rooms, objects, costumes, scripts) = ScummExporters.Survey(root);
-        SurveyText = $"{rooms} rooms · {objects} objects · {costumes} costumes · {scripts:N0} scripts · {CutsceneCount} cutscenes in the loaded project";
+        SurveyText = $"{rooms} rooms · {objects} objects · {costumes} costumes · {scripts:N0} scripts · {CutsceneCount} cutscenes · {BundleCount} audio bundles in the loaded project";
 
         foreach (var lflf in root.FindChildrenRecursive(ScummTag.LFLF))
         {
@@ -106,6 +109,9 @@ public sealed partial class ExporterViewModel : ObservableObject
     /// <summary>The .san cutscenes found beside the game or in its resource folder.</summary>
     public int CutsceneCount { get; }
     public bool HasCutscenes => CutsceneCount > 0;
+    /// <summary>The .bun music and speech bundles found beside the game or in its resource folder.</summary>
+    public int BundleCount { get; }
+    public bool HasAudio => BundleCount > 0;
 
     public bool IsStart => Step == ExportStep.Start;
     public bool IsCustomize => Step == ExportStep.Customize;
@@ -119,7 +125,7 @@ public sealed partial class ExporterViewModel : ObservableObject
 
     public bool CanGoNext => Step switch
     {
-        ExportStep.Start => ExportBackgrounds || ExportObjects || ExportCostumes || ExportScripts || ExportRoomData || ExportCutscenes,
+        ExportStep.Start => ExportBackgrounds || ExportObjects || ExportCostumes || ExportScripts || ExportRoomData || ExportCutscenes || ExportAudio,
         ExportStep.Customize => true,
         ExportStep.Path => !string.IsNullOrWhiteSpace(OutputFolder),
         _ => false,
@@ -199,6 +205,7 @@ public sealed partial class ExporterViewModel : ObservableObject
             ScriptOffsets = ScriptOffsets,
             RoomData = ExportRoomData,
             Cutscenes = ExportCutscenes,
+            Audio = ExportAudio,
             GameFile = _gameFile,
             CelConfig = new CelExportConfig
             {
@@ -239,6 +246,7 @@ public sealed partial class ExporterViewModel : ObservableObject
         _settings.ExportScriptOffsets = ScriptOffsets;
         _settings.ExportRoomData = ExportRoomData;
         _settings.ExportCutscenes = ExportCutscenes;
+        _settings.ExportAudio = ExportAudio;
         _settings.LastExportFolder = OutputFolder;
         _settings.CelAlphaEnabled = Preview.AlphaEnabled;
         _settings.CelShadowColorEnabled = Preview.ShadowColorEnabled;
