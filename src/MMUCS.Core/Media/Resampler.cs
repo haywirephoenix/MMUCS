@@ -74,7 +74,8 @@ public sealed class Resampler
     {
         if (_inPos >= _inFrames)
         {
-            if (_in.Length == 0) _in = new float[1024 * _channels];
+            // Small reads, so a source's own position (which a picture may follow) stays close to what is mixed.
+            if (_in.Length == 0) _in = new float[256 * _channels];
             _inFrames = _source.Read(_in);
             _inPos = 0;
             if (_inFrames <= 0) { l = r = 0; _ended = true; return false; }
