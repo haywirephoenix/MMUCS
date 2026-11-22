@@ -338,7 +338,7 @@ public partial class MainWindow : Window
     private async Task ShowExportWizardAsync()
     {
         if (Vm.RootBlock == null) return;
-        var window = new ExporterWindow { DataContext = new ExporterViewModel(Vm.RootBlock, Vm.Settings) };
+        var window = new ExporterWindow { DataContext = new ExporterViewModel(Vm.RootBlock, Vm.GameFile, Vm.Settings) };
         await window.ShowDialog(this);
     }
 

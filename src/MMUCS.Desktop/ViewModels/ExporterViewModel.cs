@@ -32,6 +32,7 @@ public sealed partial class StepItem(ExportStep step, string title) : Observable
 public sealed partial class ExporterViewModel : ObservableObject
 {
     private readonly ScummBlock _root;
+    private readonly string _gameFile;
     private readonly AppSettings _settings;
     private CancellationTokenSource _cts;
 
@@ -43,6 +44,7 @@ public sealed partial class ExporterViewModel : ObservableObject
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportScripts;
     [ObservableProperty] private bool _scriptOffsets;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportRoomData;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private bool _exportCutscenes;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanGoNext))] private string _outputFolder;
 
     [ObservableProperty] private CostumeChoice _selectedCostume;
@@ -67,9 +69,10 @@ public sealed partial class ExporterViewModel : ObservableObject
     public AkosViewModel Preview { get; } = new();
     public ObservableCollection<CostumeChoice> Costumes { get; } = new();
 
-    public ExporterViewModel(ScummBlock root, AppSettings settings)
+    public ExporterViewModel(ScummBlock root, string gameFile, AppSettings settings)
     {
         _root = root;
+        _gameFile = gameFile;
         _settings = settings;
 
         _exportBackgrounds = settings.ExportBackgrounds;
@@ -79,6 +82,8 @@ public sealed partial class ExporterViewModel : ObservableObject
         _exportScripts = settings.ExportScripts;
         _scriptOffsets = settings.ExportScriptOffsets;
         _exportRoomData = settings.ExportRoomData;
+        CutsceneCount = MMUCS.Core.Smush.SmushVideo.FindAll(gameFile).Count;
+        _exportCutscenes = settings.ExportCutscenes && CutsceneCount > 0;
         _outputFolder = settings.LastExportFolder;
 
         Preview.AlphaEnabled = settings.CelAlphaEnabled;
@@ -87,7 +92,7 @@ public sealed partial class ExporterViewModel : ObservableObject
         Preview.LinearFilter = settings.CelLinearFilter;
 
         var (rooms, objects, costumes, scripts) = ScummExporters.Survey(root);
-        SurveyText = $"{rooms} rooms · {objects} objects · {costumes} costumes · {scripts:N0} scripts in the loaded project";
+        SurveyText = $"{rooms} rooms · {objects} objects · {costumes} costumes · {scripts:N0} scripts · {CutsceneCount} cutscenes in the loaded project";
 
         foreach (var lflf in root.FindChildrenRecursive(ScummTag.LFLF))
         {
@@ -97,6 +102,10 @@ public sealed partial class ExporterViewModel : ObservableObject
                 Costumes.Add(new CostumeChoice(akos, $"{roomLabel}  —  AKOS @0x{akos.Offset:X8}"));
         }
     }
+
+    /// <summary>The .san cutscenes found beside the game or in its resource folder.</summary>
+    public int CutsceneCount { get; }
+    public bool HasCutscenes => CutsceneCount > 0;
 
     public bool IsStart => Step == ExportStep.Start;
     public bool IsCustomize => Step == ExportStep.Customize;
@@ -110,7 +119,7 @@ public sealed partial class ExporterViewModel : ObservableObject
 
     public bool CanGoNext => Step switch
     {
-        ExportStep.Start => ExportBackgrounds || ExportObjects || ExportCostumes || ExportScripts || ExportRoomData,
+        ExportStep.Start => ExportBackgrounds || ExportObjects || ExportCostumes || ExportScripts || ExportRoomData || ExportCutscenes,
         ExportStep.Customize => true,
         ExportStep.Path => !string.IsNullOrWhiteSpace(OutputFolder),
         _ => false,
@@ -189,6 +198,8 @@ public sealed partial class ExporterViewModel : ObservableObject
             Scripts = ExportScripts,
             ScriptOffsets = ScriptOffsets,
             RoomData = ExportRoomData,
+            Cutscenes = ExportCutscenes,
+            GameFile = _gameFile,
             CelConfig = new CelExportConfig
             {
                 AlphaEnabled = Preview.AlphaEnabled,
@@ -227,6 +238,7 @@ public sealed partial class ExporterViewModel : ObservableObject
         _settings.ExportScripts = ExportScripts;
         _settings.ExportScriptOffsets = ScriptOffsets;
         _settings.ExportRoomData = ExportRoomData;
+        _settings.ExportCutscenes = ExportCutscenes;
         _settings.LastExportFolder = OutputFolder;
         _settings.CelAlphaEnabled = Preview.AlphaEnabled;
         _settings.CelShadowColorEnabled = Preview.ShadowColorEnabled;

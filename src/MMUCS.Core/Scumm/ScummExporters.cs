@@ -23,6 +23,10 @@ public sealed class ExportOptions
     public bool ScriptOffsets { get; set; }
     /// <summary>Room data as JSON under data/ (objects, walkboxes, costumes), for tools/mroom.</summary>
     public bool RoomData { get; set; }
+    /// <summary>SMUSH cutscene frames under video/ (see <see cref="Smush.SmushExporter"/>). Needs <see cref="GameFile"/>.</summary>
+    public bool Cutscenes { get; set; }
+    /// <summary>The project's first resource file (COMI.LA0); cutscenes are found beside it or in its resource folder.</summary>
+    public string GameFile { get; set; }
 
     /// <summary>Write one background per room palette instead of only the default palette.</summary>
     public bool AllBackgroundPalettes { get; set; }
@@ -72,6 +76,12 @@ public class ScummExporters
             + (options.Costumes ? j.Costumes.Count : 0)
             + (options.Scripts ? scripts[j].Count : 0)
             + (options.RoomData ? 1 : 0));
+        var cutscenes = options.Cutscenes ? Smush.SmushVideo.FindAll(options.GameFile) : Array.Empty<string>();
+        foreach (var san in cutscenes)
+        {
+            try { total += Smush.SmushVideo.ReadHeader(san).FrameCount; }
+            catch (Exception ex) { Log.Warn($"Cutscene {Path.GetFileName(san)}: {ex.Message}"); }
+        }
         string dataDir = Path.Combine(outputFolder, "data");
         Dictionary<int, RoomDataExport.GameObject> objectTable = null;
         var seenData = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -168,6 +178,27 @@ public class ScummExporters
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "variables.index.json"), VariableNames.IndexJson());
                 written++;
+            }
+            foreach (var san in cutscenes)
+            {
+                token.ThrowIfCancellationRequested();
+                string name = Path.GetFileNameWithoutExtension(san).ToLowerInvariant();
+                int startDone = done;
+                try
+                {
+                    var s = await Smush.SmushExporter.ExportAsync(san, outputFolder, i =>
+                    {
+                        done = startDone + i + 1;
+                        if (i % 25 == 0) Report($"cutscene {name}: frame {i}");
+                    }, token);
+                    written += s.ImagesWritten + 1;
+                    if (s.Problems > 0) Log.Warn($"Cutscene {name}: {s.Problems} frames had problems (see above)");
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    failures++;
+                    Log.Warn($"Cutscene export failed for {name}: {ex.Message}");
+                }
             }
             Report("Done");
             return new ExportSummary(written, failures, sw.Elapsed, false, outputFolder);

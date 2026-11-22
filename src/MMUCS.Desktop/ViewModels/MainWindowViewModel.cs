@@ -48,6 +48,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     /// <summary>Root of the loaded project (virtual root when several files are loaded), or null.</summary>
     public ScummBlock RootBlock => _rootBlock;
+    /// <summary>The loaded project's first resource file (COMI.LA0): where its cutscenes are found from.</summary>
+    public string GameFile { get; private set; }
     public bool HasProject => _rootBlock != null;
     private DispatcherTimer _filterDebounce;
 
@@ -315,6 +317,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             });
 
             _rootBlock = root;
+            GameFile = files.Count > 0 ? Path.GetFullPath(files[0]) : null;
             _selectionKey = files.Count > 0 ? Path.GetFullPath(files[0]).ToLowerInvariant() : null;
             OnPropertyChanged(nameof(HasProject));
             SelectedNode = null;
