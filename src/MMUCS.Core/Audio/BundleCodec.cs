@@ -20,6 +20,32 @@ public static class BundleCodec
 
     public static byte[] Decompress(ReadOnlySpan<byte> entry) => Decompress(entry, out _);
 
+    /// <summary>
+    /// Decompresses only the first block (the iMUS header and map, then the first samples), and gives the
+    /// size the whole sound decompresses to: enough to list a sound's title and length cheaply.
+    /// </summary>
+    public static byte[] DecompressFirstBlock(ReadOnlySpan<byte> entry, out long fullLength)
+    {
+        uint tag = entry.Length >= 4 ? BinaryPrimitives.ReadUInt32BigEndian(entry) : 0;
+        if (tag == IMUS) { fullLength = entry.Length; return entry[..Math.Min(entry.Length, BlockSize)].ToArray(); }
+        if (tag != COMP || entry.Length < 32) throw new NotSupportedException("bundle entry is not COMP or iMUS");
+        int blocks = (int)BinaryPrimitives.ReadUInt32BigEndian(entry[4..]);
+        int lastSize = (int)BinaryPrimitives.ReadUInt32BigEndian(entry[12..]);
+        if (lastSize <= 0 || lastSize > BlockSize) lastSize = BlockSize;
+        fullLength = (long)(blocks - 1) * BlockSize + lastSize;
+
+        var row = entry.Slice(16, 16);
+        int offset = (int)BinaryPrimitives.ReadUInt32BigEndian(row);
+        int size = (int)BinaryPrimitives.ReadUInt32BigEndian(row[4..]);
+        int codec = (int)BinaryPrimitives.ReadUInt32BigEndian(row[8..]);
+        var block = new byte[BlockSize];
+        var input = entry.Slice(offset, Math.Min(size, entry.Length - offset));
+        if (codec is 13 or 15) ImcAdpcm.DecodeBlock(input, codec == 13 ? 1 : 2, block);
+        else if (codec == 0) input[..Math.Min(input.Length, BlockSize)].CopyTo(block);
+        else throw new NotSupportedException($"bundle block codec {codec}");
+        return blocks == 1 ? block.AsSpan(0, lastSize).ToArray() : block;
+    }
+
     public static byte[] Decompress(ReadOnlySpan<byte> entry, out Stats stats)
     {
         stats = default;
