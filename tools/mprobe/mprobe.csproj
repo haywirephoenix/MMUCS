@@ -9,5 +9,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\MMUCS.Core\MMUCS.Core.csproj" />
+    <ProjectReference Include="..\..\src\MMUCS.Media.OpenAL\MMUCS.Media.OpenAL.csproj" />
   </ItemGroup>
 </Project>

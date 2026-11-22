@@ -1,3 +1,4 @@
+using MMUCS.Core.Media;
 using MMUCS.Core;
 using MMUCS.Core.Imaging;
 using MMUCS.Core.Scumm;
@@ -38,6 +39,10 @@ usage: mprobe [--game FILE] COMMAND ...
                        offline, into a 16-bit stereo WAV: regions, loops, crossfades and markers as the game
                        plays them, each listed as it happens. --hook sets the track's hook at a time (128
                        leaves a loop). Defaults: 600 s at most, 44100 Hz (22050 reproduces the samples exactly).
+  listen ID [--seconds N] [--rate HZ] [--hook HOOK@SECONDS …] [--device NAME]
+                       As play, but out loud through OpenAL Soft (the default sound device). Hooks follow
+                       the played clock. Reports the latency, underruns and how the played clock kept
+                       time with the wall clock.
   cutscenes OUT [NAME…]
                        Decode the SMUSH cutscenes (.san beside the game or in its resource folder) into
                        OUT/video/NAME/: one indexed PNG per distinct picture under frame/, and video.json
@@ -75,6 +80,7 @@ try
         "cutscenes" => await ExportCutscenes(argv),
         "audio" => await ExportAudio(argv),
         "play" => Play(argv),
+        "listen" => Listen(argv),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }
@@ -100,7 +106,7 @@ async Task<int> Export(List<string> a)
     return summary.Failures > 0 ? 1 : 0;
 }
 
-int Play(List<string> a)
+static List<(double At, int Hook)> TakeHooks(List<string> a)
 {
     var hooks = new List<(double At, int Hook)>();
     for (string h; (h = TakeOption(a, "--hook")) != null;)
@@ -110,6 +116,63 @@ int Play(List<string> a)
             throw new UsageException("--hook is HOOK@SECONDS, e.g. 128@300");
         hooks.Add((at, hook));
     }
+    hooks.Sort();
+    return hooks;
+}
+
+int Listen(List<string> a)
+{
+    var hooks = TakeHooks(a);
+    double seconds = double.TryParse(TakeOption(a, "--seconds"), System.Globalization.CultureInfo.InvariantCulture, out var sec) ? sec : 600;
+    int rate = int.TryParse(TakeOption(a, "--rate"), out var r) ? r : 44100;
+    string deviceName = TakeOption(a, "--device");
+    string id = Positional(a, 1, "ID (music/1098, voice/bccb301)");
+
+    var sound = FindSound(id) ?? throw new UsageException($"no sound {id} in the bundles");
+    var player = new MMUCS.Core.Media.ImusPlayer(sound);
+    var mixer = new MMUCS.Core.Media.Mixer(rate);
+    using var output = new MMUCS.Media.OpenAL.OpenALOutput(mixer, deviceName);
+    Console.WriteLine($"{id}: {sound.Title ?? "(no title)"} → {output.Name}, {rate} Hz, latency {output.Latency.TotalMilliseconds:0} ms");
+    // Events happen as the mixer reads ahead; they're heard one latency later.
+    player.EventRaised += e => Console.WriteLine(
+        $"  mixed {mixer.Time.TotalSeconds,8:0.000} s  {e.Kind,-11} frame {e.Frame,9}" +
+        (e.Kind is MMUCS.Core.Media.ImusEvent.EventKind.Jump or MMUCS.Core.Media.ImusEvent.EventKind.JumpSkipped ? $" → {e.ToFrame} (hook {e.Hook})" : "") +
+        (e.Text != null ? $"  \"{e.Text}\"" : ""));
+    var voice = mixer.Play(player, MMUCS.Core.Media.MixGroup.Music);
+
+    // Starting fills the device queue, so hooks for the very start must be set before it.
+    int nextHook = 0;
+    for (; nextHook < hooks.Count && hooks[nextHook].At <= 0; nextHook++)
+    {
+        player.Hook = hooks[nextHook].Hook;
+        Console.WriteLine($"  before start  hook set to {hooks[nextHook].Hook}");
+    }
+    var clock = System.Diagnostics.Stopwatch.StartNew();
+    output.Start();
+    double maxDrift = 0;
+    while (output.PlayedTime().TotalSeconds < seconds && !voice.Finished)
+    {
+        double played = output.PlayedTime().TotalSeconds;
+        if (played > 0.5) maxDrift = Math.Max(maxDrift, Math.Abs(clock.Elapsed.TotalSeconds - played));
+        while (nextHook < hooks.Count && played >= hooks[nextHook].At)
+        {
+            player.Hook = hooks[nextHook].Hook;
+            Console.WriteLine($"  heard {played,8:0.000} s  hook set to {hooks[nextHook].Hook}");
+            nextHook++;
+        }
+        Thread.Sleep(10);
+    }
+    // Let what is queued play out before stopping.
+    Thread.Sleep(output.Latency + TimeSpan.FromMilliseconds(50));
+    output.Stop();
+    Console.WriteLine($"played {output.PlayedTime().TotalSeconds:0.000} s in {clock.Elapsed.TotalSeconds:0.000} s of wall time, " +
+                      $"played clock vs wall clock at most {maxDrift * 1000:0} ms apart, {output.Underruns} underruns, {mixer.ClippedSamples} clipped samples");
+    return output.Underruns > 0 ? 1 : 0;
+}
+
+int Play(List<string> a)
+{
+    var hooks = TakeHooks(a);
     double seconds = double.TryParse(TakeOption(a, "--seconds"), System.Globalization.CultureInfo.InvariantCulture, out var sec) ? sec : 600;
     int rate = int.TryParse(TakeOption(a, "--rate"), out var r) ? r : 44100;
     string id = Positional(a, 1, "ID (music/1098, voice/bccb301)");
@@ -129,7 +192,6 @@ int Play(List<string> a)
     var buf = new float[block * 2];
     using var pcm = new MemoryStream();
     long limit = (long)(seconds * rate);
-    hooks.Sort();
     int nextHook = 0;
     while (mixer.Position < limit && !voice.Finished)
     {
