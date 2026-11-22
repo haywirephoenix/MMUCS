@@ -44,7 +44,10 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     private readonly MMUCS.Core.Scumm.ScummBlock _root;
     private readonly MediaEngine _engine;
     private readonly MediaClock _clock;
-    private IReadOnlyList<MediaItem> _all = [];
+    private bool _disposed;
+    // Each kind as its scan finishes: the category shown first, the rest after it.
+    private readonly Dictionary<MediaKind, IReadOnlyList<MediaItem>> _library = [];
+    private string _scanError;
     private int _loadGeneration;
 
     // Sound
@@ -121,37 +124,94 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         _engine.Mixer.MasterVolume = (float)Volume;
         _clock = new MediaClock(_engine.Output);
         _selectedCategory = Categories[0];
-        Status = gameFile == null ? "Open the game (COMI.LA0) first: the media player lists its cutscenes and bundles." : "Scanning…";
-        if (gameFile != null)
+        if (gameFile == null)
+        {
+            Status = "Open the game (COMI.LA0) first: the media player lists its cutscenes and bundles.";
+        }
+        else
         {
             _ = ScanAsync();
         }
     }
 
+    /// <summary>
+    /// Scans the library a kind at a time, the category being shown first (switching category while it
+    /// scans moves that one up), so the list fills as soon as its own kind is read: cutscenes take a few
+    /// milliseconds, speech (thousands of lines) the longest.
+    /// </summary>
     private async Task ScanAsync()
     {
         IsLoading = true;
+        UpdateStatus();
         try
         {
-            _all = await Task.Run(() => MediaLibrary.Scan(_gameFile, _root));
-            BuildScenes();
-            Status = $"{_all.Count(i => i.Kind == MediaKind.Cutscene)} cutscenes · {_all.Count(i => i.Kind == MediaKind.Music)} music tracks · " +
-                     $"{_all.Count(i => i.Kind == MediaKind.Voice):N0} speech lines · {OutputName}";
-            ApplyFilter();
+            while (!_disposed && NextToScan() is { } kind)
+            {
+                var items = await Task.Run(() => MediaLibrary.Scan(_gameFile, kind, _root));
+                if (_disposed) return;
+                _library[kind] = items;
+                if (kind == MediaKind.Voice) BuildScenes();
+                if (SelectedCategory?.Kind == kind) ApplyFilter();
+                UpdateStatus();
+            }
         }
         catch (Exception ex)
         {
-            Status = $"Couldn't read the game's media: {ex.Message}";
+            _scanError = ex.Message;
+            UpdateStatus();
         }
         finally { IsLoading = false; }
     }
 
+    /// <summary>The category being shown when it hasn't been scanned yet, else the first one still to scan.</summary>
+    private MediaKind? NextToScan()
+    {
+        if (SelectedCategory is { } shown && !_library.ContainsKey(shown.Kind)) return shown.Kind;
+        return Categories.Select(c => (MediaKind?)c.Kind).FirstOrDefault(k => !_library.ContainsKey(k.Value));
+    }
+
+    private IReadOnlyList<MediaItem> Library(MediaKind kind) => _library.GetValueOrDefault(kind) ?? [];
+
+    /// <summary>What the library holds ("15 cutscenes · 129 music tracks · scanning speech…") and the output.</summary>
+    private void UpdateStatus()
+    {
+        if (_gameFile == null) return;
+        if (_scanError != null)
+        {
+            Status = $"Couldn't read the game's media: {_scanError}";
+            return;
+        }
+        var parts = new List<string>();
+        var pending = new List<string>();
+        foreach (var (kind, count, name) in new[]
+                 {
+                     (MediaKind.Cutscene, "{0} cutscenes", "cutscenes"),
+                     (MediaKind.Music, "{0} music tracks", "music"),
+                     (MediaKind.Voice, "{0:N0} speech lines", "speech"),
+                 })
+        {
+            if (_library.TryGetValue(kind, out var items)) parts.Add(string.Format(count, items.Count));
+            else pending.Add(name);
+        }
+        if (pending.Count > 0) parts.Add($"scanning {string.Join(" and ", pending)}…");
+        parts.Add(OutputName);
+        Status = string.Join(" · ", parts);
+    }
+
     partial void OnSelectedCategoryChanged(Category value) => ApplyFilter();
     partial void OnFilterChanged(string value) => ApplyFilter();
-    partial void OnSelectedSceneChanged(CodeFilter value) { BuildSpeakers(); ApplyFilter(); }
-    partial void OnSelectedSpeakerChanged(CodeFilter value) => ApplyFilter();
+    // The speech filters only change the list while speech is shown (speech's scan sets them up meanwhile).
+    partial void OnSelectedSceneChanged(CodeFilter value)
+    {
+        BuildSpeakers();
+        if (IsSpeech) ApplyFilter();
+    }
+    partial void OnSelectedSpeakerChanged(CodeFilter value)
+    {
+        if (IsSpeech) ApplyFilter();
+    }
 
-    private IEnumerable<MediaItem> Speech => _all.Where(i => i.Kind == MediaKind.Voice);
+    private IReadOnlyList<MediaItem> Speech => Library(MediaKind.Voice);
 
     /// <summary>Speech scenes with their line counts, biggest first after "All".</summary>
     private void BuildScenes()
@@ -159,7 +219,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         var scenes = Speech.GroupBy(i => i.Scene)
             .Select(g => new CodeFilter(g.Key, $"{g.Key} · {g.First().SceneName ?? "?"}  ({g.Count():N0})"))
             .OrderBy(f => f.Code, StringComparer.Ordinal);
-        Scenes = [new CodeFilter(null, $"All scenes  ({Speech.Count():N0})"), .. scenes];
+        Scenes = [new CodeFilter(null, $"All scenes  ({Speech.Count:N0})"), .. scenes];
         SelectedScene = Scenes[0];
     }
 
@@ -183,8 +243,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         string scene = kind == MediaKind.Voice ? SelectedScene?.Code : null;
         string speaker = kind == MediaKind.Voice ? SelectedSpeaker?.Code : null;
         var keep = SelectedItem;
-        Items = [.. _all.Where(i => i.Kind == kind
-                && (scene == null || i.Scene == scene)
+        Items = [.. Library(kind).Where(i => (scene == null || i.Scene == scene)
                 && (speaker == null || i.Speaker == speaker)
                 && (f.Length == 0 || i.Label.Contains(f, StringComparison.OrdinalIgnoreCase)
                     || (i.SceneName?.Contains(f, StringComparison.OrdinalIgnoreCase) ?? false)
@@ -561,6 +620,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         _loadGeneration++;
         Unload();
         _engine.Dispose();

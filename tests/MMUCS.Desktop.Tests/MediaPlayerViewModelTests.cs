@@ -32,7 +32,7 @@ public class MediaPlayerViewModelTests
                 Assert.Equal(MediaKind.Cutscene, vm.SelectedCategory.Kind); // Cutscenes are the first category shown
                 Assert.Equal(15, vm.Items.Count);
 
-                // Music.
+                // Each kind is listed once its own scan finishes.
                 vm.SelectedCategory = vm.Categories.Single(c => c.Kind == MediaKind.Music);
                 await ui.Until(() => vm.Items.Count > 0, "the music to load");
                 Assert.Equal(129, vm.Items.Count);
@@ -90,6 +90,7 @@ public class MediaPlayerViewModelTests
                 await ui.Until(() => vm.Items.Count > 0, "the library to load");
                 vm.SelectedCategory = vm.Categories.Single(c => c.Kind == MediaKind.Voice);
                 Assert.True(vm.IsSpeech);
+                await ui.Until(() => vm.Items.Count > 0, "the speech to load");
                 Assert.Equal(8076, vm.Items.Count);
                 Assert.StartsWith("All scenes", vm.Scenes[0].Label);
 
