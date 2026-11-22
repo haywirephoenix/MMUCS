@@ -33,6 +33,11 @@ usage: mprobe [--game FILE] COMMAND ...
                        each with a .meta.json (format, title, regions, jumps, markers, lip sync, in sample
                        frames). Sounds on both discs are written once. --check decodes and checks everything
                        without writing.
+  play ID OUT.wav [--seconds N] [--rate HZ] [--hook HOOK@SECONDS …]
+                       Play a bundle sound (music/1098, voice/bccb301) through MMUCS's mixer and iMUSE player,
+                       offline, into a 16-bit stereo WAV: regions, loops, crossfades and markers as the game
+                       plays them, each listed as it happens. --hook sets the track's hook at a time (128
+                       leaves a loop). Defaults: 600 s at most, 44100 Hz (22050 reproduces the samples exactly).
   cutscenes OUT [NAME…]
                        Decode the SMUSH cutscenes (.san beside the game or in its resource folder) into
                        OUT/video/NAME/: one indexed PNG per distinct picture under frame/, and video.json
@@ -69,6 +74,7 @@ try
         "box" => ShowBox(argv),
         "cutscenes" => await ExportCutscenes(argv),
         "audio" => await ExportAudio(argv),
+        "play" => Play(argv),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }
@@ -92,6 +98,74 @@ async Task<int> Export(List<string> a)
     var summary = await new ScummExporters().ExportProjectAsync(root, outDir, options);
     Console.WriteLine($"{summary.FilesWritten} files written, {summary.Failures} failed, {summary.Elapsed.TotalSeconds:0.0} s → {outDir}");
     return summary.Failures > 0 ? 1 : 0;
+}
+
+int Play(List<string> a)
+{
+    var hooks = new List<(double At, int Hook)>();
+    for (string h; (h = TakeOption(a, "--hook")) != null;)
+    {
+        var parts = h.Split('@');
+        if (parts.Length != 2 || !int.TryParse(parts[0], out int hook) || !double.TryParse(parts[1], System.Globalization.CultureInfo.InvariantCulture, out double at))
+            throw new UsageException("--hook is HOOK@SECONDS, e.g. 128@300");
+        hooks.Add((at, hook));
+    }
+    double seconds = double.TryParse(TakeOption(a, "--seconds"), System.Globalization.CultureInfo.InvariantCulture, out var sec) ? sec : 600;
+    int rate = int.TryParse(TakeOption(a, "--rate"), out var r) ? r : 44100;
+    string id = Positional(a, 1, "ID (music/1098, voice/bccb301)");
+    string outFile = Positional(a, 2, "OUT.wav");
+
+    var sound = FindSound(id) ?? throw new UsageException($"no sound {id} in the bundles");
+    var player = new MMUCS.Core.Media.ImusPlayer(sound);
+    var mixer = new MMUCS.Core.Media.Mixer(rate);
+    Console.WriteLine($"{id}: {sound.Title ?? "(no title)"}  {sound.SampleRate} Hz  {sound.Channels} ch  {sound.FrameCount} frames  → mixer at {rate} Hz");
+    player.EventRaised += e => Console.WriteLine(
+        $"  {mixer.Time.TotalSeconds,8:0.000} s  {e.Kind,-11} frame {e.Frame,9}" +
+        (e.Kind is MMUCS.Core.Media.ImusEvent.EventKind.Jump or MMUCS.Core.Media.ImusEvent.EventKind.JumpSkipped ? $" → {e.ToFrame} (hook {e.Hook})" : "") +
+        (e.Text != null ? $"  \"{e.Text}\"" : ""));
+    var voice = mixer.Play(player, MMUCS.Core.Media.MixGroup.Music);
+
+    const int block = 1024;
+    var buf = new float[block * 2];
+    using var pcm = new MemoryStream();
+    long limit = (long)(seconds * rate);
+    hooks.Sort();
+    int nextHook = 0;
+    while (mixer.Position < limit && !voice.Finished)
+    {
+        while (nextHook < hooks.Count && mixer.Time.TotalSeconds >= hooks[nextHook].At)
+        {
+            player.Hook = hooks[nextHook].Hook;
+            Console.WriteLine($"  {mixer.Time.TotalSeconds,8:0.000} s  hook set to {hooks[nextHook].Hook}");
+            nextHook++;
+        }
+        mixer.Read(buf);
+        foreach (float f in buf)
+        {
+            short v = (short)Math.Clamp((int)MathF.Round(f * 32767f), short.MinValue, short.MaxValue);
+            pcm.WriteByte((byte)v);
+            pcm.WriteByte((byte)(v >> 8));
+        }
+    }
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outFile))!);
+    using (var fs = File.Create(outFile))
+        MMUCS.Core.Audio.WavWriter.Write(fs, pcm.GetBuffer().AsSpan(0, (int)pcm.Length), 2, rate, 16);
+    Console.WriteLine($"rendered {mixer.Time.TotalSeconds:0.000} s ({mixer.Position} frames), {(voice.Finished ? "sound ended" : "stopped at the time limit")}, {mixer.ClippedSamples} clipped samples → {outFile}");
+    return 0;
+}
+
+MMUCS.Core.Audio.ImusSound FindSound(string id)
+{
+    foreach (var file in GameFiles.Find(game, ".bun"))
+    {
+        string kind = MMUCS.Core.Audio.AudioExporter.KindOf(file);
+        if (!id.StartsWith(kind + "/")) continue;
+        using var bundle = MMUCS.Core.Audio.Bundle.Open(file);
+        foreach (var e in bundle.Entries)
+            if (MMUCS.Core.Audio.AudioExporter.IdOf(kind, e.Name) == id)
+                return MMUCS.Core.Audio.ImusSound.Parse(MMUCS.Core.Audio.BundleCodec.Decompress(bundle.Read(e)));
+    }
+    return null;
 }
 
 async Task<int> ExportAudio(List<string> a)
