@@ -25,6 +25,7 @@ public sealed record SmushExportSummary(string Name, int Frames, int ImagesWritt
 /// <code>
 /// out/video/opening/video.json         size, frame rate, sample rate, and which image each frame shows
 /// out/video/opening/frame/0000.png     8-bit indexed PNG (palette indices kept), one per distinct picture
+/// out/video/opening/audio.wav          the cutscene's sound (16-bit stereo, 22,050 Hz), starting with frame 0
 /// </code>
 /// A frame that shows the same picture as the one before (a held shot, FTCH) gets no file of its own:
 /// <c>frames</c> in video.json maps every frame number to the frame whose image it shows. A palette
@@ -92,7 +93,14 @@ public static class SmushExporter
             catch (OperationCanceledException) { }
         }
 
-        WriteManifest(Path.Combine(dir, "video.json"), video, shows, format, audio, text);
+        var sound = SmushAudio.Decode(video);
+        if (sound != null)
+        {
+            using var wav = File.Create(Path.Combine(dir, "audio.wav"));
+            Audio.WavWriter.Write(wav, sound.Pcm, sound.Channels, sound.SampleRate, SmushAudioTrack.Bits);
+            written++;
+        }
+        WriteManifest(Path.Combine(dir, "video.json"), video, shows, format, audio, text, sound);
         return new SmushExportSummary(video.Name, count, written, decoder.Problems, sw.Elapsed)
         {
             FramesWithUnreadBytes = decoder.FramesWithUnreadBytes,
@@ -101,7 +109,7 @@ public static class SmushExporter
         };
     }
 
-    private static void WriteManifest(string path, SmushVideo video, int[] shows, string format, int audio, int text)
+    private static void WriteManifest(string path, SmushVideo video, int[] shows, string format, int audio, int text, SmushAudioTrack sound)
     {
         using var fs = File.Create(path);
         using var w = new Utf8JsonWriter(fs, new JsonWriterOptions { Indented = true });
@@ -117,6 +125,17 @@ public static class SmushExporter
         w.WriteNumber("sampleRate", h.SampleRate);
         w.WriteString("frameFiles", $"frame/{{frame:{format}}}.png");
         w.WriteNumber("audioChunks", audio);
+        if (sound != null)
+        {
+            w.WriteStartObject("audio");
+            w.WriteString("file", "audio.wav");
+            w.WriteNumber("sampleRate", sound.SampleRate);
+            w.WriteNumber("channels", sound.Channels);
+            w.WriteNumber("bits", SmushAudioTrack.Bits);
+            w.WriteNumber("frames", sound.FrameCount);
+            w.WriteString("starts", "with frame 0");
+            w.WriteEndObject();
+        }
         w.WriteNumber("textChunks", text);
         // One number per frame: the frame whose PNG it shows. Kept on one line.
         w.WritePropertyName("frames");
