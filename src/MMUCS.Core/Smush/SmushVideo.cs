@@ -102,22 +102,7 @@ public sealed class SmushVideo
     /// The game's cutscenes: every .san beside the resource file or in its resource folder (any case),
     /// sorted by name.
     /// </summary>
-    public static IReadOnlyList<string> FindAll(string gameFile)
-    {
-        if (string.IsNullOrEmpty(gameFile)) return Array.Empty<string>();
-        string dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(gameFile));
-        if (dir == null || !Directory.Exists(dir)) return Array.Empty<string>();
-
-        var folders = new List<string> { dir };
-        folders.AddRange(Directory.GetDirectories(dir)
-            .Where(d => string.Equals(System.IO.Path.GetFileName(d), "resource", StringComparison.OrdinalIgnoreCase)));
-
-        return folders
-            .SelectMany(d => Directory.GetFiles(d))
-            .Where(f => string.Equals(System.IO.Path.GetExtension(f), ".san", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(f => System.IO.Path.GetFileName(f), StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
+    public static IReadOnlyList<string> FindAll(string gameFile) => GameFiles.Find(gameFile, ".san");
 }
 
 /// <summary>The 14-byte header of a frame object (FOBJ): codec, position and size.</summary>
