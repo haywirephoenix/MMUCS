@@ -147,6 +147,8 @@ From `musdisk1.bun` and `musdisk2.bun` (63 and 68 entries, one shared, plus `PRE
 file-name prefix: `1098-C~1.IMX` becomes `music/1098`. The DOS short name after the number is truncated, so the
 real track title is kept in `meta.name` only.
 
+Unpacked, each sound is `<id>.wav` (16-bit PCM, 22,050 Hz; stereo music, mono speech) plus `<id>.meta.json` with the [audio meta](#audio-meta-voice-music-sfx) in sample frames; the music meta also gives the track's own title from its first marker (`1098-Credits1`). `MMUCS.Core.Audio` reads the bundles (`Bundle`, `BundleCodec`, `ImusSound`). Speech regions often run one byte past their data (an odd length of 16-bit samples), which is in the original files.
+
 ### `sfx/NNNN`
 
 Sound effects, from `SOUN` resources referenced by `DSOU`. (Still to be verified: whether every COMI sound effect
