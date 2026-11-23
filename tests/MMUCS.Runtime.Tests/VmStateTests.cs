@@ -117,6 +117,25 @@ public class VmStateTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void The_stack_is_shared_and_lists_come_off_it_count_first()
+    {
+        var vm = Small();
+        vm.Push(1);
+        vm.Push(2);
+        Assert.Equal(2, vm.Pop());
+        vm.Push(7);
+        vm.Push(8);
+        vm.Push(9);
+        vm.Push(2); // a list of two: 8, 9
+        Assert.Equal([8, 9], vm.PopList());
+        Assert.Equal([1, 7], vm.Stack);
+        vm.Push(-1);
+        Assert.Throws<ScriptException>(() => vm.PopList());
+        vm.ClearStack();
+        Assert.Throws<ScriptException>(() => vm.Pop());
+    }
+
+    [Fact]
     public void Slots_start_from_1_and_set_25_locals()
     {
         var vm = Small();
@@ -126,24 +145,17 @@ public class VmStateTests(ITestOutputHelper output)
 
         slot.Locals[0] = 9;
         slot.Locals[25] = 77;
-        slot.Push(5);
         slot.Start(code, [10, 20]);
         Assert.True(slot.IsAlive);
         Assert.Equal(SlotStatus.Running, slot.Status);
         Assert.Equal((ScriptKind.Global, 1, 0), (slot.Kind, slot.Number, slot.Pc));
         Assert.Equal([10, 20, 0], slot.Locals[..3]);
         Assert.Equal(77, slot.Locals[25]); // ScummVM sets only the first 25
-        Assert.Empty(slot.Stack);
         Assert.Equal(2, vm.FreeSlot().Index);
-
-        slot.Push(1);
-        slot.Push(2);
-        Assert.Equal(2, slot.Pop());
-        Assert.Equal(1, slot.Pop());
-        Assert.Throws<ScriptException>(() => slot.Pop());
 
         slot.Kill();
         Assert.False(slot.IsAlive);
+        Assert.Equal(0, slot.Number);
         Assert.Equal(1, vm.FreeSlot().Index);
     }
 }
