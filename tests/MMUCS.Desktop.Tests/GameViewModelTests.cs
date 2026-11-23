@@ -7,7 +7,7 @@ using Xunit;
 namespace MMUCS.Desktop.Tests;
 
 /// <summary>The game window's view model: the cursor object loads, hovering the stand-in hotspot switches its state, and
-/// holding on it opens the verb coin.
+/// holding on it opens the verb coin, and I toggles the inventory, where items are picked up and pages turned.
 /// Needs the game (MMUCS_GAME).</summary>
 [Collection(GameProjectCollection.Name)]
 public class GameViewModelTests
@@ -75,8 +75,100 @@ public class GameViewModelTests
             Assert.Equal(new Avalonia.Point(0, GameViewModel.GameHeight), vm.CursorPosition);
             Assert.Equal(1, vm.CursorState);
 
+            // I toggles the inventory: its background (640×472) at 0,0 of the 4:3 page, centred on the 16:9 canvas.
+            await ui.Until(() => vm.Inventory.IsLoaded, "the inventory to load");
+            Assert.Equal(new Avalonia.Point((GameViewModel.GameWidth - 640) / 2, 0), GameViewModel.PageOrigin);
+            void At(double x, double y) => vm.MoveCursor(GameViewModel.PageToGame(new Avalonia.Point(x, y)));
+            var inv = vm.Inventory;
+            int count = inv.Items.Count;
+            Assert.True(count > 2 * Inventory.PageSize, $"{count} items"); // every *-icon-object in the icons room
             vm.MoveCursor(vm.Hotspot.Center);
+            vm.ToggleInventory();
+            Assert.True(inv.IsOpen);
+            Assert.False(vm.IsOverHotspot); // the inventory covers the room
+            vm.PressCursor();
+            Assert.False(vm.Coin.IsShown);
+            // Background, the next-page arrow (no previous page yet), then 15 items on a 5×3 grid.
+            Assert.Equal(1 + 1 + Inventory.PageSize, inv.Blasts.Count);
+            Assert.Equal(new Avalonia.Rect(GameViewModel.PageOrigin, new Avalonia.Size(640, 472)), inv.Blasts[0].Bounds);
+            Assert.Equal(GameViewModel.PageToGame(Inventory.NextPageArrowAt), inv.Blasts[1].Bounds.TopLeft);
+            Assert.Equal(GameViewModel.PageToGame(Inventory.ItemAt(7)), inv.Blasts[2 + 7].Bounds.TopLeft);
+            Assert.Equal(new Avalonia.Point(100 + 2 * 90, 180 + 65), Inventory.ItemAt(7));
+
+            // The arrows page by 15, and light the cursor up.
+            At(Inventory.NextPageArrowAt.X + 40, Inventory.NextPageArrowAt.Y + 20);
+            Assert.Equal(2, vm.CursorState);
+            vm.PressCursor();
+            vm.ReleaseCursor();
+            Assert.Equal(16, inv.PageStart);
+            Assert.True(inv.HasPreviousPage);
+            Assert.Equal(1 + 2 + Inventory.PageSize, inv.Blasts.Count);
+            At(Inventory.PreviousPageArrowAt.X + 40, Inventory.PreviousPageArrowAt.Y + 20);
+            vm.PressCursor();
+            vm.ReleaseCursor();
+            Assert.Equal(1, inv.PageStart);
+            Assert.False(inv.HasPreviousPage);
+
+            // A click on an item makes it the cursor (when the button comes up); over another item it shows state 2.
+            var first = inv.Items[0];
+            At(Inventory.ItemAt(0).X + 20, Inventory.ItemAt(0).Y + 20);
+            Assert.Equal(2, vm.CursorState);
+            vm.PressCursor();
+            Assert.Null(vm.HeldItem);
+            vm.ReleaseCursor();
+            Assert.Same(first, vm.HeldItem);
+            Assert.Equal((1, first.State(1)), (vm.CursorState, vm.CursorFrame)); // over itself
+            At(Inventory.ItemAt(1).X + 20, Inventory.ItemAt(1).Y + 20);
+            Assert.Equal((2, first.State(2)), (vm.CursorState, vm.CursorFrame));
+            // A click on empty space puts it back.
+            At(320, 120);
+            Assert.Equal(InventoryHitKind.Empty, vm.InventoryHit.Kind);
+            vm.PressCursor();
+            vm.ReleaseCursor();
+            Assert.Null(vm.HeldItem);
+            Assert.Same(normal, vm.CursorFrame);
+
+            // Holding an item, leaving the inventory's area closes it; the item stays the cursor.
+            At(Inventory.ItemAt(0).X + 20, Inventory.ItemAt(0).Y + 20);
+            vm.PressCursor();
+            vm.ReleaseCursor();
+            At(300, 300);
+            Assert.True(inv.IsOpen);
+            At(30, 300);
+            Assert.False(inv.IsOpen);
+            Assert.Same(first, vm.HeldItem);
+            vm.MoveCursor(vm.Hotspot.Center);
+            vm.PressCursor(); // an item held: no verb coin
+            Assert.False(vm.Coin.IsShown);
+            vm.ReleaseCursor();
+            // A right-click puts it back, and then opens and shuts the inventory.
+            vm.RightClick();
+            Assert.Null(vm.HeldItem);
+            vm.RightClick();
+            Assert.True(inv.IsOpen);
+            // With nothing held, moving out doesn't close it, but a click outside does.
+            At(30, 300);
+            Assert.True(inv.IsOpen);
+            vm.PressCursor();
+            vm.ReleaseCursor();
+            Assert.False(inv.IsOpen);
+            // I puts a held item back too.
+            vm.ToggleInventory();
+            At(Inventory.ItemAt(0).X + 20, Inventory.ItemAt(0).Y + 20);
+            vm.PressCursor();
+            vm.ReleaseCursor();
+            vm.ToggleInventory();
+            Assert.False(inv.IsOpen);
+            Assert.Null(vm.HeldItem);
+            Assert.Empty(inv.Blasts);
+            vm.MoveCursor(vm.Hotspot.Center);
+            Assert.Equal(2, vm.CursorState);
+
+            vm.ToggleInventory();
             vm.StopCommand.Execute(null);
+            Assert.False(vm.Inventory.IsOpen);
+            vm.ToggleInventory(); // only while playing
+            Assert.False(vm.Inventory.IsOpen);
             Assert.False(vm.IsMouseCaptured);
             Assert.Equal(1, vm.CursorState);
         });
