@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Avalonia.Controls;
+using MMUCS.Player;
 using MMUCS.Core.Media;
 using MMUCS.Desktop.Controls;
 
@@ -19,7 +20,7 @@ public static class Cutscene
         for (int i = 0; i < player.FrameCount; i++)
         {
             sw.Restart(); player.ShowFrame(i); decode += sw.Ms();
-            sw.Restart(); VideoFrame.From(player).Release(); convert += sw.Ms();
+            sw.Restart(); CutsceneFrame.From(player).Release(); convert += sw.Ms();
         }
         int n = player.FrameCount;
         Console.WriteLine($"video/opening, {n} frames: decode {decode / n:0.00} ms, convert {convert / n:0.00} ms per frame");
@@ -29,12 +30,12 @@ public static class Cutscene
         var canvas = new VideoCanvas();
         var window = new Window { Width = 800, Height = 600, Content = canvas };
         window.Show();
-        var made = new List<VideoFrame>();
-        VideoFrame current = null;
+        var made = new List<CutsceneFrame>();
+        CutsceneFrame current = null;
         for (int i = 0; i < 200; i++)
         {
             player.ShowFrame(i);
-            var f = VideoFrame.From(player);
+            var f = CutsceneFrame.From(player);
             made.Add(f);
             canvas.Image = f;
             current?.Release();
