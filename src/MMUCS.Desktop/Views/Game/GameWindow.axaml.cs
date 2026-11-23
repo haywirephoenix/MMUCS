@@ -13,7 +13,8 @@ namespace MMUCS.Desktop.Views.Game;
 /// <summary>
 /// The game window (Window ▸ Game, a testing ground). While playing, a click on the canvas captures the
 /// mouse: the system cursor hides and is kept inside the picture, and the game draws its own. Esc, Stop,
-/// or leaving the window lets it go. Holding the button on a hotspot opens the verb coin until it's let go; I toggles the inventory.
+/// or leaving the window lets it go. With Scripts on, buttons and keys go to the game's scripts; with it off,
+/// holding the button on a hotspot opens the verb coin until it's let go, and I toggles the inventory.
 /// </summary>
 public partial class GameWindow : Window
 {
@@ -100,6 +101,7 @@ public partial class GameWindow : Window
     private void OnCanvasReleased(object sender, PointerReleasedEventArgs e)
     {
         if (e.InitialPressMouseButton == MouseButton.Left) _vm?.ReleaseCursor();
+        else if (e.InitialPressMouseButton == MouseButton.Right) _vm?.ReleaseRight();
     }
 
     /// <summary>A pointer that got out between two moves goes back to where the game cursor is.</summary>
@@ -115,12 +117,26 @@ public partial class GameWindow : Window
             ReleaseMouse();
             e.Handled = true;
         }
-        else if (e.Key == Key.I && e.KeyModifiers == KeyModifiers.None && _vm is { IsPlaying: true })
+        else if (_vm is { IsPlaying: true } && (e.KeyModifiers & ~KeyModifiers.Shift) == KeyModifiers.None && _vm.PressKey(KeyCode(e.Key)))
         {
-            _vm.ToggleInventory();
             e.Handled = true;
         }
     }
+
+    /// <summary>A key as the engine numbers it: letters (lower case), digits, space, Enter, Tab, Backspace, F1–F9 (315–323); 0 for others.</summary>
+    private static int KeyCode(Key key) => key switch
+    {
+        >= Key.A and <= Key.Z => 'a' + (key - Key.A),
+        >= Key.D0 and <= Key.D9 => '0' + (key - Key.D0),
+        >= Key.NumPad0 and <= Key.NumPad9 => '0' + (key - Key.NumPad0),
+        >= Key.F1 and <= Key.F9 => 315 + (key - Key.F1),
+        Key.Space => ' ',
+        Key.Enter => 13,
+        Key.Tab => 9,
+        Key.Back => 8,
+        Key.OemPeriod => '.',
+        _ => 0,
+    };
 
     /// <summary>Keeps the system pointer on the picture (again, after the window or canvas moved).</summary>
     private void Confine()
