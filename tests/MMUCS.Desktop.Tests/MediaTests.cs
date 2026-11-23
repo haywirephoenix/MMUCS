@@ -68,6 +68,31 @@ public class MediaTests
     }
 
     [Fact]
+    public void A_cutscene_frame_converts_through_its_palette_and_says_when_it_changed()
+    {
+        if (Game == null) return;
+        var item = MediaLibrary.Scan(Game).First(i => i.Id == "video/finale");
+        var video = new SmushPlayer(MediaLibrary.LoadVideo(item));
+        video.ShowFrame(300);
+        Assert.True(video.PictureChanged);
+        var pixels = new uint[video.Video.Width * video.Video.Height];
+        video.CopyBgra(pixels);
+        Assert.False(video.PictureChanged);
+
+        var f = video.Current;
+        for (int i = 0; i < pixels.Length; i += 997)
+        {
+            int c = f.Pixels[i] * 3;
+            uint expected = 0xFF000000u | ((uint)f.Palette[c] << 16) | ((uint)f.Palette[c + 1] << 8) | f.Palette[c + 2];
+            Assert.Equal(expected, pixels[i]);
+        }
+
+        // Going back decodes again from the start, so the picture counts as changed.
+        video.ShowFrame(10);
+        Assert.True(video.PictureChanged);
+    }
+
+    [Fact]
     public void The_library_lists_every_cutscene_track_and_line_once()
     {
         if (Game == null) return;
