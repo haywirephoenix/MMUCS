@@ -11,20 +11,15 @@ public enum SlotStatus
 }
 
 /// <summary>
-/// One running script: what it runs, where it is, its locals and its stack. Everything is plain data
-/// (the code is found again from <see cref="Kind"/>, <see cref="Number"/> and <see cref="Room"/>), so a
-/// slot saves as it is. Unlike ScummVM, which shares one stack between all scripts, each slot has its
-/// own: a script's stack is empty at every break, so it behaves the same and keeps slots independent.
+/// One running script: what it runs, where it is and its locals. Everything is plain data (the code is
+/// found again from <see cref="Kind"/>, <see cref="Number"/> and <see cref="Room"/>), so a slot saves as
+/// it is. The stack is shared by all scripts (<see cref="VmState.Push"/>): a called script hands back its
+/// result by leaving it there.
 /// </summary>
 public sealed class ScriptSlot
 {
     /// <summary>Locals 0–25 can be read and written (v8 checks 0..25); starting a script sets the first 25.</summary>
     public const int LocalCount = 26, InitializedLocals = 25;
-
-    /// <summary>How deep a stack may grow (ScummVM's shared stack has 256 entries).</summary>
-    public const int StackLimit = 256;
-
-    private readonly List<int> _stack = [];
 
     public ScriptSlot(int index)
     {
@@ -49,6 +44,8 @@ public sealed class ScriptSlot
     /// <summary>Jiffies left to wait (<c>delay</c>), and frames left to wait (<c>delay-frames</c>).</summary>
     public int Delay { get; set; }
     public int DelayFrames { get; set; }
+    /// <summary>Frozen by <c>freeze-scripts</c> (ScummVM sets bit 0x80 of the status): it neither runs nor counts down its delay.</summary>
+    public bool Frozen { get; set; }
     public bool FreezeResistant { get; set; }
     public bool Recursive { get; set; }
     /// <summary>Whether it already ran this frame.</summary>
@@ -59,23 +56,13 @@ public sealed class ScriptSlot
 
     public int[] Locals { get; } = new int[LocalCount];
 
-    public IReadOnlyList<int> Stack => _stack;
-
     public bool IsAlive => Status != SlotStatus.Dead;
 
-    public void Push(int value)
-    {
-        if (_stack.Count >= StackLimit) throw new ScriptException($"{this}: stack overflow");
-        _stack.Add(value);
-    }
+    /// <summary>Whether it runs this frame: running and not frozen (ScummVM <c>status == ssRunning</c>).</summary>
+    public bool IsRunnable => Status == SlotStatus.Running && !Frozen;
 
-    public int Pop()
-    {
-        if (_stack.Count == 0) throw new ScriptException($"{this}: stack underflow");
-        int v = _stack[^1];
-        _stack.RemoveAt(_stack.Count - 1);
-        return v;
-    }
+    /// <summary>Whether <c>stop-script</c> and <c>script-running</c> see it (global or local code, not object or room code).</summary>
+    public bool IsScript => Kind is ScriptKind.Global or ScriptKind.Local;
 
     /// <summary>
     /// Sets the slot up to run <paramref name="code"/> from its entry. The first 25 locals come from
@@ -93,6 +80,7 @@ public sealed class ScriptSlot
         Pc = code.Entry;
         Delay = 0;
         DelayFrames = 0;
+        Frozen = false;
         FreezeResistant = freezeResistant;
         Recursive = recursive;
         DidExec = false;
@@ -100,15 +88,15 @@ public sealed class ScriptSlot
         CutsceneOverride = 0;
         Cycle = cycle;
         for (int i = 0; i < InitializedLocals; i++) Locals[i] = args != null && i < args.Count ? args[i] : 0;
-        _stack.Clear();
     }
 
-    /// <summary>Ends the script; the slot can be handed out again.</summary>
+    /// <summary>Ends the script (number 0, dead, as ScummVM leaves it); the slot can be handed out again.</summary>
     public void Kill()
     {
         Status = SlotStatus.Dead;
+        Frozen = false;
+        Number = 0;
         Code = null;
-        _stack.Clear();
     }
 
     public override string ToString()

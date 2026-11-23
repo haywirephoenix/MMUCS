@@ -21,6 +21,10 @@ public sealed class VmState
 
     public const uint BitFlag = 0x80000000, LocalFlag = 0x40000000;
 
+    /// <summary>How deep the stack may grow (ScummVM <c>_vmStack[256]</c>).</summary>
+    public const int StackLimit = 256;
+
+    private readonly List<int> _stack = [];
     private readonly int[] _globals;
     private readonly BitArray _bits;
     private readonly ScriptArray[] _arrays;
@@ -44,6 +48,40 @@ public sealed class VmState
 
     /// <summary>The slot whose locals a local variable means (the running script), or null.</summary>
     public ScriptSlot Current { get; set; }
+
+    /// <summary>
+    /// The stack, shared by every script as in ScummVM: a script called with <c>startScriptQuick2</c>
+    /// pushes its result and returns, and the caller pops it.
+    /// </summary>
+    public IReadOnlyList<int> Stack => _stack;
+
+    public void Push(int value)
+    {
+        if (_stack.Count >= StackLimit) throw new ScriptException("stack overflow");
+        _stack.Add(value);
+    }
+
+    public int Pop()
+    {
+        if (_stack.Count == 0) throw new ScriptException("stack underflow");
+        int v = _stack[^1];
+        _stack.RemoveAt(_stack.Count - 1);
+        return v;
+    }
+
+    /// <summary>
+    /// A list as scripts push it, count on top (ScummVM <c>getStackList</c>), in push order.
+    /// </summary>
+    public int[] PopList(int max = 128)
+    {
+        int n = Pop();
+        if (n < 0 || n > max) throw new ScriptException($"{n} items in a stack list, max {max}");
+        var list = new int[n];
+        for (int i = n - 1; i >= 0; i--) list[i] = Pop();
+        return list;
+    }
+
+    public void ClearStack() => _stack.Clear();
 
     /// <summary>A global variable by number, without the flag checks of <see cref="Read"/>.</summary>
     public int this[int global]

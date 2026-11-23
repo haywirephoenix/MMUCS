@@ -115,6 +115,34 @@ public sealed class ScriptStore
         _directory = RoomScripts.GlobalScripts(root);
     }
 
+    private ScriptStore(IReadOnlyList<(int Room, long Offset)> directory)
+    {
+        _directory = directory;
+    }
+
+    /// <summary>
+    /// A store holding just <paramref name="scripts"/> (global and local ones), for running code that
+    /// isn't from a game file, such as tests.
+    /// </summary>
+    public static ScriptStore Of(params ScriptCode[] scripts)
+    {
+        int globals = 1;
+        foreach (var s in scripts)
+            if (s.Kind == ScriptKind.Global) globals = Math.Max(globals, s.Number + 1);
+        var store = new ScriptStore(new (int, long)[globals]);
+        foreach (var s in scripts)
+        {
+            if (s.Kind == ScriptKind.Global) store._globals[s.Number] = s;
+            else if (s.Kind == ScriptKind.Local)
+            {
+                if (!store._roomCode.TryGetValue(s.Room, out var room)) store._roomCode[s.Room] = room = new RoomCode();
+                room.Locals[s.Number] = s;
+            }
+            else throw new ArgumentException($"{s.Kind} code can't be added on its own", nameof(scripts));
+        }
+        return store;
+    }
+
     /// <summary>The numbers of the rooms in the game.</summary>
     public IEnumerable<int> RoomNumbers => _rooms.Keys;
 
