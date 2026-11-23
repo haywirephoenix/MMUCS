@@ -67,12 +67,7 @@
             <StackPanel Orientation="Horizontal">
             <ToggleButton Content="Subtitles" IsChecked="{Binding ShowSubtitles}" Margin="0,0,6,0"
                           ToolTip.Tip="Show the spoken lines (credits and captions always show, as in the game)" />
-            <ComboBox ItemsSource="{Binding FontChoices}" SelectedItem="{Binding SelectedFont}" Width="190" Margin="0,0,4,0"
-                      ToolTip.Tip="The font cutscene text is drawn in: the game's NUT fonts, an unpacked font folder (Export ▸ Fonts, edited or not) or a TrueType/OpenType file" />
-            <Button Content="Folder…" Click="OnFontFolderClick" Margin="0,0,4,0"
-                    ToolTip.Tip="Use a font folder: an export's font/NNNN folders (or the export root), with edited or replaced glyph PNGs" />
-            <Button Content="Font file…" Click="OnFontFileClick" Margin="0,0,8,0"
-                    ToolTip.Tip="Use a TrueType/OpenType font, sized to each game font and coloured as the game colours it" />
+            <c:FontPicker Chooser="{Binding Fonts}" Margin="0,0,8,0" />
             <ToggleButton Content="Frame info" IsChecked="{Binding ShowFrameInfo}" Margin="0,0,8,0"
                           ToolTip.Tip="Show the frame number and time over the picture" />
             </StackPanel>
