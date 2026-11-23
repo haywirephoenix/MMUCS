@@ -18,7 +18,7 @@ public class ScriptedViewTests
     [Fact]
     public void Canvas_positions_reach_the_scripts_on_the_page()
     {
-        var game = new ScriptedGame();
+        using var game = new ScriptedGame();
         game.Load(TinyGame());
         game.MoveCursor(GameState.PageToGame(new GamePoint(320, 224)));
         Assert.Equal((320, 224), game.Loop.Mouse);
@@ -32,7 +32,7 @@ public class ScriptedViewTests
     {
         if (Game == null) return;
         var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
-        var game = new ScriptedGame();
+        using var game = new ScriptedGame();
         game.Load(root);
         var view = new ScriptedView(game);
         game.Play();
@@ -70,6 +70,56 @@ public class ScriptedViewTests
         await view.Building;
         using var thx = Draw(view.Capture(), "scripted-thx");
         Assert.Equal(0, game.Faults);
+    }
+
+    [Fact]
+    public async Task A_script_s_video_shows_on_the_page_instead_of_the_room()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        using var game = new ScriptedGame();
+        game.Load(root, Game);
+        var view = new ScriptedView(game);
+        game.Play();
+        game.SetMouseCaptured(true);
+        game.MoveCursor(GameState.PageToGame(new GamePoint(320, 224)));
+        for (int i = 0; i < 60; i++) game.Tick();
+        game.Press(MouseButton.Left);
+        for (int i = 0; i < 6; i++) game.Tick();
+        game.Release(MouseButton.Left);
+        for (int i = 0; i < 60 * 40 && !game.IsVideoPlaying; i++) game.Tick();
+        Assert.Equal("opening.san", game.VideoName);
+
+        // Black while it loads, then its frames, decoded in the background, ten seconds in.
+        var loading = view.Capture();
+        Assert.Null(loading.Cutscene);
+        Assert.Null(loading.Cursor);
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (game.Video == null && DateTime.UtcNow < deadline)
+        {
+            game.Tick();
+            await Task.Delay(10);
+        }
+        for (int i = 0; i < 600; i++) game.Tick();
+        view.Capture();
+        await view.Decoding;
+        var frame = view.Capture();
+        var cutscene = Assert.IsType<CutsceneFrame>(frame.Cutscene);
+        Assert.Equal((640, 480), (cutscene.Width, cutscene.Height));
+        using (var picture = Draw(frame, "scripted-opening-10s"))
+        {
+            Assert.Equal(SKColors.Black, picture.GetPixel(50, 240)); // the 16:9 sides
+            Assert.Contains(Enumerable.Range(0, 48), y => picture.GetPixel(426, y * 10) != SKColors.Black); // the video on the page
+        }
+        frame.Release();
+        loading.Release();
+
+        // Skipped: the room again.
+        game.SkipVideo();
+        for (int i = 0; i < 30 && game.CurrentRoom == 1; i++) game.Tick();
+        var after = view.Capture();
+        Assert.Null(after.Cutscene);
+        Assert.Equal(4, game.CurrentRoom);
     }
 
     /// <summary>A root with nothing in it: enough for the input mapping, which needs no game data.</summary>
