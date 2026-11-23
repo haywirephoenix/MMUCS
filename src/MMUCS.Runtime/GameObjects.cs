@@ -3,32 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Media.Imaging;
 using MMUCS.Core.Imaging;
 using MMUCS.Core.Scumm;
-using MMUCS.Desktop.Rendering;
 
-namespace MMUCS.Desktop.ViewModels;
+namespace MMUCS.Runtime;
 
-/// <summary>An object image the game window loaded by name: its room and every state's image.</summary>
+/// <summary>An object image the game loaded: its room and every state's image.</summary>
 public sealed record GameObjectImages(RoomModel Room, RoomObject Object, IReadOnlyList<RgbaImage> States)
 {
     /// <summary>State <paramref name="state"/>'s image (1-based, as the scripts count them), or null.</summary>
     public RgbaImage State(int state) => state >= 1 && state <= States.Count ? States[state - 1] : null;
 }
 
-/// <summary>
-/// An image drawn on the game canvas, as super-blast-object draws one: where it goes in game units.
-/// Its bitmap is made the first time the canvas asks for it.
-/// </summary>
-public sealed class GameBlast(RgbaImage image, Rect bounds)
-{
-    private Bitmap _bitmap;
-    public RgbaImage Image { get; } = image;
-    public Rect Bounds { get; } = bounds;
-    public Bitmap Bitmap => _bitmap ??= Image.ToBitmap();
-}
+/// <summary>An image drawn on the game canvas, as super-blast-object draws one: where it goes, in game units (its pixels are game pixels).</summary>
+public sealed record GameBlast(RgbaImage Image, GameRect Bounds);
 
 /// <summary>Finds object images (OBIMs) by name and decodes their states in their room's palette.</summary>
 public static partial class GameObjects

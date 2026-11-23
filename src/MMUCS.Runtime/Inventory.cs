@@ -2,11 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Avalonia;
-using CommunityToolkit.Mvvm.ComponentModel;
 using MMUCS.Core.Scumm;
 
-namespace MMUCS.Desktop.ViewModels;
+namespace MMUCS.Runtime;
 
 /// <summary>What's under a point of the open inventory.</summary>
 public enum InventoryHitKind { Outside, Empty, NextPage, PreviousPage, Item }
@@ -15,15 +13,15 @@ public enum InventoryHitKind { Outside, Empty, NextPage, PreviousPage, Item }
 public readonly record struct InventoryHit(InventoryHitKind Kind, GameObjectImages Item = null);
 
 /// <summary>
-/// The inventory as the game draws it, for the game window. The I key toggles it as handle-key (global
+/// The inventory as the game draws it. The I key toggles it as handle-key (global
 /// 38) does: open-inventory (46) when it's shut, close-inventory (51) when it's open. While it's open,
 /// draw-inventory (47) super-blasts inventory-bg-object (114, room 3) at 0,0, the page arrows (116 at
 /// 155,120 and 115 at 400,120) when there are pages either side, and up to 15 item icons in a 5×3 grid.
-/// Those are positions on the game's 640×480 screen; <see cref="GameViewModel.PageToGame"/> puts that
-/// page in the middle of the 16:9 canvas. The game window has no ego to hold things yet, so its items are
-/// every inventory icon in the icons room (the *-icon-object images), enough for several pages.
+/// Those are positions on the game's 640×480 screen; <see cref="GameState.PageToGame"/> puts that
+/// page in the middle of the 16:9 canvas. There's no ego to hold things yet, so the items are every
+/// inventory icon in the icons room (the *-icon-object images), enough for several pages.
 /// </summary>
-public sealed partial class Inventory : ObservableObject
+public sealed class Inventory
 {
     public const string BackgroundName = "inventory-bg-object";
     public const string NextPageArrowName = "increment-inventory-arrow", PreviousPageArrowName = "decrement-inventory-arrow";
@@ -32,7 +30,7 @@ public sealed partial class Inventory : ObservableObject
     public const string ItemIconSuffix = "-icon-object";
 
     /// <summary>The page arrows' positions on the 640×480 screen (draw-inventory, global 47:15 and 47:21).</summary>
-    public static readonly Point PreviousPageArrowAt = new(155, 120), NextPageArrowAt = new(400, 120);
+    public static readonly GamePoint PreviousPageArrowAt = new(155, 120), NextPageArrowAt = new(400, 120);
 
     /// <summary>Items per row and rows per page (draw-inventory's (4 + 1) * (2 + 1)).</summary>
     public const int Columns = 5, Rows = 3, PageSize = Columns * Rows;
@@ -41,13 +39,13 @@ public sealed partial class Inventory : ObservableObject
     /// The inventory's area on the 640×480 screen (global 57): a click outside it closes the inventory
     /// (global 34), and so does the cursor leaving it while an item is held (global 50).
     /// </summary>
-    public static bool InArea(Point page) => page.X > 45 && page.X < 607 && page.Y > 100 && page.Y < 446;
+    public static bool InArea(GamePoint page) => page.X > 45 && page.X < 607 && page.Y > 100 && page.Y < 446;
 
-    private readonly Func<Point, Point> _pageToGame;
+    private readonly Func<GamePoint, GamePoint> _pageToGame;
     private readonly List<GameObjectImages> _items = [];
     private readonly Dictionary<GameObjectImages, (int Id, string Name, uint Classes)> _info = [];
 
-    public Inventory(Func<Point, Point> pageToGame) => _pageToGame = pageToGame;
+    public Inventory(Func<GamePoint, GamePoint> pageToGame) => _pageToGame = pageToGame;
 
     public GameObjectImages Background { get; private set; }
     public GameObjectImages NextPageArrow { get; private set; }
@@ -71,14 +69,10 @@ public sealed partial class Inventory : ObservableObject
     /// <summary>Whether the background loaded (the inventory can't open without it).</summary>
     public bool IsLoaded => Background?.State(1) != null;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Blasts))]
-    public partial bool IsOpen { get; set; }
+    public bool IsOpen { get; set; }
 
     /// <summary>The first item on the page shown (inventory-page-start, from 1).</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Blasts), nameof(HasNextPage), nameof(HasPreviousPage))]
-    public partial int PageStart { get; set; } = 1;
+    public int PageStart { get; private set; } = 1;
 
     /// <summary>Whether items follow this page (draw-inventory shows the increment arrow, global 47:19).</summary>
     public bool HasNextPage => _items.Count - PageStart + 1 > PageSize;
@@ -87,7 +81,7 @@ public sealed partial class Inventory : ObservableObject
     public bool HasPreviousPage => PageStart > 1;
 
     /// <summary>Where item slot <paramref name="slot"/> (0–14) of the page goes on the 640×480 screen (draw-inventory, global 47:31-32).</summary>
-    public static Point ItemAt(int slot) => new(100 + slot % Columns * 90, 180 + slot / Columns * 65);
+    public static GamePoint ItemAt(int slot) => new(100 + slot % Columns * 90, 180 + slot / Columns * 65);
 
     /// <summary>The items on the page shown, with their slots.</summary>
     public IEnumerable<(int Slot, GameObjectImages Item)> PageItems =>
@@ -100,7 +94,7 @@ public sealed partial class Inventory : ObservableObject
         {
             var blasts = new List<GameBlast>();
             if (!IsOpen || !IsLoaded) return blasts;
-            Add(blasts, Background, new Point(0, 0));
+            Add(blasts, Background, new GamePoint(0, 0));
             if (HasPreviousPage) Add(blasts, PreviousPageArrow, PreviousPageArrowAt);
             if (HasNextPage) Add(blasts, NextPageArrow, NextPageArrowAt);
             foreach (var (slot, item) in PageItems) Add(blasts, item, ItemAt(slot));
@@ -108,17 +102,17 @@ public sealed partial class Inventory : ObservableObject
         }
     }
 
-    private void Add(List<GameBlast> blasts, GameObjectImages images, Point page)
+    private void Add(List<GameBlast> blasts, GameObjectImages images, GamePoint page)
     {
         if (images?.State(1) is not { } image) return;
-        blasts.Add(new GameBlast(image, new Rect(_pageToGame(page), new Size(image.Width, image.Height))));
+        blasts.Add(new GameBlast(image, new GameRect(_pageToGame(page), new GameSize(image.Width, image.Height))));
     }
 
     /// <summary>
     /// What's at <paramref name="page"/> (a point on the 640×480 screen): outside the area, a page arrow
     /// (global 59, 60), an item icon (the object under the point, kernel-get 216) or empty space.
     /// </summary>
-    public InventoryHit HitTest(Point page)
+    public InventoryHit HitTest(GamePoint page)
     {
         if (!InArea(page)) return new(InventoryHitKind.Outside);
         if (HasNextPage && Covers(NextPageArrow, NextPageArrowAt, page)) return new(InventoryHitKind.NextPage);
@@ -128,8 +122,8 @@ public sealed partial class Inventory : ObservableObject
         return new(InventoryHitKind.Empty);
     }
 
-    private static bool Covers(GameObjectImages images, Point at, Point page) =>
-        images?.State(1) is { } image && new Rect(at, new Size(image.Width, image.Height)).Contains(page);
+    private static bool Covers(GameObjectImages images, GamePoint at, GamePoint page) =>
+        images?.State(1) is { } image && new GameRect(at, new GameSize(image.Width, image.Height)).Contains(page);
 
     /// <summary>The increment arrow: the next 15 items (global 34; the start stops at the last item).</summary>
     public void NextPage()
@@ -168,10 +162,6 @@ public sealed partial class Inventory : ObservableObject
                 _info[item] = (id, names.GetValueOrDefault(id), classes.GetValueOrDefault(id));
             }
         }
-        OnPropertyChanged(nameof(Items));
-        OnPropertyChanged(nameof(IsLoaded));
-        OnPropertyChanged(nameof(HasNextPage));
-        OnPropertyChanged(nameof(Blasts));
         return IsLoaded;
     }
 }
