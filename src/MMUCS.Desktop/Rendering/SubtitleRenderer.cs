@@ -136,13 +136,34 @@ public sealed class SubtitleRenderer
         foreach (var text in frame.Texts)
         {
             if (text.IsSubtitle && !ShowSubtitles) continue;
-            var font = Font(_fonts, text.Font);
-            if (font == null) continue;
-            if (_typeface != null) AddTypefaceText(overlay, text, font, width, height, lut);
-            else AddBitmapText(overlay, text, font, frame.Palette, width, height);
+            AddText(overlay, text, frame.Palette, lut, width, height, TextColorMode.Smush);
         }
         if (overlay.IsEmpty) { overlay.Dispose(); return null; }
         return overlay;
+    }
+
+    /// <summary>
+    /// One line of text the scripts draw in a room (blast-text), coloured as room text is
+    /// (<see cref="TextColorMode.Room"/>) against <paramref name="palette"/> (256 RGB triplets); null when nothing shows.
+    /// </summary>
+    public SubtitleOverlay BuildText(SmushText text, byte[] palette, int width, int height)
+    {
+        if (text == null || string.IsNullOrEmpty(text.Text) || palette == null) return null;
+        var overlay = new SubtitleOverlay();
+        Span<uint> lut = stackalloc uint[256];
+        for (int i = 0; i < 256; i++)
+            lut[i] = i * 3 + 2 < palette.Length ? 0xFF000000u | ((uint)palette[i * 3] << 16) | ((uint)palette[i * 3 + 1] << 8) | palette[i * 3 + 2] : 0xFF000000u;
+        AddText(overlay, text, palette, lut, width, height, TextColorMode.Room);
+        if (overlay.IsEmpty) { overlay.Dispose(); return null; }
+        return overlay;
+    }
+
+    private void AddText(SubtitleOverlay overlay, SmushText text, byte[] palette, ReadOnlySpan<uint> lut, int width, int height, TextColorMode mode)
+    {
+        var font = Font(_fonts, text.Font);
+        if (font == null) return;
+        if (_typeface != null) AddTypefaceText(overlay, text, font, width, height, lut, mode);
+        else AddBitmapText(overlay, text, font, palette, width, height, mode);
     }
 
     private static GlyphFont Font(GlyphFont[] fonts, int n)
@@ -150,10 +171,10 @@ public sealed class SubtitleRenderer
         return n >= 0 && n < fonts.Length && fonts[n] != null ? fonts[n] : Array.Find(fonts, f => f != null);
     }
 
-    private static void AddBitmapText(SubtitleOverlay overlay, SmushText text, GlyphFont font, byte[] palette, int width, int height)
+    private static void AddBitmapText(SubtitleOverlay overlay, SmushText text, GlyphFont font, byte[] palette, int width, int height, TextColorMode mode)
     {
         var layout = TextLayouter.Layout(text, font, width, height);
-        var image = TextRasterizer.Draw(layout, font, palette);
+        var image = TextRasterizer.Draw(layout, font, palette, mode);
         if (image == null) return;
         var info = new SKImageInfo(image.Width, image.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
         var handle = GCHandle.Alloc(image.Pixels, GCHandleType.Pinned);
@@ -165,7 +186,7 @@ public sealed class SubtitleRenderer
         finally { handle.Free(); }
     }
 
-    private void AddTypefaceText(SubtitleOverlay overlay, SmushText text, GlyphFont gameFont, int width, int height, ReadOnlySpan<uint> lut)
+    private void AddTypefaceText(SubtitleOverlay overlay, SmushText text, GlyphFont gameFont, int width, int height, ReadOnlySpan<uint> lut, TextColorMode mode)
     {
         TypefaceFont tf;
         lock (_typefaceFonts)
@@ -193,8 +214,8 @@ public sealed class SubtitleRenderer
             var blob = tf.Blob(chars, points);
             if (blob != null)
             {
-                uint fill = TextRasterizer.InkColor(gameFont, color, lut);
-                uint? outline = TextRasterizer.OutlineColor(gameFont, color, lut);
+                uint fill = TextRasterizer.InkColor(gameFont, color, lut, mode);
+                uint? outline = TextRasterizer.OutlineColor(gameFont, color, lut, mode);
                 overlay.Runs.Add((blob, new SKColor(fill), outline is { } o ? new SKColor(o) : null, tf.Stroke));
             }
             start = end;
