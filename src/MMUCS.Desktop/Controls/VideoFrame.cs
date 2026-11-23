@@ -1,4 +1,5 @@
 using System.Threading;
+using MMUCS.Player.Text;
 using MMUCS.Core.Media;
 using MMUCS.Desktop.Rendering;
 using SkiaSharp;

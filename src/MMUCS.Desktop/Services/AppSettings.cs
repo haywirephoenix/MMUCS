@@ -59,7 +59,7 @@ public sealed class AppSettings
     public bool ExportFonts { get; set; }
     // Media player: cutscene text
     public bool ShowSubtitles { get; set; } = true;
-    /// <summary>"game", "folder" or "typeface"; see <see cref="Rendering.SubtitleFontKind"/>.</summary>
+    /// <summary>"game", "folder" or "typeface"; see <see cref="MMUCS.Player.Text.SubtitleFontKind"/>.</summary>
     public string SubtitleFontKind { get; set; } = "game";
     /// <summary>The font folder or typeface file last chosen.</summary>
     public string SubtitleFontPath { get; set; }

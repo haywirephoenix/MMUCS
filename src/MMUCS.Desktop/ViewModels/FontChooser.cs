@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using MMUCS.Player.Text;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Fonts;
 using MMUCS.Desktop.Rendering;
