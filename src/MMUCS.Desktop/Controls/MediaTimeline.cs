@@ -12,6 +12,8 @@ namespace MMUCS.Desktop.Controls;
 /// An iMUSE sound's map along its length: regions as alternating bars, markers as labelled ticks above
 /// them, jumps as arcs from where they leave to where they land (hooked jumps in another colour, with
 /// their hook), and the play position. Click or drag to seek.
+/// <para>The map is drawn only when the sound, size or theme changes; the play position is a separate
+/// layer on top, so following playback (about 60 times a second) redraws only that line.</para>
 /// </summary>
 public sealed class MediaTimeline : Control
 {
@@ -30,14 +32,32 @@ public sealed class MediaTimeline : Control
     private const double BarTop = 64, BarHeight = 28, Pad = 8;
     private bool _dragging;
     private IBrush _regionA, _regionB, _hooked, _unhooked, _text, _subtle, _playhead, _back;
+    private readonly Playhead _head;
 
-    static MediaTimeline() => AffectsRender<MediaTimeline>(SoundProperty, PositionProperty);
+    static MediaTimeline() => AffectsRender<MediaTimeline>(SoundProperty);
 
     public MediaTimeline()
     {
         ClipToBounds = true;
         MinHeight = BarTop + BarHeight + 28;
-        this.OnThemeChanged(() => { _back = null; InvalidateVisual(); });
+        _head = new Playhead(this);
+        VisualChildren.Add(_head);
+        this.OnThemeChanged(() => { _back = null; InvalidateVisual(); _head.InvalidateVisual(); });
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == PositionProperty || change.Property == SoundProperty)
+        {
+            _head.InvalidateVisual();
+        }
+    }
+
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        _head.Arrange(new Rect(finalSize));
+        return finalSize;
     }
 
     private void EnsureBrushes()
@@ -126,10 +146,34 @@ public sealed class MediaTimeline : Control
             ctx.DrawText(t, new Point(x + 2, BarTop + BarHeight + 6));
             lastLabelEnd = x + t.Width + 8;
         }
+    }
 
-        // Play position.
+    private void RenderPlayhead(DrawingContext ctx)
+    {
+        var s = Sound;
+        if (s == null)
+        {
+            return;
+        }
+
+        EnsureBrushes();
+        long total = Math.Max(1, s.FrameCount);
         double px = X(Math.Clamp(Position, 0, total), total);
         ctx.DrawLine(new Pen(_playhead, 2), new Point(px, 4), new Point(px, BarTop + BarHeight + 4));
+    }
+
+    /// <summary>The play position, drawn over the map; clicks pass through to the timeline.</summary>
+    private sealed class Playhead : Control
+    {
+        private readonly MediaTimeline _owner;
+
+        public Playhead(MediaTimeline owner)
+        {
+            _owner = owner;
+            IsHitTestVisible = false;
+        }
+
+        public override void Render(DrawingContext ctx) => _owner.RenderPlayhead(ctx);
     }
 
     private static FormattedText Text(string s, IBrush brush, double size) =>
