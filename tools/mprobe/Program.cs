@@ -16,8 +16,9 @@ usage: mprobe [--game FILE] COMMAND ...
   zplanes ROOM OUT     Write the room's background with each z-plane tinted, one PNG per plane
                        (roomN_planeK.png): plane 1 red, 2 green, 3 blue, 4 yellow, 5 magenta, 6 cyan.
   masked ROOM OUT [--debug] [--only C,C…] [--start]
-                       Write the room as the room viewer composes it: background, the actors MMUCS
-                       places (position, elevation, scale, draw order), cut by their z-plane. Lists each
+                       Write the room as the player and the room viewer draw it: background, the objects in
+                       their states on entry, the actors MMUCS places (position, elevation, scale, draw
+                       order), cut by their z-plane. Lists each
                        actor's costume, position, scale and z-plane. --debug paints the cut pixels magenta.
                        --only draws just those costumes. --start draws only what's there as the room
                        opens (placed on entry, not the player), as the room viewer starts.
@@ -410,43 +411,37 @@ async Task<int> DrawMasked(List<string> a)
 
 async Task<int> DrawRoom(RoomModel room, string outDir, bool debug, bool start, HashSet<int> only, TextWriter log, string name, bool boxes)
 {
-
-    // The mask as the viewer builds it: the room's planes with the objects shown on entry over them.
+    // As the player draws it (MMUCS.Player's RoomScene, which the Room viewer draws with too): the objects
+    // in their states on entry, then the actors in SCUMM's order (by y before elevation, then actor number),
+    // each scaled as the engine scales it and cut by its z-plane (the room's planes with the shown objects' over them).
     var states = RoomObjectStates.Initial(room);
-    var shown = room.InDrawOrder(room.Objects.Where(o => o.ImageCount > 0 && states[o] != 0)).ToList();
-    var planes = ZPlanes.Compose(ZPlanes.Room(room), ZPlanes.Count(room), room.Width, room.Height,
-        shown.Select(o => (o, ZPlanes.Object(o, Math.Max(0, states[o] - 1)))));
-
-    var img = Copy(await Background(room));
-    // SCUMM's draw order: by y before elevation, then actor number.
+    int StateOf(RoomObject o) => states.GetValueOrDefault(o);
     var actors = RoomActors.Analyze(room).Where(x => x.CanDraw && (only == null || only.Contains(x.Costume)) && (!start || x.StartsShown))
         .OrderBy(x => x.SortY).ThenBy(x => x.Actor).ToList();
+    var scene = await MMUCS.Player.Rooms.RoomSceneBuilder.BuildAsync(room, StateOf, MMUCS.Player.Rooms.RoomSceneBuilder.Actors(actors));
+    if (scene.Background == null) throw new UsageException($"room {room.RoomNo} has no background");
+
+    string file = Path.Combine(outDir, name ?? $"room{room.RoomNo}_{(debug ? "debug" : start ? "start" : "masked")}.png");
+    using (var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(room.Width, room.Height)))
+    {
+        surface.Canvas.Clear(SkiaSharp.SKColors.Black);
+        scene.Draw(surface.Canvas, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Nearest), cutColor: debug ? SkiaSharp.SKColors.Magenta : null);
+        using var png = surface.Snapshot().Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+        await File.WriteAllBytesAsync(file, png.ToArray());
+    }
+
+    // How many of the actors' pixels the planes hide.
+    var planes = MMUCS.Player.Rooms.RoomScene.Planes(room, MMUCS.Player.Rooms.RoomSceneBuilder.Shown(room, StateOf));
     int cut = 0;
     var lines = new List<string>();
     foreach (var actor in actors)
     {
-        // Scaled as the engine scales it (AkosFrames.RenderScaled), as the room viewer draws it.
-        var frame = AkosFrames.RenderScaled(actor.Data, actor.Frame, actor.Scale, out int ox, out int oy, mirror: actor.Mirrored);
-        if (frame == null) continue;
-        int w = frame.Width, h = frame.Height;
-        int x0 = actor.X - ox, y0 = actor.DrawY - oy;
+        if (MMUCS.Player.Rooms.RoomSceneBuilder.ActorFrame(actor) is not { } f) continue;
         var plane = actor.ZPlane > 0 && actor.ZPlane <= planes.Length ? planes[actor.ZPlane - 1] : null;
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-            {
-                int sx = x, sy = y, rx = x0 + x, ry = y0 + y;
-                if (rx < 0 || ry < 0 || rx >= img.Width || ry >= img.Height || sx >= frame.Width || sy >= frame.Height) continue;
-                int si = (sy * frame.Width + sx) * 4;
-                if (frame.Data[si + 3] < 128) continue;
-                int di = (ry * img.Width + rx) * 4;
-                if (plane != null && plane.IsSet(rx, ry))
-                {
-                    cut++;
-                    if (debug) { img.Data[di] = 255; img.Data[di + 1] = 0; img.Data[di + 2] = 255; img.Data[di + 3] = 255; }
-                    continue;
-                }
-                for (int c = 0; c < 4; c++) img.Data[di + c] = frame.Data[si + c];
-            }
+        if (plane != null)
+            for (int y = 0; y < f.Image.Height; y++)
+                for (int x = 0; x < f.Image.Width; x++)
+                    if (f.Image.Data[(y * f.Image.Width + x) * 4 + 3] >= 128 && plane.IsSet(f.X + x, f.Y + y)) cut++;
         string who = actor.Actor > 0 ? $"actor {actor.Actor}" : actor.DressedBy >= 0 ? $"dressed by script {actor.DressedBy}" : "actor ?";
         // The box at its feet and the scale it would give an actor that follows the boxes: an actor drawn
         // at another scale either ignores the boxes or has its scale wrong.
@@ -463,10 +458,8 @@ async Task<int> DrawRoom(RoomModel room, string outDir, bool debug, bool start, 
                       $"  {RoomDataExport.WhenText(actor.When) ?? "?"}{(actor.IsPlayer ? ", player" : "")}" +
                       (actor.Owner != null ? $"  ({actor.Owner.Name})" : "") + box);
     }
-    string file = Path.Combine(outDir, name ?? $"room{room.RoomNo}_{(debug ? "debug" : start ? "start" : "masked")}.png");
-    img.SavePng(file);
     // One room alone: its actors, then where the picture went. In the listing of all rooms: the room first.
-    string summary = $"room {room.RoomNo} {room.Name}: {actors.Count} actors drawn, {cut} pixels cut by z-planes → {file}";
+    string summary = $"room {room.RoomNo} {room.Name}: {scene.Objects.Count} objects and {lines.Count} actors drawn, {cut} actor pixels cut by z-planes → {file}";
     if (boxes) log.WriteLine(summary);
     foreach (var line in lines) log.WriteLine(line);
     if (!boxes) log.WriteLine(summary);

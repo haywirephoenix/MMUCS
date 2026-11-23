@@ -9,7 +9,11 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\MMUCS.Core\MMUCS.Core.csproj" />
-    <ProjectReference Include="..\..\src\MMUCS.Runtime\MMUCS.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\MMUCS.Player\MMUCS.Player.csproj" />
     <ProjectReference Include="..\..\src\MMUCS.Media.OpenAL\MMUCS.Media.OpenAL.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Skia's native library for this machine: rooms are drawn as the player draws them (Windows and macOS get it from SkiaSharp). -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
   </ItemGroup>
 </Project>
