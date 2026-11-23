@@ -6,13 +6,13 @@ using MMUCS.Core.Fonts;
 using MMUCS.Core.Smush;
 using SkiaSharp;
 
-namespace MMUCS.Desktop.Rendering;
+namespace MMUCS.Player.Text;
 
 /// <summary>
 /// One frame's cutscene text, ready to draw over the picture in video pixels (the canvas's own matrix
 /// scales it with the picture). Bitmap-font text is a few small images (drawn pixel-sharp); a
 /// replacement typeface is text blobs, drawn as vectors at whatever size the picture is shown.
-/// Owned by its <see cref="Controls.VideoFrame"/> and freed with it.
+/// Owned by whatever shows it (the media player's video frame, a game frame).
 /// </summary>
 public sealed class SubtitleOverlay : IDisposable
 {
