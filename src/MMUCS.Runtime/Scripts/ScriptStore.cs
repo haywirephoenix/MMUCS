@@ -238,6 +238,12 @@ public sealed class ScriptStore
         return null;
     }
 
+    /// <summary>The room's LFLF block, or null.</summary>
+    public ScummBlock RoomBlock(int room) => _rooms.GetValueOrDefault(room);
+
+    /// <summary>A global object's id by its name in the object table (DOBJ), or 0.</summary>
+    public int ObjectId(string name) => name != null && IdsByName().TryGetValue(name, out int id) ? id : 0;
+
     /// <summary>The room's name from the index (RNAM), or null.</summary>
     public string RoomName(int room)
     {

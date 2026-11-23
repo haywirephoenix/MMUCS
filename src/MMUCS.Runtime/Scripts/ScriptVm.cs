@@ -792,6 +792,32 @@ public sealed class ScriptVm
         return 0;
     }
 
+    /// <summary>The state the room's slot for object <paramref name="obj"/> has (what drawing and hit tests see), or 0 when it isn't here.</summary>
+    public int LocalState(int obj)
+    {
+        foreach (var o in _roomObjects)
+            if (o.Id == obj) return _localStates[o.Slot];
+        return 0;
+    }
+
+    /// <summary>
+    /// Whether the engine draws object <paramref name="obj"/> of the current room (ScummVM <c>drawRoomObject</c>):
+    /// its state isn't 0 and each object it belongs to is in the state it needs.
+    /// </summary>
+    public bool IsDrawn(int obj)
+    {
+        var place = _roomObjects.FirstOrDefault(o => o.Id == obj);
+        if (place == null || _localStates[place.Slot] == 0) return false;
+        for (var at = place; at.Parent != 0;)
+        {
+            int needed = at.ParentState;
+            if (at.Parent > _roomObjects.Count) return false;
+            at = _roomObjects[at.Parent - 1];
+            if ((_localStates[at.Slot] & 0xF) != needed) return false;
+        }
+        return true;
+    }
+
     /// <summary>Copies the object table's states into the room's slots (ScummVM <c>updateObjectStates</c>, once a frame after the scripts).</summary>
     public void UpdateObjectStates()
     {

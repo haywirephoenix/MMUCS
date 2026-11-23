@@ -35,6 +35,9 @@ public sealed class ObjectTables
             (_state[i], _room[i], _classes[i]) = limits.IndexObjects[i];
     }
 
+    /// <summary>Counts changes to states, owners and classes, so a host can tell when to draw the room again.</summary>
+    public int Version { get; private set; }
+
     /// <summary>How many global object numbers there are (0 is never an object).</summary>
     public int Count => _owner.Length;
 
@@ -49,6 +52,7 @@ public sealed class ObjectTables
     {
         if (owner is < 0 or > 0xFF) throw new ScriptException($"owner {owner} out of range 0..255");
         _owner[Check(obj)] = (byte)owner;
+        Version++;
     }
 
     public int State(int obj) => _state[Check(obj)];
@@ -57,6 +61,7 @@ public sealed class ObjectTables
     {
         if (state is < 0 or > 0xFF) throw new ScriptException($"state {state} out of range 0..255");
         _state[Check(obj)] = (byte)state;
+        Version++;
     }
 
     /// <summary>The room an object's code and image live in.</summary>
@@ -64,7 +69,11 @@ public sealed class ObjectTables
 
     public uint Classes(int obj) => _classes[Check(obj)];
 
-    public void SetClasses(int obj, uint classes) => _classes[Check(obj)] = classes;
+    public void SetClasses(int obj, uint classes)
+    {
+        _classes[Check(obj)] = classes;
+        Version++;
+    }
 
     /// <summary>Whether <paramref name="obj"/> has class <paramref name="cls"/> (1–32; bit 7 is ignored).</summary>
     public bool HasClass(int obj, int cls) => (_classes[Check(obj)] & ClassBit(cls)) != 0;
@@ -73,6 +82,7 @@ public sealed class ObjectTables
     {
         if (on) _classes[Check(obj)] |= ClassBit(cls);
         else _classes[Check(obj)] &= ~ClassBit(cls);
+        Version++;
     }
 
     public bool InInventory(int obj) => obj > 0 && Array.IndexOf(_inventory, obj) >= 0;
