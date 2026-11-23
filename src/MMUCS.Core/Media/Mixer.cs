@@ -107,6 +107,9 @@ public sealed class Mixer(int sampleRate = 44100)
     private readonly object _lock = new();
     private readonly float[] _groupVolume = [1f, 1f, 1f, 1f];
     private float[] _scratch = new float[4096];
+    // Reused every block, so mixing allocates nothing (it runs on the audio thread ~43 times a second).
+    private MixerVoice[] _mixing = new MixerVoice[8];
+    private readonly List<MixerVoice> _ended = [];
     private long _position;
 
     public int SampleRate { get; } = sampleRate;
@@ -155,19 +158,29 @@ public sealed class Mixer(int sampleRate = 44100)
         int frames = stereo.Length / Channels;
         if (_scratch.Length < frames * 2) _scratch = new float[frames * 2];
 
-        MixerVoice[] voices;
-        lock (_lock) voices = [.. _voices];
-
-        List<MixerVoice> ended = null;
-        foreach (var v in voices)
+        // The voices as they are now: Play and StopAll may change the list while this block mixes.
+        int count;
+        lock (_lock)
         {
-            _scratch.AsSpan(0, frames * 2).Clear();
-            if (!v.MixInto(stereo, _scratch, frames, _groupVolume[(int)v.Group]))
-                (ended ??= []).Add(v);
+            count = _voices.Count;
+            if (_mixing.Length < count) _mixing = new MixerVoice[Math.Max(count, _mixing.Length * 2)];
+            _voices.CopyTo(_mixing);
         }
-        if (ended != null)
+
+        // A voice writes the scratch frames it then reads, so the scratch needs no clearing.
+        for (int i = 0; i < count; i++)
+        {
+            var v = _mixing[i];
+            if (!v.MixInto(stereo, _scratch, frames, _groupVolume[(int)v.Group]))
+                _ended.Add(v);
+        }
+        Array.Clear(_mixing, 0, count); // don't keep stopped voices (and their sound) alive
+        if (_ended.Count > 0)
+        {
             lock (_lock)
-                foreach (var v in ended) { _voices.Remove(v); v.Finished = true; }
+                foreach (var v in _ended) { _voices.Remove(v); v.Finished = true; }
+            _ended.Clear();
+        }
 
         float master = MasterVolume;
         long clipped = 0;
