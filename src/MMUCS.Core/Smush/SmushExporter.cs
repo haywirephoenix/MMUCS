@@ -26,6 +26,7 @@ public sealed record SmushExportSummary(string Name, int Frames, int ImagesWritt
 /// out/video/opening/video.json         size, frame rate, sample rate, and which image each frame shows
 /// out/video/opening/frame/0000.png     8-bit indexed PNG (palette indices kept), one per distinct picture
 /// out/video/opening/audio.wav          the cutscene's sound (16-bit stereo, 22,050 Hz), starting with frame 0
+/// out/video/opening/subtitles.json     every line of text, with the frames it shows on (see <see cref="SubtitleCue"/>)
 /// </code>
 /// A frame that shows the same picture as the one before (a held shot, FTCH) gets no file of its own:
 /// <c>frames</c> in video.json maps every frame number to the frame whose image it shows. A palette
@@ -51,6 +52,7 @@ public static class SmushExporter
         var writes = new List<Task>();
         using var gate = new SemaphoreSlim(Math.Max(1, Environment.ProcessorCount - 1));
         var decoder = new SmushDecoder(video);
+        var cues = new SubtitleTrack();
 
         try
         {
@@ -58,6 +60,7 @@ public static class SmushExporter
         {
             audio += frame.AudioChunks;
             text += frame.TextChunks;
+            cues.Add(frame.Index, frame.Texts);
 
             bool same = lastPixels != null
                 && frame.Pixels.AsSpan().SequenceEqual(lastPixels)
@@ -100,7 +103,12 @@ public static class SmushExporter
             Audio.WavWriter.Write(wav, sound.Pcm, sound.Channels, sound.SampleRate, SmushAudioTrack.Bits);
             written++;
         }
-        WriteManifest(Path.Combine(dir, "video.json"), video, shows, format, audio, text, sound);
+        if (cues.Cues.Count > 0)
+        {
+            cues.Write(Path.Combine(dir, "subtitles.json"), video);
+            written++;
+        }
+        WriteManifest(Path.Combine(dir, "video.json"), video, shows, format, audio, text, sound, cues.Cues.Count > 0);
         return new SmushExportSummary(video.Name, count, written, decoder.Problems, sw.Elapsed)
         {
             FramesWithUnreadBytes = decoder.FramesWithUnreadBytes,
@@ -109,7 +117,7 @@ public static class SmushExporter
         };
     }
 
-    private static void WriteManifest(string path, SmushVideo video, int[] shows, string format, int audio, int text, SmushAudioTrack sound)
+    private static void WriteManifest(string path, SmushVideo video, int[] shows, string format, int audio, int text, SmushAudioTrack sound, bool subtitles)
     {
         using var fs = File.Create(path);
         using var w = new Utf8JsonWriter(fs, new JsonWriterOptions { Indented = true });
@@ -137,6 +145,7 @@ public static class SmushExporter
             w.WriteEndObject();
         }
         w.WriteNumber("textChunks", text);
+        if (subtitles) w.WriteString("subtitles", "subtitles.json");
         // One number per frame: the frame whose PNG it shows. Kept on one line.
         w.WritePropertyName("frames");
         var sb = new StringBuilder("[");

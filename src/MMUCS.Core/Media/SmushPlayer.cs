@@ -18,6 +18,8 @@ public sealed class SmushPlayer
     // The palette as 32-bit BGRA, rebuilt only when a frame changed it.
     private readonly uint[] _bgra = new uint[256];
     private bool _paletteDirty = true;
+    // The lines on the frame last shown, to tell when the text changed on a held picture.
+    private SmushText[] _texts = [];
 
     public SmushPlayer(SmushVideo video)
     {
@@ -54,12 +56,18 @@ public sealed class SmushPlayer
             if (Current.ImageChanged || Current.PaletteChanged) PictureChanged = true;
             if (Current.PaletteChanged) _paletteDirty = true;
         }
+        if (Current != null && !System.Linq.Enumerable.SequenceEqual(Current.Texts, _texts))
+        {
+            _texts = [.. Current.Texts];
+            PictureChanged = true;
+        }
         return true;
     }
 
     /// <summary>
-    /// True when the picture may differ from the last <see cref="CopyBgra"/>: a frame drew or changed the
-    /// palette since. Frames that do neither show the same picture again.
+    /// True when the picture may differ from the last <see cref="CopyBgra"/>: a frame drew, changed the
+    /// palette or changed its text (<see cref="SmushFrame.Texts"/>) since. Frames that do none of these show
+    /// the same picture again.
     /// </summary>
     public bool PictureChanged { get; private set; } = true;
 
@@ -91,6 +99,7 @@ public sealed class SmushPlayer
         _decoder = new SmushDecoder(Video);
         _frames = _decoder.Frames().GetEnumerator();
         Current = null;
+        _texts = [];
         PictureChanged = _paletteDirty = true;
     }
 }

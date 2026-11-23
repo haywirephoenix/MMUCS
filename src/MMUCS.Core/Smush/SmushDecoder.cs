@@ -24,7 +24,9 @@ public sealed class SmushFrame
     /// <summary>Codec 47's compression mode for this frame, or -1.</summary>
     public int Compression { get; internal set; } = -1;
     public int AudioChunks { get; internal set; }
-    public int TextChunks { get; internal set; }
+    public int TextChunks => Texts.Count;
+    /// <summary>The lines of text on this frame (TEXT chunks), in the order they're drawn. Reused for the next frame.</summary>
+    public List<SmushText> Texts { get; } = [];
 }
 
 /// <summary>
@@ -34,7 +36,7 @@ public sealed class SmushFrame
 /// <item>NPAL / XPAL change the palette (XPAL fades it).</item>
 /// <item>FOBJ (and zlib-packed ZFOB) draw a frame object at its position: codec 47, or codec 1/3 RLE.</item>
 /// <item>STOR keeps the screen as it is at the end of the frame; FTCH shows the kept screen again.</item>
-/// <item>IACT (audio) and TEXT (subtitles) are counted, not decoded yet.</item>
+/// <item>TEXT chunks are read into <see cref="SmushFrame.Texts"/> (drawn by the caller, over the picture); IACT (audio) is counted (<see cref="SmushAudio"/> reads it).</item>
 /// </list>
 /// </summary>
 public sealed class SmushDecoder(SmushVideo video)
@@ -65,7 +67,8 @@ public sealed class SmushDecoder(SmushVideo video)
             frame.Index = i;
             frame.ImageChanged = frame.PaletteChanged = frame.Fetched = false;
             frame.Compression = -1;
-            frame.AudioChunks = frame.TextChunks = 0;
+            frame.AudioChunks = 0;
+            frame.Texts.Clear();
             bool store = false;
 
             foreach (var chunk in _video.Frames[i].Children(data))
@@ -88,7 +91,7 @@ public sealed class SmushDecoder(SmushVideo video)
                         frame.ImageChanged = frame.Fetched = true;
                     }
                     else if (chunk.Tag == SmushTag.IACT) frame.AudioChunks++;
-                    else if (chunk.Tag == SmushTag.TEXT) frame.TextChunks++;
+                    else if (chunk.Tag == SmushTag.TEXT) frame.Texts.Add(SmushText.Parse(chunk.Data(data)));
                     else Problem(i, $"chunk {chunk.TagName}");
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
