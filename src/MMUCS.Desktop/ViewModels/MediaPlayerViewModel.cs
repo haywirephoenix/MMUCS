@@ -10,7 +10,7 @@ using MMUCS.Core.Audio;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Media;
 using MMUCS.Desktop.Services;
-using SkiaSharp;
+using MMUCS.Desktop.Controls;
 
 namespace MMUCS.Desktop.ViewModels;
 
@@ -66,7 +66,6 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     private bool _decodingBusy;
     private int _shownFrame = -1;
     private int _wantedFrame = -1;
-    private byte[] _rgba;
 
     private bool _updatingPosition;
 
@@ -89,7 +88,8 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial double Duration { get; set; } = 1;
     [ObservableProperty] public partial string PositionText { get; set; } = "0:00.0 / 0:00.0";
     [ObservableProperty] public partial double Volume { get; set; } = 0.8;
-    [ObservableProperty] public partial SKImage Frame { get; set; }
+    /// <summary>The picture shown; the view model holds one reference to it, released when it's replaced.</summary>
+    [ObservableProperty] public partial VideoFrame Frame { get; set; }
     /// <summary>The changing frame readout, drawn over the picture so it never resizes the canvas.</summary>
     [ObservableProperty] public partial string FrameText { get; set; }
     /// <summary>The cutscene's fixed details, for the viewer's toolbar.</summary>
@@ -307,7 +307,6 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
                 }
 
                 _video = new SmushPlayer(video);
-                _rgba = new byte[video.Width * video.Height * 4];
                 Duration = _video.Duration.TotalSeconds;
                 IsVideo = true;
                 VideoInfo = $"{video.Width}×{video.Height} · {_video.FrameRate} fps · {_video.FrameCount} frames · " +
@@ -574,21 +573,24 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
             while (_video == video && _wantedFrame >= 0 && _wantedFrame != _shownFrame)
             {
                 int index = _wantedFrame;
-                var rgba = _rgba;
+                bool havePicture = Frame != null;
+                // Null when the picture is the one already shown (held shots, frames that only play sound).
                 var image = await Task.Run(() =>
                 {
                     video.ShowFrame(index);
-                    video.CopyRgba(rgba);
-                    var info = new SKImageInfo(video.Video.Width, video.Video.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-                    return SKImage.FromPixelCopy(info, rgba, video.Video.Width * 4);
+                    return havePicture && !video.PictureChanged ? null : VideoFrame.From(video);
                 });
-                // Frames aren't disposed here: the render thread may still be drawing the previous one.
                 if (_video != video)
                 {
+                    image?.Release();
                     return;
                 }
 
-                Frame = image;
+                if (image != null)
+                {
+                    Frame = image; // releases the one it replaces (see OnFrameChanged)
+                }
+
                 _shownFrame = index;
                 FrameText = $"frame {video.CurrentIndex + 1} / {video.FrameCount}  ·  {Format(video.CurrentIndex / video.FrameRate)}";
             }
@@ -602,6 +604,9 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
             _decodingBusy = false;
         }
     }
+
+    // The render thread holds its own references while it draws, so the old frame is freed as soon as it can be.
+    partial void OnFrameChanged(VideoFrame oldValue, VideoFrame newValue) => oldValue?.Release();
 
     private void SetPosition(double seconds)
     {

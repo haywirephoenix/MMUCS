@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -28,6 +29,16 @@ public readonly record struct ViewTransform(double Zoom, double OffsetX, double 
 public interface IViewportScene
 {
     void Render(SKCanvas canvas, in ViewTransform view, SKRect viewBounds);
+}
+
+/// <summary>
+/// A scene holding something that must stay alive until the renderer is done with it (a video frame):
+/// each draw operation showing the scene retains it, and releases it when Avalonia disposes the operation.
+/// </summary>
+public interface IRetainedScene : IViewportScene
+{
+    void Retain();
+    void Release();
 }
 
 /// <summary>
@@ -313,17 +324,35 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
         };
     }
 
-    private sealed class SceneDrawOperation(Rect bounds, ViewTransform view, SKPaint checker, Size contentSize, IViewportScene scene) : ICustomDrawOperation
+    private sealed class SceneDrawOperation : ICustomDrawOperation
     {
-        private readonly ViewTransform _view = view;
-        private readonly SKPaint _checker = checker;
-        private readonly Size _contentSize = contentSize;
-        private readonly IViewportScene _scene = scene;
+        private readonly ViewTransform _view;
+        private readonly SKPaint _checker;
+        private readonly Size _contentSize;
+        private readonly IViewportScene _scene;
+        private int _disposed;
 
-        public Rect Bounds { get; } = bounds;
+        public SceneDrawOperation(Rect bounds, ViewTransform view, SKPaint checker, Size contentSize, IViewportScene scene)
+        {
+            Bounds = bounds;
+            _view = view;
+            _checker = checker;
+            _contentSize = contentSize;
+            _scene = scene;
+            (scene as IRetainedScene)?.Retain();
+        }
+
+        public Rect Bounds { get; }
         public bool HitTest(Point p) => Bounds.Contains(p);
         public bool Equals(ICustomDrawOperation other) => false;
-        public void Dispose() { }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                (_scene as IRetainedScene)?.Release();
+            }
+        }
 
         public void Render(ImmediateDrawingContext context)
         {

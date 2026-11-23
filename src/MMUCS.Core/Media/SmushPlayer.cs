@@ -15,6 +15,9 @@ public sealed class SmushPlayer
 {
     private SmushDecoder _decoder;
     private IEnumerator<SmushFrame> _frames;
+    // The palette as 32-bit BGRA, rebuilt only when a frame changed it.
+    private readonly uint[] _bgra = new uint[256];
+    private bool _paletteDirty = true;
 
     public SmushPlayer(SmushVideo video)
     {
@@ -48,26 +51,38 @@ public sealed class SmushPlayer
             token.ThrowIfCancellationRequested();
             if (!_frames.MoveNext()) break;
             Current = _frames.Current;
+            if (Current.ImageChanged || Current.PaletteChanged) PictureChanged = true;
+            if (Current.PaletteChanged) _paletteDirty = true;
         }
         return true;
     }
 
-    /// <summary>The current frame as straight RGBA, for display.</summary>
-    public void CopyRgba(Span<byte> rgba)
+    /// <summary>
+    /// True when the picture may differ from the last <see cref="CopyBgra"/>: a frame drew or changed the
+    /// palette since. Frames that do neither show the same picture again.
+    /// </summary>
+    public bool PictureChanged { get; private set; } = true;
+
+    /// <summary>
+    /// The current frame as opaque 32-bit pixels, blue in the low byte (BGRA in memory on little-endian
+    /// machines: Skia's native order, so drawing needs no conversion).
+    /// </summary>
+    public void CopyBgra(Span<uint> pixels)
     {
+        PictureChanged = false;
         var f = Current;
-        if (f == null) { rgba.Clear(); return; }
-        var px = f.Pixels;
-        var pal = f.Palette;
-        int n = Math.Min(px.Length, rgba.Length / 4);
-        for (int i = 0; i < n; i++)
+        if (f == null) { pixels.Clear(); return; }
+        var lut = _bgra;
+        if (_paletteDirty)
         {
-            int c = px[i] * 3;
-            rgba[i * 4] = pal[c];
-            rgba[i * 4 + 1] = pal[c + 1];
-            rgba[i * 4 + 2] = pal[c + 2];
-            rgba[i * 4 + 3] = 255;
+            var pal = f.Palette;
+            for (int c = 0; c < 256; c++)
+                lut[c] = 0xFF000000u | ((uint)pal[c * 3] << 16) | ((uint)pal[c * 3 + 1] << 8) | pal[c * 3 + 2];
+            _paletteDirty = false;
         }
+        var px = f.Pixels;
+        int n = Math.Min(px.Length, pixels.Length);
+        for (int i = 0; i < n; i++) pixels[i] = lut[px[i]];
     }
 
     private void Restart()
@@ -76,5 +91,6 @@ public sealed class SmushPlayer
         _decoder = new SmushDecoder(Video);
         _frames = _decoder.Frames().GetEnumerator();
         Current = null;
+        PictureChanged = _paletteDirty = true;
     }
 }
