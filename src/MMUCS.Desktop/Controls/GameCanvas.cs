@@ -28,6 +28,10 @@ public sealed class GameCanvas : Control
         AvaloniaProperty.Register<GameCanvas, Rect>(nameof(Hotspot));
     public static readonly StyledProperty<bool> IsHotspotHoveredProperty =
         AvaloniaProperty.Register<GameCanvas, bool>(nameof(IsHotspotHovered));
+    public static readonly StyledProperty<Bitmap> CoinImageProperty =
+        AvaloniaProperty.Register<GameCanvas, Bitmap>(nameof(CoinImage));
+    public static readonly StyledProperty<Rect> CoinBoundsProperty =
+        AvaloniaProperty.Register<GameCanvas, Rect>(nameof(CoinBounds));
     public static readonly StyledProperty<bool> IsRunningProperty =
         AvaloniaProperty.Register<GameCanvas, bool>(nameof(IsRunning));
 
@@ -42,6 +46,10 @@ public sealed class GameCanvas : Control
     /// <summary>A stand-in hotspot, in game units.</summary>
     public Rect Hotspot { get => GetValue(HotspotProperty); set => SetValue(HotspotProperty, value); }
     public bool IsHotspotHovered { get => GetValue(IsHotspotHoveredProperty); set => SetValue(IsHotspotHoveredProperty, value); }
+    /// <summary>The verb coin's frame (null when it isn't shown), drawn under the cursor.</summary>
+    public Bitmap CoinImage { get => GetValue(CoinImageProperty); set => SetValue(CoinImageProperty, value); }
+    /// <summary>Where <see cref="CoinImage"/> goes, in game units.</summary>
+    public Rect CoinBounds { get => GetValue(CoinBoundsProperty); set => SetValue(CoinBoundsProperty, value); }
     /// <summary>Whether the game is playing (the picture is dimmed when it isn't).</summary>
     public bool IsRunning { get => GetValue(IsRunningProperty); set => SetValue(IsRunningProperty, value); }
 
@@ -56,7 +64,7 @@ public sealed class GameCanvas : Control
     static GameCanvas()
     {
         AffectsRender<GameCanvas>(GameSizeProperty, CursorImageProperty, CursorPositionProperty, CursorHotspotProperty,
-            ShowCursorProperty, HotspotProperty, IsHotspotHoveredProperty, IsRunningProperty);
+            ShowCursorProperty, HotspotProperty, IsHotspotHoveredProperty, IsRunningProperty, CoinImageProperty, CoinBoundsProperty);
         ClipToBoundsProperty.OverrideDefaultValue<GameCanvas>(true);
     }
 
@@ -108,14 +116,19 @@ public sealed class GameCanvas : Control
             context.DrawRectangle(IsHotspotHovered ? HotspotHoverFill : HotspotFill, IsHotspotHovered ? HotspotHoverPen : HotspotPen, h);
         }
 
-        if (ShowCursor && CursorImage is { } cursor)
+        using (context.PushClip(rect))
+        using (context.PushRenderOptions(new RenderOptions { BitmapInterpolationMode = BitmapInterpolationMode.None }))
         {
-            var at = ToControl(CursorPosition);
-            var size = cursor.PixelSize;
-            var dest = new Rect(at.X - CursorHotspot.X * s, at.Y - CursorHotspot.Y * s, size.Width * s, size.Height * s);
-            using (context.PushClip(rect))
-            using (context.PushRenderOptions(new RenderOptions { BitmapInterpolationMode = BitmapInterpolationMode.None }))
+            if (CoinImage is { } coin)
             {
+                var size = coin.PixelSize;
+                context.DrawImage(coin, new Rect(0, 0, size.Width, size.Height), new Rect(ToControl(CoinBounds.TopLeft), ToControl(CoinBounds.BottomRight)));
+            }
+            if (ShowCursor && CursorImage is { } cursor)
+            {
+                var at = ToControl(CursorPosition);
+                var size = cursor.PixelSize;
+                var dest = new Rect(at.X - CursorHotspot.X * s, at.Y - CursorHotspot.Y * s, size.Width * s, size.Height * s);
                 context.DrawImage(cursor, new Rect(0, 0, size.Width, size.Height), dest);
             }
         }

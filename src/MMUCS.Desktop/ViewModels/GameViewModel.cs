@@ -17,7 +17,8 @@ namespace MMUCS.Desktop.ViewModels;
 /// <summary>
 /// The game window (testing ground): a 16:9 canvas with Play / Stop. While playing, a click captures
 /// the mouse and the game draws its own cursor, the system-cursor-icon object (the one var290 names
-/// when nothing is held) from the Icons room: state 1 normally, state 2 over a simulated hotspot.
+/// when nothing is held) from the Icons room: state 1 normally, state 2 over a simulated hotspot. Holding
+/// the button on the hotspot opens the <see cref="VerbCoin"/>.
 /// </summary>
 public sealed partial class GameViewModel : ObservableObject
 {
@@ -39,7 +40,11 @@ public sealed partial class GameViewModel : ObservableObject
         _root = root;
         Status = root == null ? "Open the game first: the cursor comes from its Icons room." : "Loading the cursor…";
         _ = LoadCursorAsync();
+        _ = LoadCoinAsync();
     }
+
+    /// <summary>The verb coin, shown while the mouse is held on a hotspot.</summary>
+    public VerbCoin Coin { get; } = new();
 
     /// <summary>A stand-in hotspot, so hovering can be tried before rooms and their objects are playable.</summary>
     public Rect Hotspot { get; } = new(GameWidth / 2 - 110, GameHeight / 2 - 70, 220, 140);
@@ -110,12 +115,45 @@ public sealed partial class GameViewModel : ObservableObject
     public void MoveCursor(Point position)
     {
         CursorPosition = new Point(Math.Clamp(position.X, 0, GameWidth), Math.Clamp(position.Y, 0, GameHeight));
-        CursorState = IsOverHotspot ? 2 : 1;
+        Coin.PointAt(CursorPosition);
+        UpdateCursorState();
     }
+
+    /// <summary>State 2 over a hotspot, except while the verb coin is open: then hotspots don't count and it stays state 1.</summary>
+    private void UpdateCursorState() => CursorState = IsOverHotspot && !Coin.IsShown ? 2 : 1;
+
+    /// <summary>The mouse went down: on a hotspot, the verb coin opens where the cursor is.</summary>
+    public void PressCursor()
+    {
+        if (!IsMouseCaptured || !IsOverHotspot) return;
+        Coin.Show(CursorPosition, CanvasSize);
+        UpdateCursorState();
+    }
+
+    /// <summary>The mouse came up: the verb coin goes.</summary>
+    public void ReleaseCursor()
+    {
+        Coin.Hide();
+        if (IsMouseCaptured) UpdateCursorState();
+    }
+
+    /// <summary>Steps the game's animations (the window calls it <see cref="VerbCoin.FramesPerSecond"/> times a second).</summary>
+    public void Tick() => Coin.Tick();
 
     partial void OnIsMouseCapturedChanged(bool value)
     {
-        if (!value) CursorState = 1;
+        if (value) return;
+        CursorState = 1;
+        Coin.Hide();
+    }
+
+    private async Task LoadCoinAsync()
+    {
+        try
+        {
+            if (!await Coin.LoadAsync(_root) && _root != null) Log.Warn($"Game window: no costume {VerbCoin.CostumeNumber} in room {VerbCoin.RoomNumber} for the verb coin");
+        }
+        catch (Exception ex) { Log.Warn($"Game window verb coin: {ex.Message}"); }
     }
 
     private async Task LoadCursorAsync()

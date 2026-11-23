@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using MMUCS.Desktop.Services;
 using MMUCS.Desktop.ViewModels;
 
@@ -12,12 +13,13 @@ namespace MMUCS.Desktop.Views.Game;
 /// <summary>
 /// The game window (Window ▸ Game, a testing ground). While playing, a click on the canvas captures the
 /// mouse: the system cursor hides and is kept inside the picture, and the game draws its own. Esc, Stop,
-/// or leaving the window lets it go.
+/// or leaving the window lets it go. Holding the button on a hotspot opens the verb coin until it's let go.
 /// </summary>
 public partial class GameWindow : Window
 {
     private static readonly Cursor Hidden = new(StandardCursorType.None);
     private readonly PointerConfinement _confinement = new();
+    private readonly DispatcherTimer _timer;
     private GameViewModel _vm;
 
     public GameWindow()
@@ -26,6 +28,9 @@ public partial class GameWindow : Window
         Canvas.PointerPressed += OnCanvasPressed;
         Canvas.PointerMoved += OnCanvasMoved;
         Canvas.PointerExited += OnCanvasExited;
+        Canvas.PointerReleased += OnCanvasReleased;
+        _timer = new DispatcherTimer(TimeSpan.FromSeconds(1 / VerbCoin.FramesPerSecond), DispatcherPriority.Render, (_, _) => _vm?.Tick());
+        Opened += (_, _) => _timer.Start();
         Canvas.SizeChanged += (_, _) => Confine();
         PositionChanged += (_, _) => Confine();
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
@@ -53,7 +58,14 @@ public partial class GameWindow : Window
 
     private void OnCanvasPressed(object sender, PointerPressedEventArgs e)
     {
-        if (_vm is not { IsPlaying: true } || _vm.IsMouseCaptured) return;
+        if (_vm is not { IsPlaying: true }) return;
+        if (_vm.IsMouseCaptured)
+        {
+            // Holding the button on a hotspot opens the verb coin.
+            if (e.GetCurrentPoint(Canvas).Properties.IsLeftButtonPressed) _vm.PressCursor();
+            e.Handled = true;
+            return;
+        }
         var at = e.GetPosition(Canvas);
         if (!Canvas.GameRect.Contains(at)) return; // the letterbox isn't the game
         Canvas.Focus();
@@ -70,6 +82,11 @@ public partial class GameWindow : Window
         var at = e.GetPosition(Canvas);
         _confinement.KeepInside(Canvas.PointToScreen(at));
         _vm.MoveCursor(Canvas.ToGame(at));
+    }
+
+    private void OnCanvasReleased(object sender, PointerReleasedEventArgs e)
+    {
+        if (e.InitialPressMouseButton == MouseButton.Left) _vm?.ReleaseCursor();
     }
 
     /// <summary>A pointer that got out between two moves goes back to where the game cursor is.</summary>
@@ -104,6 +121,7 @@ public partial class GameWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _timer.Stop();
         ReleaseMouse();
         _confinement.Dispose();
         _vm?.PropertyChanged -= OnVmPropertyChanged;
