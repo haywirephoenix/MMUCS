@@ -7,6 +7,8 @@ namespace MMUCS.Runtime.Scripts;
 public static class EngineVars
 {
     public const int RoomWidth = 1, RoomHeight = 2;
+    /// <summary>The mouse on the screen, and in room coordinates (the screen plus where its top left is in the room).</summary>
+    public const int MouseX = 3, MouseY = 4, VirtMouseX = 5, VirtMouseY = 6;
     public const int TalkActor = 14;
     /// <summary>1 after <c>begin-override</c>'s cutscene was skipped, 0 otherwise.</summary>
     public const int Override = 30;
