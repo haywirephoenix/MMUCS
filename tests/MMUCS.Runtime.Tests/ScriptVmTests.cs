@@ -218,6 +218,21 @@ public class ScriptVmTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void Starts_and_ends_are_reported_with_their_nesting_and_why()
+    {
+        // global 1 starts 2 (which breaks), calls 3 (which ends) and stops 2.
+        var two = new Asm().Label("top").Break().Jump(0x66, "top").Global(2);
+        var three = new Asm().Push(0).Op(0x7e).End().Global(3);
+        var one = new Asm().Push(0).Push(2).List().Op(0x79).Push(3).List().Op(0xc8).Op(0x06).Push(2).Op(0x7c).End().Global(1);
+        var (vm, _, _) = Machine(one, two, three);
+        var log = new List<string>();
+        vm.ScriptStarted += s => log.Add($"{vm.Depth}+{s.Number}");
+        vm.ScriptEnded += (s, why) => log.Add($"-{s.Number} {why}");
+        vm.RunScript(1);
+        Assert.Equal(["1+1", "2+2", "2+3", "-3 ended", "-2 stopped", "-1 ended"], log);
+    }
+
+    [Fact]
     public void Fatal_errors_end_the_script()
     {
         var code = new Asm().Push(1).Push(0).Op(0x11).Push(1).Write(100).End().Global(1);
