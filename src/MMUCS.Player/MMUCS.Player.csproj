@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Shows the running game: draws a frame of MMUCS.Runtime's game state (and the game's text) onto any
+       Skia canvas, at any size. Hosts (the editor's Game window, a standalone player) only give it a
+       canvas, input and time. No UI framework types. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>MMUCS.Player</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MMUCS.Runtime\MMUCS.Runtime.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The version Avalonia.Skia draws with, so the editor can hand it its own canvas. -->
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+  </ItemGroup>
+</Project>

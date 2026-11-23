@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MMUCS.Core\MMUCS.Core.csproj" />
+    <ProjectReference Include="..\MMUCS.Player\MMUCS.Player.csproj" />
     <ProjectReference Include="..\MMUCS.Media.OpenAL\MMUCS.Media.OpenAL.csproj" />
   </ItemGroup>
 </Project>
