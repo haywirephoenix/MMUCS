@@ -83,6 +83,9 @@ public sealed class ScriptVm
     public event Action<UnhandledCall> Unhandled;
     public event Action<ScriptFault> Faulted;
 
+    /// <summary>Something the engine only warns about, such as starting code for an object that isn't here.</summary>
+    public event Action<string> Warned;
+
     /// <summary>How often each unhandled instruction was met, by name.</summary>
     public IReadOnlyDictionary<string, int> UnhandledCounts => _unhandledCounts;
 
@@ -134,6 +137,102 @@ public sealed class ScriptVm
                 n.Number = 0;
                 n.Slot = null;
             }
+    }
+
+    /// <summary>
+    /// Runs <paramref name="verb"/>'s code of object <paramref name="obj"/> (ScummVM <c>runObjectScript</c>):
+    /// the code of the room's copy, or of its home room's when an actor carries it. Unless
+    /// <paramref name="recursive"/>, its other running code is stopped first. Nothing happens when the
+    /// object isn't here or doesn't take the verb.
+    /// </summary>
+    public void RunObjectScript(int obj, int verb, bool freezeResistant = false, bool recursive = false, IReadOnlyList<int> args = null)
+    {
+        if (obj == 0) return;
+        if (!recursive) StopObjectScript(obj);
+        if (ObjectCodeOf(obj) is not { } code)
+        {
+            Warned?.Invoke($"code for object {obj} isn't in room {CurrentRoom}");
+            return;
+        }
+        if (code.Script(verb) is not { } script) return;
+        var slot = State.FreeSlot();
+        slot.Start(script, args, verb: verb, freezeResistant: freezeResistant, recursive: recursive);
+        RunNested(slot);
+    }
+
+    /// <summary>
+    /// Where an object's code is (ScummVM <c>whereIsObject</c>): an object in its room is found among the
+    /// current room's objects; one an actor owns, only while it's in the inventory, with its home room's code.
+    /// </summary>
+    public ObjectCode ObjectCodeOf(int obj)
+    {
+        var objects = State.Objects;
+        if (!objects.IsObject(obj)) return null;
+        if (objects.Owner(obj) != ObjectTables.RoomOwner)
+            return objects.InInventory(obj) ? Scripts.Object(objects.Room(obj), obj) : null;
+        return Scripts.Object(CurrentRoom, obj);
+    }
+
+    /// <summary>Stops all running code of object <paramref name="obj"/> (ScummVM <c>stopObjectScript</c>).</summary>
+    public void StopObjectScript(int obj)
+    {
+        if (obj == 0) return;
+        foreach (var s in State.Slots)
+        {
+            if (s.Number != obj || !s.IsAlive || s.IsScript) continue;
+            if (s.CutsceneOverride != 0) throw new ScriptException($"object {obj} stopped with an active cutscene/override");
+            s.Kill();
+            if (State.Current == s) State.Current = null;
+        }
+        foreach (var n in _nest)
+            if (n.Number == obj && n.Kind is not (ScriptKind.Global or ScriptKind.Local))
+            {
+                n.Number = 0;
+                n.Slot = null;
+            }
+    }
+
+    /// <summary>
+    /// Gives <paramref name="obj"/> to <paramref name="owner"/> (ScummVM <c>setOwnerOf</c>). Owner 0 takes it
+    /// away from everyone: its code stops and it leaves the inventory. Either way the inventory script runs.
+    /// </summary>
+    public void SetOwner(int obj, int owner)
+    {
+        var objects = State.Objects;
+        if (obj <= 0) throw new ScriptException($"set-owner of object {obj}");
+        if (owner == 0)
+        {
+            StopObjectScript(obj);
+            if (objects.Owner(obj) != ObjectTables.RoomOwner) objects.RemoveFromInventory(obj);
+        }
+        objects.SetOwner(obj, owner);
+        RunInventoryScript(obj);
+    }
+
+    /// <summary>
+    /// The ego picks <paramref name="obj"/> up (ScummVM <c>o6_pickupObject</c>): into the inventory unless it's
+    /// there already, owned by the ego, untouchable and in state 1. The inventory script runs.
+    /// </summary>
+    public void PickUp(int obj)
+    {
+        var objects = State.Objects;
+        if (objects.InInventory(obj))
+        {
+            objects.SetOwner(obj, State[EngineVars.Ego]);
+            RunInventoryScript(obj);
+            return;
+        }
+        if (!objects.IsObject(obj)) throw new ScriptException($"pick-up of object {obj}");
+        objects.AddToInventory(obj);
+        objects.SetOwner(obj, State[EngineVars.Ego]);
+        objects.SetClass(obj, ObjectTables.Untouchable, true);
+        objects.SetState(obj, 1);
+        RunInventoryScript(obj);
+    }
+
+    private void RunInventoryScript(int obj)
+    {
+        if (State[EngineVars.InventoryScript] is int script and not 0) RunScript(script, args: [obj]);
     }
 
     /// <summary>Whether a copy of global or local script <paramref name="number"/> is alive (ScummVM <c>isScriptRunning</c>).</summary>
@@ -323,7 +422,22 @@ public sealed class ScriptVm
             case 0x83: a = Pop(); if (a != 0) Freeze(a); else Unfreeze(); return;
             case 0x84: BeginOverride(s); return;
             case 0x85: EndOverride(); return;
+            case 0x7f: { var args = Args(); int verb = Pop(), obj = Pop(), flags = Pop(); RunObjectScript(obj, verb, (flags & 1) != 0, (flags & 2) != 0, args); return; }
+            case 0x80: StopObjectScript(Pop()); return;
             case 0x87: Pop(); return; // debug
+
+            // ── Objects ──
+            case 0x89: SetClasses(); return;
+            case 0x8a: { int state = Pop(), obj = Pop(); State.Objects.SetState(obj, state); return; }
+            case 0x8b: { int owner = Pop(), obj = Pop(); SetOwner(obj, owner); return; }
+            case 0xa6: PickUp(Pop()); return;
+            case 0xc9: { var args = Args(); int verb = Pop(), obj = Pop(); RunObjectScript(obj, verb, recursive: true, args: args); return; }
+            case 0xd0: { var list = State.PopList(16); Push(ClassesMatch(Pop(), list)); return; }
+            case 0xd1: Push(State.Objects.State(Pop())); return;
+            case 0xd2: Push(State.Objects.Owner(Pop())); return;
+            case 0xda: { int verb = Pop(), obj = Pop(); Push(ObjectCodeOf(obj) is { } code && code.EntryFor(verb) is int at ? code.CodeStart + at : 0); return; }
+            case 0xdf: { int index = Pop(), owner = Pop(); Push(State.Objects.FindInventory(owner, index)); return; }
+            case 0xe0: Push(State.Objects.InventoryCount(Pop())); return;
             case 0xc8: { var args = Args(); RunScript(Pop(), recursive: true, args: args); return; }
 
             // ── Functions ──
@@ -336,6 +450,31 @@ public sealed class ScriptVm
             case 0xd6: Push(Math.Abs(Pop())); return;
         }
         NotHandled(s, ins);
+    }
+
+    /// <summary>
+    /// <c>class-of obj is [...]</c>: a class with bit 7 is set, one without is cleared (ScummVM <c>o6_setClass</c>).
+    /// Class 0 clears all of the object's classes; ScummVM clears entry <i>n</i> of the table there (the
+    /// list position), which looks like a slip for the object.
+    /// </summary>
+    private void SetClasses()
+    {
+        var list = State.PopList(16);
+        int obj = Pop();
+        for (int i = list.Length - 1; i >= 0; i--)
+        {
+            int cls = list[i];
+            if (cls == 0) State.Objects.SetClasses(obj, 0);
+            else State.Objects.SetClass(obj, cls, (cls & 0x80) != 0);
+        }
+    }
+
+    /// <summary>Whether every class in the list matches: with bit 7 it must be set, without it clear (ScummVM <c>o6_ifClassOfIs</c>).</summary>
+    private bool ClassesMatch(int obj, int[] list)
+    {
+        foreach (int cls in list)
+            if (State.Objects.HasClass(obj, cls) != ((cls & 0x80) != 0)) return false;
+        return true;
     }
 
     private void Sleep(ScriptSlot s, int jiffies)

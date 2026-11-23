@@ -18,6 +18,8 @@ public static class EngineVars
     public const int GameLoaded = 40, Language = 41, CurrentDisk = 42;
     public const int EntryScript = 51, EntryScript2 = 52, ExitScript = 53, ExitScript2 = 54;
     public const int SentenceScript = 56;
+    /// <summary>The script run whenever an object changes hands, with the object as its first local.</summary>
+    public const int InventoryScript = 57;
     public const int CutsceneStartScript = 58, CutsceneEndScript = 59;
     /// <summary>How many jiffies the next frame waits (4 when 0 or less is never used: the engine waits at least 1).</summary>
     public const int TimerNext = 112;

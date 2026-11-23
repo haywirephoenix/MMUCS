@@ -36,6 +36,7 @@ public sealed class VmState
         _globals = new int[limits.Variables];
         _bits = new BitArray(limits.BitVariables);
         _arrays = new ScriptArray[Math.Max(limits.Arrays, 1)];
+        Objects = new ObjectTables(limits);
         Slots = new ScriptSlot[SlotCount];
         for (int i = 0; i < SlotCount; i++) Slots[i] = new ScriptSlot(i);
         foreach (var (variable, dim2, dim1) in limits.IndexArrays)
@@ -45,6 +46,9 @@ public sealed class VmState
     public GameLimits Limits { get; }
 
     public ScriptSlot[] Slots { get; }
+
+    /// <summary>Owners, states, rooms and classes of the global objects, and the inventory.</summary>
+    public ObjectTables Objects { get; }
 
     /// <summary>The slot whose locals a local variable means (the running script), or null.</summary>
     public ScriptSlot Current { get; set; }

@@ -33,6 +33,13 @@ public sealed record GameLimits
     /// </summary>
     public IReadOnlyList<(int Variable, int Dim2, int Dim1)> IndexArrays { get; init; } = [];
 
+    /// <summary>
+    /// Each global object's starting state, home room and classes, by object number, from the index's
+    /// DOBJ (v8: a u32 count, then per object a 40-byte name, state, room and u32 classes; ScummVM
+    /// <c>ScummEngine_v8::readGlobalObjects</c>).
+    /// </summary>
+    public IReadOnlyList<(byte State, byte Room, uint Classes)> IndexObjects { get; init; } = [];
+
     /// <summary>COMI's MAXS (the values ScummVM's comments give).</summary>
     public static GameLimits Comi { get; } = new()
     {
@@ -43,11 +50,12 @@ public sealed record GameLimits
     /// <summary>The limits from the MAXS and AARY blocks under <paramref name="root"/>, or null without a MAXS.</summary>
     public static GameLimits Read(ScummBlock root)
     {
-        ScummBlock maxs = null, aary = null;
+        ScummBlock maxs = null, aary = null, dobj = null;
         foreach (var b in Blocks.Walk(root, 3))
         {
             if (b.Tag == ScummTag.MAXS) maxs ??= b;
             else if (b.Tag == ScummTag.AARY) aary ??= b;
+            else if (b.Tag == ScummTag.DOBJ) dobj ??= b;
         }
         if (maxs == null || maxs.DataLength < 100 + 17 * 4) return null;
 
@@ -59,7 +67,19 @@ public sealed record GameLimits
             Costumes = U(6), Rooms = U(7), /* 8: unused (80) */ GlobalObjects = U(9), /* 10: unused (60) */
             LocalObjects = U(11), NewNames = U(12), FlObjects = U(13), Inventory = U(14), Arrays = U(15), Verbs = U(16),
         };
-        return aary == null ? limits : limits with { IndexArrays = ReadArrays(aary.DataSpan) };
+        if (aary != null) limits = limits with { IndexArrays = ReadArrays(aary.DataSpan) };
+        if (dobj != null) limits = limits with { IndexObjects = ReadObjects(dobj.DataSpan) };
+        return limits;
+    }
+
+    private static List<(byte, byte, uint)> ReadObjects(ReadOnlySpan<byte> d)
+    {
+        var list = new List<(byte, byte, uint)>();
+        if (d.Length < 4) return list;
+        int n = (int)d.U32LE(0);
+        for (int i = 0, p = 4; i < n && p + 46 <= d.Length; i++, p += 46)
+            list.Add((d[p + 40], d[p + 41], d.U32LE(p + 42)));
+        return list;
     }
 
     /// <summary>

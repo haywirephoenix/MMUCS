@@ -61,6 +61,8 @@ public sealed class ObjectCode
     public string Name { get; init; }
     /// <summary>The VERB block's data: the table, then the code.</summary>
     public ReadOnlyMemory<byte> Code { get; init; }
+    /// <summary>Where <see cref="Code"/> starts in the object's OBCD block (the VERB block's offset there plus its header).</summary>
+    public int CodeStart { get; init; }
     /// <summary>(verb, offset into <see cref="Code"/>) in table order; verb −1 is the default.</summary>
     public IReadOnlyList<(int Verb, int Offset)> Verbs { get; init; } = [];
 
@@ -124,7 +126,10 @@ public sealed class ScriptStore
     /// A store holding just <paramref name="scripts"/> (global and local ones), for running code that
     /// isn't from a game file, such as tests.
     /// </summary>
-    public static ScriptStore Of(params ScriptCode[] scripts)
+    public static ScriptStore Of(params ScriptCode[] scripts) => Of(scripts, []);
+
+    /// <summary>A store holding just <paramref name="scripts"/> and the object code <paramref name="objects"/>, by their rooms.</summary>
+    public static ScriptStore Of(IReadOnlyList<ScriptCode> scripts, IReadOnlyList<ObjectCode> objects)
     {
         int globals = 1;
         foreach (var s in scripts)
@@ -139,6 +144,11 @@ public sealed class ScriptStore
                 room.Locals[s.Number] = s;
             }
             else throw new ArgumentException($"{s.Kind} code can't be added on its own", nameof(scripts));
+        }
+        foreach (var o in objects)
+        {
+            if (!store._roomCode.TryGetValue(o.Room, out var room)) store._roomCode[o.Room] = room = new RoomCode();
+            room.Objects[o.Id] = o;
         }
         return store;
     }
@@ -273,7 +283,11 @@ public sealed class ScriptStore
             int offset = (int)d.U32LE(p + 4);
             if (offset >= 0 && offset < d.Length) verbs.Add((v, offset));
         }
-        return new ObjectCode { Id = id, Room = room, Name = RoomScripts.ObjectName(obcd, id), Code = verb.DataMemory, Verbs = verbs };
+        return new ObjectCode
+        {
+            Id = id, Room = room, Name = RoomScripts.ObjectName(obcd, id), Code = verb.DataMemory,
+            CodeStart = verb.DataOffset - obcd.Offset, Verbs = verbs,
+        };
     }
 
     private static int? RoomNo(ScummBlock lflf)
