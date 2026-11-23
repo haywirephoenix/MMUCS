@@ -22,6 +22,10 @@ public sealed class GameView
 
     public GameState Game { get; }
 
+    /// <summary>The room to show under the game's overlays, and where the camera looks in it (room pixels, its centre).</summary>
+    public Rooms.RoomScene Room { get; set; }
+    public GamePoint Camera { get; set; } = new(320, 240);
+
     /// <summary>The font the game's text (the hover label) is drawn in; no text is drawn without one.</summary>
     public SubtitleRenderer Text { get; set; }
 
@@ -59,6 +63,8 @@ public sealed class GameView
         return new GameFrame
         {
             IsRunning = game.IsPlaying,
+            Room = Room,
+            Camera = Camera,
             Hotspot = game.Hotspot,
             IsHotspotHovered = game.IsOverHotspot,
             Blasts = game.Inventory.IsOpen
