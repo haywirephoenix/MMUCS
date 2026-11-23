@@ -49,6 +49,7 @@ static class BootCommand
         vm.RoomEntered += room => Line(room == 0
             ? "ROOM 0 (no room)"
             : $"ROOM {room} {store.RoomName(room)}{(store.RoomSize(room) is { } size ? $" ({size.Width}×{size.Height})" : "")}", vm.Depth);
+        vm.VideoStarted += name => Line($"VIDEO {name} (not played here: the script goes straight on)", vm.Depth);
         vm.Faulted += f => { faults++; Line($"FAULT {f}", vm.Depth); };
         vm.Warned += w => { warnings++; Line($"warning: {w}", vm.Depth); };
         if (calls) vm.Unhandled += c => Line($"· {c.Instruction.Name}({string.Join(", ", c.Args.Select(x => x.Length == 1 ? x[0].ToString() : $"[{string.Join(", ", x)}]"))}){(c.Instruction.Text is { } t ? " " + t : "")}", vm.Depth);
