@@ -86,6 +86,18 @@ public sealed class ScriptVm
     /// <summary>Something the engine only warns about, such as starting code for an object that isn't here.</summary>
     public event Action<string> Warned;
 
+    /// <summary>
+    /// A room was entered (after the old room's exit code, before the new one's entry code): hosts load
+    /// its pictures here. Room 0 is no room at all.
+    /// </summary>
+    public event Action<int> RoomEntered;
+
+    /// <summary>The slot numbers a room's exit and entry code run under (ScummVM).</summary>
+    public const int ExitCodeNumber = 10001, EntryCodeNumber = 10002;
+
+    /// <summary>The 640×480 screen, half of which is how far the camera's centre stays from a room's edges.</summary>
+    private const int ScreenWidth = 640, ScreenHeight = 480;
+
     /// <summary>How often each unhandled instruction was met, by name.</summary>
     public IReadOnlyDictionary<string, int> UnhandledCounts => _unhandledCounts;
 
@@ -157,6 +169,7 @@ public sealed class ScriptVm
         if (code.Script(verb) is not { } script) return;
         var slot = State.FreeSlot();
         slot.Start(script, args, verb: verb, freezeResistant: freezeResistant, recursive: recursive);
+        slot.Carried = State.Objects.Owner(obj) != ObjectTables.RoomOwner;
         RunNested(slot);
     }
 
@@ -233,6 +246,64 @@ public sealed class ScriptVm
     private void RunInventoryScript(int obj)
     {
         if (State[EngineVars.InventoryScript] is int script and not 0) RunScript(script, args: [obj]);
+    }
+
+    /// <summary>
+    /// Leaves the current room for <paramref name="room"/> (ScummVM <c>startScene</c>): <c>new-room</c> is set,
+    /// the old room's exit scripts run, then its local scripts and its objects' and own code end. The new
+    /// room becomes current with its size and camera limits in the room variables, and its entry scripts run.
+    /// A room or local script that asked for this stops here; a global one carries on afterwards.
+    /// </summary>
+    public void StartScene(int room)
+    {
+        if (State.Current is { } caller && caller.BelongsToRoom)
+        {
+            if (caller.CutsceneOverride != 0) throw new ScriptException($"{caller} stopped with an active cutscene/override in exit");
+            State.Current = null;
+        }
+        State[EngineVars.NewRoom] = room;
+        RunRoomCode(EngineVars.ExitScript, Scripts.RoomExit(CurrentRoom), ExitCodeNumber, EngineVars.ExitScript2);
+
+        foreach (var s in State.Slots)
+        {
+            if (!s.IsAlive || !s.BelongsToRoom) continue;
+            if (s.CutsceneOverride != 0) Warned?.Invoke($"{s} stopped with an active cutscene/override in exit");
+            s.CutsceneOverride = 0;
+            s.Status = SlotStatus.Dead; // the number stays, as ScummVM leaves it
+            s.Frozen = false;
+            if (State.Current == s) State.Current = null;
+        }
+
+        CurrentRoom = room;
+        State[EngineVars.Room] = room;
+        RoomEntered?.Invoke(room);
+        if (room == 0) return;
+
+        var (width, height) = Scripts.RoomSize(room) ?? (ScreenWidth, ScreenHeight);
+        State[EngineVars.RoomWidth] = width;
+        State[EngineVars.RoomHeight] = height;
+        State[EngineVars.CameraMinX] = ScreenWidth / 2;
+        State[EngineVars.CameraMaxX] = width - ScreenWidth / 2;
+        State[EngineVars.CameraMinY] = ScreenHeight / 2;
+        State[EngineVars.CameraMaxY] = height - ScreenHeight / 2;
+        State[EngineVars.CameraPosX] = State[EngineVars.CameraDestX] = ScreenWidth / 2;
+        State[EngineVars.CameraPosY] = State[EngineVars.CameraDestY] = ScreenHeight / 2;
+
+        RunRoomCode(EngineVars.EntryScript, Scripts.RoomEntry(room), EntryCodeNumber, EngineVars.EntryScript2);
+    }
+
+    /// <summary>The engine's exit or entry sequence: the script one variable names, the room's own code, the script the other names.</summary>
+    private void RunRoomCode(int firstVar, ScriptCode roomCode, int number, int secondVar)
+    {
+        if (State[firstVar] is int first and not 0) RunScript(first);
+        if (roomCode != null)
+        {
+            var slot = State.FreeSlot();
+            slot.Start(roomCode);
+            slot.Number = number;
+            RunNested(slot);
+        }
+        if (State[secondVar] is int second and not 0) RunScript(second);
     }
 
     /// <summary>Whether a copy of global or local script <paramref name="number"/> is alive (ScummVM <c>isScriptRunning</c>).</summary>
@@ -426,6 +497,10 @@ public sealed class ScriptVm
             case 0x80: StopObjectScript(Pop()); return;
             case 0x87: Pop(); return; // debug
 
+            // ── Rooms ──
+            case 0x9d: StartScene(Pop()); return;
+            case 0x9e: ComeOutDoor(ins); return;
+
             // ── Objects ──
             case 0x89: SetClasses(); return;
             case 0x8a: { int state = Pop(), obj = Pop(); State.Objects.SetState(obj, state); return; }
@@ -450,6 +525,21 @@ public sealed class ScriptVm
             case 0xd6: Push(Math.Abs(Pop())); return;
         }
         NotHandled(s, ins);
+    }
+
+    /// <summary>
+    /// <c>come-out-door obj at x,y</c>: enters the object's home room with <c>walk-to-object</c> set while it
+    /// does (ScummVM <c>o6_loadRoomWithEgo</c>). Placing the ego at the object and walking it to x,y is the
+    /// actors' part, reported through <see cref="Unhandled"/> for now.
+    /// </summary>
+    private void ComeOutDoor(ScriptInstruction ins)
+    {
+        int y = Pop(), x = Pop(), obj = Pop();
+        State[EngineVars.WalkToObject] = obj;
+        StartScene(State.Objects.Room(obj));
+        State[EngineVars.WalkToObject] = 0;
+        _unhandledCounts[ins.Name] = _unhandledCounts.GetValueOrDefault(ins.Name) + 1;
+        Unhandled?.Invoke(new UnhandledCall("ego", ins, [[obj], [x], [y]]));
     }
 
     /// <summary>

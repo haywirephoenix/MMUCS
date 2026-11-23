@@ -101,6 +101,7 @@ public sealed class ScriptStore
     private readonly IReadOnlyList<(int Room, long Offset)> _directory;
     private readonly Dictionary<int, ScriptCode> _globals = [];
     private readonly Dictionary<int, RoomCode> _roomCode = [];
+    private readonly Dictionary<int, (int, int)> _roomSizes = [];
 
     private sealed class RoomCode
     {
@@ -128,8 +129,11 @@ public sealed class ScriptStore
     /// </summary>
     public static ScriptStore Of(params ScriptCode[] scripts) => Of(scripts, []);
 
-    /// <summary>A store holding just <paramref name="scripts"/> and the object code <paramref name="objects"/>, by their rooms.</summary>
-    public static ScriptStore Of(IReadOnlyList<ScriptCode> scripts, IReadOnlyList<ObjectCode> objects)
+    /// <summary>
+    /// A store holding just <paramref name="scripts"/> (global, local, room entry and exit code) and the
+    /// object code <paramref name="objects"/>, by their rooms, with the rooms' sizes.
+    /// </summary>
+    public static ScriptStore Of(IReadOnlyList<ScriptCode> scripts, IReadOnlyList<ObjectCode> objects, IReadOnlyDictionary<int, (int Width, int Height)> roomSizes = null)
     {
         int globals = 1;
         foreach (var s in scripts)
@@ -138,13 +142,16 @@ public sealed class ScriptStore
         foreach (var s in scripts)
         {
             if (s.Kind == ScriptKind.Global) store._globals[s.Number] = s;
-            else if (s.Kind == ScriptKind.Local)
+            else if (s.Kind == ScriptKind.Object) throw new ArgumentException("object code goes in objects", nameof(scripts));
+            else
             {
                 if (!store._roomCode.TryGetValue(s.Room, out var room)) store._roomCode[s.Room] = room = new RoomCode();
-                room.Locals[s.Number] = s;
+                if (s.Kind == ScriptKind.Local) room.Locals[s.Number] = s;
+                else if (s.Kind == ScriptKind.RoomEntry) room.Entry = s;
+                else room.Exit = s;
             }
-            else throw new ArgumentException($"{s.Kind} code can't be added on its own", nameof(scripts));
         }
+        foreach (var (room, size) in roomSizes ?? new Dictionary<int, (int, int)>()) store._roomSizes[room] = size;
         foreach (var o in objects)
         {
             if (!store._roomCode.TryGetValue(o.Room, out var room)) store._roomCode[o.Room] = room = new RoomCode();
@@ -194,6 +201,20 @@ public sealed class ScriptStore
     public ObjectCode Object(int room, int id)
     {
         return For(room)?.Objects.GetValueOrDefault(id);
+    }
+
+    /// <summary>
+    /// The room's size in pixels from its RMHD (v8: version, width, height, object count… as u32), or null
+    /// for a room that isn't in the game.
+    /// </summary>
+    public (int Width, int Height)? RoomSize(int room)
+    {
+        if (_roomSizes.TryGetValue(room, out var size)) return size;
+        if (!_rooms.TryGetValue(room, out var lflf)) return null;
+        foreach (var b in Blocks.Walk(lflf, 2))
+            if (b.Tag == ScummTag.RMHD && b.DataLength >= 12)
+                return ((int)b.DataSpan.U32LE(4), (int)b.DataSpan.U32LE(8));
+        return null;
     }
 
     /// <summary>The objects with code in <paramref name="room"/>.</summary>

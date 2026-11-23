@@ -31,11 +31,16 @@ public sealed class ScriptSlot
 
     public SlotStatus Status { get; set; }
     public ScriptKind Kind { get; set; }
-    /// <summary>The script number, or the object id for object code, or the room for entry and exit code.</summary>
+    /// <summary>
+    /// The script number, or the object id for object code; a room's exit and entry code run as 10001 and
+    /// 10002 (ScummVM's numbers, which <c>stop-object</c> and <c>script-running</c> see).
+    /// </summary>
     public int Number { get; set; }
     public int Room { get; set; }
     /// <summary>For object code: the verb that was run.</summary>
     public int Verb { get; set; }
+    /// <summary>For object code: run from the inventory (an actor carries the object), so leaving the room doesn't end it.</summary>
+    public bool Carried { get; set; }
     /// <summary>The code being run (found from the fields above; not part of a save).</summary>
     public ScriptCode Code { get; set; }
     /// <summary>The offset of the next instruction in <see cref="ScriptCode.Code"/>.</summary>
@@ -61,6 +66,9 @@ public sealed class ScriptSlot
     /// <summary>Whether it runs this frame: running and not frozen (ScummVM <c>status == ssRunning</c>).</summary>
     public bool IsRunnable => Status == SlotStatus.Running && !Frozen;
 
+    /// <summary>Whether leaving the room ends it: local scripts, room entry and exit code, and code of objects in the room.</summary>
+    public bool BelongsToRoom => Kind is ScriptKind.Local or ScriptKind.RoomEntry or ScriptKind.RoomExit || (Kind == ScriptKind.Object && !Carried);
+
     /// <summary>Whether <c>stop-script</c> and <c>script-running</c> see it (global or local code, not object or room code).</summary>
     public bool IsScript => Kind is ScriptKind.Global or ScriptKind.Local;
 
@@ -76,6 +84,7 @@ public sealed class ScriptSlot
         Number = code.Number;
         Room = code.Room;
         Verb = verb;
+        Carried = false;
         Code = code;
         Pc = code.Entry;
         Delay = 0;
