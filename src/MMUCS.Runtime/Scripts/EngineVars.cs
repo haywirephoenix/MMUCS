@@ -9,7 +9,11 @@ public static class EngineVars
     public const int RoomWidth = 1, RoomHeight = 2;
     /// <summary>The mouse on the screen, and in room coordinates (the screen plus where its top left is in the room).</summary>
     public const int MouseX = 3, MouseY = 4, VirtMouseX = 5, VirtMouseY = 6;
+    /// <summary>The cursor's and userput's levels (on when above 0), copied after every cursor command.</summary>
+    public const int CursorState = 7, UserPut = 8;
     public const int TalkActor = 14;
+    /// <summary>Set for the frame a button went down in; held while it stays down.</summary>
+    public const int LeftButtonDown = 16, RightButtonDown = 17, LeftButtonHold = 18, RightButtonHold = 19;
     /// <summary>1 after <c>begin-override</c>'s cutscene was skipped, 0 otherwise.</summary>
     public const int Override = 30;
     public const int Room = 31, NewRoom = 32;
@@ -21,10 +25,14 @@ public static class EngineVars
     public const int Timer = 34;
     public const int GameLoaded = 40, Language = 41, CurrentDisk = 42;
     public const int EntryScript = 51, EntryScript2 = 52, ExitScript = 53, ExitScript2 = 54;
+    /// <summary>The script clicks and keys go to (ScummVM <c>runInputScript</c>): locals click area, key or verb, button.</summary>
+    public const int VerbScript = 55;
     public const int SentenceScript = 56;
     /// <summary>The script run whenever an object changes hands, with the object as its first local.</summary>
     public const int InventoryScript = 57;
     public const int CutsceneStartScript = 58, CutsceneEndScript = 59;
+    /// <summary>When not 0, Esc skips cutscenes.</summary>
+    public const int CutsceneExitKey = 62;
     /// <summary>How many jiffies the next frame waits (4 when 0 or less is never used: the engine waits at least 1).</summary>
     public const int TimerNext = 112;
     public const int Tmr1 = 113, Tmr2 = 114, Tmr3 = 115;

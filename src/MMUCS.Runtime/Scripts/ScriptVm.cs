@@ -104,6 +104,33 @@ public sealed class ScriptVm
     /// </summary>
     public event Action<int> RoomEntered;
 
+    /// <summary>Click areas the verb script is told (ScummVM's verbs.h).</summary>
+    public const int VerbClickArea = 1, SceneClickArea = 2, InventoryClickArea = 3, KeyClickArea = 4;
+
+    /// <summary>
+    /// The current room's objects in their slots, with the states the hit test sees: copied from the object
+    /// table once a frame, after the scripts (<see cref="UpdateObjectStates"/>), so a change shows a frame later.
+    /// </summary>
+    public IReadOnlyList<ObjectPlace> RoomObjects => _roomObjects;
+    private IReadOnlyList<ObjectPlace> _roomObjects = [];
+    private int[] _localStates = [];
+
+    /// <summary>The cursor's level (shown above 0) and userput's (input counts above 0), as the cursor commands set them.</summary>
+    public int CursorLevel { get; private set; }
+    public int UserPutLevel { get; private set; }
+
+    /// <summary>The object image the cursor shows (<c>cursor image</c>): the object, its room and which of its images.</summary>
+    public (int Object, int Room, int Image) CursorImage { get; private set; }
+    public (int X, int Y) CursorHotspot { get; private set; }
+    public int CursorTransparent { get; private set; }
+
+    /// <summary>A script moved the mouse (<c>cursor put</c>) to a point on the screen.</summary>
+    public event Action<int, int> MouseWarped;
+
+    /// <summary>The key that runs <see cref="KeyScript"/> instead of reaching the verb script (kernel set 29; COMI: F1, 315, runs 448).</summary>
+    public int KeyScriptKey { get; private set; }
+    public int KeyScript { get; private set; }
+
     /// <summary>The slot numbers a room's exit and entry code run under (ScummVM).</summary>
     public const int ExitCodeNumber = 10001, EntryCodeNumber = 10002;
 
@@ -289,6 +316,8 @@ public sealed class ScriptVm
 
         CurrentRoom = room;
         State[EngineVars.Room] = room;
+        _roomObjects = Scripts.Places(room);
+        _localStates = new int[_roomObjects.Count + 1];
         RoomEntered?.Invoke(room);
         if (room == 0) return;
 
@@ -520,6 +549,9 @@ public sealed class ScriptVm
             // ── Rooms ──
             case 0x9d: StartScene(Pop()); return;
             case 0x9e: ComeOutDoor(ins); return;
+            case 0x9c: if (CursorCommand(ins)) return; break;
+            case 0xba: KernelSet(s, ins); return;
+            case 0xdc: { int y = Pop(), x = Pop(); Push(FindObject(x, y)); return; }
 
             // ── Objects ──
             case 0x89: SetClasses(); return;
@@ -733,6 +765,96 @@ public sealed class ScriptVm
 
     // ── Not carried out yet ──
 
+    /// <summary>
+    /// The object at a room point (ScummVM <c>findObject</c>): the first slot, not untouchable, whose parents
+    /// are each in the state it needs, whose place holds the point; 0 for none.
+    /// </summary>
+    public int FindObject(int x, int y)
+    {
+        var objects = State.Objects;
+        foreach (var o in _roomObjects)
+        {
+            if (o.Id < 1 || !objects.IsObject(o.Id) || objects.HasClass(o.Id, ObjectTables.Untouchable)) continue;
+            var at = o;
+            while (true)
+            {
+                int needed = at.ParentState;
+                if (at.Parent == 0)
+                {
+                    if (o.Contains(x, y)) return o.Id;
+                    break;
+                }
+                if (at.Parent > _roomObjects.Count) break;
+                at = _roomObjects[at.Parent - 1];
+                if ((_localStates[at.Slot] & 0xF) != needed) break;
+            }
+        }
+        return 0;
+    }
+
+    /// <summary>Copies the object table's states into the room's slots (ScummVM <c>updateObjectStates</c>, once a frame after the scripts).</summary>
+    public void UpdateObjectStates()
+    {
+        foreach (var o in _roomObjects)
+            if (o.Id > 0 && State.Objects.IsObject(o.Id)) _localStates[o.Slot] = State.Objects.State(o.Id);
+    }
+
+    /// <summary>
+    /// Runs the verb script with what was clicked or pressed (ScummVM <c>runInputScript</c>): locals 0–2
+    /// are the click area, the key or verb (0 for a scene click), and the button (1 left, 2 right; 1 for a key).
+    /// </summary>
+    public void RunInputScript(int area, int value, int mode)
+    {
+        if (State[EngineVars.VerbScript] is int script and not 0) RunScript(script, args: [area, value, mode]);
+    }
+
+    /// <summary>The cursor and userput commands (ScummVM <c>o8_cursorCommand</c>); false for one not carried out.</summary>
+    private bool CursorCommand(ScriptInstruction ins)
+    {
+        switch (ins.SubOp)
+        {
+            case 0xDC: CursorLevel = 1; break;
+            case 0xDD: CursorLevel = 0; break;
+            case 0xDE: CursorLevel++; break;
+            case 0xDF: CursorLevel--; break;
+            case 0xE0: UserPutLevel = 1; break;
+            case 0xE1: UserPutLevel = 0; break;
+            case 0xE2: UserPutLevel++; break;
+            case 0xE3: UserPutLevel--; break;
+            case 0xE4: { int image = Pop(), obj = Pop(); CursorImage = (obj, State.Objects.IsObject(obj) ? State.Objects.Room(obj) : 0, image); break; }
+            case 0xE5: { int y = Pop(), x = Pop(); CursorHotspot = (x, y); break; }
+            case 0xE6: CursorTransparent = Pop(); break;
+            case 0xE9: { int y = Pop(), x = Pop(); MouseWarped?.Invoke(x, y); break; }
+            default: return false;
+        }
+        State[EngineVars.CursorState] = CursorLevel;
+        State[EngineVars.UserPut] = UserPutLevel;
+        return true;
+    }
+
+    /// <summary>Kernel calls (ScummVM <c>o8_kernelSetFunctions</c>): 29 sets the key script, 30 ends every other script; the rest are reported.</summary>
+    private void KernelSet(ScriptSlot s, ScriptInstruction ins)
+    {
+        var args = State.PopList(30);
+        switch (args.Length > 0 ? args[0] : 0)
+        {
+            case 29 when args.Length >= 3:
+                (KeyScriptKey, KeyScript) = (args[1], args[2]);
+                return;
+            case 30:
+                foreach (var other in State.Slots)
+                    if (other != s && other.IsAlive)
+                    {
+                        other.CutsceneOverride = 0;
+                        ScriptEnded?.Invoke(other, "stopped");
+                        other.Status = SlotStatus.Dead;
+                        other.Frozen = false;
+                    }
+                return;
+        }
+        Report(s, ins, [args]);
+    }
+
     private void NotHandled(ScriptSlot s, ScriptInstruction ins)
     {
         _unhandledCounts[ins.Name] = _unhandledCounts.GetValueOrDefault(ins.Name) + 1;
@@ -743,6 +865,14 @@ public sealed class ScriptVm
         for (int i = ins.Args.Length - 1; i >= 0; i--)
             args[i] = ins.Args[i] == 'L' ? State.PopList() : [Pop()];
         if (ins.Pushes) Push(0);
+        Unhandled?.Invoke(new UnhandledCall(s.ToString(), ins, args));
+    }
+
+    /// <summary>Reports an instruction whose arguments were already taken off the stack.</summary>
+    private void Report(ScriptSlot s, ScriptInstruction ins, int[][] args)
+    {
+        _unhandledCounts[ins.Name] = _unhandledCounts.GetValueOrDefault(ins.Name) + 1;
+        if (Strict) throw new ScriptException($"{ins.Name}({string.Join(", ", args.Select(a => string.Join(" ", a)))}) isn't carried out yet");
         Unhandled?.Invoke(new UnhandledCall(s.ToString(), ins, args));
     }
 }

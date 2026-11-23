@@ -88,6 +88,17 @@ public sealed class ObjectCode
 }
 
 /// <summary>
+/// An object as a room holds it, in the room's object slots (ScummVM <c>_objs</c>): its slot (from 1, in
+/// the room's OBCD order), its id, the slot of the object it belongs to and the state that object must be
+/// in for this one to count (0: none), and where its image is in the room (from its IMHD; 0×0 without one).
+/// </summary>
+public sealed record ObjectPlace(int Slot, int Id, int Parent, int ParentState, int X, int Y, int Width, int Height)
+{
+    /// <summary>Whether a point is on it, edges included (COMI's hit test, ScummVM <c>findObject</c>).</summary>
+    public bool Contains(int x, int y) => X <= x && x <= X + Width && Y <= y && y <= Y + Height;
+}
+
+/// <summary>
 /// Finds the game's scripts by the numbers the scripts use: global scripts through the DSCR directory,
 /// local scripts, entry and exit code and object code by room. One instance per loaded game; nothing is
 /// shared between instances, so several can run side by side.
@@ -102,11 +113,14 @@ public sealed class ScriptStore
     private readonly Dictionary<int, ScriptCode> _globals = [];
     private readonly Dictionary<int, RoomCode> _roomCode = [];
     private readonly Dictionary<int, (int, int)> _roomSizes = [];
+    private readonly ScummBlock _root;
+    private Dictionary<string, int> _idsByName;
 
     private sealed class RoomCode
     {
         public readonly Dictionary<int, ScriptCode> Locals = [];
         public readonly Dictionary<int, ObjectCode> Objects = [];
+        public readonly List<ObjectPlace> Places = [];
         public ScriptCode Entry, Exit;
     }
 
@@ -116,6 +130,7 @@ public sealed class ScriptStore
         foreach (var lflf in Rooms(root))
             if (RoomNo(lflf) is int no) _rooms.TryAdd(no, lflf);
         _directory = RoomScripts.GlobalScripts(root);
+        _root = root;
     }
 
     private ScriptStore(IReadOnlyList<(int Room, long Offset)> directory)
@@ -133,7 +148,8 @@ public sealed class ScriptStore
     /// A store holding just <paramref name="scripts"/> (global, local, room entry and exit code) and the
     /// object code <paramref name="objects"/>, by their rooms, with the rooms' sizes.
     /// </summary>
-    public static ScriptStore Of(IReadOnlyList<ScriptCode> scripts, IReadOnlyList<ObjectCode> objects, IReadOnlyDictionary<int, (int Width, int Height)> roomSizes = null)
+    public static ScriptStore Of(IReadOnlyList<ScriptCode> scripts, IReadOnlyList<ObjectCode> objects,
+        IReadOnlyDictionary<int, (int Width, int Height)> roomSizes = null, IReadOnlyDictionary<int, IReadOnlyList<ObjectPlace>> places = null)
     {
         int globals = 1;
         foreach (var s in scripts)
@@ -152,6 +168,11 @@ public sealed class ScriptStore
             }
         }
         foreach (var (room, size) in roomSizes ?? new Dictionary<int, (int, int)>()) store._roomSizes[room] = size;
+        foreach (var (room, list) in places ?? new Dictionary<int, IReadOnlyList<ObjectPlace>>())
+        {
+            if (!store._roomCode.TryGetValue(room, out var code)) store._roomCode[room] = code = new RoomCode();
+            code.Places.AddRange(list);
+        }
         foreach (var o in objects)
         {
             if (!store._roomCode.TryGetValue(o.Room, out var room)) store._roomCode[o.Room] = room = new RoomCode();
@@ -217,6 +238,20 @@ public sealed class ScriptStore
         return null;
     }
 
+    /// <summary>The room's name from the index (RNAM), or null.</summary>
+    public string RoomName(int room)
+    {
+        if (!_rooms.TryGetValue(room, out var lflf)) return null;
+        var meta = lflf.GetMetaDataDict();
+        return meta != null && meta.TryGetValue(MetaValue.From(ScummMeta.LFLF.roomName), out var name) ? (string)name : null;
+    }
+
+    /// <summary>The room's objects in its object slots (empty for no room).</summary>
+    public IReadOnlyList<ObjectPlace> Places(int room)
+    {
+        return For(room)?.Places ?? (IReadOnlyList<ObjectPlace>)[];
+    }
+
     /// <summary>The objects with code in <paramref name="room"/>.</summary>
     public IEnumerable<ObjectCode> Objects(int room)
     {
@@ -251,6 +286,7 @@ public sealed class ScriptStore
         {
             if (_roomCode.TryGetValue(room, out var cached)) return cached;
             var code = _rooms.TryGetValue(room, out var lflf) ? Build(room, lflf) : null;
+            if (code != null) AddPlaces(code, lflf);
             _roomCode[room] = code;
             return code;
         }
@@ -286,6 +322,45 @@ public sealed class ScriptStore
             }
         }
         return code;
+    }
+
+    /// <summary>
+    /// The room's object slots (ScummVM <c>resetRoomObjects</c>, v8): one per OBCD in file order, its id,
+    /// parent and parent state from CDHD (version u32, id u16, parent, parent state); then each OBIM is
+    /// matched by the name in its IMHD (v8 images have no id) and gives the place (x, y, width, height as
+    /// u32 at 48–60).
+    /// </summary>
+    private void AddPlaces(RoomCode code, ScummBlock lflf)
+    {
+        var rects = new Dictionary<int, (int, int, int, int)>();
+        foreach (var b in Blocks.Walk(lflf, 3))
+        {
+            if (b.Tag != ScummTag.OBIM || b.FindChild(ScummTag.IMHD) is not { DataLength: >= 64 } imhd) continue;
+            var d = imhd.DataSpan;
+            int len = d[..32].IndexOf((byte)0);
+            string name = System.Text.Encoding.Latin1.GetString(d[..(len < 0 ? 32 : len)]);
+            if (IdsByName().TryGetValue(name, out int id))
+                rects.TryAdd(id, (d.S32LE(48), d.S32LE(52), d.S32LE(56), d.S32LE(60)));
+        }
+        int slot = 1;
+        foreach (var b in Blocks.Walk(lflf, 3))
+        {
+            if (b.Tag != ScummTag.OBCD || b.FindChild(ScummTag.CDHD) is not { DataLength: >= 8 } cdhd) continue;
+            var d = cdhd.DataSpan;
+            int id = d.U16LE(4);
+            var (x, y, w, h) = rects.GetValueOrDefault(id);
+            code.Places.Add(new ObjectPlace(slot++, id, d[6], d[7], x, y, w, h));
+        }
+    }
+
+    private Dictionary<string, int> IdsByName()
+    {
+        if (_idsByName != null) return _idsByName;
+        var map = new Dictionary<string, int>();
+        if (_root != null)
+            foreach (var o in RoomDataExport.ReadObjectTable(_root))
+                if (!string.IsNullOrEmpty(o.Name)) map.TryAdd(o.Name, o.Id);
+        return _idsByName = map;
     }
 
     private static ObjectCode ObjectOf(int room, ScummBlock obcd)
