@@ -27,7 +27,14 @@ public class VmStateTests(ITestOutputHelper output)
         Assert.NotNull(limits);
         output.WriteLine(limits.ToString());
         output.WriteLine($"index arrays: {string.Join(", ", limits.IndexArrays.Select(a => $"var{a.Variable}[{a.Dim2},{a.Dim1}]"))}");
-        Assert.Equal(GameLimits.Comi, limits with { IndexArrays = GameLimits.Comi.IndexArrays });
+        Assert.Equal(GameLimits.Comi, limits with { IndexArrays = GameLimits.Comi.IndexArrays, IndexObjects = GameLimits.Comi.IndexObjects });
+
+        // Every global object starts in its room (owner 0xFF), with DOBJ's state, home room and classes:
+        // system-cursor-icon 105 lives in the icons room 3, the skeleton arm 336 in room 11.
+        Assert.Equal(limits.GlobalObjects, limits.IndexObjects.Count);
+        var objects = new VmState(limits).Objects;
+        Assert.Equal((ObjectTables.RoomOwner, 3, 11), (objects.Owner(105), objects.Room(105), objects.Room(336)));
+        Assert.True(objects.HasClass(105, 32)); // untouchable
 
         // Each index array exists from the start, in order from id 1, with the size the index gives.
         var vm = new VmState(limits);

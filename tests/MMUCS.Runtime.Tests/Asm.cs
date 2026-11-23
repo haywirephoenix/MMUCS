@@ -24,9 +24,36 @@ internal sealed class Asm
     public Asm Break() => Op(0x67);
     public Asm End() => Op(0x7b);
 
+    /// <summary>
+    /// v8 object code: a VERB table of (verb, offset) pairs ended by 0, then each verb's code in turn
+    /// (verb −1 is the default).
+    /// </summary>
+    public static ObjectCode Object(int id, int room, params (int Verb, Asm Code)[] verbs)
+    {
+        var data = new List<byte>();
+        int at = verbs.Length * 8 + 4;
+        foreach (var (verb, code) in verbs)
+        {
+            data.AddRange(BitConverter.GetBytes(verb));
+            data.AddRange(BitConverter.GetBytes(at));
+            at += code.Build().Length;
+        }
+        data.AddRange(BitConverter.GetBytes(0));
+        var table = new List<(int, int)>();
+        int offset = verbs.Length * 8 + 4;
+        foreach (var (verb, code) in verbs)
+        {
+            table.Add((verb, offset));
+            var bytes = code.Build();
+            data.AddRange(bytes);
+            offset += bytes.Length;
+        }
+        return new ObjectCode { Id = id, Room = room, Code = data.ToArray(), CodeStart = 8, Verbs = table };
+    }
+
     public ScriptCode Global(int number) => new() { Kind = ScriptKind.Global, Number = number, Room = 0, Code = Build(), Entry = 0 };
 
-    private byte[] Build()
+    internal byte[] Build()
     {
         var bytes = _code.ToArray();
         foreach (var (at, label) in _fixups)
