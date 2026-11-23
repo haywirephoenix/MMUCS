@@ -51,6 +51,12 @@ internal sealed class Asm
         return new ObjectCode { Id = id, Room = room, Code = data.ToArray(), CodeStart = 8, Verbs = table };
     }
 
+    public ScriptCode Local(int room, int number) => new() { Kind = ScriptKind.Local, Number = number, Room = room, Code = Build(), Entry = 0 };
+
+    public ScriptCode Entry(int room) => new() { Kind = ScriptKind.RoomEntry, Number = room, Room = room, Code = Build(), Entry = 0 };
+
+    public ScriptCode Exit(int room) => new() { Kind = ScriptKind.RoomExit, Number = room, Room = room, Code = Build(), Entry = 0 };
+
     public ScriptCode Global(int number) => new() { Kind = ScriptKind.Global, Number = number, Room = 0, Code = Build(), Entry = 0 };
 
     internal byte[] Build()

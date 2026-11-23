@@ -99,6 +99,6 @@ public class FrameLoopTests
         Assert.Empty(faults);
         Assert.Empty(vm.State.Stack);
         Assert.Equal(600, vm.State[EngineVars.Tmr1]);
-        Assert.Equal([9, 41, 39, 28, 111, 21], vm.State.Slots.Where(s => s.IsAlive).Select(s => s.Number));
+        Assert.Equal([9, 41, 2007, 28, 111, 65], vm.State.Slots.Where(s => s.IsAlive).Select(s => s.Number));
     }
 }

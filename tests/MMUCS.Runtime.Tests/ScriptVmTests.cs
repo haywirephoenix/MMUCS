@@ -201,18 +201,17 @@ public class ScriptVmTests(ITestOutputHelper output)
     public void Instructions_not_carried_out_yet_take_their_arguments_and_return_0()
     {
         var code = new Asm()
-            .Push(87).Op(0x9d)                    // current-room 87
             .Push(5).Push(1).Op(0xe2).Op(0x0e).Write(100) // 5 + actor-room(1)
             .Push(0).List(3, 4).Op(0xd8).Write(101) // kernel-get [3, 4] → 0
             .End().Global(1);
         var (vm, calls, faults) = Machine(code);
         vm.RunScript(1);
         Assert.Empty(faults);
-        Assert.Equal(["loadRoom(87)", "getActorRoom(1)", "kernelGetFunctions([3, 4])"],
+        Assert.Equal(["getActorRoom(1)", "kernelGetFunctions([3, 4])"],
             calls.Select(c => c.ToString()[(c.ToString().IndexOf(": ") + 2)..]));
         Assert.Equal((5, 0), (vm.State[100], vm.State[101]));
         Assert.Equal([0], vm.State.Stack); // the 0 pushed under the list was never used
-        Assert.Equal(1, vm.UnhandledCounts["loadRoom"]);
+        Assert.Equal(1, vm.UnhandledCounts["getActorRoom"]);
 
         vm.Strict = true;
         Assert.Throws<ScriptException>(() => vm.RunScript(1));
@@ -231,7 +230,7 @@ public class ScriptVmTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void Boot_sets_up_the_game_and_asks_for_the_opening_room()
+    public void Boot_sets_up_the_game_and_enters_the_difficulty_room()
     {
         if (Game == null) return;
         var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
@@ -239,7 +238,7 @@ public class ScriptVmTests(ITestOutputHelper output)
         var vm = new ScriptVm(new ScriptStore(root), state);
         var rooms = new List<int>();
         var faults = new List<ScriptFault>();
-        vm.Unhandled += c => { if (c.Instruction.Name == "loadRoom") rooms.Add(c.Args[0][0]); };
+        vm.RoomEntered += rooms.Add;
         vm.Faulted += faults.Add;
 
         vm.Boot();
@@ -247,10 +246,10 @@ public class ScriptVmTests(ITestOutputHelper output)
             output.WriteLine($"{name} ×{count}");
 
         Assert.Empty(faults);
-        Assert.Equal([0, 87], rooms); // the empty room, then the opening (disk 1)
+        Assert.Equal([0, 87], rooms); // the empty room, then the difficulty choice (disk 1)
         Assert.Equal((5, 8, 13), (state[EngineVars.TimerNext], state[303], state[304])); // a frame per 5 jiffies; the hold waits
         Assert.Empty(state.Stack);
-        Assert.Equal([9, 41, 39, 28, 111, 21], state.Slots.Where(s => s.IsAlive).Select(s => s.Number));
+        Assert.Equal([9, 41, 2007, 28, 111, 65], state.Slots.Where(s => s.IsAlive).Select(s => s.Number)); // room 87's cursor loop among them
 
         // A few seconds of frames: the background scripts keep running without faults and leave the stack clean.
         for (int frame = 0; frame < 600; frame++)
