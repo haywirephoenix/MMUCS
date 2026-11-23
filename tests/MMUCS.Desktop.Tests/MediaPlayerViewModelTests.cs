@@ -115,7 +115,7 @@ public class MediaPlayerViewModelTests
     }
 
     /// <summary>A single-threaded synchronisation context, so the view model's UI continuations run as in the app.</summary>
-    private sealed class UiThread : SynchronizationContext
+    internal sealed class UiThread : SynchronizationContext
     {
         private readonly BlockingCollection<(SendOrPostCallback, object)> _queue = [];
 
