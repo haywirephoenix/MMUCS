@@ -50,6 +50,14 @@ usage: mprobe [--game FILE] COMMAND ...
                        OUT/video/NAME/: one indexed PNG per distinct picture under frame/, and video.json
                        mapping every frame to the picture it shows. NAME picks videos (opening, finale…).
 
+  boot [--seconds N] [--calls] [--every-frame] [--vars V,V…] [--param N]
+                       Run the game's scripts headless with MMUCS.Runtime's interpreter: the boot script,
+                       then N seconds of frames (default 10). Prints each script starting (▸) and ending (◂),
+                       indented by nesting, rooms entered, faults and warnings; then the scripts still running,
+                       some variables (--vars adds more, by number or name) and the instructions not carried
+                       out yet. During frames each line shows once unless --every-frame. --calls also lists
+                       those instructions as they're met, with their arguments. Exits 1 if a script faulted.
+
 The game is the first resource file (COMI.LA0); the others beside it are loaded too. It comes from
 --game, else the MMUCS_GAME environment variable.
 """;
@@ -84,6 +92,7 @@ try
         "audio" => await ExportAudio(argv),
         "play" => Play(argv),
         "listen" => Listen(argv),
+        "boot" => BootCommand.Run(root, argv, TakeOption),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }

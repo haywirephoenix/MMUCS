@@ -1,6 +1,6 @@
 # mprobe
 
-mprobe runs MMUCS.Core from the command line, without the app. It exports the game the way **File ▸ Export** does, and draws the debug pictures used to check the room viewer: a room's z-planes, and a room with its actors placed and cut by their z-planes.
+mprobe runs MMUCS.Core and MMUCS.Runtime from the command line, without the app. It exports the game the way **File ▸ Export** does, draws the debug pictures used to check the room viewer (a room's z-planes, and a room with its actors placed and cut by their z-planes), and runs the game's scripts headless to show what the interpreter does.
 
 ## Requirements
 
@@ -33,7 +33,16 @@ dotnet run --project tools/mprobe -c Release -- masked 14 out
 | `cutscenes OUT [NAME…]` | Decodes the SMUSH cutscenes (`.san` beside the game or in its `resource` folder) into `OUT/video/NAME/`: one 8-bit indexed PNG per distinct picture under `frame/` (a held shot or an unchanged frame gets no file), and `video.json` with the size, frame rate, sample rate and, under `frames`, the frame whose picture each frame shows. The sound goes to `audio.wav` beside it (16-bit stereo, 22,050 Hz, starting with frame 0). NAME picks videos (`opening`, `finale` …). Prints per video: images written, problems, and two decoder checks: block-coded frames that left data unread (should be 0) and motion copies that reached outside the screen (should be 0). `export OUT --cutscenes` writes the same as part of an export |
 | `box ROOM X Y` | Lists the walkboxes at a point (those holding it, or within 80 pixels) with their mask and flags, and the box the engine puts an actor there in, as ScummVM's `adjustXYToBeInBox` does: searched from the last box down to box 1, invisible boxes skipped, and a point outside every box moved to the closest edge. `--player` for the player's actor (player-only boxes). Use it to see why a costume gets the z-plane it does |
 
+| `boot [--seconds N] [--calls] [--every-frame] [--vars V,V…] [--param N]` | Runs the game's scripts headless with MMUCS.Runtime's interpreter: the engine's start-up variables, the boot script (global 1), then N seconds of frames (default 10; COMI gets a frame every 5 jiffies, 12 a second). Prints each script starting (`▸`) and ending (`◂`, with why: ended, stopped, room left, fault), indented by nesting, with the time and frame; rooms entered with their size; faults and warnings. Then the scripts still running (sleeping or running, and where), some variables (`--vars` adds more by number, name or `bitN`) and the instructions the interpreter doesn't carry out yet, with how often they were met. During frames each line is shown the first time and repeats are counted, unless `--every-frame`. `--calls` also lists those instructions as they're met, with their arguments and text. `--param` is the boot parameter (0). Exits 1 if a script faulted |
+
 `ROOM` is a room number (`14`) or name (`town`).
+
+## Checking the interpreter
+
+```bash
+mprobe boot                      # COMI boots into room 87, the difficulty choice, and waits for a click
+mprobe boot --calls --seconds 0  # everything boot asks for that isn't carried out yet
+```
 
 ## Refreshing the export for mscripts and mroom
 
