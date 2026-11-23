@@ -12,7 +12,6 @@ namespace MMUCS.Desktop.Tests;
 /// MMUCS.Player.Tests): input goes through to the game, time too, and a new frame comes back for the canvas,
 /// with the hover label drawn in the game's fonts. Needs the game (MMUCS_GAME).
 /// </summary>
-[Collection(GameProjectCollection.Name)]
 public class GameViewModelTests
 {
     private static string Game => Environment.GetEnvironmentVariable("MMUCS_GAME") is { } g && File.Exists(g) ? g : null;
