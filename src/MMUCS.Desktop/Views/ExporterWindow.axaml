@@ -64,8 +64,10 @@
                   IsEnabled="{Binding HasCutscenes}" />
         <CheckBox Content="Music and speech (every bundle sound, as WAV)" IsChecked="{Binding ExportAudio}"
                   IsEnabled="{Binding HasAudio}" />
+        <CheckBox Content="Fonts (every NUT glyph as PNG, with metrics: the folder to edit for a font mod)" IsChecked="{Binding ExportFonts}"
+                  IsEnabled="{Binding HasFonts}" />
         <TextBlock Classes="hint" Margin="0,12,0,0"
-                   Text="Images are written as PNG under rooms/&lt;number_name&gt;/ with objects/ and costumes/ subfolders. Scripts are written as .scumm files under scripts/global/ and scripts/rooms/&lt;number_name&gt;/, using the variable names MMUCS knows. Room data is written as JSON under data/, for tools/mroom. Cutscenes go under video/&lt;name&gt;/: frame/NNNN.png plus video.json, which maps every frame to the picture it shows. Music and speech go under music/NNNN.wav and voice/CODE.wav, each with a .meta.json giving its regions, loops, markers and lip sync." />
+                   Text="Images are written as PNG under rooms/&lt;number_name&gt;/ with objects/ and costumes/ subfolders. Scripts are written as .scumm files under scripts/global/ and scripts/rooms/&lt;number_name&gt;/, using the variable names MMUCS knows. Room data is written as JSON under data/, for tools/mroom. Cutscenes go under video/&lt;name&gt;/: frame/NNNN.png plus video.json, which maps every frame to the picture it shows, and subtitles.json with every line of text and its frames. Music and speech go under music/NNNN.wav and voice/CODE.wav, each with a .meta.json giving its regions, loops, markers and lip sync. Fonts go under font/NNNN/: glyph/NNNN.png (one per character number) plus font.json; load the folder in the media player to try an edited font on the cutscenes." />
       </StackPanel>
 
       <!-- 2. Costume shading -->

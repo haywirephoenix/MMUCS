@@ -27,6 +27,8 @@ public sealed class ExportOptions
     public bool Cutscenes { get; set; }
     /// <summary>Music and speech from the .bun bundles under music/ and voice/ (see <see cref="Audio.AudioExporter"/>). Needs <see cref="GameFile"/>.</summary>
     public bool Audio { get; set; }
+    /// <summary>The NUT fonts as glyph PNGs plus metrics under font/ (see <see cref="Fonts.FontPack"/>). Needs <see cref="GameFile"/>.</summary>
+    public bool Fonts { get; set; }
     /// <summary>The project's first resource file (COMI.LA0); cutscenes and bundles are found beside it or in its resource folder.</summary>
     public string GameFile { get; set; }
 
@@ -80,6 +82,8 @@ public class ScummExporters
             + (options.RoomData ? 1 : 0));
         var cutscenes = options.Cutscenes ? Smush.SmushVideo.FindAll(options.GameFile) : [];
         var bundles = options.Audio ? GameFiles.Find(options.GameFile, ".bun") : [];
+        var fonts = options.Fonts ? GameFiles.Find(options.GameFile, ".nut") : [];
+        total += fonts.Count;
         foreach (var bun in bundles)
         {
             try { using var b = Audio.Bundle.Open(bun); total += b.Entries.Count; }
@@ -207,6 +211,24 @@ public class ScummExporters
                     failures++;
                     Log.Warn($"Cutscene export failed for {name}: {ex.Message}");
                 }
+            }
+            foreach (var nut in fonts)
+            {
+                token.ThrowIfCancellationRequested();
+                string name = Path.GetFileName(nut);
+                Report($"font {name}");
+                try
+                {
+                    int number = MMUCS.Core.Fonts.NutFont.NumberOf(nut);
+                    if (number < 0) throw new InvalidDataException("the file name has no font number");
+                    written += MMUCS.Core.Fonts.FontPack.Export(MMUCS.Core.Fonts.NutFont.Load(nut), number, outputFolder, name);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    failures++;
+                    Log.Warn($"Font export failed for {name}: {ex.Message}");
+                }
+                done++;
             }
             var seenSounds = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
             foreach (var bun in bundles)
