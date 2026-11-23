@@ -4,6 +4,22 @@
       "Name": "boot",
       "Note": "Runs first: turns the cursor and userput off, reads the starting room from local0 and sets the game's starting variables (global/script_0001.scumm). MMUCS reads its top-level constant writes as a fresh game's values."
     },
+    "38": {
+      "Name": "handle-key",
+      "Note": "Handles a key (local0, from global 32:113): i opens the inventory (open-inventory 46) in interface-mode 1, or closes it (close-inventory 51) when bit9 says it's open; w walks to the clicked object; Enter starts 37, Tab starts 33 as a right-click does; other keys go to 55 (global/script_0038.scumm)."
+    },
+    "46": {
+      "Name": "open-inventory",
+      "Note": "Opens the inventory when ego holds something (else start-script-quick 52(3)): stops the sentence, pauses the camera, sets interface-mode 3 and bit9, starts 50 and chains draw-inventory 47 (global/script_0046.scumm). Started by the I key (global 38:20), a right-click/Tab in interface-mode 1 (global 33:15) and global 36, 48."
+    },
+    "47": {
+      "Name": "draw-inventory",
+      "Note": "Draws the open inventory each frame while interface-mode is 3 (started by global 39:227 and 39:325, chained by open-inventory 46:16): super-blasts inventory-bg-object 114 at 0,0, the decrement arrow 116 at 155,120 when inventory-page-start > 1 and the increment arrow 115 at 400,120 when more than 15 items remain, then up to 15 item icons in a 5×3 grid at 100 + col*90, 180 + row*65 on the 640×480 screen, recording each in var317 (global/script_0047.scumm)."
+    },
+    "51": {
+      "Name": "close-inventory",
+      "Note": "Closes the inventory: resumes the camera, hides the arrows and every item icon (class 160), puts inventory-bg-object back to state 0, stops 49 and 50, and returns interface-mode to 1 (2 with bit8), clearing bit9 (global/script_0051.scumm). Started by the I key while it's open (global 38:24), right-click/Tab in interface-mode 3 (global 33:28) and others."
+    },
     "88": {
       "Name": "dress-chicken",
       "Note": "start-script bak rec 88(actor, scale, kind): dresses the actor as a chicken facing 90 (costume 67, or 69 when kind is 1) or 270 (68 / 70) at random, ignoring the boxes, never z-clipped, at the scale given; then pecks and clucks in a loop (global/script_0088.scumm). Used by fortbase (local 2007, 2013) and quiksand (local 2008)."
