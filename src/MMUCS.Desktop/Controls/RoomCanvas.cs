@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Input;
 using Avalonia.Media;
 using MMUCS.Core.Scumm;
+using MMUCS.Player.Rooms;
 using SkiaSharp;
 
 namespace MMUCS.Desktop.Controls;
@@ -480,37 +481,71 @@ public sealed class RoomCanvas : SkiaViewport
         private SKColor[] PlaneColors => _paints.PlaneColors;
         private static readonly SKFont LabelFont = new(SKTypeface.Default, 11) { Subpixel = true, Edging = SKFontEdging.SubpixelAntialias };
 
-        private static readonly SKPaint MaskOut = new() { BlendMode = SKBlendMode.DstOut };
         // An alpha-only image is drawn in the paint's colour.
         private static readonly SKPaint PlanePaint = new();
 
+        private RoomScene _room;
+
         /// <summary>
-        /// Draws an actor's frame with the pixels behind its z-plane removed: the frame goes into a layer
-        /// and the plane's mask (room coordinates) cuts it out, as the engine skips masked pixels.
+        /// The content as the player draws a room (<see cref="RoomScene"/>): the chosen background, the objects
+        /// shown (toggled off, stale and, unless asked for, full-screen ones left out) in draw order, and the
+        /// actors cut by the z-planes, the Costume viewer's playing frame in its actor's place in the order.
         /// </summary>
-        private void DrawActor(SKCanvas canvas, SKImage image, int x, int y, float scale, int zplane, SKSamplingOptions sampling)
+        private RoomScene Room => _room ??= BuildRoom();
+
+        private RoomScene BuildRoom()
         {
-            var mask = zplane > 0 && _zMasks != null && zplane <= _zMasks.Count ? _zMasks[zplane - 1] : null;
-            if (mask == null)
+            var objects = new List<SceneObject>();
+            var actors = new List<SceneActor>();
+            if (_drawLayers != null)
             {
-                DrawScaled(canvas, image, x, y, scale, sampling);
-                return;
+                foreach (var layer in _drawLayers)
+                {
+                    if (layer.Image == null || ReferenceEquals(layer.Object, _bgObject)) continue; // already the background
+                    if (_visible == null || !_visible.Contains(layer.Object)) continue; // toggled off, or not in the current list (stale layers)
+                    // Other full-screen (640px) object images would cover the background (in the wrong
+                    // palette), so they're drawn only when asked for; the Background spinbox switches to them.
+                    if (layer.Image.Width >= 640 && !_fullScreenObjects && _toggled?.Contains(layer.Object) != true) continue;
+                    objects.Add(new SceneObject(layer.Object, layer.Image, layer.Object.X, layer.Object.Y));
+                }
+
+                bool liveDrawn = false;
+                foreach (var layer in _drawLayers.Where(l => l.CostumeImage != null))
+                {
+                    if (_live != null && ReferenceEquals(layer.Object, _live.Target))
+                    {
+                        // The playing frame, in its actor's place in the order; shown even when its entry is
+                        // hidden: it was asked for from the Costume viewer.
+                        if (_live.Image != null)
+                            actors.Add(new SceneActor(_live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, layer.CostumeDepth, layer.CostumeActor));
+                        liveDrawn = true;
+                        continue;
+                    }
+                    if (_visible == null || !_visible.Contains(layer.Object)) continue;
+                    actors.Add(new SceneActor(layer.CostumeImage, layer.CostumeX, layer.CostumeY, layer.CostumeScale, layer.CostumeZPlane, layer.CostumeDepth, layer.CostumeActor));
+                }
+                // A costume whose usual frame draws nothing has no place in the order: on top.
+                if (!liveDrawn && _live?.Image != null)
+                    actors.Add(new SceneActor(_live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, int.MaxValue, int.MaxValue));
             }
-            canvas.SaveLayer(SKRect.Create(x, y, image.Width * scale, image.Height * scale), null);
-            DrawScaled(canvas, image, x, y, scale, sampling);
-            canvas.DrawImage(mask, 0, 0, MaskOut);
-            canvas.Restore();
+            return new RoomScene
+            {
+                Width = (int)_size.Width, Height = (int)_size.Height,
+                Background = _bg, BackgroundX = _bgObject?.X ?? 0, BackgroundY = _bgObject?.Y ?? 0,
+                Objects = objects, Actors = actors, ZMasks = _zMasks ?? [],
+            };
         }
 
-        private static void DrawScaled(SKCanvas canvas, SKImage image, int x, int y, float scale, SKSamplingOptions sampling)
+        /// <summary>The z-planes, tinted, between the scene and the actors: what each plane hides shows through the actors' cut-outs.</summary>
+        private void DrawPlanes(SKCanvas canvas)
         {
-            if (scale == 1)
+            for (int k = 0; k < _overlayMasks.Count; k++)
             {
-                canvas.DrawImage(image, x, y, sampling);
-            }
-            else
-            {
-                canvas.DrawImage(image, SKRect.Create(x, y, image.Width * scale, image.Height * scale), sampling);
+                if (_overlayMasks[k] != null && (_overlayPlane == 0 || _overlayPlane == k + 1))
+                {
+                    PlanePaint.Color = PlaneColors[k % PlaneColors.Length];
+                    canvas.DrawImage(_overlayMasks[k], 0, 0, PlanePaint);
+                }
             }
         }
 
@@ -526,83 +561,7 @@ public sealed class RoomCanvas : SkiaViewport
                 return;
             }
 
-            var sampling = PickSampling(canvas);
-
-            // The chosen background: the room's own image, or a full-width object image at its position.
-            if (_bg != null)
-            {
-                canvas.DrawImage(_bg, _bgObject?.X ?? 0, _bgObject?.Y ?? 0, sampling);
-            }
-
-            if (_drawLayers != null)
-            {
-                foreach (var layer in _drawLayers)
-                {
-                    if (layer.Image == null || ReferenceEquals(layer.Object, _bgObject))
-                    {
-                        continue; // already the background
-                    }
-
-                    if (_visible == null || !_visible.Contains(layer.Object))
-                    {
-                        continue;        // toggled off, or not in the current list (stale layers)
-                    }
-                    // Other full-screen (640px) object images would cover the background (in the wrong
-                    // palette), so they're drawn only when asked for; the Background spinbox switches to them.
-                    bool isFullWidth = layer.Image.Width >= 640;
-                    if (isFullWidth && !_fullScreenObjects && _toggled?.Contains(layer.Object) != true)
-                    {
-                        continue;
-                    }
-
-                    canvas.DrawImage(layer.Image, layer.Object.X, layer.Object.Y, sampling);
-                }
-
-                // The z-planes, tinted, between the scene and the actors: what each plane hides shows
-                // through the actors' cut-outs.
-                if (_overlayMasks != null)
-                {
-                    for (int k = 0; k < _overlayMasks.Count; k++)
-                    {
-                        if (_overlayMasks[k] != null && (_overlayPlane == 0 || _overlayPlane == k + 1))
-                        {
-                            PlanePaint.Color = PlaneColors[k % PlaneColors.Length];
-                            canvas.DrawImage(_overlayMasks[k], 0, 0, PlanePaint);
-                        }
-                    }
-                }
-
-                // Actors are drawn over the objects, in SCUMM's order: by y before elevation, then actor
-                // number, so an actor lifted by elevation still sorts by where it stands (cannon-v's cannon
-                // stands at y 792 to be drawn in front of the water).
-                bool liveDrawn = false;
-                foreach (var layer in _drawLayers.Where(l => l.CostumeImage != null).OrderBy(l => l.CostumeDepth).ThenBy(l => l.CostumeActor))
-                {
-                    if (_live != null && ReferenceEquals(layer.Object, _live.Target))
-                    {
-                        // The playing frame, in its actor's place in the order; shown even when its entry is
-                        // hidden: it was asked for from the Costume viewer.
-                        if (_live.Image != null)
-                        {
-                            DrawActor(canvas, _live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, sampling);
-                        }
-
-                        liveDrawn = true;
-                        continue;
-                    }
-                    if (_visible == null || !_visible.Contains(layer.Object))
-                    {
-                        continue;
-                    }
-
-                    DrawActor(canvas, layer.CostumeImage, layer.CostumeX, layer.CostumeY, layer.CostumeScale, layer.CostumeZPlane, sampling);
-                }
-                // A costume whose usual frame draws nothing has no place in the order: on top.
-                if (!liveDrawn && _live?.Image != null)
-                {
-                    DrawActor(canvas, _live.Image, _live.X, _live.Y, _live.Scale, _live.ZPlane, sampling);
-                }
-            }
+            Room.Draw(canvas, PickSampling(canvas), _overlayMasks != null && _drawLayers != null ? DrawPlanes : null);
             canvas.Restore();
 
             // ── Screen-space pass (crisp vector overlays) ──

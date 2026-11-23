@@ -134,7 +134,7 @@ public static class RoomDataExport
         foreach (var obcd in (rmsc ?? room.Room).Children.Where(c => c.Tag == ScummTag.OBCD))
         {
             var cdhd = obcd.FindChild(ScummTag.CDHD);
-            int id = cdhd != null && cdhd.DataLength >= 8 ? (int)cdhd.DataSpan.U32LE(4) : -1;
+            int id = RoomScripts.ObjectId(cdhd);
             string name = id >= 0 ? RoomScripts.ObjectName(obcd, id) : null;
             var obna = obcd.FindChild(ScummTag.OBNA);
             string title = null;

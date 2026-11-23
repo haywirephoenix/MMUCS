@@ -38,6 +38,7 @@ public static class RoomScripts
     {
         public readonly Dictionary<(int Room, long Offset), int> ScriptAt = [];
         public readonly Dictionary<int, string> ObjectNames = [];
+        public readonly List<(int Room, long Offset)> Globals = [];
     }
 
     private static readonly ConditionalWeakTable<ScummBlock, Index> Indexes = [];
@@ -76,6 +77,7 @@ public static class RoomScripts
                     {
                         int room = d[header + i];
                         long offset = d.U32LE(header + n + i * 4);
+                        index.Globals.Add((room, offset));
                         if (room != 0 || offset != 0) index.ScriptAt.TryAdd((room, offset), i);
                     }
             }
@@ -182,12 +184,29 @@ public static class RoomScripts
         return null;
     }
 
+    /// <summary>
+    /// The object id in a v8 CDHD (version u32, then the id u16, parent and parent state bytes), or -1.
+    /// </summary>
+    public static int ObjectId(ScummBlock cdhd)
+    {
+        return cdhd != null && cdhd.DataLength >= 6 ? cdhd.DataSpan.U16LE(4) : -1;
+    }
+
+    /// <summary>
+    /// The global script directory (DSCR): for each script number, its room and its offset from that
+    /// room's LFLF. Unused numbers are (0, 0).
+    /// </summary>
+    public static IReadOnlyList<(int Room, long Offset)> GlobalScripts(ScummBlock any)
+    {
+        return any == null ? [] : IndexFor(any).Globals;
+    }
+
     private static ScriptEntry ObjectEntry(ScummBlock obcd)
     {
         var verb = obcd.FindChild(ScummTag.VERB);
         var cdhd = obcd.FindChild(ScummTag.CDHD);
         if (verb == null) return null;
-        int id = cdhd != null && cdhd.DataLength >= 8 ? (int)cdhd.DataSpan.U32LE(4) : -1; // object id
+        int id = ObjectId(cdhd);
         string name = id >= 0 ? ObjectName(obcd, id) : null;
 
         // v8 VERB: (verb u32, offset u32) entries ended by a 0 verb; offsets are into the data.

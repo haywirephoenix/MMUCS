@@ -138,17 +138,6 @@ public class CutsceneOrderTests
     }
 }
 
-/// <summary>
-/// Tests that load the game's resource files. The parser keeps its room tables in shared static state
-/// (ScummStatics), so two loads must not run at once.
-/// </summary>
-[CollectionDefinition(Name, DisableParallelization = true)]
-public sealed class GameProjectCollection
-{
-    public const string Name = "Loads the game project";
-}
-
-[Collection(GameProjectCollection.Name)]
 public class VoiceLineTests
 {
     private static string Game => Environment.GetEnvironmentVariable("MMUCS_GAME") is { } g && File.Exists(g) ? g : null;

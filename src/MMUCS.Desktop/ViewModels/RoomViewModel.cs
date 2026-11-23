@@ -12,6 +12,7 @@ using MMUCS.Core;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Imaging;
 using MMUCS.Core.Scumm;
+using MMUCS.Player.Rooms;
 using MMUCS.Desktop.Controls;
 using MMUCS.Desktop.Rendering;
 using SkiaSharp;
@@ -553,54 +554,27 @@ public sealed partial class RoomViewModel : ObservableObject
         }
 
         _zMaskKey = key;
-        var planes = ZPlanes.Compose(_roomPlanes, _planeCount, room.Width, room.Height, shown.Select(o =>
+        var planes = RoomScene.Planes(room, shown.Select(o => (o, Math.Max(0, StateOf(o) - 1))), (o, image) =>
         {
             if (!_objectPlanes.TryGetValue(o, out var p))
             {
-                try { p = ZPlanes.Object(o, Math.Max(0, StateOf(o) - 1)); }
+                try { p = ZPlanes.Object(o, image); }
                 catch (Exception ex) { Log.Warn($"Z-planes of {o}: {ex.Message}"); p = []; }
                 _objectPlanes[o] = p;
             }
-            return (o, p);
-        }));
+            return p;
+        }, _roomPlanes);
         var maskSet = new ImageSet();
         var masks = new SKImage[planes.Length];
         for (int k = 0; k < planes.Length; k++)
         {
-            masks[k] = maskSet.Add(MaskImage(planes[k], room.Width, room.Height));
+            masks[k] = maskSet.Add(RoomScene.MaskImage(planes[k], room.Width, room.Height));
         }
 
         ZMasks = masks;
         ReplaceImages(ref _maskImages, maskSet);
     }
 
-    /// <summary>A plane as an alpha image: opaque where it hides actors.</summary>
-    private static SKImage MaskImage(ZPlane plane, int width, int height)
-    {
-        var alpha = new byte[width * height];
-        for (int y = 0; y < height && y < plane.Height; y++)
-        {
-            int row = y * plane.Strips, o = y * width;
-            for (int s = 0; s < plane.Strips; s++)
-            {
-                byte b = plane.Data[row + s];
-                if (b == 0)
-                {
-                    continue;
-                }
-
-                for (int bit = 0, x = s * 8; bit < 8 && x < width; bit++, x++)
-                {
-                    if ((b & (0x80 >> bit)) != 0)
-                    {
-                        alpha[o + x] = 255;
-                    }
-                }
-            }
-        }
-        var info = new SKImageInfo(width, height, SKColorType.Alpha8, SKAlphaType.Premul);
-        return SKImage.FromPixelCopy(info, alpha, width);
-    }
     [RelayCommand] private void ToggleFullScreenObjects() => ShowFullScreenObjects = !ShowFullScreenObjects;
 
     private List<BackgroundChoice> _backgroundChoices = [];
@@ -847,7 +821,7 @@ public sealed partial class RoomViewModel : ObservableObject
     /// The palette an object image is drawn in: the one the game shows it in (stancrpt's office in
     /// palette 1), else the room's own palette 0 (<see cref="RoomPalettes"/>).
     /// </summary>
-    public int PaletteOf(RoomObject obj) => Room == null ? 0 : Math.Clamp(RoomPalettes.For(Room.Lflf).Object(Room, obj), 0, Math.Max(0, Room.PaletteCount - 1));
+    public int PaletteOf(RoomObject obj) => RoomSceneBuilder.PaletteOf(Room, obj);
 
     /// <summary>The costume and palette the frames played in place are resolved in.</summary>
     private (AkosData, int) _livePalette;
@@ -895,9 +869,7 @@ public sealed partial class RoomViewModel : ObservableObject
         }
     }
 
-    private static int BackgroundCacheId(RoomModel room) =>
-        // Rooms can appear in more than one file (e.g. per-disc copies), so key by source file too.
-        (int)Core.StableHash.Of(room.Room.SourceKey, room.RoomNo > 0 ? room.RoomNo : room.Room.Offset);
+    private static int BackgroundCacheId(RoomModel room) => RoomSceneBuilder.BackgroundCacheId(room);
 
     /// <summary>Shows the room's own background (with no object layers yet) and ends the room switch.</summary>
     private async Task ShowBackgroundFirstAsync(RoomModel room)
@@ -1156,21 +1128,20 @@ public sealed partial class RoomViewModel : ObservableObject
                 break;
             }
 
+            // As the player draws it: scaled as the engine scales it, each cel on its own with SCUMM's scale
+            // table, so it's drawn at full size (stretching the composed frame left a seam between cannon's
+            // gunner pieces), in the costume's default palette.
+            var frame = RoomSceneBuilder.ActorFrame(actor, token);
             lock (actor.Data)
             {
-                AkosParser.UpdatePaletteOnly(actor.Data, actor.Akos, actor.Data.DefaultPaletteIndex);
                 if (ReferenceEquals(_livePalette.Item1, actor.Data))
                 {
                     _livePalette = default;
                 }
-
-                // Scaled as the engine scales it, each cel on its own with SCUMM's scale table, so it's drawn
-                // at full size: stretching the composed frame left a seam between cannon's gunner pieces.
-                var rgba = AkosFrames.RenderScaled(actor.Data, actor.Frame, actor.Scale, out int ox, out int oy, actor.Mirrored, token);
-                if (rgba != null)
-                {
-                    result[target] = (images.Add(rgba.ToSkImage()), actor.X - ox, actor.DrawY - oy, actor.SortY, actor.Actor, 1f, actor.ZPlane);
-                }
+            }
+            if (frame is { } f)
+            {
+                result[target] = (images.Add(f.Image.ToSkImage()), f.X, f.Y, actor.SortY, actor.Actor, 1f, actor.ZPlane);
             }
         }
         return result;

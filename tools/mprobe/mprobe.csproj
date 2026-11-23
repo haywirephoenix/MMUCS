@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- A command-line companion to MMUCS: exports and debug renders from MMUCS.Core, without the app. -->
+  <!-- A command-line companion to MMUCS: exports and debug renders from MMUCS.Core, and runs of MMUCS.Runtime's interpreter, without the app. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -9,6 +9,11 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\MMUCS.Core\MMUCS.Core.csproj" />
+    <ProjectReference Include="..\..\src\MMUCS.Player\MMUCS.Player.csproj" />
     <ProjectReference Include="..\..\src\MMUCS.Media.OpenAL\MMUCS.Media.OpenAL.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Skia's native library for this machine: rooms are drawn as the player draws them (Windows and macOS get it from SkiaSharp). -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using MMUCS.Player.Rooms;
 using MMUCS.Player.Text;
 using MMUCS.Runtime;
 using SkiaSharp;
@@ -19,6 +20,15 @@ public sealed class GameFrame
     private static readonly SKColor Stage = new(0x1B, 0x1F, 0x2A), StageStopped = new(0x14, 0x15, 0x19);
     private static readonly SKColor HotspotFill = new(0x7D, 0xCF, 0xE8, 0x30), HotspotHoverFill = new(0xE8, 0xC0, 0x7D, 0x50);
     private static readonly SKColor HotspotLine = new(0x7D, 0xCF, 0xE8, 0xA0), HotspotHoverLine = new(0xE8, 0xC0, 0x7D);
+
+    /// <summary>The room on screen, or null.</summary>
+    public RoomScene Room { get; init; }
+
+    /// <summary>
+    /// Where the camera looks, in room pixels: its centre is drawn at the canvas's centre, so the 640×480 page
+    /// shows what the game shows and a 16:9 canvas shows more of a wide room on each side.
+    /// </summary>
+    public GamePoint Camera { get; init; } = new(320, 240);
 
     /// <summary>Whether the game is playing (the picture is dimmed and the hotspot hidden when it isn't).</summary>
     public bool IsRunning { get; init; }
@@ -51,7 +61,7 @@ public sealed class GameFrame
         canvas.DrawRect(viewport, paint);
         var picture = GameView.PictureRect(viewport);
         if (picture.Width <= 0 || picture.Height <= 0) return;
-        paint.Color = IsRunning ? Stage : StageStopped;
+        paint.Color = Room != null ? Letterbox : IsRunning ? Stage : StageStopped;
         canvas.DrawRect(picture, paint);
 
         float scale = picture.Width / (float)GameState.CanvasWidth;
@@ -60,6 +70,14 @@ public sealed class GameFrame
         canvas.Translate(picture.Left, picture.Top);
         canvas.Scale(scale);
         var sampling = new SKSamplingOptions(scale < 0.999f ? SKFilterMode.Linear : SKFilterMode.Nearest, SKMipmapMode.None);
+
+        if (Room != null)
+        {
+            canvas.Save();
+            canvas.Translate((float)(GameState.CanvasWidth / 2 - Camera.X), (float)(GameState.CanvasHeight / 2 - Camera.Y));
+            Room.Draw(canvas, sampling);
+            canvas.Restore();
+        }
 
         if (IsRunning && !Hotspot.IsEmpty)
         {
