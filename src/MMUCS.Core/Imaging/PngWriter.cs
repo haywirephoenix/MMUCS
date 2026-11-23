@@ -48,10 +48,11 @@ public static class PngWriter
     /// <summary>
     /// Writes an 8-bit indexed PNG: <paramref name="indices"/> is width × height palette indices and
     /// <paramref name="paletteRgb"/> 256 RGB triplets. Keeps the original indices, so palette effects
-    /// can still be applied to the image later.
+    /// can still be applied to the image later. <paramref name="alpha"/>, when given, is each palette
+    /// entry's opacity (a tRNS chunk).
     /// </summary>
     public static void WriteIndexed(Stream output, int width, int height, ReadOnlySpan<byte> indices,
-        ReadOnlySpan<byte> paletteRgb, CompressionLevel level = CompressionLevel.Optimal)
+        ReadOnlySpan<byte> paletteRgb, CompressionLevel level = CompressionLevel.Optimal, ReadOnlySpan<byte> alpha = default)
     {
         output.Write(Signature);
 
@@ -65,6 +66,7 @@ public static class PngWriter
         ihdr[12] = 0;
         WriteChunk(output, "IHDR", ihdr);
         WriteChunk(output, "PLTE", paletteRgb[..Math.Min(paletteRgb.Length, 768)]);
+        if (!alpha.IsEmpty) WriteChunk(output, "tRNS", alpha[..Math.Min(alpha.Length, 256)]);
 
         using (var idat = new MemoryStream())
         {
