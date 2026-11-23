@@ -14,7 +14,6 @@ namespace MMUCS.Desktop.Tests;
 /// The media player's view model driven as its window drives it: selections, ticks, hooks and seeks.
 /// Needs the game (MMUCS_GAME); run with ALSOFT_DRIVERS=null to keep it silent.
 /// </summary>
-[Collection(GameProjectCollection.Name)]
 public class MediaPlayerViewModelTests
 {
     private static string Game => Environment.GetEnvironmentVariable("MMUCS_GAME") is { } g && File.Exists(g) ? g : null;
