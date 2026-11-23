@@ -4,8 +4,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Imaging;
+using MMUCS.Core.Media;
 using MMUCS.Core.Scumm;
 using MMUCS.Player.Rooms;
+using MMUCS.Player.Text;
 using MMUCS.Runtime;
 
 namespace MMUCS.Player;
@@ -16,6 +18,8 @@ namespace MMUCS.Player;
 /// object slots as the scripts left them, placed by the camera; a new scene is built in the background when
 /// the room or what it shows changes (<see cref="Changed"/> says when one is ready). The cursor is the object
 /// image the scripts chose (<c>cursor image</c>), shown while the cursor is on and the game has the mouse.
+/// While a script's video plays, its frames are decoded in the background and shown on the page instead,
+/// with their text in <see cref="Text"/>.
 /// </summary>
 public sealed class ScriptedView
 {
@@ -25,6 +29,13 @@ public sealed class ScriptedView
     private string _sceneKey, _pendingKey;
     private RoomScene _scene;
     private int _sceneRoom = -1;
+    private CutsceneFrame _cutscene;
+    private SmushPlayer _cutsceneOf;
+    private int _wantedFrame = -1, _shownFrame = -1;
+    private bool _decoding;
+
+    /// <summary>What a video's text (subtitles, credits) is drawn with; none without.</summary>
+    public SubtitleRenderer Text { get; set; }
 
     public ScriptedView(ScriptedGame game) => Game = game;
 
@@ -47,6 +58,14 @@ public sealed class ScriptedView
     {
         var game = Game;
         if (!game.IsLoaded) return new GameFrame { IsRunning = false };
+        if (game.IsVideoPlaying)
+        {
+            // A video covers everything (black while it loads).
+            UpdateCutscene(game.Video);
+            _cutscene?.Retain();
+            return new GameFrame { IsRunning = game.IsPlaying, Cutscene = _cutscene, Room = RoomScene.Blank };
+        }
+        UpdateCutscene(null);
         UpdateScene();
         return new GameFrame
         {
@@ -55,6 +74,59 @@ public sealed class ScriptedView
             Camera = game.Camera,
             Cursor = CursorFrame(),
         };
+    }
+
+    /// <summary>The video frames being decoded (tests wait on it).</summary>
+    public Task Decoding { get; private set; } = Task.CompletedTask;
+
+    /// <summary>Keeps decoding the frame the video's clock is at; drops the picture when the video is over.</summary>
+    private void UpdateCutscene(SmushPlayer video)
+    {
+        if (!ReferenceEquals(video, _cutsceneOf))
+        {
+            _cutscene?.Release();
+            _cutscene = null;
+            _cutsceneOf = video;
+            _shownFrame = -1;
+        }
+        if (video == null) return;
+        _wantedFrame = video.FrameAt(Game.VideoTime);
+        if (!_decoding && _wantedFrame != _shownFrame) Decoding = Decode(video);
+    }
+
+    /// <summary>Decodes the wanted frame on a worker, one at a time, going on while a newer one is wanted.</summary>
+    private async Task Decode(SmushPlayer video)
+    {
+        _decoding = true;
+        try
+        {
+            while (ReferenceEquals(video, _cutsceneOf) && _wantedFrame >= 0 && _wantedFrame != _shownFrame)
+            {
+                int index = _wantedFrame;
+                bool havePicture = _cutscene != null;
+                var text = Text;
+                // Null when the picture didn't change (held shots, frames that only play sound).
+                var picture = await Task.Run(() =>
+                {
+                    video.ShowFrame(index);
+                    return havePicture && !video.PictureChanged ? null : CutsceneFrame.From(video, text);
+                });
+                if (!ReferenceEquals(video, _cutsceneOf))
+                {
+                    picture?.Release();
+                    return;
+                }
+                if (picture != null)
+                {
+                    _cutscene?.Release();
+                    _cutscene = picture;
+                }
+                _shownFrame = index;
+                if (picture != null) Changed?.Invoke();
+            }
+        }
+        catch (Exception ex) { Log.Warn($"Game video frame {_wantedFrame}: {ex.Message}"); }
+        finally { _decoding = false; }
     }
 
     /// <summary>Starts a new scene when the room, or a drawn object or its image, changed.</summary>

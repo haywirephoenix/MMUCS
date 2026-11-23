@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using MMUCS.Player.Rooms;
 using MMUCS.Player.Text;
@@ -20,6 +21,16 @@ public sealed class GameFrame
     private static readonly SKColor Stage = new(0x1B, 0x1F, 0x2A), StageStopped = new(0x14, 0x15, 0x19);
     private static readonly SKColor HotspotFill = new(0x7D, 0xCF, 0xE8, 0x30), HotspotHoverFill = new(0xE8, 0xC0, 0x7D, 0x50);
     private static readonly SKColor HotspotLine = new(0x7D, 0xCF, 0xE8, 0xA0), HotspotHoverLine = new(0xE8, 0xC0, 0x7D);
+
+    /// <summary>
+    /// A cutscene picture shown on the page instead of the room (a video a script started), or null. The frame
+    /// holds a reference to it: whoever replaces a frame calls <see cref="Release"/>, and a renderer that draws
+    /// it later retains it for as long as it draws.
+    /// </summary>
+    public CutsceneFrame Cutscene { get; init; }
+
+    /// <summary>Lets go of the frame's cutscene picture (once, when the frame is replaced).</summary>
+    public void Release() => Cutscene?.Release();
 
     /// <summary>The room on screen, or null.</summary>
     public RoomScene Room { get; init; }
@@ -71,7 +82,18 @@ public sealed class GameFrame
         canvas.Scale(scale);
         var sampling = new SKSamplingOptions(scale < 0.999f ? SKFilterMode.Linear : SKFilterMode.Nearest, SKMipmapMode.None);
 
-        if (Room != null)
+        if (Cutscene != null)
+        {
+            // The video on the 640×480 page, the 16:9 canvas's sides black.
+            var page = GameState.PageSize;
+            float s = (float)Math.Min(page.Width / Cutscene.Width, page.Height / Cutscene.Height);
+            canvas.Save();
+            canvas.Translate((float)(GameState.PageOrigin.X + (page.Width - Cutscene.Width * s) / 2), (float)(GameState.PageOrigin.Y + (page.Height - Cutscene.Height * s) / 2));
+            canvas.Scale(s);
+            Cutscene.Draw(canvas, linear: scale * s < 0.999f);
+            canvas.Restore();
+        }
+        else if (Room != null)
         {
             canvas.Save();
             canvas.Translate((float)(GameState.CanvasWidth / 2 - Camera.X), (float)(GameState.CanvasHeight / 2 - Camera.Y));

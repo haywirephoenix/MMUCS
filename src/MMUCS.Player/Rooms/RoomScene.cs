@@ -26,6 +26,9 @@ public sealed class RoomScene
 {
     private static readonly SKPaint MaskOut = new() { BlendMode = SKBlendMode.DstOut };
 
+    /// <summary>A room with nothing in it (the canvas stays black).</summary>
+    public static RoomScene Blank { get; } = new();
+
     public int Width { get; init; }
     public int Height { get; init; }
 
