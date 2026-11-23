@@ -880,11 +880,11 @@ public sealed partial class RoomViewModel : ObservableObject
                     AkosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
                     _livePalette = (actor.Data, palette);
                 }
-                rgba = AkosFrames.Render(actor.Data, frame, out ox, out oy, mirror: actor.Mirrored);
+                // Scaled as the engine scales it, so it's drawn at full size.
+                rgba = AkosFrames.RenderScaled(actor.Data, frame, actor.Scale, out ox, out oy, mirror: actor.Mirrored);
             }
-            float f = actor.ScaleFactor;
             var set = new ImageSet();
-            LiveCostume = new LiveCostume(placed.Value, set.Add(rgba?.ToSkImage()), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), f, actor.ZPlane);
+            LiveCostume = new LiveCostume(placed.Value, set.Add(rgba?.ToSkImage()), actor.X - ox, actor.DrawY - oy, 1, actor.ZPlane);
             ReplaceImages(ref _liveImages, set);
         }
         catch (Exception ex)
@@ -1164,12 +1164,12 @@ public sealed partial class RoomViewModel : ObservableObject
                     _livePalette = default;
                 }
 
-                var rgba = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, actor.Mirrored, token);
-                // Scaled about the actor's origin: the frame's offset from it shrinks with the frame.
-                float f = actor.ScaleFactor;
+                // Scaled as the engine scales it, each cel on its own with SCUMM's scale table, so it's drawn
+                // at full size: stretching the composed frame left a seam between cannon's gunner pieces.
+                var rgba = AkosFrames.RenderScaled(actor.Data, actor.Frame, actor.Scale, out int ox, out int oy, actor.Mirrored, token);
                 if (rgba != null)
                 {
-                    result[target] = (images.Add(rgba.ToSkImage()), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), actor.SortY, actor.Actor, f, actor.ZPlane);
+                    result[target] = (images.Add(rgba.ToSkImage()), actor.X - ox, actor.DrawY - oy, actor.SortY, actor.Actor, 1f, actor.ZPlane);
                 }
             }
         }

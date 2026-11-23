@@ -378,6 +378,138 @@ public static class AkosFrames
         return new RgbaImage(w, h, rgba);
     }
 
+    /// <summary>
+    /// ScummVM's bigCostumeScaleTable (akos.cpp): the 8-bit bit-reversal permutation. A cel's column or
+    /// row at table index i is kept at scale s when entry i &lt; s; the table repeats every 256.
+    /// </summary>
+    private static readonly byte[] ScaleTable = BuildScaleTable();
+
+    private static byte[] BuildScaleTable()
+    {
+        var t = new byte[256];
+        for (int i = 0; i < 256; i++)
+        {
+            int r = 0;
+            for (int b = 0; b < 8; b++) if ((i & (1 << b)) != 0) r |= 0x80 >> b;
+            t[i] = (byte)r;
+        }
+        return t;
+    }
+
+    private static bool Kept(int index, int scale) => ScaleTable[index & 0xFF] < scale;
+
+    /// <summary>
+    /// Where the engine draws each of a cel's columns at <paramref name="scale"/>, relative to the actor's
+    /// origin (ScummVM BaseCostumeRenderer::paintCelByleRLECommon and byleRLEDecode, AKOS's 384-entry
+    /// table). The walk starts at index 384 − |offset|, so it isn't the same as scaling about the origin:
+    /// cels at different offsets drop different columns, which is how cannon's three gunner pieces,
+    /// two columns apart in the art, meet without a gap. A column that doesn't advance is overdrawn
+    /// by the next one.
+    /// </summary>
+    private static int[] ScaledColumns(int offset, int width, int scale, bool mirror)
+    {
+        const int Size = 384;
+        var cols = new int[width];
+        int step = -1, move = offset, x = 0;
+        if (move < 0) { move = -move; step = 1; }
+        if (!mirror)
+        {
+            // _drawActorToRight
+            int j = Size - move, start = j;
+            for (int i = 0; i < move; i++) if (Kept(j++, scale)) x -= step;
+            for (int c = 0, idx = start; c < width; c++, idx++)
+            {
+                cols[c] = x;
+                if (Kept(idx, scale)) x++;
+            }
+        }
+        else
+        {
+            int j = Size + move, start = j;
+            for (int i = 0; i < move; i++) if (Kept(j--, scale)) x += step;
+            for (int c = 0, idx = start; c < width; c++, idx--)
+            {
+                cols[c] = x;
+                if (Kept(idx, scale)) x--;
+            }
+        }
+        return cols;
+    }
+
+    /// <summary>Where the engine draws each of a cel's rows at <paramref name="scale"/>, or int.MinValue for a dropped row.</summary>
+    private static int[] ScaledRows(int offset, int height, int scale)
+    {
+        const int Size = 384;
+        var rows = new int[height];
+        int step = -1, move = offset, y = 0;
+        if (move < 0) { move = -move; step = 1; }
+        int j = Size - move, start = j;
+        for (int i = 0; i < move; i++) if (Kept(j++, scale)) y -= step;
+        for (int r = 0, idx = start; r < height; r++, idx++)
+            rows[r] = Kept(idx, scale) ? y++ : int.MinValue;
+        return rows;
+    }
+
+    /// <summary>
+    /// Renders a frame at an actor's scale (255 is full size) the way the engine draws it: each cel scaled
+    /// on its own with SCUMM's scale table (<see cref="ScaledColumns"/>), so the result is drawn unscaled.
+    /// At 255 this is <see cref="Render"/>.
+    /// </summary>
+    public static RgbaImage RenderScaled(AkosData d, AkosFrame frame, int scale, out int originX, out int originY, bool mirror = false, CancellationToken token = default)
+    {
+        if (scale >= 255) return Render(d, frame, out originX, out originY, mirror, token);
+        originX = originY = 0;
+        if (frame == null || frame.IsEmpty) return null;
+        scale = Math.Max(scale, 1);
+
+        var placed = new List<(IndexedSurface Cel, int[] Cols, int[] Rows)>(frame.Cels.Count);
+        int l = int.MaxValue, t = int.MaxValue, r = int.MinValue, b = int.MinValue;
+        foreach (var c in frame.Cels)
+        {
+            var surface = GetCel(d, c.Cel, token);
+            if (surface == null) continue;
+            var cols = ScaledColumns(c.X, surface.Width, scale, mirror);
+            var rows = ScaledRows(c.Y, surface.Height, scale);
+            foreach (int x in cols) { l = Math.Min(l, x); r = Math.Max(r, x + 1); }
+            foreach (int y in rows) if (y != int.MinValue) { t = Math.Min(t, y); b = Math.Max(b, y + 1); }
+            placed.Add((surface, cols, rows));
+        }
+        int w = r - l, h = b - t;
+        if (l == int.MaxValue || t == int.MaxValue || w <= 0 || h <= 0 || w > 4096 || h > 4096) return null;
+        originX = -l;
+        originY = -t;
+
+        var rgba = new byte[w * h * 4];
+        var akpl = d.Palette.Span;
+        var colors = d.ResolvedColors;
+        bool passthrough = d.IsPassthroughPalette;
+        byte transparent = d.TransparentIndex;
+        foreach (var (surface, cols, rows) in placed)
+            for (int x = 0; x < surface.Width; x++)
+            {
+                int dx = cols[x] - l;
+                for (int y = 0; y < surface.Height; y++)
+                {
+                    if (rows[y] == int.MinValue) continue;
+                    byte local = surface.Pixels[y * surface.Pitch + x];
+                    if (local == transparent) continue;
+                    int global = passthrough ? local : local < akpl.Length ? akpl[local] : local;
+                    int o = ((rows[y] - t) * w + dx) * 4;
+                    if (global > 0 && global < 8)
+                    {
+                        if (rgba[o + 3] == 0) { rgba[o] = rgba[o + 1] = rgba[o + 2] = 0; rgba[o + 3] = 102; }
+                        continue;
+                    }
+                    var col = global < colors.Length ? colors[global] : new ScummColor(1, 0, 1, 1);
+                    rgba[o] = (byte)(col.R * 255);
+                    rgba[o + 1] = (byte)(col.G * 255);
+                    rgba[o + 2] = (byte)(col.B * 255);
+                    rgba[o + 3] = 255;
+                }
+            }
+        return new RgbaImage(w, h, rgba);
+    }
+
     /// <summary>Union of a chore's frame bounds over <paramref name="steps"/> steps (relative to the actor origin).</summary>
     public static (int Left, int Top, int Right, int Bottom) CycleBounds(AkosData d, int chore, int steps)
     {
