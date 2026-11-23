@@ -1,5 +1,7 @@
 using System;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using MMUCS.Desktop.ViewModels;
 
@@ -19,6 +21,25 @@ public partial class MediaPlayerWindow : Window
     }
 
     private MediaPlayerViewModel Vm => DataContext as MediaPlayerViewModel;
+
+    private async void OnFontFolderClick(object sender, RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Font folder (font/NNNN, or an export holding font/)",
+        });
+        if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path) Vm?.UseFontFolder(path);
+    }
+
+    private async void OnFontFileClick(object sender, RoutedEventArgs e)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Font file",
+            FileTypeFilter = [new FilePickerFileType("Fonts") { Patterns = ["*.ttf", "*.otf", "*.ttc"] }],
+        });
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path) Vm?.UseTypeface(path);
+    }
 
     protected override void OnClosed(EventArgs e)
     {

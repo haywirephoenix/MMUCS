@@ -1,5 +1,6 @@
 using System.Threading;
 using MMUCS.Core.Media;
+using MMUCS.Desktop.Rendering;
 using SkiaSharp;
 
 namespace MMUCS.Desktop.Controls;
@@ -15,17 +16,24 @@ public sealed class VideoFrame
 {
     private int _refs = 1;
 
-    private VideoFrame(SKImage image) => Image = image;
+    private VideoFrame(SKImage image, SubtitleOverlay subtitles)
+    {
+        Image = image;
+        Subtitles = subtitles;
+    }
 
     public SKImage Image { get; }
+    /// <summary>The frame's text, drawn over the picture, or null.</summary>
+    public SubtitleOverlay Subtitles { get; }
     public int Width => Image.Width;
     public int Height => Image.Height;
 
     /// <summary>
     /// The player's current frame, converted straight into the picture's own pixels (opaque BGRA, Skia's
-    /// native order, so drawing it needs no conversion).
+    /// native order, so drawing it needs no conversion), with its text drawn by <paramref name="subtitles"/>
+    /// (none when null).
     /// </summary>
-    public static VideoFrame From(SmushPlayer video)
+    public static VideoFrame From(SmushPlayer video, SubtitleRenderer subtitles = null)
     {
         var info = new SKImageInfo(video.Video.Width, video.Video.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
         using var bitmap = new SKBitmap(info);
@@ -35,7 +43,8 @@ public sealed class VideoFrame
         }
         // An immutable bitmap's pixels are shared by the image, not copied.
         bitmap.SetImmutable();
-        return new VideoFrame(SKImage.FromBitmap(bitmap));
+        var text = subtitles?.Build(video.Current, video.Video.Width, video.Video.Height);
+        return new VideoFrame(SKImage.FromBitmap(bitmap), text);
     }
 
     public void Retain() => Interlocked.Increment(ref _refs);
@@ -45,6 +54,7 @@ public sealed class VideoFrame
         if (Interlocked.Decrement(ref _refs) == 0)
         {
             Image.Dispose();
+            Subtitles?.Dispose();
         }
     }
 }

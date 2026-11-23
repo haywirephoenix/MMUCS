@@ -56,6 +56,13 @@ public sealed class AppSettings
     public bool ExportRoomData { get; set; }
     public bool ExportCutscenes { get; set; }
     public bool ExportAudio { get; set; }
+    public bool ExportFonts { get; set; }
+    // Media player: cutscene text
+    public bool ShowSubtitles { get; set; } = true;
+    /// <summary>"game", "folder" or "typeface"; see <see cref="Rendering.SubtitleFontKind"/>.</summary>
+    public string SubtitleFontKind { get; set; } = "game";
+    /// <summary>The font folder or typeface file last chosen.</summary>
+    public string SubtitleFontPath { get; set; }
     public bool CelAlphaEnabled { get; set; } = true;
     public bool CelShadowColorEnabled { get; set; } = true;
     public double CelShadowAmount { get; set; } = 0.4;

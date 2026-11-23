@@ -3,7 +3,7 @@ using SkiaSharp;
 
 namespace MMUCS.Desktop.Controls;
 
-/// <summary>Shows a <see cref="VideoFrame"/> on the shared pan/zoom viewport (fits by default, nearest-neighbour when enlarged).</summary>
+/// <summary>Shows a <see cref="VideoFrame"/> and its text on the shared pan/zoom viewport (fits by default, nearest-neighbour when enlarged).</summary>
 public sealed class VideoCanvas : SkiaViewport
 {
     public static readonly StyledProperty<VideoFrame> ImageProperty =
@@ -48,6 +48,8 @@ public sealed class VideoCanvas : SkiaViewport
             canvas.Concat(view.Matrix);
             bool smooth = linear || canvas.TotalMatrix.ScaleX < 0.999f;
             canvas.DrawImage(frame.Image, 0, 0, new SKSamplingOptions(smooth ? SKFilterMode.Linear : SKFilterMode.Nearest, SKMipmapMode.None));
+            // The text belongs to the frame (the game draws it into the picture), so it scales with it.
+            frame.Subtitles?.Draw(canvas, smooth);
             canvas.Restore();
         }
     }

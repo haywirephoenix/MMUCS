@@ -18,6 +18,8 @@
     <AvaloniaResource Include="Assets\**" />
     <!-- The default panel layout (Layout > Reset, first run). -->
     <EmbeddedResource Include="Layouts\layout.default.json" LogicalName="layout.default.json" />
+    <!-- Typefaces offered in the media player for trying other fonts on cutscene text (with their licences). -->
+    <None Include="..\..\assets\fonts\**" LinkBase="fonts" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

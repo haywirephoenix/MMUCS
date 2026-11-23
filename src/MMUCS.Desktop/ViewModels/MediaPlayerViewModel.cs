@@ -11,6 +11,7 @@ using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Media;
 using MMUCS.Desktop.Services;
 using MMUCS.Desktop.Controls;
+using MMUCS.Desktop.Rendering;
 
 namespace MMUCS.Desktop.ViewModels;
 
@@ -32,6 +33,12 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         public override string ToString() => Title;
     }
 
+    /// <summary>A font for cutscene text: the game's, a font folder or a typeface file.</summary>
+    public sealed record FontChoice(SubtitleFontKind Kind, string Path, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
     /// <summary>A Speech filter choice: a scene or speaker code (null for all) and what the list shows.</summary>
     public sealed record CodeFilter(string Code, string Label)
     {
@@ -42,6 +49,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
 
     private readonly string _gameFile;
     private readonly MMUCS.Core.Scumm.ScummBlock _root;
+    private readonly AppSettings _settings;
     // Opened off the UI thread (finding the sound device takes a moment), so both are null until it's ready.
     private MediaEngine _engine;
     private MediaClock _clock;
@@ -66,6 +74,11 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     private bool _decodingBusy;
     private int _shownFrame = -1;
     private int _wantedFrame = -1;
+    // Cutscene text: the game's fonts (loaded with the first cutscene) and how the text is drawn now.
+    private MMUCS.Core.Fonts.GlyphFont[] _gameFonts;
+    private SubtitleRenderer _subtitles;
+    // The text's look changed: draw the frame on screen again even though the picture didn't change.
+    private bool _redraw;
 
     private bool _updatingPosition;
 
@@ -95,6 +108,12 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     /// <summary>The cutscene's fixed details, for the viewer's toolbar.</summary>
     [ObservableProperty] public partial string VideoInfo { get; set; }
     [ObservableProperty] public partial bool ShowFrameInfo { get; set; } = true;
+    /// <summary>Draw the lines flagged as subtitles (credits and captions always show, as in the game).</summary>
+    [ObservableProperty] public partial bool ShowSubtitles { get; set; } = true;
+    public ObservableCollection<FontChoice> FontChoices { get; } = [];
+    [ObservableProperty] public partial FontChoice SelectedFont { get; set; }
+    /// <summary>What the cutscene text is drawn with, or why the chosen font couldn't be used.</summary>
+    [ObservableProperty] public partial string FontInfo { get; set; }
     [ObservableProperty] public partial ImusSound Sound { get; set; }
     [ObservableProperty] public partial long SoundFrame { get; set; }
     [ObservableProperty] public partial int Hook { get; set; }
@@ -118,11 +137,14 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     public bool HasGame => _gameFile != null;
 
     /// <param name="root">The loaded project: speech gets its text, scenes and speakers from its scripts.</param>
-    public MediaPlayerViewModel(string gameFile, MMUCS.Core.Scumm.ScummBlock root = null)
+    /// <param name="settings">Where the subtitle choices are kept (not saved without it).</param>
+    public MediaPlayerViewModel(string gameFile, MMUCS.Core.Scumm.ScummBlock root = null, AppSettings settings = null)
     {
         _gameFile = gameFile;
         _root = root;
+        _settings = settings;
         _selectedCategory = Categories[0];
+        BuildFontChoices();
         _engineReady = StartEngineAsync();
         if (gameFile == null)
         {
@@ -294,8 +316,10 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
                 var (video, sound) = await Task.Run(() =>
                 {
                     var v = MediaLibrary.LoadVideo(item);
+                    _gameFonts ??= MMUCS.Core.Fonts.NutFont.LoadAll(_gameFile);
                     return (v, MMUCS.Core.Smush.SmushAudio.Decode(v));
                 });
+                if (_subtitles == null) ApplyFont();
                 if (generation != _loadGeneration)
                 {
                     return;
@@ -570,15 +594,17 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         _decodingBusy = true;
         try
         {
-            while (_video == video && _wantedFrame >= 0 && _wantedFrame != _shownFrame)
+            while (_video == video && _wantedFrame >= 0 && (_wantedFrame != _shownFrame || _redraw))
             {
                 int index = _wantedFrame;
-                bool havePicture = Frame != null;
+                bool havePicture = Frame != null && !_redraw;
+                _redraw = false;
+                var subtitles = _subtitles;
                 // Null when the picture is the one already shown (held shots, frames that only play sound).
                 var image = await Task.Run(() =>
                 {
                     video.ShowFrame(index);
-                    return havePicture && !video.PictureChanged ? null : VideoFrame.From(video);
+                    return havePicture && !video.PictureChanged ? null : VideoFrame.From(video, subtitles);
                 });
                 if (_video != video)
                 {
@@ -602,6 +628,84 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
         finally
         {
             _decodingBusy = false;
+        }
+    }
+
+    /// <summary>The game's fonts, the typefaces shipped with MMUCS, and the folder or file last chosen.</summary>
+    private void BuildFontChoices()
+    {
+        FontChoices.Add(new FontChoice(SubtitleFontKind.Game, null, "Game fonts (NUT)"));
+        string bundled = System.IO.Path.Combine(AppContext.BaseDirectory, "fonts");
+        if (System.IO.Directory.Exists(bundled))
+        {
+            foreach (var file in System.IO.Directory.EnumerateFiles(bundled, "*.*", System.IO.SearchOption.AllDirectories)
+                         .Where(IsTypefaceFile).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+                FontChoices.Add(TypefaceChoice(file));
+        }
+        FontChoice selected = FontChoices[0];
+        if (_settings != null)
+        {
+            ShowSubtitles = _settings.ShowSubtitles;
+            string path = _settings.SubtitleFontPath;
+            if (_settings.SubtitleFontKind == "folder" && System.IO.Directory.Exists(path)) selected = AddChoice(FolderChoice(path));
+            else if (_settings.SubtitleFontKind == "typeface" && System.IO.File.Exists(path)) selected = AddChoice(TypefaceChoice(path));
+        }
+        SelectedFont = selected;
+    }
+
+    public static bool IsTypefaceFile(string path) =>
+        System.IO.Path.GetExtension(path).ToLowerInvariant() is ".ttf" or ".otf" or ".ttc";
+
+    private static FontChoice FolderChoice(string path) =>
+        new(SubtitleFontKind.Folder, path, $"Folder: {System.IO.Path.GetFileName(System.IO.Path.TrimEndingDirectorySeparator(path))}");
+
+    private static FontChoice TypefaceChoice(string path) =>
+        new(SubtitleFontKind.Typeface, path, $"Typeface: {System.IO.Path.GetFileNameWithoutExtension(path)}");
+
+    private FontChoice AddChoice(FontChoice choice)
+    {
+        var same = FontChoices.FirstOrDefault(c => c.Kind == choice.Kind && string.Equals(c.Path, choice.Path, StringComparison.Ordinal));
+        if (same != null) return same;
+        FontChoices.Add(choice);
+        return choice;
+    }
+
+    /// <summary>Draws cutscene text with an unpacked font folder (an export's font/NNNN, edited or not).</summary>
+    public void UseFontFolder(string path) => SelectedFont = AddChoice(FolderChoice(path));
+
+    /// <summary>Draws cutscene text with a TrueType/OpenType file.</summary>
+    public void UseTypeface(string path) => SelectedFont = AddChoice(TypefaceChoice(path));
+
+    partial void OnSelectedFontChanged(FontChoice value) => ApplyFont();
+    partial void OnShowSubtitlesChanged(bool value) => ApplyFont();
+
+    /// <summary>Makes the renderer for the chosen font and draws the frame on screen again with it.</summary>
+    private void ApplyFont()
+    {
+        if (_settings != null && SelectedFont != null)
+        {
+            _settings.ShowSubtitles = ShowSubtitles;
+            _settings.SubtitleFontKind = SelectedFont.Kind switch { SubtitleFontKind.Folder => "folder", SubtitleFontKind.Typeface => "typeface", _ => "game" };
+            if (SelectedFont.Path != null) _settings.SubtitleFontPath = SelectedFont.Path;
+            _settings.Save();
+        }
+        if (_gameFonts == null) return; // until the first cutscene loads them
+        var choice = SelectedFont ?? FontChoices[0];
+        try
+        {
+            _subtitles = SubtitleRenderer.Create(_gameFonts, choice.Kind, choice.Path, ShowSubtitles);
+            FontInfo = $"Text: {_subtitles.Description}";
+        }
+        catch (Exception ex)
+        {
+            _subtitles = SubtitleRenderer.Create(_gameFonts, SubtitleFontKind.Game, null, ShowSubtitles);
+            FontInfo = $"Couldn't use {choice.Label}: {ex.Message}; showing the game fonts";
+            Log.Warn($"Media player: {choice.Path}: {ex.Message}");
+        }
+        if (_video != null)
+        {
+            _redraw = true;
+            DecodeWanted();
         }
     }
 
