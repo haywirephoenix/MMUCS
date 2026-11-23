@@ -24,6 +24,16 @@ public sealed class ScriptInstruction
     public string Text { get; init; }
     /// <summary>Not a known opcode / sub-op: decoding stops here.</summary>
     public bool Unknown { get; init; }
+    /// <summary>
+    /// What it takes from the stack, in push order: <c>a</c> a value, <c>o</c> an object, <c>L</c> a list
+    /// (count on top). A group's own arguments come first (they're popped before its sub-op is read).
+    /// </summary>
+    public string Args { get; init; } = "";
+    /// <summary>Whether it pushes a result.</summary>
+    public bool Pushes { get; init; }
+    /// <summary>Where the inline string's raw bytes start and how many there are (before the 0), or −1.</summary>
+    public int TextStart { get; init; } = -1;
+    public int TextLength { get; init; }
 
     internal ScummScript.OpDef Def { get; init; }
 }
@@ -321,7 +331,9 @@ public static class ScummScript
         Op(0xb9, "startVideo", "", "start-video {s}", Imm.String);
         Op(0xba, "kernelSetFunctions", "L");
 
-        // Unlike ScummVM's startScriptQuick2, COMI always stores what this returns.
+        // COMI calls scripts with this and stores what they return: the called script pushes its result
+        // and ends (the 0x7e return is a no-op), leaving it on the stack all scripts share. The decompiler
+        // treats the call itself as pushing that value.
         Op(0xc8, "startScriptQuick2", "aL", push: true);
         Op(0xc9, "startObjectQuick", "oaL");
 
@@ -389,6 +401,18 @@ public static class ScummScript
         return list;
     }
 
+    /// <summary>
+    /// Decodes the instruction at <paramref name="at"/>. An unknown opcode or sub-op, or one cut off by
+    /// <paramref name="end"/>, comes back with <see cref="ScriptInstruction.Unknown"/> set.
+    /// </summary>
+    public static ScriptInstruction DecodeAt(ReadOnlySpan<byte> code, int at, int end = -1)
+    {
+        if (end < 0 || end > code.Length) end = code.Length;
+        if (at < 0 || at >= end)
+            return new ScriptInstruction { Offset = at, Length = 0, Name = "outside the script", Unknown = true };
+        return Decode(code, at, end);
+    }
+
     private static ScriptInstruction Decode(ReadOnlySpan<byte> code, int at, int end)
     {
         int pos = at;
@@ -407,21 +431,27 @@ public static class ScummScript
             if (def.AfterSub != Imm.None && !ReadImm(code, ref pos, end, def.AfterSub, out _, out _)) return Truncated(at, end, opcode, def.Name);
             int afterSubOperand = def.AfterSub != Imm.None ? code.S32LE(pos - 4) : 0;
             imm = sd.Imm;
+            int subText = pos;
             if (!ReadImm(code, ref pos, end, imm, out int v, out string text)) return Truncated(at, end, opcode, sd.Name);
             return new ScriptInstruction
             {
                 Offset = at, Length = pos - at, Opcode = opcode, SubOp = sub, Name = sd.Name, Def = sd,
                 HasOperand = def.AfterSub != Imm.None, Operand = afterSubOperand,
                 Target = imm == Imm.Jump ? pos + v : -1, Text = text,
+                Args = def.Args + sd.Args, Pushes = sd.Push,
+                TextStart = imm == Imm.String ? subText : -1, TextLength = imm == Imm.String ? pos - subText - 1 : 0,
             };
         }
 
+        int textAt = pos;
         if (!ReadImm(code, ref pos, end, imm, out int value, out string str)) return Truncated(at, end, opcode, def.Name);
         return new ScriptInstruction
         {
             Offset = at, Length = pos - at, Opcode = opcode, Name = def.Name, Def = def,
             HasOperand = imm is Imm.Word or Imm.Var, Operand = value,
             Target = imm == Imm.Jump ? pos + value : -1, Text = str,
+            Args = def.Args, Pushes = def.Push,
+            TextStart = imm == Imm.String ? textAt : -1, TextLength = imm == Imm.String ? pos - textAt - 1 : 0,
         };
     }
 
