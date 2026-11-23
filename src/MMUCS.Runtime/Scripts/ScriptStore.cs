@@ -176,7 +176,7 @@ public sealed class ScriptStore
         var (room, offset) = _directory[number];
         if ((room == 0 && offset == 0) || !_rooms.TryGetValue(room, out var lflf)) return null;
         long at = lflf.Offset + offset;
-        foreach (var b in Walk(lflf, 2))
+        foreach (var b in Blocks.Walk(lflf, 2))
             if (b.Tag == ScummTag.SCRP && b.Offset == at)
                 return new ScriptCode
                 {
@@ -200,7 +200,7 @@ public sealed class ScriptStore
     private static RoomCode Build(int room, ScummBlock lflf)
     {
         var code = new RoomCode();
-        foreach (var b in Walk(lflf, 3))
+        foreach (var b in Blocks.Walk(lflf, 3))
         {
             switch (b.Tag)
             {
@@ -256,16 +256,7 @@ public sealed class ScriptStore
 
     private static IEnumerable<ScummBlock> Rooms(ScummBlock root)
     {
-        foreach (var b in Walk(root, 3))
+        foreach (var b in Blocks.Walk(root, 3))
             if (b.Tag == ScummTag.LFLF) yield return b;
-    }
-
-    private static IEnumerable<ScummBlock> Walk(ScummBlock b, int depth)
-    {
-        yield return b;
-        if (depth == 0) yield break;
-        foreach (var c in b.Children)
-            foreach (var x in Walk(c, depth - 1))
-                yield return x;
     }
 }
