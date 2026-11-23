@@ -411,16 +411,16 @@ async Task<int> DrawRoom(RoomModel room, string outDir, bool debug, bool start, 
     var lines = new List<string>();
     foreach (var actor in actors)
     {
-        var frame = AkosFrames.Render(actor.Data, actor.Frame, out int ox, out int oy, mirror: actor.Mirrored);
+        // Scaled as the engine scales it (AkosFrames.RenderScaled), as the room viewer draws it.
+        var frame = AkosFrames.RenderScaled(actor.Data, actor.Frame, actor.Scale, out int ox, out int oy, mirror: actor.Mirrored);
         if (frame == null) continue;
-        float f = actor.ScaleFactor;
-        int w = (int)(frame.Width * f), h = (int)(frame.Height * f);
-        int x0 = actor.X - (int)(ox * f), y0 = actor.DrawY - (int)(oy * f);
+        int w = frame.Width, h = frame.Height;
+        int x0 = actor.X - ox, y0 = actor.DrawY - oy;
         var plane = actor.ZPlane > 0 && actor.ZPlane <= planes.Length ? planes[actor.ZPlane - 1] : null;
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
             {
-                int sx = (int)(x / f), sy = (int)(y / f), rx = x0 + x, ry = y0 + y;
+                int sx = x, sy = y, rx = x0 + x, ry = y0 + y;
                 if (rx < 0 || ry < 0 || rx >= img.Width || ry >= img.Height || sx >= frame.Width || sy >= frame.Height) continue;
                 int si = (sy * frame.Width + sx) * 4;
                 if (frame.Data[si + 3] < 128) continue;
