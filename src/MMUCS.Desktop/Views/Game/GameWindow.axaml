@@ -27,15 +27,7 @@
       </StackPanel>
     </c:ViewerPreview.Tools>
 
-    <c:GameCanvas x:Name="Canvas" Focusable="True"
-                  PictureSize="{x:Static vm:GameViewModel.CanvasSize}"
-                  CursorImage="{Binding CursorImage}" CursorHotspot="{Binding CursorHotspot}"
-                  CursorPosition="{Binding CursorPosition}" ShowCursor="{Binding IsMouseCaptured}"
-                  Hotspot="{Binding Hotspot}" IsHotspotHovered="{Binding IsOverHotspot}"
-                  IsRunning="{Binding IsPlaying}"
-                  CoinImage="{Binding CoinImage}" CoinBounds="{Binding CoinBounds}"
-                  Blasts="{Binding Blasts}"
-                  Text="{Binding LabelOverlay}" PageOrigin="{x:Static vm:GameViewModel.PageOrigin}" />
+    <c:GameCanvas x:Name="Canvas" Focusable="True" Frame="{Binding Frame}" />
 
     <c:ViewerPreview.Overlay>
       <Border IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" IsHitTestVisible="False"
