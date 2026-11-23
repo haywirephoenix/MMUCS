@@ -11,12 +11,16 @@ namespace MMUCS.Media.OpenAL;
 /// Plays a <see cref="Mixer"/> through OpenAL Soft: one streaming source with a short ring of buffers. A
 /// feeder thread refills each buffer the device has finished with, so the latency is
 /// <c>bufferFrames × bufferCount</c> (about 93 ms with the defaults at 44.1 kHz). The source plays the
-/// mix as is (direct channels, gain 1); OpenAL only hands it to the device.
+/// mix as is (direct channels, gain 1); OpenAL only hands it to the device, as float samples when it
+/// takes them (AL_EXT_FLOAT32), else 16-bit. Mixing happens outside the OpenAL lock, so reading the
+/// played position never waits for a mix.
 /// </summary>
 public sealed unsafe class OpenALOutput : IAudioOutput
 {
     // AL_SOFT_direct_channels: play the buffer's channels straight to the speakers, no virtualisation.
     private const int DirectChannelsSoft = 0x1033;
+    // AL_EXT_FLOAT32: AL_FORMAT_STEREO_FLOAT32.
+    private const int StereoFloat32 = 0x10011;
 
     private readonly ALContext _alc;
     private readonly AL _al;
@@ -27,6 +31,7 @@ public sealed unsafe class OpenALOutput : IAudioOutput
     private readonly int _bufferFrames;
     private readonly float[] _mix;
     private readonly short[] _pcm;
+    private readonly bool _float;
     private readonly object _alLock = new();
 
     private Thread _thread;
@@ -62,6 +67,7 @@ public sealed unsafe class OpenALOutput : IAudioOutput
         _al.SetSourceProperty(_source, SourceBoolean.Looping, false);
         if (_al.IsExtensionPresent("AL_SOFT_direct_channels"))
             _al.SetSourceProperty(_source, (SourceInteger)DirectChannelsSoft, 1);
+        _float = _al.IsExtensionPresent("AL_EXT_FLOAT32");
         CheckError("creating the source");
 
         string device = _alc.GetContextProperty(_device, GetContextString.DeviceSpecifier);
@@ -95,7 +101,11 @@ public sealed unsafe class OpenALOutput : IAudioOutput
         lock (_alLock)
         {
             MakeCurrent();
-            foreach (uint b in _buffers) Fill(b);
+            foreach (uint b in _buffers)
+            {
+                Mixer.Read(_mix);
+                Upload(b);
+            }
             _al.SourceQueueBuffers(_source, _buffers);
             _al.SourcePlay(_source);
             CheckError("starting playback");
@@ -124,33 +134,57 @@ public sealed unsafe class OpenALOutput : IAudioOutput
         }
     }
 
-    /// <summary>Refills every buffer the device has played, and restarts the source if it ran dry.</summary>
+    /// <summary>
+    /// Refills every buffer the device has played, and restarts the source if it ran dry. Played buffers
+    /// are taken off the queue under the lock, mixed without it, then queued again under it.
+    /// </summary>
     private void Feed()
     {
         var one = new uint[1];
+        var played = new uint[_buffers.Length];
         int sleepMs = Math.Max(1, (int)(1000.0 * _bufferFrames / Mixer.SampleRate / 4));
         while (_running)
         {
             try
             {
+                int count = 0;
                 lock (_alLock)
                 {
                     MakeCurrent();
                     _al.GetSourceProperty(_source, GetSourceInteger.BuffersProcessed, out int processed);
-                    for (int i = 0; i < processed; i++)
+                    for (; count < Math.Min(processed, played.Length); count++)
                     {
                         _al.SourceUnqueueBuffers(_source, one);
-                        Interlocked.Add(ref _processedFrames, _bufferFrames);
-                        Fill(one[0]);
+                        played[count] = one[0];
+                    }
+                    // The position stays right meanwhile: the sample offset counts from the buffer now first in the queue.
+                    Interlocked.Add(ref _processedFrames, (long)_bufferFrames * count);
+                }
+
+                for (int i = 0; i < count; i++)
+                {
+                    Mixer.Read(_mix);
+                    lock (_alLock)
+                    {
+                        MakeCurrent();
+                        Upload(played[i]);
+                        one[0] = played[i];
                         _al.SourceQueueBuffers(_source, one);
                     }
+                }
 
-                    _al.GetSourceProperty(_source, GetSourceInteger.SourceState, out int state);
-                    if (state != (int)SourceState.Playing)
+                if (count > 0)
+                {
+                    lock (_alLock)
                     {
-                        // Ran out before the next buffer arrived: what was queued is played again from here.
-                        _underruns++;
-                        _al.SourcePlay(_source);
+                        MakeCurrent();
+                        _al.GetSourceProperty(_source, GetSourceInteger.SourceState, out int state);
+                        if (state != (int)SourceState.Playing)
+                        {
+                            // Ran out before the next buffer arrived: what was queued is played again from here.
+                            _underruns++;
+                            _al.SourcePlay(_source);
+                        }
                     }
                 }
             }
@@ -164,12 +198,17 @@ public sealed unsafe class OpenALOutput : IAudioOutput
         }
     }
 
-    /// <summary>Mixes the next block into an OpenAL buffer as 16-bit stereo.</summary>
-    private void Fill(uint buffer)
+    /// <summary>Hands the mixed block to an OpenAL buffer: as floats when it takes them, else 16-bit.</summary>
+    private void Upload(uint buffer)
     {
-        Mixer.Read(_mix);
+        if (_float)
+        {
+            _al.BufferData(buffer, (BufferFormat)StereoFloat32, _mix, Mixer.SampleRate);
+            return;
+        }
+        // The mixer has already clipped the mix to −1…1.
         for (int i = 0; i < _mix.Length; i++)
-            _pcm[i] = (short)Math.Clamp((int)MathF.Round(_mix[i] * 32767f), short.MinValue, short.MaxValue);
+            _pcm[i] = (short)MathF.Round(_mix[i] * 32767f);
         _al.BufferData(buffer, BufferFormat.Stereo16, _pcm, Mixer.SampleRate);
     }
 
