@@ -48,14 +48,12 @@ public static class ScummProject
     {
         if (files == null || files.Count == 0) throw new ArgumentException("No files", nameof(files));
 
-        var parser = new ScummResourceParser(); // clears the shared room tables once
+        var parser = new ScummResourceParser(); // this load's room tables, so loads can run side by side
         var roots = new List<ScummBlock>(files.Count);
         for (int i = 0; i < files.Count; i++)
         {
             progress?.Invoke(i, files.Count, files[i]);
-            // LOFF offsets are file-relative; drop the previous file's before parsing the next.
-            ScummStatics.RoomOffsets.Clear();
-            roots.Add(ScummResourceParser.Parse(files[i]));
+            roots.Add(parser.ParseFile(files[i]));
         }
 
         if (roots.Count == 1) return roots[0];

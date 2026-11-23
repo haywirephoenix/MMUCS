@@ -18,16 +18,22 @@ public class ScummResourceParser
 
     // public event Action<int, int> ProgressChanged; // current, total bytes
 
-    public ScummResourceParser()
-    {
-        ScummStatics.RoomOffsets.Clear();
-        ScummStatics.RoomNames.Clear();
-        ScummStatics.RoomOffsets.Clear();
-    }
-    
+    // One game's room tables, kept for the files parsed through this instance: the index (LA0) names
+    // the rooms (RNAM) that the data files (LA1, LA2) hold. Room offsets (LOFF) are file-relative, so
+    // they're kept per file.
+    private readonly List<string> _roomNames = [];
+    private readonly Dictionary<long, int> _roomOffsets = []; // file offset → room number
+
+    /// <summary>Parses one file on its own (its rooms get names only if it holds the RNAM itself).</summary>
     public static ScummBlock Parse(string filePath)
     {
-        // _rnamBlock = null;
+        return new ScummResourceParser().ParseFile(filePath);
+    }
+
+    /// <summary>Parses the next file of a game; room names from an earlier file's RNAM carry over.</summary>
+    public ScummBlock ParseFile(string filePath)
+    {
+        _roomOffsets.Clear();
         byte[] raw = File.ReadAllBytes(filePath);
 
         // COMI .la0 files are XOR obfuscated
@@ -168,7 +174,7 @@ public class ScummResourceParser
         block.TagName = meta.TagName;
     }
 
-    private static void DecodeMetadata(ScummBlock block)
+    private void DecodeMetadata(ScummBlock block)
     {
         // Pre: leaf/header blocks
         switch (block.Tag)
@@ -240,7 +246,7 @@ public class ScummResourceParser
     {
         // AKOS parsing happens on demand in AkosParser.
     }
-    private static void DecodeLOFF(ScummBlock block)
+    private void DecodeLOFF(ScummBlock block)
     {
         var span  = block.DataSpan;
         int count = span[0];   // 1 byte, matches readRoomsOffsets()
@@ -250,32 +256,32 @@ public class ScummResourceParser
         {
             int roomNo = span[pos];
             int offset = (int)span.U32LE(pos + 1);
-            ScummStatics.RoomOffsets[offset] = roomNo;
+            _roomOffsets[offset] = roomNo;
         }
     }
 
-    private static void DecodeLFLF(ScummBlock block)
+    private void DecodeLFLF(ScummBlock block)
     {
         // if (_rnamBlock == null) return;
 
-        if (!ScummStatics.RoomOffsets.TryGetValue(block.Offset, out int roomNo)) return;
+        if (!_roomOffsets.TryGetValue(block.Offset, out int roomNo)) return;
         
         block.SetMetaDataItem(ScummMeta.LFLF.roomNo, roomNo);
         // block.FullName = $"Room {roomNo}";
         
-        // Log.Info($"[DecodeLFLF] a names: {ScummStatics.RoomNames.Count}");
+        // Log.Info($"[DecodeLFLF] a names: {_roomNames.Count}");
 
         // Room 0 is the index room — no name expected
         if (roomNo <= 0) return;
 
         // Genuinely unexpected — room number exceeds what RNAM described
-        if (roomNo >= ScummStatics.RoomNames.Count)
+        if (roomNo >= _roomNames.Count)
         {
-            Log.Warn($"[LFLF] roomNo {roomNo} exceeds RNAM list ({ScummStatics.RoomNames.Count})");
+            Log.Warn($"[LFLF] roomNo {roomNo} exceeds RNAM list ({_roomNames.Count})");
             return;
         }
 
-        string name = ScummStatics.RoomNames[roomNo];
+        string name = _roomNames[roomNo];
         if (name.Length == 0) return; // valid gap in RNAM, just no name assigned
 
         
@@ -285,7 +291,7 @@ public class ScummResourceParser
 
     // private List<string> roomNames = new();
 
-    private static void DecodeRNAM(ScummBlock block)
+    private void DecodeRNAM(ScummBlock block)
     {
         // List<string> roomNames = new(); // indexed list the caller asked for
         // Dictionary<int, string> roomLookup = new(); // fast reverse lookup
@@ -294,7 +300,8 @@ public class ScummResourceParser
         int pos = 0;
 
 
-        ScummStatics.RoomNames.Add(string.Empty); // slot 0 — always empty
+        _roomNames.Clear();
+        _roomNames.Add(string.Empty); // slot 0 — always empty
         var nameBytes = new byte[9];
 
         while (pos < span.Length)
@@ -318,16 +325,15 @@ public class ScummResourceParser
 
             // Pad the list if room numbers are sparse (shouldn't happen in COMI,
             // but defensive code never hurts)
-            while (ScummStatics.RoomNames.Count <= roomNo)
-                ScummStatics.RoomNames.Add(string.Empty);
+            while (_roomNames.Count <= roomNo)
+                _roomNames.Add(string.Empty);
 
-            ScummStatics.RoomNames[roomNo] = name;
-            ScummStatics.RoomLookup[roomNo] = name;
+            _roomNames[roomNo] = name;
             
             // Log.Info($"added room {roomNo} {name}");
         }
         
-        // Log.Info($"[DecodeRNAM] names: {ScummStatics.RoomNames.Count}");
+        // Log.Info($"[DecodeRNAM] names: {_roomNames.Count}");
 
         // Expose both representations so consumers can choose
         // _roomNames = _roomNames; // List<string>  — index = room number
