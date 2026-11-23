@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -33,7 +34,16 @@ public partial class App : Application
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
             // "MMUCS.exe path/to/COMI.LA1" opens that file; otherwise optionally reopen the last one.
-            _ = vm.StartupAsync(desktop.Args);
+            // Only once the window is up and has drawn its first frame: parsing the game meanwhile would
+            // compete with building and showing the window.
+            var args = desktop.Args;
+            desktop.MainWindow.Opened += OnOpened;
+            void OnOpened(object sender, EventArgs e)
+            {
+                desktop.MainWindow.Opened -= OnOpened;
+                desktop.MainWindow.RequestAnimationFrame(frameTime =>
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => { _ = vm.StartupAsync(args); }, Avalonia.Threading.DispatcherPriority.Background));
+            }
 
             // Linux: a .desktop entry so the dock and Alt-Tab show the app icon.
             Services.LinuxDesktopEntry.Register();
