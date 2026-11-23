@@ -32,7 +32,8 @@
                   CursorPosition="{Binding CursorPosition}" ShowCursor="{Binding IsMouseCaptured}"
                   Hotspot="{Binding Hotspot}" IsHotspotHovered="{Binding IsOverHotspot}"
                   IsRunning="{Binding IsPlaying}"
-                  CoinImage="{Binding Coin.Image}" CoinBounds="{Binding Coin.Bounds}" />
+                  CoinImage="{Binding Coin.Image}" CoinBounds="{Binding Coin.Bounds}"
+                  Blasts="{Binding Inventory.Blasts}" />
 
     <c:ViewerPreview.Overlay>
       <Border IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" IsHitTestVisible="False"

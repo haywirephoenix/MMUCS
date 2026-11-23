@@ -13,7 +13,7 @@ namespace MMUCS.Desktop.Views.Game;
 /// <summary>
 /// The game window (Window ▸ Game, a testing ground). While playing, a click on the canvas captures the
 /// mouse: the system cursor hides and is kept inside the picture, and the game draws its own. Esc, Stop,
-/// or leaving the window lets it go. Holding the button on a hotspot opens the verb coin until it's let go.
+/// or leaving the window lets it go. Holding the button on a hotspot opens the verb coin until it's let go; I toggles the inventory.
 /// </summary>
 public partial class GameWindow : Window
 {
@@ -61,8 +61,10 @@ public partial class GameWindow : Window
         if (_vm is not { IsPlaying: true }) return;
         if (_vm.IsMouseCaptured)
         {
-            // Holding the button on a hotspot opens the verb coin.
-            if (e.GetCurrentPoint(Canvas).Properties.IsLeftButtonPressed) _vm.PressCursor();
+            // The left button acts where the cursor is (the verb coin, the inventory); the right one is global 33.
+            var button = e.GetCurrentPoint(Canvas).Properties.PointerUpdateKind;
+            if (button == PointerUpdateKind.LeftButtonPressed) _vm.PressCursor();
+            else if (button == PointerUpdateKind.RightButtonPressed) _vm.RightClick();
             e.Handled = true;
             return;
         }
@@ -100,6 +102,11 @@ public partial class GameWindow : Window
         if (e.Key == Key.Escape && _vm is { IsMouseCaptured: true })
         {
             ReleaseMouse();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.I && e.KeyModifiers == KeyModifiers.None && _vm is { IsPlaying: true })
+        {
+            _vm.ToggleInventory();
             e.Handled = true;
         }
     }

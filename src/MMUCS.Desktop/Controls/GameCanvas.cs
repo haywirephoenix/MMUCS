@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -32,6 +33,8 @@ public sealed class GameCanvas : Control
         AvaloniaProperty.Register<GameCanvas, Bitmap>(nameof(CoinImage));
     public static readonly StyledProperty<Rect> CoinBoundsProperty =
         AvaloniaProperty.Register<GameCanvas, Rect>(nameof(CoinBounds));
+    public static readonly StyledProperty<IReadOnlyList<ViewModels.GameBlast>> BlastsProperty =
+        AvaloniaProperty.Register<GameCanvas, IReadOnlyList<ViewModels.GameBlast>>(nameof(Blasts));
     public static readonly StyledProperty<bool> IsRunningProperty =
         AvaloniaProperty.Register<GameCanvas, bool>(nameof(IsRunning));
 
@@ -46,6 +49,8 @@ public sealed class GameCanvas : Control
     /// <summary>A stand-in hotspot, in game units.</summary>
     public Rect Hotspot { get => GetValue(HotspotProperty); set => SetValue(HotspotProperty, value); }
     public bool IsHotspotHovered { get => GetValue(IsHotspotHoveredProperty); set => SetValue(IsHotspotHoveredProperty, value); }
+    /// <summary>Images drawn over the room, back to front (the open inventory), placed in game units.</summary>
+    public IReadOnlyList<ViewModels.GameBlast> Blasts { get => GetValue(BlastsProperty); set => SetValue(BlastsProperty, value); }
     /// <summary>The verb coin's frame (null when it isn't shown), drawn under the cursor.</summary>
     public Bitmap CoinImage { get => GetValue(CoinImageProperty); set => SetValue(CoinImageProperty, value); }
     /// <summary>Where <see cref="CoinImage"/> goes, in game units.</summary>
@@ -64,7 +69,7 @@ public sealed class GameCanvas : Control
     static GameCanvas()
     {
         AffectsRender<GameCanvas>(GameSizeProperty, CursorImageProperty, CursorPositionProperty, CursorHotspotProperty,
-            ShowCursorProperty, HotspotProperty, IsHotspotHoveredProperty, IsRunningProperty, CoinImageProperty, CoinBoundsProperty);
+            ShowCursorProperty, HotspotProperty, IsHotspotHoveredProperty, IsRunningProperty, CoinImageProperty, CoinBoundsProperty, BlastsProperty);
         ClipToBoundsProperty.OverrideDefaultValue<GameCanvas>(true);
     }
 
@@ -119,6 +124,13 @@ public sealed class GameCanvas : Control
         using (context.PushClip(rect))
         using (context.PushRenderOptions(new RenderOptions { BitmapInterpolationMode = BitmapInterpolationMode.None }))
         {
+            if (Blasts != null)
+                foreach (var blast in Blasts)
+                {
+                    var b = blast.Bitmap;
+                    context.DrawImage(b, new Rect(0, 0, b.PixelSize.Width, b.PixelSize.Height),
+                        new Rect(ToControl(blast.Bounds.TopLeft), ToControl(blast.Bounds.BottomRight)));
+                }
             if (CoinImage is { } coin)
             {
                 var size = coin.PixelSize;
