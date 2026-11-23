@@ -65,6 +65,11 @@ public sealed partial class RoomObjectItem(RoomObject obj) : ObservableObject
     }) + (a.IsPlayer ? ", player" : "") + (a.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf && !a.StartsShown && !a.IsPlayer ? ", another costume starts" : "");
 
     [ObservableProperty] public partial bool IsVisible { get; set; } = true;
+    /// <summary>
+    /// Shown because it was toggled on (its eye, the menu, Space), not by the Show mode: then it's drawn
+    /// even where the view hides its kind (a full-screen image with Full-screen objects off).
+    /// </summary>
+    public bool ShownByToggle { get; set; }
     /// <summary>The review marks that include it (Mark for review…), alone or with other entries.</summary>
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsMarked), nameof(MarkText))] public partial IReadOnlyList<ReviewMark> ReviewMarks { get; set; } = Array.Empty<ReviewMark>();
     public bool IsMarked => ReviewMarks.Count > 0;
@@ -87,6 +92,8 @@ public sealed partial class RoomViewModel : ObservableObject
     public const int FullWidth = 640;
 
     [ObservableProperty] public partial RoomModel Room { get; set; }
+    /// <summary>Objects shown by the user's own toggle: drawn even when Full-screen objects is off.</summary>
+    [ObservableProperty] public partial IReadOnlySet<RoomObject> ToggledObjects { get; set; }
     [ObservableProperty] public partial string Title { get; set; } = "No room selected";
     [ObservableProperty] public partial SKImage BackgroundImage { get; set; }
     [ObservableProperty] public partial IReadOnlyList<RoomObjectLayer> ObjectLayers { get; set; }
@@ -362,15 +369,16 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>Puts every entry's visibility back to what the Show mode starts a room with.</summary>
     [RelayCommand] private void ResetVisibility() => SetVisibility(o => ShownByMode(o));
 
-    public void SetVisible(RoomObject obj, bool visible) => SetVisibility(o => ReferenceEquals(o.Object, obj) ? visible : null);
+    public void SetVisible(RoomObject obj, bool visible) => SetVisibility(o => ReferenceEquals(o.Object, obj) ? visible : null, byToggle: true);
 
     /// <summary>Shows only <paramref name="obj"/> and hides every other object.</summary>
-    public void ShowOnly(RoomObject obj) => SetVisibility(o => ReferenceEquals(o.Object, obj));
+    public void ShowOnly(RoomObject obj) => SetVisibility(o => ReferenceEquals(o.Object, obj), byToggle: true);
 
     public bool IsVisible(RoomObject obj) => VisibleObjects.Contains(obj);
 
     /// <summary>Applies a visibility per object (null leaves it unchanged), then refreshes once.</summary>
-    private void SetVisibility(Func<RoomObjectItem, bool?> rule)
+    /// <param name="byToggle">The user asked for it (a toggle, Show only…), not the Show mode: what it shows is drawn even where its kind is hidden.</param>
+    private void SetVisibility(Func<RoomObjectItem, bool?> rule, bool byToggle = false)
     {
         _batchVisibility = true;
         foreach (var item in Objects)
@@ -378,6 +386,7 @@ public sealed partial class RoomViewModel : ObservableObject
             if (rule(item) is bool v)
             {
                 item.IsVisible = v;
+                item.ShownByToggle = byToggle && v;
             }
         }
 
@@ -389,6 +398,8 @@ public sealed partial class RoomViewModel : ObservableObject
     {
         if (e.PropertyName == nameof(RoomObjectItem.IsVisible) && !_batchVisibility)
         {
+            // One entry's eye (or Space): the user's own toggle.
+            if (sender is RoomObjectItem item) item.ShownByToggle = item.IsVisible;
             RefreshVisibility();
         }
     }
@@ -396,8 +407,86 @@ public sealed partial class RoomViewModel : ObservableObject
     private void RefreshVisibility()
     {
         VisibleObjects = Objects.Where(o => o.IsVisible).Select(o => o.Object).ToHashSet();
+        ToggledObjects = Objects.Where(o => o.IsVisible && o.ShownByToggle).Select(o => o.Object).ToHashSet();
         UpdateZMasks();
         OnPropertyChanged(nameof(AllObjectsVisible));
+        LoadShownLibraryImages();
+    }
+
+    /// <summary>
+    /// A room with no background of its own: a library of images (room 3's inventory icons), not a
+    /// scene. Its images start hidden and are loaded only once shown.
+    /// </summary>
+    private static bool IsImageLibrary(RoomModel room) => room.Width <= 0;
+
+    private bool _loadingLibraryImages;
+
+    /// <summary>
+    /// In an image library, loads the images of objects shown since the room loaded without them, and
+    /// puts them in the layers all at once.
+    /// </summary>
+    private async void LoadShownLibraryImages()
+    {
+        var room = Room;
+        if (room == null || !IsImageLibrary(room) || _loadingLibraryImages || ObjectLayers == null || VisibleObjects == null)
+        {
+            return;
+        }
+
+        var missing = ObjectLayers.Where(l => !l.IsActorOnly && l.Image == null && l.Object.ImageCount > 0
+                                              && VisibleObjects.Contains(l.Object) && !_stateImages.ContainsKey(l.Object)
+                                              && room.Objects.Contains(l.Object))
+            .Select(l => l.Object).ToList();
+        if (missing.Count == 0)
+        {
+            return;
+        }
+
+        _loadingLibraryImages = true;
+        var loaded = new List<(RoomObject Object, ImageSet Set, SKImage Image)>();
+        try
+        {
+            foreach (var obj in missing)
+            {
+                SKImage image = null;
+                var set = new ImageSet();
+                if (ObimDecoders.TryGetObimInfo(obj.Block, out var info))
+                {
+                    int frame = RoomObjectStates.FrameFor(StateOf(obj), info.TotalFrames > 0 ? info.TotalFrames : 1);
+                    var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(obj), bakeImage: true, CancellationToken.None);
+                    image = set.Add(result.ExecutedImage?.ToSkImage());
+                }
+                loaded.Add((obj, set, image));
+                if (!ReferenceEquals(Room, room))
+                {
+                    break; // another room opened meanwhile
+                }
+            }
+
+            if (!ReferenceEquals(Room, room) || ObjectLayers == null)
+            {
+                foreach (var l in loaded) l.Set.Release();
+                return;
+            }
+
+            var byObject = loaded.ToDictionary(l => l.Object);
+            ObjectLayers = [.. ObjectLayers.Select(l => !l.IsActorOnly && byObject.TryGetValue(l.Object, out var x) ? l with { Image = x.Image } : l)];
+            // Owned like a state change's image: kept until the room reloads (an image that failed stays
+            // recorded, so it isn't tried again on every visibility change).
+            foreach (var l in loaded) _stateImages[l.Object] = l.Set;
+            PublishImages();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Library images failed: {ex.Message}");
+            foreach (var l in loaded) l.Set.Release();
+        }
+        finally
+        {
+            _loadingLibraryImages = false;
+        }
+
+        LoadShownLibraryImages(); // any shown while these loaded
     }
 
     // Keep the list selection and the canvas selection (a RoomObject) in step.
@@ -454,7 +543,7 @@ public sealed partial class RoomViewModel : ObservableObject
         // picked as the background is drawn, so its planes do count.
         var shown = Objects.Where(o => !o.IsActorOnly && o.Object.ImageCount > 0
                                        && (ReferenceEquals(o.Object, BackgroundObject)
-                                           || (o.IsVisible && (ShowFullScreenObjects || o.Object.Width < 640))))
+                                           || (o.IsVisible && (ShowFullScreenObjects || o.ShownByToggle || o.Object.Width < 640))))
             .Select(o => o.Object).ToList();
         shown = [.. room.InDrawOrder(shown)]; // an object drawn later writes its planes over an earlier one's
         string key = room.Room.Offset + ":" + string.Join(",", shown.Select(o => $"{o.Index}/{StateOf(o)}"));
@@ -555,8 +644,11 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>Spinboxes are only active when there is something to switch between.</summary>
     public bool HasBackgroundChoices => MaxBackgroundIndex > 0;
 
-    /// <summary>A room switch this soon after the last one, or while that one is still loading, is scrolling.</summary>
-    private static readonly TimeSpan ScrollingGap = TimeSpan.FromMilliseconds(250);
+    /// <summary>
+    /// A room switch this soon after the last one is scrolling: a held key (key repeat is every 25–50 ms;
+    /// X11's default 40 ms). Pressing keys or clicking by hand, however quickly, is slower than this.
+    /// </summary>
+    private static readonly TimeSpan ScrollingGap = TimeSpan.FromMilliseconds(90);
     /// <summary>
     /// While scrolling, a room loads once it has stayed selected for 1.5 times the gap between the last two
     /// switches (the key repeat), within these limits: a held key never waits for a load, and stopping
@@ -589,7 +681,9 @@ public sealed partial class RoomViewModel : ObservableObject
 
         long now = System.Diagnostics.Stopwatch.GetTimestamp();
         var gap = _lastSwitch != 0 ? System.Diagnostics.Stopwatch.GetElapsedTime(_lastSwitch, now) : TimeSpan.MaxValue;
-        bool scrolling = IsSwitchingRoom || IsCovered || gap < ScrollingGap;
+        // Only the gap counts: a press that lands while the last room is still loading is a normal switch
+        // (it goes black only if it's slow, or stays black if the last one was).
+        bool scrolling = gap < ScrollingGap;
         _lastSwitch = now;
         // The last room's images mustn't arrive over this one (it may wait to settle before loading its own).
         _cts?.Cancel();
@@ -731,9 +825,11 @@ public sealed partial class RoomViewModel : ObservableObject
         foreach (var o in room.Objects)
         {
             int? state = states.TryGetValue(o, out int st) ? st : null;
-            // Image-less hotspots have nothing to hide (their costume shows), and a room with no background
-            // is a library of images (room 3's inventory icons, all in state 0), not a scene.
-            bool shown = o.ImageCount <= 0 || room.Width <= 0 || state != 0;
+            // Image-less hotspots have nothing to hide (their costume shows). A room with no background is a
+            // library of images, not a scene (room 3's 170 inventory icons, all in state 0, at one spot):
+            // they start hidden, and only the ones shown are loaded (see IsImageLibrary). Its full-screen
+            // images start shown, so it opens on its backdrop (room 3's treasure chest) rather than empty.
+            bool shown = o.ImageCount <= 0 || (IsImageLibrary(room) ? o.Width >= FullWidth : state != 0);
             // A room starts as the Show mode says (Room start: as the game shows it).
             var item = new RoomObjectItem(o) { InitialState = state, InitialVisible = shown, Unused = UnusedArt.Find(room.RoomNo, o.Name) };
             item.IsVisible = ShownByMode(item);
@@ -1043,10 +1139,10 @@ public sealed partial class RoomViewModel : ObservableObject
 
     /// <summary>Shows or hides several entries at once.</summary>
     public void SetVisible(IReadOnlyList<RoomObjectItem> items, bool visible) =>
-        SetVisibility(o => items.Contains(o) ? visible : null);
+        SetVisibility(o => items.Contains(o) ? visible : null, byToggle: true);
 
     /// <summary>Shows these entries and hides every other one.</summary>
-    public void ShowOnly(IReadOnlyList<RoomObjectItem> items) => SetVisibility(o => items.Contains(o));
+    public void ShowOnly(IReadOnlyList<RoomObjectItem> items) => SetVisibility(o => items.Contains(o), byToggle: true);
 
     /// <summary>Renders the actors' frames, each in the palette the game shows its costume in, keyed by where they're shown.</summary>
     private Dictionary<RoomObject, (SKImage Image, int X, int Y, int Depth, int Actor, float Scale, int ZPlane)> RenderActors(
@@ -1115,11 +1211,18 @@ public sealed partial class RoomViewModel : ObservableObject
             var fullWidth = new List<BackgroundChoice>();
             var hasImage = new Dictionary<RoomObject, bool>();
             // In the engine's draw order: the canvas draws the layers in list order, later ones on top.
+            var shownNow = VisibleObjects;
             foreach (var obj in room.InDrawOrder(room.Objects))
             {
                 SKImage image = null;
                 RgbaImage rgba = null;
-                if (obj.ImageCount > 0 && ObimDecoders.TryGetObimInfo(obj.Block, out var info))
+                // An image library loads only what's shown; the rest load when shown (LoadShownLibraryImages).
+                bool skip = IsImageLibrary(room) && shownNow?.Contains(obj) != true;
+                if (skip)
+                {
+                    hasImage[obj] = obj.ImageCount > 0; // so it can be toggled on
+                }
+                else if (obj.ImageCount > 0 && ObimDecoders.TryGetObimInfo(obj.Block, out var info))
                 {
                     // In the palette the game shows it in: SCUMM v8 has no per-object palette, the game
                     // switches the room's palette from scripts before it shows one (RoomPalettes).
@@ -1136,7 +1239,10 @@ public sealed partial class RoomViewModel : ObservableObject
                 }
                 costumes.TryGetValue(obj, out var costume);
                 layers.Add(new RoomObjectLayer(obj, image, costume.Image, costume.X, costume.Y, CostumeDepth: costume.Depth, CostumeActor: costume.Actor, CostumeScale: costume.Scale == 0 ? 1 : costume.Scale, CostumeZPlane: costume.ZPlane));
-                hasImage[obj] = rgba != null && !IsFullyTransparent(rgba);
+                if (!skip)
+                {
+                    hasImage[obj] = rgba != null && !IsFullyTransparent(rgba);
+                }
                 if (image != null && image.Width >= FullWidth)
                 {
                     fullWidth.Add(new BackgroundChoice(obj.ToString(), image, rgba, obj));

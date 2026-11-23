@@ -75,6 +75,9 @@ public sealed class RoomCanvas : SkiaViewport
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(HoldScene));
 
     /// <summary>The room's z-plane masks (index 0 = plane 1), opaque where they hide actors; null for none.</summary>
+    public static readonly StyledProperty<IReadOnlySet<RoomObject>> ToggledObjectsProperty =
+        AvaloniaProperty.Register<RoomCanvas, IReadOnlySet<RoomObject>>(nameof(ToggledObjects));
+
     public static readonly StyledProperty<bool> CoveredProperty =
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(Covered));
 
@@ -129,6 +132,8 @@ public sealed class RoomCanvas : SkiaViewport
     /// The sets every image in the other properties belongs to: each scene holds them while it may be
     /// drawn, so their owner can release them as soon as it stops showing them.
     /// </summary>
+    /// <summary>Objects the user toggled on: drawn even when <see cref="ShowFullScreenObjects"/> is off.</summary>
+    public IReadOnlySet<RoomObject> ToggledObjects { get => GetValue(ToggledObjectsProperty); set => SetValue(ToggledObjectsProperty, value); }
     /// <summary>Draws the room as black, nothing else: a room still loading while rooms are scrolled through.</summary>
     public bool Covered { get => GetValue(CoveredProperty); set => SetValue(CoveredProperty, value); }
     public IReadOnlyList<ImageSet> ImageSets { get => GetValue(ImageSetsProperty); set => SetValue(ImageSetsProperty, value); }
@@ -156,7 +161,7 @@ public sealed class RoomCanvas : SkiaViewport
             BackgroundImageProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
             ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty, LiveCostumeProperty,
-            ZMasksProperty, ImageSetsProperty, CoveredProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty, ShowSelectionOutlineProperty,
+            ZMasksProperty, ImageSetsProperty, CoveredProperty, ToggledObjectsProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty, ShowSelectionOutlineProperty,
             SelectionOutlineColorProperty, SelectionOutlineThicknessProperty);
     }
 
@@ -274,7 +279,8 @@ public sealed class RoomCanvas : SkiaViewport
         SelectStroke,
         _paints ??= new OverlayPaints(this),
         ImageSets,
-        Covered);
+        Covered,
+        ToggledObjects);
 
     private OverlayPaints _paints;
 
@@ -390,7 +396,7 @@ public sealed class RoomCanvas : SkiaViewport
                     continue;
                 }
 
-                if (l.Image.Width >= 640 && !ShowFullScreenObjects)
+                if (l.Image.Width >= 640 && !ShowFullScreenObjects && ToggledObjects?.Contains(l.Object) != true)
                 {
                     continue; // not drawn
                 }
@@ -429,8 +435,9 @@ public sealed class RoomCanvas : SkiaViewport
     private sealed class Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
         IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
         IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke, RoomCanvas.OverlayPaints paints,
-        IReadOnlyList<ImageSet> imageSets, bool covered) : IRetainedScene
+        IReadOnlyList<ImageSet> imageSets, bool covered, IReadOnlySet<RoomObject> toggled) : IRetainedScene
     {
+        private readonly IReadOnlySet<RoomObject> _toggled = toggled;
         private readonly bool _covered = covered;
         private static readonly SKPaint CoverPaint = new() { Color = SKColors.Black };
         // The images below stay alive while a draw operation may still show this scene.
@@ -543,7 +550,7 @@ public sealed class RoomCanvas : SkiaViewport
                     // Other full-screen (640px) object images would cover the background (in the wrong
                     // palette), so they're drawn only when asked for; the Background spinbox switches to them.
                     bool isFullWidth = layer.Image.Width >= 640;
-                    if (isFullWidth && !_fullScreenObjects)
+                    if (isFullWidth && !_fullScreenObjects && _toggled?.Contains(layer.Object) != true)
                     {
                         continue;
                     }

@@ -78,6 +78,7 @@
                   ShowFullScreenObjects="{Binding ShowFullScreenObjects}"
                   BackgroundObject="{Binding BackgroundObject}"
                   VisibleObjects="{Binding VisibleObjects}"
+                  ToggledObjects="{Binding ToggledObjects}"
                   HoldScene="{Binding IsSwitchingRoom}"
                   LiveCostume="{Binding LiveCostume}"
                   ZMasks="{Binding ZMasks}"
