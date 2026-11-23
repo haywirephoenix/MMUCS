@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using MMUCS.Core.Scumm;
 using MMUCS.Desktop.ViewModels;
 using Xunit;
@@ -21,7 +23,7 @@ public class GameViewModelTests
         var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
         MediaPlayerViewModelTests.UiThread.Run(async ui =>
         {
-            var vm = new GameViewModel(root);
+            var vm = new GameViewModel(root, Game);
             await ui.Until(() => vm.CursorFrame != null || !vm.Status.StartsWith("Loading"), "the cursor to load");
             Assert.True(vm.CursorFrame != null, vm.Status);
             Assert.Contains(GameViewModel.CursorObjectName, vm.Status);
@@ -152,6 +154,54 @@ public class GameViewModelTests
             vm.PressCursor();
             vm.ReleaseCursor();
             Assert.False(inv.IsOpen);
+            // Items are named after the inventory object their icon stands for (its verb 93's icon-item), and the
+            // hovered one is named under the inventory, in the chosen font.
+            var arm = inv.Items.Single(i => i.Object.Name == "skeleton-arm-icon-object");
+            Assert.Equal((336, "skeleton arm"), (inv.ItemIdOf(arm), inv.NameOf(arm)));
+            Assert.All(inv.Items, i => Assert.False(string.IsNullOrEmpty(inv.NameOf(i))));
+            vm.RightClick();
+            Assert.True(inv.IsOpen);
+            await ui.Until(() => vm.FontInfo != null, "the game fonts to load");
+            At(Inventory.ItemAt(0).X + 20, Inventory.ItemAt(0).Y + 20);
+            Assert.Equal(inv.NameOf(first), vm.Label);
+            Assert.NotNull(vm.LabelOverlay);
+            At(300, 120);
+            Assert.Null(vm.Label);
+            Assert.Null(vm.LabelOverlay);
+            At(Inventory.ItemAt(0).X + 20, Inventory.ItemAt(0).Y + 20);
+            vm.PressCursor();
+            vm.ReleaseCursor();
+            Assert.Null(vm.Label); // over the item held
+            var second = inv.Items[1];
+            At(Inventory.ItemAt(1).X + 20, Inventory.ItemAt(1).Y + 20);
+            string verb = inv.IsGivenTo(second) ? "give" : "use", prep = verb == "give" ? "to" : "with";
+            Assert.Equal($"{verb} {inv.NameOf(first)} {prep} {inv.NameOf(second)}", vm.Label);
+            vm.RightClick(); // put it back
+
+            // Holding the button on an item opens its verb coin above its slot (global 66) and doesn't pick it up.
+            At(Inventory.ItemAt(6).X + 20, Inventory.ItemAt(6).Y + 20);
+            vm.PressCursor();
+            Assert.False(vm.Coin.IsShown);
+            await Task.Delay(GameViewModel.ItemHoldDelay + TimeSpan.FromMilliseconds(150));
+            Assert.True(vm.Coin.IsShown);
+            Assert.Null(vm.Label);
+            Assert.Equal(1, vm.CursorState);
+            var origin = GameViewModel.PageToGame(Inventory.ItemAt(6) + new Avalonia.Point(38, -30));
+            Assert.Equal(origin, vm.Coin.Origin);
+            vm.ReleaseCursor();
+            Assert.False(vm.Coin.IsShown);
+            Assert.Null(vm.HeldItem);
+            Assert.True(inv.IsOpen);
+            // A press that comes up first still picks the item up, and no coin follows.
+            vm.PressCursor();
+            vm.ReleaseCursor();
+            Assert.Same(inv.Items[6], vm.HeldItem);
+            await Task.Delay(GameViewModel.ItemHoldDelay + TimeSpan.FromMilliseconds(100));
+            Assert.False(vm.Coin.IsShown);
+            vm.RightClick();
+            vm.RightClick();
+            Assert.False(inv.IsOpen);
+
             // I puts a held item back too.
             vm.ToggleInventory();
             At(Inventory.ItemAt(0).X + 20, Inventory.ItemAt(0).Y + 20);
@@ -172,5 +222,19 @@ public class GameViewModelTests
             Assert.False(vm.IsMouseCaptured);
             Assert.Equal(1, vm.CursorState);
         });
+    }
+}
+
+/// <summary>Room text colours (blast-text): value 1 takes the text's colour, the rest are palette indices as they are.</summary>
+public class RoomTextColorTests
+{
+    [Fact]
+    public void Value_1_is_the_colour_and_the_rest_stay()
+    {
+        Assert.Equal(19, MMUCS.Core.Fonts.TextRasterizer.MapValue(1, 0, 19, MMUCS.Core.Fonts.TextColorMode.Room));
+        Assert.Equal(225, MMUCS.Core.Fonts.TextRasterizer.MapValue(225, 0, 19, MMUCS.Core.Fonts.TextColorMode.Room));
+        Assert.Equal(-1, MMUCS.Core.Fonts.TextRasterizer.MapValue(0, 0, 19, MMUCS.Core.Fonts.TextColorMode.Room));
+        // Cutscene text keeps its own rule: font 1's ink (1) isn't the colour code's negation, so it stays 1.
+        Assert.Equal(1, MMUCS.Core.Fonts.TextRasterizer.MapValue(1, 0, 19));
     }
 }
