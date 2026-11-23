@@ -86,6 +86,18 @@ public sealed class ScriptVm
     /// <summary>Something the engine only warns about, such as starting code for an object that isn't here.</summary>
     public event Action<string> Warned;
 
+    /// <summary>A script, object or room code started in a slot (it runs at once, nested at <see cref="Depth"/>).</summary>
+    public event Action<ScriptSlot> ScriptStarted;
+
+    /// <summary>
+    /// A slot's code ended, with why: <c>ended</c> (it ran to its end), <c>stopped</c> (stop-script or
+    /// stop-object), <c>room left</c> or <c>fault</c>. The slot still says what it ran.
+    /// </summary>
+    public event Action<ScriptSlot, string> ScriptEnded;
+
+    /// <summary>How many starts are nested right now (0 between frames).</summary>
+    public int Depth => _nest.Count;
+
     /// <summary>
     /// A room was entered (after the old room's exit code, before the new one's entry code): hosts load
     /// its pictures here. Room 0 is no room at all.
@@ -140,7 +152,7 @@ public sealed class ScriptVm
         {
             if (s.Number != number || !s.IsAlive || !s.IsScript) continue;
             if (s.CutsceneOverride != 0) throw new ScriptException($"script {number} stopped with an active cutscene/override");
-            s.Kill();
+            End(s, "stopped");
             if (State.Current == s) State.Current = null;
         }
         foreach (var n in _nest)
@@ -194,7 +206,7 @@ public sealed class ScriptVm
         {
             if (s.Number != obj || !s.IsAlive || s.IsScript) continue;
             if (s.CutsceneOverride != 0) throw new ScriptException($"object {obj} stopped with an active cutscene/override");
-            s.Kill();
+            End(s, "stopped");
             if (State.Current == s) State.Current = null;
         }
         foreach (var n in _nest)
@@ -269,6 +281,7 @@ public sealed class ScriptVm
             if (!s.IsAlive || !s.BelongsToRoom) continue;
             if (s.CutsceneOverride != 0) Warned?.Invoke($"{s} stopped with an active cutscene/override in exit");
             s.CutsceneOverride = 0;
+            ScriptEnded?.Invoke(s, "room left");
             s.Status = SlotStatus.Dead; // the number stays, as ScummVM leaves it
             s.Frozen = false;
             if (State.Current == s) State.Current = null;
@@ -352,6 +365,7 @@ public sealed class ScriptVm
         _nest.Add(nest);
 
         State.Current = slot;
+        ScriptStarted?.Invoke(slot);
         try
         {
             Execute();
@@ -385,7 +399,7 @@ public sealed class ScriptVm
             catch (ScriptException e) when (!Strict)
             {
                 Faulted?.Invoke(new ScriptFault(s.ToString(), ins.Offset, ins.Name, e.Message));
-                s.Kill();
+                End(s, "fault");
                 if (State.Current == s) State.Current = null;
             }
         }
@@ -405,8 +419,14 @@ public sealed class ScriptVm
     {
         if (s.CutsceneOverride != 0)
             throw new ScriptException($"{(s.IsScript ? "script" : "object")} {s.Number} ending with an active cutscene/override ({s.CutsceneOverride})");
-        s.Kill();
+        End(s, "ended");
         State.Current = null;
+    }
+
+    private void End(ScriptSlot s, string why)
+    {
+        ScriptEnded?.Invoke(s, why);
+        s.Kill();
     }
 
     private int Pop() => State.Pop();
