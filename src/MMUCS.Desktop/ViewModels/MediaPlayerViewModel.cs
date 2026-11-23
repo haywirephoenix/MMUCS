@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MMUCS.Player;
 using MMUCS.Player.Text;
 using MMUCS.Core.Audio;
 using MMUCS.Core.Diagnostics;
@@ -97,7 +98,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial string PositionText { get; set; } = "0:00.0 / 0:00.0";
     [ObservableProperty] public partial double Volume { get; set; } = 0.8;
     /// <summary>The picture shown; the view model holds one reference to it, released when it's replaced.</summary>
-    [ObservableProperty] public partial VideoFrame Frame { get; set; }
+    [ObservableProperty] public partial CutsceneFrame Frame { get; set; }
     /// <summary>The changing frame readout, drawn over the picture so it never resizes the canvas.</summary>
     [ObservableProperty] public partial string FrameText { get; set; }
     /// <summary>The cutscene's fixed details, for the viewer's toolbar.</summary>
@@ -601,7 +602,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
                 var image = await Task.Run(() =>
                 {
                     video.ShowFrame(index);
-                    return havePicture && !video.PictureChanged ? null : VideoFrame.From(video, subtitles);
+                    return havePicture && !video.PictureChanged ? null : CutsceneFrame.From(video, subtitles);
                 });
                 if (_video != video)
                 {
@@ -658,7 +659,7 @@ public sealed partial class MediaPlayerViewModel : ObservableObject, IDisposable
     }
 
     // The render thread holds its own references while it draws, so the old frame is freed as soon as it can be.
-    partial void OnFrameChanged(VideoFrame oldValue, VideoFrame newValue) => oldValue?.Release();
+    partial void OnFrameChanged(CutsceneFrame oldValue, CutsceneFrame newValue) => oldValue?.Release();
 
     private void SetPosition(double seconds)
     {
