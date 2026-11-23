@@ -28,13 +28,13 @@
     </c:ViewerPreview.Tools>
 
     <c:GameCanvas x:Name="Canvas" Focusable="True"
-                  GameSize="{x:Static vm:GameViewModel.CanvasSize}"
+                  PictureSize="{x:Static vm:GameViewModel.CanvasSize}"
                   CursorImage="{Binding CursorImage}" CursorHotspot="{Binding CursorHotspot}"
                   CursorPosition="{Binding CursorPosition}" ShowCursor="{Binding IsMouseCaptured}"
                   Hotspot="{Binding Hotspot}" IsHotspotHovered="{Binding IsOverHotspot}"
                   IsRunning="{Binding IsPlaying}"
-                  CoinImage="{Binding Coin.Image}" CoinBounds="{Binding Coin.Bounds}"
-                  Blasts="{Binding Inventory.Blasts}"
+                  CoinImage="{Binding CoinImage}" CoinBounds="{Binding CoinBounds}"
+                  Blasts="{Binding Blasts}"
                   Text="{Binding LabelOverlay}" PageOrigin="{x:Static vm:GameViewModel.PageOrigin}" />
 
     <c:ViewerPreview.Overlay>

@@ -20,6 +20,8 @@ public partial class GameWindow : Window
     private static readonly Cursor Hidden = new(StandardCursorType.None);
     private readonly PointerConfinement _confinement = new();
     private readonly DispatcherTimer _timer;
+    private readonly System.Diagnostics.Stopwatch _clock = new();
+    private long _jiffies;
     private GameViewModel _vm;
 
     public GameWindow()
@@ -29,8 +31,9 @@ public partial class GameWindow : Window
         Canvas.PointerMoved += OnCanvasMoved;
         Canvas.PointerExited += OnCanvasExited;
         Canvas.PointerReleased += OnCanvasReleased;
-        _timer = new DispatcherTimer(TimeSpan.FromSeconds(1 / VerbCoin.FramesPerSecond), DispatcherPriority.Render, (_, _) => _vm?.Tick());
-        Opened += (_, _) => _timer.Start();
+        // Game time runs in jiffies (1/60 s), counted from a clock so a late timer doesn't slow the game down.
+        _timer = new DispatcherTimer(TimeSpan.FromSeconds(1 / 60.0), DispatcherPriority.Render, (_, _) => Advance());
+        Opened += (_, _) => { _clock.Restart(); _timer.Start(); };
         Canvas.SizeChanged += (_, _) => Confine();
         PositionChanged += (_, _) => Confine();
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
@@ -69,7 +72,7 @@ public partial class GameWindow : Window
             return;
         }
         var at = e.GetPosition(Canvas);
-        if (!Canvas.GameRect.Contains(at)) return; // the letterbox isn't the game
+        if (!Canvas.PictureRect.Contains(at)) return; // the letterbox isn't the game
         Canvas.Focus();
         Canvas.Cursor = Hidden;
         _vm.IsMouseCaptured = true;
@@ -84,6 +87,14 @@ public partial class GameWindow : Window
         var at = e.GetPosition(Canvas);
         _confinement.KeepInside(Canvas.PointToScreen(at));
         _vm.MoveCursor(Canvas.ToGame(at));
+    }
+
+    /// <summary>Runs the game for the jiffies that have passed since the last time (a few at most after a stall).</summary>
+    private void Advance()
+    {
+        long now = _clock.ElapsedTicks * 60 / System.Diagnostics.Stopwatch.Frequency;
+        for (int i = 0; i < 6 && _jiffies < now; i++, _jiffies++) _vm?.Tick();
+        _jiffies = Math.Max(_jiffies, now - 6);
     }
 
     private void OnCanvasReleased(object sender, PointerReleasedEventArgs e)
@@ -115,7 +126,7 @@ public partial class GameWindow : Window
     private void Confine()
     {
         if (_vm is not { IsMouseCaptured: true }) return;
-        var rect = Canvas.GameRect;
+        var rect = Canvas.PictureRect;
         var topLeft = Canvas.PointToScreen(rect.TopLeft);
         var bottomRight = Canvas.PointToScreen(rect.BottomRight);
         _confinement.Confine(new PixelRect(topLeft, bottomRight));

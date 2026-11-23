@@ -12,15 +12,15 @@ using Avalonia.Media.Imaging;
 namespace MMUCS.Desktop.Controls;
 
 /// <summary>
-/// The game window's canvas: a <see cref="GameSize"/> picture (16:9) scaled to the largest rectangle
+/// The game window's canvas: a <see cref="PictureSize"/> picture (16:9) scaled to the largest rectangle
 /// that fits, letterboxed in black, with the game cursor drawn on it (nearest-neighbour, so the pixels
 /// stay square) and a stand-in hotspot outlined. Positions are in game units; <see cref="ToGame"/> and
 /// <see cref="ToControl"/> convert.
 /// </summary>
 public sealed class GameCanvas : Control
 {
-    public static readonly StyledProperty<Size> GameSizeProperty =
-        AvaloniaProperty.Register<GameCanvas, Size>(nameof(GameSize), new Size(1280, 720));
+    public static readonly StyledProperty<Size> PictureSizeProperty =
+        AvaloniaProperty.Register<GameCanvas, Size>(nameof(PictureSize), new Size(1280, 720));
     public static readonly StyledProperty<Bitmap> CursorImageProperty =
         AvaloniaProperty.Register<GameCanvas, Bitmap>(nameof(CursorImage));
     public static readonly StyledProperty<Point> CursorPositionProperty =
@@ -37,8 +37,8 @@ public sealed class GameCanvas : Control
         AvaloniaProperty.Register<GameCanvas, Bitmap>(nameof(CoinImage));
     public static readonly StyledProperty<Rect> CoinBoundsProperty =
         AvaloniaProperty.Register<GameCanvas, Rect>(nameof(CoinBounds));
-    public static readonly StyledProperty<IReadOnlyList<ViewModels.GameBlast>> BlastsProperty =
-        AvaloniaProperty.Register<GameCanvas, IReadOnlyList<ViewModels.GameBlast>>(nameof(Blasts));
+    public static readonly StyledProperty<IReadOnlyList<ViewModels.CanvasBlast>> BlastsProperty =
+        AvaloniaProperty.Register<GameCanvas, IReadOnlyList<ViewModels.CanvasBlast>>(nameof(Blasts));
     public static readonly StyledProperty<Rendering.SubtitleOverlay> TextProperty =
         AvaloniaProperty.Register<GameCanvas, Rendering.SubtitleOverlay>(nameof(Text));
     public static readonly StyledProperty<Point> PageOriginProperty =
@@ -47,7 +47,7 @@ public sealed class GameCanvas : Control
         AvaloniaProperty.Register<GameCanvas, bool>(nameof(IsRunning));
 
     /// <summary>The picture's size in game units; its aspect ratio is kept whatever the control's size.</summary>
-    public Size GameSize { get => GetValue(GameSizeProperty); set => SetValue(GameSizeProperty, value); }
+    public Size PictureSize { get => GetValue(PictureSizeProperty); set => SetValue(PictureSizeProperty, value); }
     public Bitmap CursorImage { get => GetValue(CursorImageProperty); set => SetValue(CursorImageProperty, value); }
     /// <summary>Where the cursor points, in game units.</summary>
     public Point CursorPosition { get => GetValue(CursorPositionProperty); set => SetValue(CursorPositionProperty, value); }
@@ -58,7 +58,7 @@ public sealed class GameCanvas : Control
     public Rect Hotspot { get => GetValue(HotspotProperty); set => SetValue(HotspotProperty, value); }
     public bool IsHotspotHovered { get => GetValue(IsHotspotHoveredProperty); set => SetValue(IsHotspotHoveredProperty, value); }
     /// <summary>Images drawn over the room, back to front (the open inventory), placed in game units.</summary>
-    public IReadOnlyList<ViewModels.GameBlast> Blasts { get => GetValue(BlastsProperty); set => SetValue(BlastsProperty, value); }
+    public IReadOnlyList<ViewModels.CanvasBlast> Blasts { get => GetValue(BlastsProperty); set => SetValue(BlastsProperty, value); }
     /// <summary>Text drawn over everything but the cursor, in pixels of the game's 640×480 page (a hover label).</summary>
     public Rendering.SubtitleOverlay Text { get => GetValue(TextProperty); set => SetValue(TextProperty, value); }
     /// <summary>Where the 640×480 page's top left sits, in game units.</summary>
@@ -80,17 +80,17 @@ public sealed class GameCanvas : Control
 
     static GameCanvas()
     {
-        AffectsRender<GameCanvas>(GameSizeProperty, CursorImageProperty, CursorPositionProperty, CursorHotspotProperty,
+        AffectsRender<GameCanvas>(PictureSizeProperty, CursorImageProperty, CursorPositionProperty, CursorHotspotProperty,
             ShowCursorProperty, HotspotProperty, IsHotspotHoveredProperty, IsRunningProperty, CoinImageProperty, CoinBoundsProperty, BlastsProperty, TextProperty, PageOriginProperty);
         ClipToBoundsProperty.OverrideDefaultValue<GameCanvas>(true);
     }
 
     /// <summary>The picture's rectangle in the control, the largest of its aspect ratio that fits, centred.</summary>
-    public Rect GameRect
+    public Rect PictureRect
     {
         get
         {
-            var game = GameSize;
+            var game = PictureSize;
             var bounds = Bounds.Size;
             if (game.Width <= 0 || game.Height <= 0 || bounds.Width <= 0 || bounds.Height <= 0) return default;
             double scale = Math.Min(bounds.Width / game.Width, bounds.Height / game.Height);
@@ -100,12 +100,12 @@ public sealed class GameCanvas : Control
     }
 
     /// <summary>Control units per game unit.</summary>
-    public double Scale => GameSize.Width > 0 ? GameRect.Width / GameSize.Width : 1;
+    public double Scale => PictureSize.Width > 0 ? PictureRect.Width / PictureSize.Width : 1;
 
     /// <summary>A point in the control in game units (not clamped).</summary>
     public Point ToGame(Point control)
     {
-        var r = GameRect;
+        var r = PictureRect;
         double s = Scale;
         return s <= 0 ? default : new Point((control.X - r.X) / s, (control.Y - r.Y) / s);
     }
@@ -113,7 +113,7 @@ public sealed class GameCanvas : Control
     /// <summary>A point in game units in the control.</summary>
     public Point ToControl(Point game)
     {
-        var r = GameRect;
+        var r = PictureRect;
         double s = Scale;
         return new Point(r.X + game.X * s, r.Y + game.Y * s);
     }
@@ -122,7 +122,7 @@ public sealed class GameCanvas : Control
     {
         var bounds = new Rect(Bounds.Size);
         context.FillRectangle(Letterbox, bounds);
-        var rect = GameRect;
+        var rect = PictureRect;
         if (rect.Width <= 0) return;
         context.FillRectangle(IsRunning ? Stage : StageStopped, rect);
 
