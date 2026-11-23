@@ -238,6 +238,7 @@ public partial class MainWindow : Window
         PanelItem(MmucsDockFactory.HexId, "Hex");
         window.Items.Add(new NativeMenuItemSeparator());
         window.Items.Add(Item("Media player", new RelayCommand(ShowMediaPlayer), Shortcut(Key.M)));
+        window.Items.Add(Item("Game", new RelayCommand(ShowGameWindow), Shortcut(Key.G)));
         window.Opening += (_, _) => UpdatePanelItems();
 
         // Layout templates will join this menu later.
@@ -398,6 +399,17 @@ public partial class MainWindow : Window
         _mediaPlayer = new Views.Media.MediaPlayerWindow { DataContext = new MediaPlayerViewModel(Vm.GameFile, Vm.RootBlock, Vm.Settings) };
         _mediaPlayer.Closed += (_, _) => _mediaPlayer = null;
         _mediaPlayer.Show(this);
+    }
+
+    private Views.Game.GameWindow _gameWindow;
+
+    /// <summary>Opens the game window (a testing ground) for the loaded game, or brings it forward when it's open.</summary>
+    private void ShowGameWindow()
+    {
+        if (_gameWindow != null) { _gameWindow.Activate(); return; }
+        _gameWindow = new Views.Game.GameWindow { DataContext = new GameViewModel(Vm.RootBlock) };
+        _gameWindow.Closed += (_, _) => _gameWindow = null;
+        _gameWindow.Show(this);
     }
 
     private async Task ShowExportWizardAsync()

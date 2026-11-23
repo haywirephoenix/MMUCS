@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MMUCS.Desktop.ViewModels"
+        xmlns:c="using:MMUCS.Desktop.Controls"
+        x:Class="MMUCS.Desktop.Views.Game.GameWindow"
+        x:DataType="vm:GameViewModel"
+        Title="Game"
+        Icon="/Assets/mmucs.ico"
+        Width="1100" Height="680" MinWidth="480" MinHeight="320">
+
+  <Window.Styles>
+    <Style Selector="Button.transport">
+      <Setter Property="MinWidth" Value="64" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+  </Window.Styles>
+
+  <!-- The viewers' shared preview panel (Controls/ViewerPreview.cs): its toolbar holds Play / Stop; the canvas keeps 16:9. -->
+  <c:ViewerPreview Title="Game" Info="{Binding Status}" ShowZoom="False">
+    <c:ViewerPreview.Tools>
+      <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,8,0">
+        <Button Classes="transport" Content="Play" Command="{Binding PlayCommand}"
+                ToolTip.Tip="Start the game; then click the canvas to capture the mouse" />
+        <Button Classes="transport" Content="Stop" Command="{Binding StopCommand}"
+                ToolTip.Tip="Stop the game and let the mouse go" />
+      </StackPanel>
+    </c:ViewerPreview.Tools>
+
+    <c:GameCanvas x:Name="Canvas" Focusable="True"
+                  GameSize="{x:Static vm:GameViewModel.CanvasSize}"
+                  CursorImage="{Binding CursorImage}" CursorHotspot="{Binding CursorHotspot}"
+                  CursorPosition="{Binding CursorPosition}" ShowCursor="{Binding IsMouseCaptured}"
+                  Hotspot="{Binding Hotspot}" IsHotspotHovered="{Binding IsOverHotspot}"
+                  IsRunning="{Binding IsPlaying}" />
+
+    <c:ViewerPreview.Overlay>
+      <Border IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" IsHitTestVisible="False"
+              VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="12"
+              Background="{DynamicResource OverlayBackgroundBrush}" CornerRadius="3">
+        <TextBlock Text="{Binding Hint}" Margin="10,5" FontSize="12" Foreground="{DynamicResource SubtleTextBrush}" />
+      </Border>
+    </c:ViewerPreview.Overlay>
+  </c:ViewerPreview>
+</Window>
