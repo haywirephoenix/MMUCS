@@ -9,21 +9,68 @@ namespace MMUCS.Desktop.Tests;
 
 /// <summary>
 /// The game window hosting the player (the game is tested in MMUCS.Runtime.Tests, its drawing in
-/// MMUCS.Player.Tests): input goes through to the game, time too, and a new frame comes back for the canvas,
-/// with the hover label drawn in the game's fonts. Needs the game (MMUCS_GAME).
+/// MMUCS.Player.Tests): input goes through to the game, scripted or the stand-ins, time too, and a new frame
+/// comes back for the canvas, with the room, the game's cursor and the hover label. Needs the game (MMUCS_GAME).
 /// </summary>
 public class GameViewModelTests
 {
     private static string Game => Environment.GetEnvironmentVariable("MMUCS_GAME") is { } g && File.Exists(g) ? g : null;
 
     [Fact]
-    public void Input_reaches_the_game_and_frames_come_back()
+    public void The_scripts_boot_into_the_difficulty_room_and_a_click_starts_the_game()
     {
         if (Game == null) return;
         var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
         MediaPlayerViewModelTests.UiThread.Run(async ui =>
         {
             var vm = new GameViewModel(root, Game);
+            await vm.Loading;
+            Assert.True(vm.RunScripts); // the default
+            Assert.False(vm.Frame.IsRunning);
+
+            vm.PlayCommand.Execute(null);
+            Assert.True(vm.IsPlaying);
+            Assert.StartsWith("room 87 easyhard", vm.Status);
+            await vm.ScriptedView.Building; // the room's scene loads in the background
+            Assert.NotNull(vm.Frame.Room);
+            Assert.Equal(640, vm.Frame.Room.Width);
+
+            // The game's own cursor (system-cursor-icon, chosen by the scripts) once the game has the mouse.
+            vm.IsMouseCaptured = true;
+            Assert.True(vm.Scripted.IsMouseCaptured);
+            var button = GameState.PageToGame(new GamePoint(320, 224)); // easyhard-hard-button-object's middle
+            vm.MoveCursor(new Avalonia.Point(button.X, button.Y));
+            await vm.ScriptedView.CursorLoading;
+            vm.Tick();
+            Assert.NotNull(vm.Frame.Cursor);
+
+            // Click Mega-Monkey: about 3.5 s later the game leaves for room 2.
+            for (int i = 0; i < 60; i++) vm.Tick();
+            vm.PressCursor();
+            for (int i = 0; i < 6; i++) vm.Tick();
+            vm.ReleaseCursor();
+            for (int i = 0; i < 60 * 5 && vm.Scripted.CurrentRoom == 87; i++) vm.Tick();
+            Assert.StartsWith("room 2 thx", vm.Status);
+            Assert.Equal(0, vm.Scripted.Faults);
+
+            await vm.ScriptedView.Building; // room 2's scene: let it land before the test's UI thread ends
+            Assert.Same(vm.ScriptedView.Scene, vm.Frame.Room);
+
+            // Switching to the stand-ins stops the game.
+            vm.RunScripts = false;
+            Assert.False(vm.IsPlaying || vm.IsMouseCaptured);
+            await vm.ScriptedView.CursorLoading;
+        });
+    }
+
+    [Fact]
+    public void Input_reaches_the_stand_ins_and_frames_come_back()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        MediaPlayerViewModelTests.UiThread.Run(async ui =>
+        {
+            var vm = new GameViewModel(root, Game) { RunScripts = false };
             await vm.Loading;
             Assert.True(vm.Game.Inventory.IsLoaded && vm.Game.Coin.IsLoaded && vm.FontInfo != null);
             Assert.Contains(GameState.CursorObjectName, vm.Status);
