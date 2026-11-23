@@ -75,6 +75,14 @@ public sealed class FrameLoop
         else _rightDown = false;
     }
 
+    private bool _videoSkipped;
+
+    /// <summary>
+    /// A video was skipped: the next frame skips the cutscene it was in and tells the verb script Esc
+    /// (ScummVM v7's <c>processInput</c> after <c>_skipVideo</c>).
+    /// </summary>
+    public void VideoSkipped() => _videoSkipped = true;
+
     /// <summary>A key was pressed (ASCII, or <see cref="F1Key"/>…): the next frame handles the last one pressed.</summary>
     public void PressKey(int code) => _key = code;
 
@@ -142,6 +150,13 @@ public sealed class FrameLoop
         state[EngineVars.LeftButtonDown] = _leftClicked ? 1 : 0;
         state[EngineVars.RightButtonDown] = _rightClicked ? 1 : 0;
         _leftClicked = _rightClicked = false;
+
+        if (_videoSkipped)
+        {
+            _videoSkipped = false;
+            Vm.AbortCutscene();
+            return EscapeKey;
+        }
 
         if (key == 0) return input;
         // v8: the key script's key runs it instead (COMI's F1 menu); v7: Esc skips the cutscene.

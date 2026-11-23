@@ -1,5 +1,11 @@
 using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using MMUCS.Core.Diagnostics;
+using MMUCS.Core.Media;
 using MMUCS.Core.Scumm;
+using MMUCS.Core.Smush;
 using MMUCS.Runtime.Scripts;
 
 namespace MMUCS.Runtime;
@@ -9,9 +15,44 @@ namespace MMUCS.Runtime;
 /// jiffies into the engine's frames, and takes the host's pointer, buttons and keys. Positions are in game
 /// units on the 16:9 canvas, as <see cref="GameState"/> has them; the scripts see the 640×480 page in its
 /// middle. <see cref="Changed"/> says when to look again (after a frame, input, or when the game loads).
+/// <para>
+/// The engine runs on its own thread (<see cref="EngineThread"/>), a step at a time while the host waits, so
+/// <c>start-video</c> can stop everything in the middle of a frame as ScummVM's engine does: the host then
+/// plays the video (<see cref="Video"/>, timed by the sound output's played clock when there is one, by
+/// jiffies otherwise) and the frame carries on when it ends or is skipped.
+/// </para>
 /// </summary>
-public sealed class ScriptedGame
+public sealed class ScriptedGame : IDisposable
 {
+    private readonly EngineThread _engine = new();
+    private string _requestedVideo;
+    private Task<(SmushVideo Video, SmushAudioTrack Sound)> _videoLoad;
+    private MediaClock _videoClock;
+    private MixerVoice _videoVoice;
+    private long _videoJiffies;
+    private Mixer _mixer;
+    private IAudioOutput _output;
+
+    /// <summary>The game's first resource file, beside which (or in its resource folder) the videos are.</summary>
+    public string GameFile { get; private set; }
+
+    /// <summary>The video playing (loaded), or null.</summary>
+    public SmushPlayer Video { get; private set; }
+
+    /// <summary>The name of the video a script started (playing or still loading), or null.</summary>
+    public string VideoName { get; private set; }
+
+    public bool IsVideoPlaying => VideoName != null;
+
+    /// <summary>How far into <see cref="Video"/> it is.</summary>
+    public TimeSpan VideoTime => _videoClock?.Position ?? TimeSpan.FromSeconds(_videoJiffies / 60.0);
+
+    /// <summary>Where the game's sound goes (a video's sound, for now); without, videos play silently on jiffies.</summary>
+    public void SetAudio(Mixer mixer, IAudioOutput output)
+    {
+        _mixer = mixer;
+        _output = output;
+    }
     private bool _mouseInside, _booted;
 
     /// <summary>Something that's shown changed.</summary>
@@ -47,6 +88,7 @@ public sealed class ScriptedGame
     public string Status => Vm == null ? "Open the game first."
         : !IsPlaying ? "Press Play to boot the game."
         : $"room {CurrentRoom} {Scripts.RoomName(CurrentRoom)} · {Loop.Frames} frames · {Running} scripts" +
+          (IsVideoPlaying ? $" · video {VideoName}{(Video == null ? " (loading)" : $" {VideoTime:m\\:ss} / {Video.Duration:m\\:ss}")}" : "") +
           (Faults > 0 ? $" · {Faults} faults (last: {LastFault})" : "");
 
     private int Running
@@ -59,16 +101,24 @@ public sealed class ScriptedGame
         }
     }
 
-    /// <summary>Gets the game's scripts and tables ready; <see cref="Play"/> boots it.</summary>
-    public void Load(ScummBlock root)
+    /// <summary>Gets the game's scripts and tables ready; <see cref="Play"/> boots it. Without <paramref name="gameFile"/> videos are skipped.</summary>
+    public void Load(ScummBlock root, string gameFile = null)
     {
         Root = root ?? throw new ArgumentNullException(nameof(root));
+        GameFile = gameFile;
         Scripts = new ScriptStore(root);
         Vm = new ScriptVm(Scripts, new VmState(GameLimits.Read(root) ?? GameLimits.Comi));
         Vm.Faulted += f =>
         {
             Faults++;
             LastFault = f.ToString();
+        };
+        // start-video: the engine thread waits here while the host plays it.
+        Vm.PlayVideo = name =>
+        {
+            if (!_engine.IsEngineThread) return;
+            _requestedVideo = name;
+            _engine.Park();
         };
         Loop = new FrameLoop(Vm);
         _booted = false;
@@ -85,7 +135,12 @@ public sealed class ScriptedGame
         if (!_booted)
         {
             _booted = true;
-            Vm.Boot();
+            Step(() => Vm.Boot());
+        }
+        else if (_videoClock != null)
+        {
+            _videoClock.Play();
+            if (_videoVoice != null) _videoVoice.Paused = false;
         }
         Changed?.Invoke();
     }
@@ -94,6 +149,8 @@ public sealed class ScriptedGame
     {
         if (!IsPlaying) return;
         IsPlaying = false;
+        _videoClock?.Pause();
+        if (_videoVoice != null) _videoVoice.Paused = true;
         SetMouseCaptured(false);
         Changed?.Invoke();
     }
@@ -134,11 +191,118 @@ public sealed class ScriptedGame
         if (IsPlaying) Loop?.PressKey(code);
     }
 
-    /// <summary>One jiffy (1/60 s) while playing; a frame runs every timer-next jiffies.</summary>
+    /// <summary>One jiffy (1/60 s) while playing: the video plays on, or a frame runs every timer-next jiffies.</summary>
     public void Tick()
     {
         if (!IsPlaying || Loop == null) return;
-        if (Loop.Tick()) Changed?.Invoke();
+        if (IsVideoPlaying)
+        {
+            AdvanceVideo();
+            return;
+        }
+        bool ran = false;
+        Step(() => ran = Loop.Tick());
+        if (ran || IsVideoPlaying) Changed?.Invoke();
+    }
+
+    /// <summary>Ends the video now; the cutscene it was in is skipped on the next frame.</summary>
+    public void SkipVideo()
+    {
+        if (IsVideoPlaying) EndVideo(skipped: true);
+    }
+
+    /// <summary>Runs a step on the engine thread; one that parks has started a video.</summary>
+    private void Step(Action work)
+    {
+        try
+        {
+            if (!_engine.Run(work)) BeginVideo();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Game engine: {ex}");
+            Faults++;
+            LastFault = ex.Message;
+            IsPlaying = false;
+        }
+    }
+
+    private void BeginVideo()
+    {
+        VideoName = _requestedVideo;
+        _requestedVideo = null;
+        _videoJiffies = 0;
+        string path = GameFile == null ? null
+            : SmushVideo.FindAll(GameFile).FirstOrDefault(f => string.Equals(Path.GetFileName(f), VideoName, StringComparison.OrdinalIgnoreCase));
+        if (path == null)
+        {
+            Log.Warn($"Game: video {VideoName} not found, going on without it");
+            EndVideo(skipped: false);
+            return;
+        }
+        _videoLoad = Task.Run(() =>
+        {
+            var video = SmushVideo.Load(path);
+            return (video, SmushAudio.Decode(video));
+        });
+        Changed?.Invoke();
+    }
+
+    /// <summary>A jiffy of the video: it starts once loaded, and ends when its time is up.</summary>
+    private void AdvanceVideo()
+    {
+        if (Video == null)
+        {
+            if (_videoLoad is not { IsCompleted: true } load) return;
+            _videoLoad = null;
+            if (!load.IsCompletedSuccessfully)
+            {
+                Log.Warn($"Game: video {VideoName}: {load.Exception?.GetBaseException().Message}");
+                EndVideo(skipped: false);
+                return;
+            }
+            var (video, sound) = load.Result;
+            Video = new SmushPlayer(video);
+            if (_mixer != null && _output != null)
+            {
+                _videoClock = new MediaClock(_output);
+                if (sound != null) _videoVoice = _mixer.Play(new PcmSource(sound.Pcm, sound.SampleRate, sound.Channels), MixGroup.Video);
+                _videoClock.Play();
+            }
+        }
+        _videoJiffies++;
+        if (VideoTime >= Video.Duration) EndVideo(skipped: false);
+        else Changed?.Invoke();
+    }
+
+    /// <summary>The video is over: its sound stops and the engine finishes the frame (which may start another).</summary>
+    private void EndVideo(bool skipped)
+    {
+        _videoVoice?.Stop();
+        _videoVoice = null;
+        _videoClock = null;
+        _videoLoad = null;
+        Video = null;
+        VideoName = null;
+        if (skipped) Loop.VideoSkipped();
+        try
+        {
+            if (!_engine.Resume()) BeginVideo();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Game engine: {ex}");
+            Faults++;
+            LastFault = ex.Message;
+            IsPlaying = false;
+        }
+        Changed?.Invoke();
+    }
+
+    public void Dispose()
+    {
+        _videoVoice?.Stop();
+        _engine.Dispose();
     }
 
     /// <summary>Whether the cursor is over the page (the scripts' screen) rather than the canvas's sides.</summary>

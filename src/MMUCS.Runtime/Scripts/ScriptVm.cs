@@ -124,6 +124,16 @@ public sealed class ScriptVm
     public (int X, int Y) CursorHotspot { get; private set; }
     public int CursorTransparent { get; private set; }
 
+    /// <summary>
+    /// Plays a video (<c>start-video</c>) to its end before the script goes on, as ScummVM's engine does: the
+    /// host blocks here (<see cref="ScriptedGame"/> parks its engine thread) while it shows the video. Null
+    /// leaves videos unplayed: the script goes straight on.
+    /// </summary>
+    public Action<string> PlayVideo { get; set; }
+
+    /// <summary>A script started a video (its file name, e.g. <c>opening.san</c>), played or not.</summary>
+    public event Action<string> VideoStarted;
+
     /// <summary>A script moved the mouse (<c>cursor put</c>) to a point on the screen.</summary>
     public event Action<int, int> MouseWarped;
 
@@ -552,6 +562,7 @@ public sealed class ScriptVm
             case 0x9c: if (CursorCommand(ins)) return; break;
             case 0xba: KernelSet(s, ins); return;
             case 0xdc: { int y = Pop(), x = Pop(); Push(FindObject(x, y)); return; }
+            case 0xb9: StartVideo(s, ins); return;
 
             // ── Objects ──
             case 0x89: SetClasses(); return;
@@ -832,6 +843,17 @@ public sealed class ScriptVm
     public void RunInputScript(int area, int value, int mode)
     {
         if (State[EngineVars.VerbScript] is int script and not 0) RunScript(script, args: [area, value, mode]);
+    }
+
+    /// <summary>
+    /// <c>start-video NAME</c> (ScummVM <c>o8_startVideo</c>): the whole video plays inside the instruction,
+    /// every script waiting, then this one goes on.
+    /// </summary>
+    private void StartVideo(ScriptSlot s, ScriptInstruction ins)
+    {
+        string name = ins.TextStart >= 0 ? System.Text.Encoding.Latin1.GetString(s.Code.Code.Span.Slice(ins.TextStart, ins.TextLength)) : "";
+        VideoStarted?.Invoke(name);
+        PlayVideo?.Invoke(name);
     }
 
     /// <summary>The cursor and userput commands (ScummVM <c>o8_cursorCommand</c>); false for one not carried out.</summary>
