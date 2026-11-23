@@ -20,11 +20,13 @@ namespace MMUCS.Desktop.ViewModels;
 /// (<see cref="GameState"/>: a hotspot, the verb coin and the inventory). The font the game's text is drawn in
 /// is the app's choice, kept in the settings.
 /// </summary>
-public sealed partial class GameViewModel : ObservableObject
+public sealed partial class GameViewModel : ObservableObject, IDisposable
 {
+    private MediaEngine _sound;
+    private bool _disposed;
     private readonly string _gameFile;
     private GlyphFont[] _gameFonts;
-    private bool _wasCaptured;
+    private bool _wasCaptured, _wasVideo;
 
     /// <param name="gameFile">The game file opened, whose NUT fonts the game's text is drawn in (none without it).</param>
     /// <param name="settings">Where the font choice is kept (shared with the media player).</param>
@@ -39,7 +41,35 @@ public sealed partial class GameViewModel : ObservableObject
         Scripted.Changed += Refresh;
         ScriptedView.Changed += Refresh;
         Refresh();
-        Loading = Task.WhenAll(Game.LoadAsync(root), LoadFontsAsync(), LoadScriptsAsync(root));
+        Loading = Task.WhenAll(Game.LoadAsync(root), LoadFontsAsync(), LoadScriptsAsync(root), StartSoundAsync());
+    }
+
+    /// <summary>Opens the sound output on a worker thread (the game's videos play their sound through it).</summary>
+    private async Task StartSoundAsync()
+    {
+        var sound = await Task.Run(() => new MediaEngine());
+        if (_disposed)
+        {
+            sound.Dispose();
+            return;
+        }
+        _sound = sound;
+        Scripted.SetAudio(sound.Mixer, sound.Output);
+    }
+
+    /// <summary>Whether a script's video is playing (Esc skips it).</summary>
+    public bool IsVideoPlaying => RunScripts && Scripted.IsVideoPlaying;
+
+    /// <summary>Ends the playing video; the cutscene it was in is skipped too, as the game does.</summary>
+    public void SkipVideo() => Scripted.SkipVideo();
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Scripted.Dispose();
+        _sound?.Dispose();
+        Frame = null;
     }
 
     /// <summary>The game run by its own scripts.</summary>
@@ -65,7 +95,7 @@ public sealed partial class GameViewModel : ObservableObject
         if (root == null) return;
         try
         {
-            await Task.Run(() => Scripted.Load(root));
+            await Task.Run(() => Scripted.Load(root, _gameFile));
             Refresh();
         }
         catch (Exception ex) { Log.Warn($"Game scripts: {ex.Message}"); }
@@ -114,6 +144,7 @@ public sealed partial class GameViewModel : ObservableObject
 
     /// <summary>The line drawn over the canvas: what to do next.</summary>
     public string Hint => !IsPlaying ? (RunScripts ? "Press Play to boot the game." : "Press Play to start.")
+        : IsVideoPlaying ? "Esc skips the video."
         : IsMouseCaptured ? null
         : RunScripts ? "Click the canvas to capture the mouse (Esc lets it go). Clicks and keys go to the game's scripts."
         : "Click the canvas to capture the mouse (Esc lets it go). I or a right-click opens the inventory.";
@@ -197,6 +228,12 @@ public sealed partial class GameViewModel : ObservableObject
         IsPlaying = RunScripts ? Scripted.IsPlaying : Game.IsPlaying;
         Status = RunScripts ? Scripted.Status : Game.Status;
         Frame = RunScripts ? ScriptedView.Capture() : View.Capture();
+        if (IsVideoPlaying != _wasVideo)
+        {
+            _wasVideo = IsVideoPlaying;
+            OnPropertyChanged(nameof(IsVideoPlaying));
+            OnPropertyChanged(nameof(Hint));
+        }
         bool captured = IsMouseCaptured;
         if (captured == _wasCaptured) return;
         _wasCaptured = captured;
@@ -204,10 +241,14 @@ public sealed partial class GameViewModel : ObservableObject
         OnPropertyChanged(nameof(Hint));
     }
 
+    /// <summary>A replaced frame lets go of its cutscene picture (the canvas holds its own while it draws).</summary>
+    partial void OnFrameChanged(GameFrame oldValue, GameFrame newValue) => oldValue?.Release();
+
     private void ApplyFont()
     {
         if (_gameFonts == null) return;
         View.Text = Fonts.CreateRenderer(_gameFonts, subtitles: true, out string info);
+        ScriptedView.Text = View.Text;
         FontInfo = info;
     }
 

@@ -112,7 +112,12 @@ public partial class GameWindow : Window
 
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && _vm is { IsMouseCaptured: true })
+        if (e.Key == Key.Escape && _vm is { IsVideoPlaying: true })
+        {
+            _vm.SkipVideo();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape && _vm is { IsMouseCaptured: true })
         {
             ReleaseMouse();
             e.Handled = true;
@@ -159,6 +164,7 @@ public partial class GameWindow : Window
         ReleaseMouse();
         _confinement.Dispose();
         _vm?.PropertyChanged -= OnVmPropertyChanged;
+        _vm?.Dispose();
         base.OnClosed(e);
     }
 }

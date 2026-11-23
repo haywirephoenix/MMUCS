@@ -61,13 +61,31 @@ public sealed class GameCanvas : Control
         else context.FillRectangle(Brushes.Black, new Rect(Bounds.Size));
     }
 
-    /// <summary>Draws a frame on the render thread, onto the Skia canvas Avalonia draws with.</summary>
-    private sealed class FrameDrawOperation(Rect bounds, GameFrame frame) : ICustomDrawOperation
+    /// <summary>
+    /// Draws a frame on the render thread, onto the Skia canvas Avalonia draws with. It holds the frame's
+    /// cutscene picture from when it's made (on the UI thread, while the frame is current) until Avalonia
+    /// disposes it, so a picture the game has moved on from isn't freed mid-draw.
+    /// </summary>
+    private sealed class FrameDrawOperation : ICustomDrawOperation
     {
-        public Rect Bounds { get; } = bounds;
+        private readonly GameFrame frame;
+        private int _disposed;
+
+        public FrameDrawOperation(Rect bounds, GameFrame frame)
+        {
+            Bounds = bounds;
+            this.frame = frame;
+            frame.Cutscene?.Retain();
+        }
+
+        public Rect Bounds { get; }
         public bool HitTest(Point p) => Bounds.Contains(p);
         public bool Equals(ICustomDrawOperation other) => false;
-        public void Dispose() { }
+
+        public void Dispose()
+        {
+            if (System.Threading.Interlocked.Exchange(ref _disposed, 1) == 0) frame.Cutscene?.Release();
+        }
 
         public void Render(ImmediateDrawingContext context)
         {
