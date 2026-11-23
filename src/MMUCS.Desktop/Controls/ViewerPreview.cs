@@ -38,6 +38,9 @@ public class ViewerPreview : ContentControl
     public static readonly StyledProperty<object> FooterProperty =
         AvaloniaProperty.Register<ViewerPreview, object>(nameof(Footer));
 
+    public static readonly StyledProperty<bool> ShowZoomProperty =
+        AvaloniaProperty.Register<ViewerPreview, bool>(nameof(ShowZoom), true);
+
     public static readonly StyledProperty<SkiaViewport> ViewportProperty =
         AvaloniaProperty.Register<ViewerPreview, SkiaViewport>(nameof(Viewport));
 
@@ -58,6 +61,9 @@ public class ViewerPreview : ContentControl
 
     /// <summary>A strip under the canvas, such as a hover readout.</summary>
     public object Footer { get => GetValue(FooterProperty); set => SetValue(FooterProperty, value); }
+
+    /// <summary>Whether Fit and 1:1 show (a canvas that sizes itself, such as the game window's, has no use for them).</summary>
+    public bool ShowZoom { get => GetValue(ShowZoomProperty); set => SetValue(ShowZoomProperty, value); }
 
     /// <summary>What Fit and 1:1 zoom; when unset, the content if it is a viewport.</summary>
     public SkiaViewport Viewport { get => GetValue(ViewportProperty); set => SetValue(ViewportProperty, value); }
