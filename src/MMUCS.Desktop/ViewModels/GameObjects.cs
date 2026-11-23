@@ -31,7 +31,7 @@ public sealed class GameBlast(RgbaImage image, Rect bounds)
 }
 
 /// <summary>Finds object images (OBIMs) by name and decodes their states in their room's palette.</summary>
-public static class GameObjects
+public static partial class GameObjects
 {
     /// <summary>The object image named <paramref name="name"/> (the first in the game), or null when there's none.</summary>
     public static async Task<GameObjectImages> LoadAsync(ScummBlock root, string name, CancellationToken token = default)
@@ -54,6 +54,48 @@ public static class GameObjects
         }
         return new GameObjectImages(room, obj, states);
     }
+
+    /// <summary>Every object's hover name (its OBNA, message code removed) by object id.</summary>
+    public static Dictionary<int, string> HoverNames(ScummBlock root)
+    {
+        var names = new Dictionary<int, string>();
+        if (root == null) return names;
+        foreach (var obcd in root.FindChildrenRecursive(ScummTag.OBCD))
+        {
+            if (IdOf(obcd) is not int id || obcd.FindChild(ScummTag.OBNA) is not { } obna) continue;
+            var s = obna.DataSpan;
+            int len = s.IndexOf((byte)0);
+            string title = RoomDataExport.StripMessageCode(System.Text.Encoding.Latin1.GetString(len < 0 ? s : s[..len]));
+            if (!string.IsNullOrEmpty(title)) names.TryAdd(id, title);
+        }
+        return names;
+    }
+
+    /// <summary>
+    /// The inventory object an icon stands for: what its verb 93 sets icon-item to (the scripts run
+    /// <c>start-object rec icon verb 93</c> and read icon-item back). Null when it has no such verb.
+    /// </summary>
+    public static int? IconItem(RoomModel room, RoomObject icon)
+    {
+        var obcd = ((room.Lflf.FindChild(ScummTag.RMSC) ?? room.Room).Children)
+            .FirstOrDefault(c => c.Tag == ScummTag.OBCD && IdOf(c) is int id && RoomScripts.ObjectName(c, id) == icon.Name);
+        if (obcd == null || RoomScripts.For(obcd) is not { } entry) return null;
+        bool inVerb = false;
+        foreach (var line in RoomScripts.Decompile(entry))
+        {
+            string text = line.Text.Trim();
+            if (text.StartsWith("verb ", StringComparison.Ordinal)) inVerb = text == "verb 93 {";
+            else if (inVerb && IconItemLine().Match(text) is { Success: true } m) return int.Parse(m.Groups[1].Value);
+        }
+        return null;
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^(?:icon-item|var\d+) = (\d+)$")]
+    private static partial System.Text.RegularExpressions.Regex IconItemLine();
+
+    /// <summary>An OBCD's object id, from its CDHD.</summary>
+    private static int? IdOf(ScummBlock obcd) =>
+        obcd.FindChild(ScummTag.CDHD) is { DataLength: >= 8 } cdhd ? (int)cdhd.DataSpan.U32LE(4) : null;
 
     /// <summary>An OBIM's name, from its IMHD (null when it has none).</summary>
     public static string NameOf(ScummBlock obim)

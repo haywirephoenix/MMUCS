@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using Avalonia.Platform;
+using Avalonia.Rendering.SceneGraph;
+using Avalonia.Skia;
+using SkiaSharp;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -35,6 +39,10 @@ public sealed class GameCanvas : Control
         AvaloniaProperty.Register<GameCanvas, Rect>(nameof(CoinBounds));
     public static readonly StyledProperty<IReadOnlyList<ViewModels.GameBlast>> BlastsProperty =
         AvaloniaProperty.Register<GameCanvas, IReadOnlyList<ViewModels.GameBlast>>(nameof(Blasts));
+    public static readonly StyledProperty<Rendering.SubtitleOverlay> TextProperty =
+        AvaloniaProperty.Register<GameCanvas, Rendering.SubtitleOverlay>(nameof(Text));
+    public static readonly StyledProperty<Point> PageOriginProperty =
+        AvaloniaProperty.Register<GameCanvas, Point>(nameof(PageOrigin));
     public static readonly StyledProperty<bool> IsRunningProperty =
         AvaloniaProperty.Register<GameCanvas, bool>(nameof(IsRunning));
 
@@ -51,6 +59,10 @@ public sealed class GameCanvas : Control
     public bool IsHotspotHovered { get => GetValue(IsHotspotHoveredProperty); set => SetValue(IsHotspotHoveredProperty, value); }
     /// <summary>Images drawn over the room, back to front (the open inventory), placed in game units.</summary>
     public IReadOnlyList<ViewModels.GameBlast> Blasts { get => GetValue(BlastsProperty); set => SetValue(BlastsProperty, value); }
+    /// <summary>Text drawn over everything but the cursor, in pixels of the game's 640×480 page (a hover label).</summary>
+    public Rendering.SubtitleOverlay Text { get => GetValue(TextProperty); set => SetValue(TextProperty, value); }
+    /// <summary>Where the 640×480 page's top left sits, in game units.</summary>
+    public Point PageOrigin { get => GetValue(PageOriginProperty); set => SetValue(PageOriginProperty, value); }
     /// <summary>The verb coin's frame (null when it isn't shown), drawn under the cursor.</summary>
     public Bitmap CoinImage { get => GetValue(CoinImageProperty); set => SetValue(CoinImageProperty, value); }
     /// <summary>Where <see cref="CoinImage"/> goes, in game units.</summary>
@@ -69,7 +81,7 @@ public sealed class GameCanvas : Control
     static GameCanvas()
     {
         AffectsRender<GameCanvas>(GameSizeProperty, CursorImageProperty, CursorPositionProperty, CursorHotspotProperty,
-            ShowCursorProperty, HotspotProperty, IsHotspotHoveredProperty, IsRunningProperty, CoinImageProperty, CoinBoundsProperty, BlastsProperty);
+            ShowCursorProperty, HotspotProperty, IsHotspotHoveredProperty, IsRunningProperty, CoinImageProperty, CoinBoundsProperty, BlastsProperty, TextProperty, PageOriginProperty);
         ClipToBoundsProperty.OverrideDefaultValue<GameCanvas>(true);
     }
 
@@ -136,6 +148,8 @@ public sealed class GameCanvas : Control
                 var size = coin.PixelSize;
                 context.DrawImage(coin, new Rect(0, 0, size.Width, size.Height), new Rect(ToControl(CoinBounds.TopLeft), ToControl(CoinBounds.BottomRight)));
             }
+            if (Text is { IsEmpty: false } text)
+                context.Custom(new TextDrawOperation(new Rect(Bounds.Size), rect, ToControl(PageOrigin), s, text));
             if (ShowCursor && CursorImage is { } cursor)
             {
                 var at = ToControl(CursorPosition);
@@ -143,6 +157,28 @@ public sealed class GameCanvas : Control
                 var dest = new Rect(at.X - CursorHotspot.X * s, at.Y - CursorHotspot.Y * s, size.Width * s, size.Height * s);
                 context.DrawImage(cursor, new Rect(0, 0, size.Width, size.Height), dest);
             }
+        }
+    }
+
+    /// <summary>Draws a text overlay with Skia, scaled from page pixels to the control (bitmap fonts stay pixel-sharp).</summary>
+    private sealed class TextDrawOperation(Rect bounds, Rect clip, Point origin, double scale, Rendering.SubtitleOverlay text) : ICustomDrawOperation
+    {
+        public Rect Bounds { get; } = bounds;
+        public bool HitTest(Point p) => false;
+        public bool Equals(ICustomDrawOperation other) => false;
+        public void Dispose() { }
+
+        public void Render(ImmediateDrawingContext context)
+        {
+            if (context.TryGetFeature<ISkiaSharpApiLeaseFeature>() is not { } feature) return;
+            using var lease = feature.Lease();
+            var canvas = lease.SkCanvas;
+            canvas.Save();
+            canvas.ClipRect(new SKRect((float)clip.X, (float)clip.Y, (float)clip.Right, (float)clip.Bottom));
+            canvas.Translate((float)origin.X, (float)origin.Y);
+            canvas.Scale((float)scale);
+            text.Draw(canvas, smooth: scale < 0.999);
+            canvas.Restore();
         }
     }
 }

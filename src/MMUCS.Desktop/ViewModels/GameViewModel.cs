@@ -10,7 +10,10 @@ using CommunityToolkit.Mvvm.Input;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Imaging;
 using MMUCS.Core.Scumm;
+using MMUCS.Core.Fonts;
+using MMUCS.Core.Smush;
 using MMUCS.Desktop.Rendering;
+using MMUCS.Desktop.Services;
 
 namespace MMUCS.Desktop.ViewModels;
 
@@ -44,9 +47,27 @@ public sealed partial class GameViewModel : ObservableObject
     private readonly Dictionary<RgbaImage, Bitmap> _cursorBitmaps = [];
     private GameObjectImages _pressedItem; // an item the mouse went down on: it's picked up when the button comes up
 
-    public GameViewModel(ScummBlock root)
+    /// <summary>How long the button must stay down on an inventory item before its verb coin opens: var304, 13 jiffies (global 1:29, 34).</summary>
+    public static readonly TimeSpan ItemHoldDelay = TimeSpan.FromSeconds(13 / 60.0);
+
+    /// <summary>Where the hover label goes on the 640×480 page, and how it's drawn: centred, wrapped, charset 1, colour 19 (global 39).</summary>
+    public static readonly Point LabelAt = new(320, 400);
+    public const int LabelCharset = 1, LabelColor = 19;
+
+    private readonly string _gameFile;
+    private GlyphFont[] _gameFonts;
+    private SubtitleRenderer _text;
+    private byte[] _textPalette;
+    private int _pressCount; // tells a hold apart from a press that has since come up
+
+    /// <param name="gameFile">The game file opened, whose NUT fonts the labels are drawn in (none without it).</param>
+    /// <param name="settings">Where the font choice is kept (shared with the media player).</param>
+    public GameViewModel(ScummBlock root, string gameFile = null, AppSettings settings = null)
     {
         _root = root;
+        _gameFile = gameFile;
+        Fonts = new FontChooser(settings);
+        Fonts.Changed += () => { ApplyFont(); UpdateLabel(); };
         Inventory = new Inventory(PageToGame);
         Inventory.PropertyChanged += (_, e) =>
         {
@@ -61,6 +82,53 @@ public sealed partial class GameViewModel : ObservableObject
         _ = LoadCursorAsync();
         _ = LoadCoinAsync();
         _ = LoadInventoryAsync();
+        _ = LoadFontsAsync();
+    }
+
+    /// <summary>The font the labels are drawn in.</summary>
+    public FontChooser Fonts { get; }
+
+    /// <summary>What the labels are drawn with, or why the chosen font couldn't be used.</summary>
+    [ObservableProperty] public partial string FontInfo { get; set; }
+
+    /// <summary>
+    /// The line under the inventory naming what the cursor is over (global 39, with object labels on): an
+    /// item's name, or "use X with Y" / "give X to Y" while an item is held. Null when there's nothing to say.
+    /// </summary>
+    [ObservableProperty] public partial string Label { get; set; }
+
+    /// <summary><see cref="Label"/> drawn in the chosen font, in page pixels (null when there's none).</summary>
+    [ObservableProperty] public partial SubtitleOverlay LabelOverlay { get; set; }
+
+    partial void OnLabelChanged(string value) => UpdateLabel();
+
+    private void UpdateLabel()
+    {
+        // Overlays aren't disposed here: the canvas may still be drawing the last one on the render thread.
+        LabelOverlay = string.IsNullOrEmpty(Label) || _text == null ? null : _text.BuildText(new SmushText
+        {
+            X = (int)LabelAt.X, Y = (int)LabelAt.Y, Flags = SmushTextFlags.Center | SmushTextFlags.Wrap,
+            Font = LabelCharset, Color = LabelColor, Text = Label,
+        }, _textPalette, (int)PageSize.Width, (int)PageSize.Height);
+    }
+
+    private void ApplyFont()
+    {
+        if (_gameFonts == null) return;
+        _text = Fonts.CreateRenderer(_gameFonts, subtitles: true, out string info);
+        FontInfo = info;
+    }
+
+    private async Task LoadFontsAsync()
+    {
+        if (_gameFile == null) return;
+        try
+        {
+            _gameFonts = await Task.Run(() => NutFont.LoadAll(_gameFile));
+            ApplyFont();
+            UpdateLabel();
+        }
+        catch (Exception ex) { Log.Warn($"Game window fonts: {ex.Message}"); }
     }
 
     /// <summary>The inventory, toggled by I while playing.</summary>
@@ -169,6 +237,11 @@ public sealed partial class GameViewModel : ObservableObject
             || hit.Kind is InventoryHitKind.NextPage or InventoryHitKind.PreviousPage
             || hit.Kind == InventoryHitKind.Item && !ReferenceEquals(hit.Item, HeldItem);
         CursorState = IsMouseCaptured && target && !Coin.IsShown ? 2 : 1;
+        Label = IsMouseCaptured && !Coin.IsShown && hit.Kind == InventoryHitKind.Item && !ReferenceEquals(hit.Item, HeldItem)
+            ? HeldItem == null ? Inventory.NameOf(hit.Item)
+            : Inventory.IsGivenTo(hit.Item) ? $"give {Inventory.NameOf(HeldItem)} to {Inventory.NameOf(hit.Item)}"
+            : $"use {Inventory.NameOf(HeldItem)} with {Inventory.NameOf(hit.Item)}"
+            : null;
     }
 
     /// <summary>
@@ -189,16 +262,37 @@ public sealed partial class GameViewModel : ObservableObject
                 case InventoryHitKind.PreviousPage: Inventory.PreviousPage(); break;
                 case InventoryHitKind.Empty: HeldItem = null; break;
                 // With an item held, clicking another would use one with the other: not played yet.
-                case InventoryHitKind.Item when HeldItem == null: _pressedItem = hit.Item; break;
+                case InventoryHitKind.Item when HeldItem == null:
+                    _pressedItem = hit.Item;
+                    _ = OpenItemCoinWhenHeldAsync(hit.Item, ++_pressCount);
+                    break;
             }
         }
         else if (HeldItem == null && IsOverHotspot) Coin.Show(CursorPosition, CanvasSize);
         UpdateCursorState();
     }
 
+    /// <summary>
+    /// Still down on the item after <see cref="ItemHoldDelay"/>: its verb coin opens (global 34 → 43) with the coin's
+    /// origin at the item's slot + (38, −30) (global 66), kept within 60–580 × 100–410 of the page, and the item
+    /// isn't picked up.
+    /// </summary>
+    private async Task OpenItemCoinWhenHeldAsync(GameObjectImages item, int press)
+    {
+        await Task.Delay(ItemHoldDelay);
+        if (press != _pressCount || !ReferenceEquals(_pressedItem, item) || !Inventory.IsOpen || !IsMouseCaptured) return;
+        _pressedItem = null;
+        int slot = Inventory.PageItems.FirstOrDefault(p => ReferenceEquals(p.Item, item)).Slot;
+        var at = Inventory.ItemAt(slot);
+        var origin = new Point(Math.Clamp(at.X + 38, 60, 580), Math.Clamp(at.Y - 30, 100, 410));
+        Coin.ShowAtOrigin(PageToGame(origin));
+        UpdateCursorState();
+    }
+
     /// <summary>The mouse came up: the verb coin goes, and an item pressed in the inventory becomes the cursor (global 35).</summary>
     public void ReleaseCursor()
     {
+        _pressCount++;
         Coin.Hide();
         if (_pressedItem != null && Inventory.IsOpen) HeldItem = _pressedItem;
         _pressedItem = null;
@@ -248,6 +342,9 @@ public sealed partial class GameViewModel : ObservableObject
         try
         {
             if (!await Inventory.LoadAsync(_root) && _root != null) Log.Warn($"Game window: no {Inventory.BackgroundName} for the inventory");
+            // Labels are coloured from the palette on screen; the icons room's stands in until rooms are played.
+            _textPalette = ObimCache.ExtractPaletteContext(Inventory.Background?.Room.Room, 0).rawBytes;
+            UpdateLabel();
         }
         catch (Exception ex) { Log.Warn($"Game window inventory: {ex.Message}"); }
     }

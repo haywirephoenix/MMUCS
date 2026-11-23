@@ -45,6 +45,7 @@ public sealed partial class Inventory : ObservableObject
 
     private readonly Func<Point, Point> _pageToGame;
     private readonly List<GameObjectImages> _items = [];
+    private readonly Dictionary<GameObjectImages, (int Id, string Name, uint Classes)> _info = [];
 
     public Inventory(Func<Point, Point> pageToGame) => _pageToGame = pageToGame;
 
@@ -54,6 +55,18 @@ public sealed partial class Inventory : ObservableObject
 
     /// <summary>What ego holds, in inventory order.</summary>
     public IReadOnlyList<GameObjectImages> Items => _items;
+
+    /// <summary>The name an item shows when hovered: its inventory object's hover name (<see cref="GameObjects.IconItem"/>), else the icon's name.</summary>
+    public string NameOf(GameObjectImages item) => item == null ? null : _info.TryGetValue(item, out var i) && i.Name != null ? i.Name : item.Object.Name;
+
+    /// <summary>The inventory object an item's icon stands for (its icon-item), or -1.</summary>
+    public int ItemIdOf(GameObjectImages item) => item != null && _info.TryGetValue(item, out var i) ? i.Id : -1;
+
+    /// <summary>
+    /// Whether a held item is given to <paramref name="item"/> rather than used with it: its object has class 23
+    /// or 29 (the scripts' [151] / [157], global 39). Classes are the game's starting ones.
+    /// </summary>
+    public bool IsGivenTo(GameObjectImages item) => item != null && _info.TryGetValue(item, out var i) && (i.Classes & (1u << 22 | 1u << 28)) != 0;
 
     /// <summary>Whether the background loaded (the inventory can't open without it).</summary>
     public bool IsLoaded => Background?.State(1) != null;
@@ -144,8 +157,17 @@ public sealed partial class Inventory : ObservableObject
         NextPageArrow = await GameObjects.LoadAsync(root, NextPageArrowName);
         PreviousPageArrow = await GameObjects.LoadAsync(root, PreviousPageArrowName);
         if (Background?.Room is { } icons)
+        {
+            var (names, classes) = await Task.Run(() => (GameObjects.HoverNames(root),
+                RoomDataExport.ReadObjectTable(root).ToDictionary(o => o.Id, o => o.Classes)));
             foreach (var obj in icons.Objects.Where(o => o.Name?.EndsWith(ItemIconSuffix, StringComparison.Ordinal) == true))
-                if (await GameObjects.LoadAsync(icons, obj) is { States.Count: > 0 } item) _items.Add(item);
+            {
+                if (await GameObjects.LoadAsync(icons, obj) is not { States.Count: > 0 } item) continue;
+                _items.Add(item);
+                int id = GameObjects.IconItem(icons, obj) ?? -1;
+                _info[item] = (id, names.GetValueOrDefault(id), classes.GetValueOrDefault(id));
+            }
+        }
         OnPropertyChanged(nameof(Items));
         OnPropertyChanged(nameof(IsLoaded));
         OnPropertyChanged(nameof(HasNextPage));

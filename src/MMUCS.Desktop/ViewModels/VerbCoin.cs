@@ -79,6 +79,9 @@ public sealed partial class VerbCoin : ObservableObject
         ? new Rect(_origin.X - f.OriginX, _origin.Y - f.OriginY, f.Image.Width, f.Image.Height)
         : default;
 
+    /// <summary>The coin's actor origin in game units, where its frames are placed from.</summary>
+    public Point Origin => _origin;
+
     /// <summary>The coin's face in game units, where the pointer picks a zone (empty while hidden).</summary>
     public Rect Face => IsShown ? _face.Translate(new Vector(_origin.X, _origin.Y)) : default;
 
@@ -118,6 +121,18 @@ public sealed partial class VerbCoin : ObservableObject
         double x = Math.Clamp(at.X + SpawnOffset.X, _face.Width / 2, Math.Max(_face.Width / 2, canvas.Width - _face.Width / 2));
         double y = Math.Clamp(at.Y + SpawnOffset.Y, _face.Height / 2, Math.Max(_face.Height / 2, canvas.Height - _face.Height / 2));
         _origin = new Point(x - _face.Center.X, y - _face.Center.Y);
+        Zone = CoinZone.None;
+        Anim = IdleAnim;
+        Step = 0;
+        IsShown = true;
+        OnPropertyChanged(nameof(Face));
+    }
+
+    /// <summary>Shows the coin with its actor origin at <paramref name="origin"/> (game units), as the scripts place it (global 43).</summary>
+    public void ShowAtOrigin(Point origin)
+    {
+        if (!IsLoaded) return;
+        _origin = origin;
         Zone = CoinZone.None;
         Anim = IdleAnim;
         Step = 0;

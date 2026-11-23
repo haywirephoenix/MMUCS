@@ -407,7 +407,7 @@ public partial class MainWindow : Window
     private void ShowGameWindow()
     {
         if (_gameWindow != null) { _gameWindow.Activate(); return; }
-        _gameWindow = new Views.Game.GameWindow { DataContext = new GameViewModel(Vm.RootBlock) };
+        _gameWindow = new Views.Game.GameWindow { DataContext = new GameViewModel(Vm.RootBlock, Vm.GameFile, Vm.Settings) };
         _gameWindow.Closed += (_, _) => _gameWindow = null;
         _gameWindow.Show(this);
     }

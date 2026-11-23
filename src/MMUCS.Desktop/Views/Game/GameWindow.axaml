@@ -23,6 +23,7 @@
                 ToolTip.Tip="Start the game; then click the canvas to capture the mouse" />
         <Button Classes="transport" Content="Stop" Command="{Binding StopCommand}"
                 ToolTip.Tip="Stop the game and let the mouse go" />
+        <c:FontPicker Chooser="{Binding Fonts}" Margin="8,0,0,0" ToolTip.Tip="{Binding FontInfo}" />
       </StackPanel>
     </c:ViewerPreview.Tools>
 
@@ -33,7 +34,8 @@
                   Hotspot="{Binding Hotspot}" IsHotspotHovered="{Binding IsOverHotspot}"
                   IsRunning="{Binding IsPlaying}"
                   CoinImage="{Binding Coin.Image}" CoinBounds="{Binding Coin.Bounds}"
-                  Blasts="{Binding Inventory.Blasts}" />
+                  Blasts="{Binding Inventory.Blasts}"
+                  Text="{Binding LabelOverlay}" PageOrigin="{x:Static vm:GameViewModel.PageOrigin}" />
 
     <c:ViewerPreview.Overlay>
       <Border IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" IsHitTestVisible="False"
