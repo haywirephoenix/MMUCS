@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The game as it runs (state, input, timing, the rules read from its scripts), on top of Core's
+       decoders. No UI types: the desktop app draws it, tests drive it headless. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>MMUCS.Runtime</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MMUCS.Core\MMUCS.Core.csproj" />
+  </ItemGroup>
+</Project>
