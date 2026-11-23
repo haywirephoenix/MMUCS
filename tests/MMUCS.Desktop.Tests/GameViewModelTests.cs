@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using MMUCS.Core.Scumm;
 using MMUCS.Desktop.ViewModels;
 using MMUCS.Runtime;
@@ -9,9 +8,9 @@ using Xunit;
 namespace MMUCS.Desktop.Tests;
 
 /// <summary>
-/// The game window's view of the running game (the game itself is tested in MMUCS.Runtime.Tests): input goes
-/// through to it, and what it shows comes back as canvas geometry, the inventory's images and the hover label
-/// drawn in the game's fonts. Needs the game (MMUCS_GAME).
+/// The game window hosting the player (the game is tested in MMUCS.Runtime.Tests, its drawing in
+/// MMUCS.Player.Tests): input goes through to the game, time too, and a new frame comes back for the canvas,
+/// with the hover label drawn in the game's fonts. Needs the game (MMUCS_GAME).
 /// </summary>
 [Collection(GameProjectCollection.Name)]
 public class GameViewModelTests
@@ -19,7 +18,7 @@ public class GameViewModelTests
     private static string Game => Environment.GetEnvironmentVariable("MMUCS_GAME") is { } g && File.Exists(g) ? g : null;
 
     [Fact]
-    public void The_canvas_gets_the_game_inventory_and_label()
+    public void Input_reaches_the_game_and_frames_come_back()
     {
         if (Game == null) return;
         var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
@@ -28,49 +27,46 @@ public class GameViewModelTests
             var vm = new GameViewModel(root, Game);
             await vm.Loading;
             Assert.True(vm.Game.Inventory.IsLoaded && vm.Game.Coin.IsLoaded && vm.FontInfo != null);
-            Assert.Equal(new Avalonia.Point(GameState.PageOrigin.X, 0), GameViewModel.PageOrigin);
-            Assert.NotNull(vm.CursorFrame);
             Assert.Contains(GameState.CursorObjectName, vm.Status);
+            Assert.False(vm.Frame.IsRunning);
+            Assert.Null(vm.Frame.Cursor); // not until the game has the mouse
 
             Assert.True(vm.PlayCommand.CanExecute(null));
             vm.PlayCommand.Execute(null);
-            Assert.True(vm.IsPlaying);
+            Assert.True(vm.IsPlaying && vm.Frame.IsRunning);
             Assert.False(vm.PlayCommand.CanExecute(null));
             vm.IsMouseCaptured = true;
             Assert.True(vm.Game.IsMouseCaptured);
             Assert.Null(vm.Hint);
+            Assert.NotNull(vm.Frame.Cursor);
 
-            // The coin comes back as a frame and its bounds on the canvas.
-            vm.MoveCursor(vm.Hotspot.Center);
-            Assert.True(vm.IsOverHotspot);
+            // The coin.
+            var hotspot = vm.Game.Hotspot.Center;
+            vm.MoveCursor(new Avalonia.Point(hotspot.X, hotspot.Y));
+            Assert.Equal(new Avalonia.Point(hotspot.X, hotspot.Y), vm.CursorPosition);
+            Assert.True(vm.Frame.IsHotspotHovered);
             vm.PressCursor();
-            Assert.NotNull(vm.CoinFrame);
-            Assert.False(vm.CoinBounds.Width == 0);
+            Assert.NotNull(vm.Frame.Coin);
             vm.ReleaseCursor();
-            Assert.Null(vm.CoinFrame);
+            Assert.Null(vm.Frame.Coin);
 
-            // The inventory: background, next-page arrow and a page of items; hovering one names it in the game's font.
+            // The inventory, and the label drawn in the game's font.
             vm.ToggleInventory();
-            Assert.Equal(1 + 1 + Inventory.PageSize, vm.Blasts.Count);
-            Assert.Equal(new Avalonia.Rect(GameViewModel.PageOrigin, new Avalonia.Size(640, 472)), vm.Blasts[0].Bounds);
+            Assert.Equal(1 + 1 + Inventory.PageSize, vm.Frame.Blasts.Count);
             var slot = GameState.PageToGame(Inventory.ItemAt(0));
             vm.MoveCursor(new Avalonia.Point(slot.X + 20, slot.Y + 20));
-            Assert.Equal(vm.Game.Inventory.NameOf(vm.Game.Inventory.Items[0]), vm.Label);
-            Assert.NotNull(vm.LabelOverlay);
-            vm.MoveCursor(vm.Hotspot.Center);
-            Assert.Null(vm.LabelOverlay);
+            Assert.Equal(vm.Game.Inventory.NameOf(vm.Game.Inventory.Items[0]), vm.Frame.Label);
+            Assert.NotNull(vm.Frame.LabelText);
 
-            // Game time: the window's jiffies reach the game.
-            vm.MoveCursor(new Avalonia.Point(slot.X + 20, slot.Y + 20));
+            // Time: the window's jiffies reach the game.
             vm.PressCursor();
             for (int i = 0; i < GameState.ItemHoldJiffies; i++) vm.Tick();
-            Assert.NotNull(vm.CoinFrame);
+            Assert.NotNull(vm.Frame.Coin);
             vm.ReleaseCursor();
 
             vm.StopCommand.Execute(null);
-            Assert.False(vm.IsPlaying);
-            Assert.False(vm.IsMouseCaptured);
-            Assert.Empty(vm.Blasts);
+            Assert.False(vm.IsPlaying || vm.IsMouseCaptured);
+            Assert.Empty(vm.Frame.Blasts);
         });
     }
 }
