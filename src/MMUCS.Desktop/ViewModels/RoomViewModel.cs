@@ -555,12 +555,44 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>Spinboxes are only active when there is something to switch between.</summary>
     public bool HasBackgroundChoices => MaxBackgroundIndex > 0;
 
+    /// <summary>A room switch this soon after the last one, or while that one is still loading, is scrolling.</summary>
+    private static readonly TimeSpan ScrollingGap = TimeSpan.FromMilliseconds(250);
+    /// <summary>
+    /// While scrolling, a room loads once it has stayed selected for 1.5 times the gap between the last two
+    /// switches (the key repeat), within these limits: a held key never waits for a load, and stopping
+    /// shows the room soon after.
+    /// </summary>
+    private static readonly TimeSpan MinSettle = TimeSpan.FromMilliseconds(50), MaxSettle = TimeSpan.FromMilliseconds(150);
+    private long _lastSwitch;
+
+    /// <summary>A switch that takes longer than this covers the old room with black until the new one is ready.</summary>
+    private static readonly TimeSpan SlowSwitch = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// The room is drawn as black: scrolled to, or slow to load, and not ready yet. It then appears whole,
+    /// so nothing pops in later (the cut through black the game makes between rooms).
+    /// </summary>
+    [ObservableProperty] public partial bool IsCovered { get; set; }
+
+    /// <summary>
+    /// Opens a room. The old room stays on screen until the new one is ready, then everything (background,
+    /// objects, costumes) appears at once, as entering a room in the game. Scrolling through rooms (a held
+    /// key) would never get there, so then each room shows its background straight away and the rest
+    /// waits until the selection settles.
+    /// </summary>
     public async Task LoadAsync(RoomModel room)
     {
         if (room == null || ReferenceEquals(room.Room, Room?.Room))
         {
             return;
         }
+
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        var gap = _lastSwitch != 0 ? System.Diagnostics.Stopwatch.GetElapsedTime(_lastSwitch, now) : TimeSpan.MaxValue;
+        bool scrolling = IsSwitchingRoom || IsCovered || gap < ScrollingGap;
+        _lastSwitch = now;
+        // The last room's images mustn't arrive over this one (it may wait to settle before loading its own).
+        _cts?.Cancel();
 
         IsSwitchingRoom = true;
         LiveCostume = null;
@@ -576,12 +608,101 @@ public sealed partial class RoomViewModel : ObservableObject
 
         RoomSize = new Size(room.Width, room.Height);
         Walkboxes = room.Walkboxes;
+        ClearObjects();
+        if (!scrolling)
+        {
+            FillObjects(room);
+            CoverIfSlow(room);
+        }
+
+        _resetBackgroundChoice = true;
+
+        // With objects and costumes hidden nothing waits on the costume analysis: show the new
+        // background as soon as it's decoded and let the analysis finish behind it.
+        if (ShowMode == ShowNone)
+        {
+            await ShowBackgroundFirstAsync(room);
+            if (!ReferenceEquals(Room, room))
+            {
+                return;
+            }
+        }
+        else if (scrolling)
+        {
+            // Scrolling: the room shows as black at once, and loads only if the selection stays on it.
+            // The black stays until the room is ready, then it all appears together.
+            ObjectLayers = [];
+            BackgroundObject = null;
+            BackgroundImage = null;
+            IsCovered = true;
+            IsSwitchingRoom = false;
+        }
+
+        if (scrolling)
+        {
+            // The Objects list (and the visibility it sets up) waits for the selection to settle too.
+            var settle = gap < ScrollingGap ? gap * 1.5 : MaxSettle;
+            await Task.Delay(settle < MinSettle ? MinSettle : settle > MaxSettle ? MaxSettle : settle);
+            if (!ReferenceEquals(Room, room))
+            {
+                return; // scrolled on
+            }
+
+            if (ShowMode != ShowNone)
+            {
+                IsSwitchingRoom = true; // hold the black until the room is ready
+            }
+
+            FillObjects(room);
+        }
+
+        await RefreshActorsAsync(room);
+        if (!ReferenceEquals(Room, room))
+        {
+            return;
+        }
+
+        await ReloadImagesAsync();
+    }
+
+    /// <summary>
+    /// Covers the old room with black if the switch to <paramref name="room"/> is still going after
+    /// <see cref="SlowSwitch"/>. A UI-thread timer, so a busy thread pool (the load itself) can't hold it up.
+    /// </summary>
+    private void CoverIfSlow(RoomModel room)
+    {
+        Avalonia.Threading.DispatcherTimer.RunOnce(() =>
+        {
+            if (ReferenceEquals(Room, room) && IsSwitchingRoom)
+            {
+                IsCovered = true; // the switch ends it when the room is ready
+            }
+        }, SlowSwitch);
+    }
+
+    /// <summary>Empties the Objects list and forgets the last room's planes and object states.</summary>
+    private void ClearObjects()
+    {
         foreach (var item in Objects)
         {
             item.PropertyChanged -= OnItemChanged;
         }
 
         Objects.Clear();
+        _initialStates = [];
+        _shownStates.Clear();
+        _startVisibilityApplied = false;
+        _objectPlanes.Clear();
+        _zMaskKey = null;
+        _roomPlanes = [];
+        _planeCount = 0;
+        SelectedObject = null;
+        RefreshVisibility();
+    }
+
+    /// <summary>Lists the room's objects as it starts (their states, visibility and z-planes).</summary>
+    private void FillObjects(RoomModel room)
+    {
         // Object images start as the game shows them on entry: hidden while their state is 0.
         Dictionary<RoomObject, int> states;
         try { states = RoomObjectStates.Initial(room); }
@@ -619,29 +740,11 @@ public sealed partial class RoomViewModel : ObservableObject
             item.PropertyChanged += OnItemChanged;
             Objects.Add(item);
         }
-        SelectedObject = null;
+        // An object of this room selected before the list was filled (while scrolling) stays selected.
+        var keep = SelectedObject != null && room.Objects.Contains(SelectedObject) ? SelectedObject : null;
+        SelectedObject = keep;
+        SelectedObjectItem = Objects.FirstOrDefault(o => ReferenceEquals(o.Object, keep));
         RefreshVisibility();
-
-        _resetBackgroundChoice = true;
-
-        // With objects and costumes hidden nothing waits on the costume analysis: show the new
-        // background as soon as it's decoded and let the analysis finish behind it.
-        if (ShowMode == ShowNone)
-        {
-            await ShowBackgroundFirstAsync(room);
-            if (!ReferenceEquals(Room, room))
-            {
-                return;
-            }
-        }
-
-        await RefreshActorsAsync(room);
-        if (!ReferenceEquals(Room, room))
-        {
-            return;
-        }
-
-        await ReloadImagesAsync();
     }
 
     /// <summary>
@@ -715,6 +818,7 @@ public sealed partial class RoomViewModel : ObservableObject
             BackgroundObject = null;
             BackgroundImage = image;
             BackgroundLabel = "room";
+            IsCovered = false;
             IsSwitchingRoom = false;
         }
         catch (Exception ex)
@@ -1095,6 +1199,7 @@ public sealed partial class RoomViewModel : ObservableObject
             PublishImages();
             foreach (var set in stale) set?.Release();
 
+            IsCovered = false;
             IsSwitchingRoom = false; // background, objects and overlays all show together
         }
         catch (OperationCanceledException) { }
@@ -1112,6 +1217,7 @@ public sealed partial class RoomViewModel : ObservableObject
             if (!token.IsCancellationRequested)
             {
                 IsBusy = false;
+                IsCovered = false;
                 IsSwitchingRoom = false;
             }
         }

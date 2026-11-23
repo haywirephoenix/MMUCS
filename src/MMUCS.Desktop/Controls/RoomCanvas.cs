@@ -75,6 +75,9 @@ public sealed class RoomCanvas : SkiaViewport
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(HoldScene));
 
     /// <summary>The room's z-plane masks (index 0 = plane 1), opaque where they hide actors; null for none.</summary>
+    public static readonly StyledProperty<bool> CoveredProperty =
+        AvaloniaProperty.Register<RoomCanvas, bool>(nameof(Covered));
+
     public static readonly StyledProperty<IReadOnlyList<ImageSet>> ImageSetsProperty =
         AvaloniaProperty.Register<RoomCanvas, IReadOnlyList<ImageSet>>(nameof(ImageSets));
 
@@ -126,6 +129,8 @@ public sealed class RoomCanvas : SkiaViewport
     /// The sets every image in the other properties belongs to: each scene holds them while it may be
     /// drawn, so their owner can release them as soon as it stops showing them.
     /// </summary>
+    /// <summary>Draws the room as black, nothing else: a room still loading while rooms are scrolled through.</summary>
+    public bool Covered { get => GetValue(CoveredProperty); set => SetValue(CoveredProperty, value); }
     public IReadOnlyList<ImageSet> ImageSets { get => GetValue(ImageSetsProperty); set => SetValue(ImageSetsProperty, value); }
     public IReadOnlyList<SKImage> ZMasks { get => GetValue(ZMasksProperty); set => SetValue(ZMasksProperty, value); }
     public bool MaskActors { get => GetValue(MaskActorsProperty); set => SetValue(MaskActorsProperty, value); }
@@ -151,7 +156,7 @@ public sealed class RoomCanvas : SkiaViewport
             BackgroundImageProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
             ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty, LiveCostumeProperty,
-            ZMasksProperty, ImageSetsProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty, ShowSelectionOutlineProperty,
+            ZMasksProperty, ImageSetsProperty, CoveredProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty, ShowSelectionOutlineProperty,
             SelectionOutlineColorProperty, SelectionOutlineThicknessProperty);
     }
 
@@ -161,6 +166,12 @@ public sealed class RoomCanvas : SkiaViewport
         if (change.Property == SelectionOutlineColorProperty || change.Property == SelectionOutlineThicknessProperty)
         {
             _selectStroke = null; // rebuilt on the next scene
+        }
+
+        if (change.Property == CoveredProperty && Covered)
+        {
+            ContentChanged(); // the black takes the new room's size and framing, even mid-hold
+            return;
         }
 
         if (change.Property == HoldSceneProperty)
@@ -217,7 +228,8 @@ public sealed class RoomCanvas : SkiaViewport
         }
     }
 
-    protected override bool HoldFrame => HoldScene;
+    // A covered room draws only black, so it needn't hold the old room's frame (and a slow switch can cover it).
+    protected override bool HoldFrame => HoldScene && !Covered;
 
     private SKPaint _selectStroke;
 
@@ -261,7 +273,8 @@ public sealed class RoomCanvas : SkiaViewport
         ShowSelectionOutline ? SelectedObjects : null,
         SelectStroke,
         _paints ??= new OverlayPaints(this),
-        ImageSets);
+        ImageSets,
+        Covered);
 
     private OverlayPaints _paints;
 
@@ -416,8 +429,10 @@ public sealed class RoomCanvas : SkiaViewport
     private sealed class Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
         IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
         IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke, RoomCanvas.OverlayPaints paints,
-        IReadOnlyList<ImageSet> imageSets) : IRetainedScene
+        IReadOnlyList<ImageSet> imageSets, bool covered) : IRetainedScene
     {
+        private readonly bool _covered = covered;
+        private static readonly SKPaint CoverPaint = new() { Color = SKColors.Black };
         // The images below stay alive while a draw operation may still show this scene.
         private readonly IReadOnlyList<ImageSet> _imageSets = imageSets;
 
@@ -497,6 +512,13 @@ public sealed class RoomCanvas : SkiaViewport
             // ── Content-space pass (pixel art) ──
             canvas.Save();
             canvas.Concat(view.Matrix);
+            if (_covered)
+            {
+                canvas.DrawRect(0, 0, (float)_size.Width, (float)_size.Height, CoverPaint);
+                canvas.Restore();
+                return;
+            }
+
             var sampling = PickSampling(canvas);
 
             // The chosen background: the room's own image, or a full-width object image at its position.

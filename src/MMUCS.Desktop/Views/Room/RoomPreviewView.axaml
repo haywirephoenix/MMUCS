@@ -82,6 +82,7 @@
                   LiveCostume="{Binding LiveCostume}"
                   ZMasks="{Binding ZMasks}"
                   ImageSets="{Binding ImageSets}"
+                  Covered="{Binding IsCovered}"
                   MaskActors="{Binding ZPlaneMasking}"
                   ZPlaneOverlay="{Binding ZPlaneOverlay}"
                   SelectedObjects="{Binding SelectedObjects}" />
