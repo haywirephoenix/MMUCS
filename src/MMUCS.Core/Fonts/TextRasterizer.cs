@@ -3,6 +3,18 @@ using System.Collections.Generic;
 
 namespace MMUCS.Core.Fonts;
 
+/// <summary>How a text colour turns a bitmap glyph's values into palette indices.</summary>
+public enum TextColorMode
+{
+    /// <summary>Cutscene text (COMI's SMUSH player): see <see cref="TextRasterizer.MapValue"/>.</summary>
+    Smush,
+    /// <summary>
+    /// Text the scripts draw in rooms (blast-text, print-line): value 1 is drawn in the text's colour and
+    /// every other value is a palette index as it is (ScummVM's NutRenderer::drawCharV7 for v8, outside SMUSH).
+    /// </summary>
+    Room,
+}
+
 /// <summary>A block of drawn text: premultiplied BGRA pixels (Skia's native order) placed at (Left, Top) on screen.</summary>
 public sealed record TextImage(int Left, int Top, int Width, int Height, uint[] Pixels);
 
@@ -20,8 +32,10 @@ public static class TextRasterizer
     /// palette indices as they are: <c>^c031</c> turns font 0's ink (225) into colour 255, and <c>^c001</c>
     /// leaves it 225 and so 0 (the credits are drawn with it).
     /// </summary>
-    public static int MapValue(byte value, byte transparent, int color)
+    public static int MapValue(byte value, byte transparent, int color, TextColorMode mode = TextColorMode.Smush)
     {
+        if (mode == TextColorMode.Room)
+            return value == transparent ? -1 : value == 1 ? (byte)(color == -1 ? 1 : color) : value;
         if (value == transparent) return -1;
         sbyte c = (sbyte)(color == -1 ? 1 : color);
         if (value == (byte)-c) return 0xFF;
@@ -33,7 +47,7 @@ public static class TextRasterizer
     /// Draws <paramref name="layout"/> with <paramref name="font"/> against <paramref name="paletteRgb"/>
     /// (256 RGB triplets), clipped to the layout's clip. Null when nothing shows.
     /// </summary>
-    public static TextImage Draw(TextLayout layout, GlyphFont font, ReadOnlySpan<byte> paletteRgb)
+    public static TextImage Draw(TextLayout layout, GlyphFont font, ReadOnlySpan<byte> paletteRgb, TextColorMode mode = TextColorMode.Smush)
     {
         var clip = layout.Clip;
         int left = int.MaxValue, top = int.MaxValue, right = int.MinValue, bottom = int.MinValue;
@@ -67,7 +81,7 @@ public static class TextRasterizer
         {
             int x0 = Math.Max(gx, left), y0 = Math.Max(gy, top);
             int x1 = Math.Min(gx + g.Width, right), y1 = Math.Min(gy + g.Height, bottom);
-            uint tint = g.IsIndexed ? 0 : InkColor(font, color, lut);
+            uint tint = g.IsIndexed ? 0 : InkColor(font, color, lut, mode);
             for (int y = y0; y < y1; y++)
             {
                 int src = (y - gy) * g.Width - gx, dst = (y - top) * w - left;
@@ -75,7 +89,7 @@ public static class TextRasterizer
                 {
                     if (g.IsIndexed)
                     {
-                        int index = MapValue(g.Indices[src + x], g.Transparent, color);
+                        int index = MapValue(g.Indices[src + x], g.Transparent, color, mode);
                         if (index >= 0) pixels[dst + x] = lut[index];
                     }
                     else
@@ -89,17 +103,17 @@ public static class TextRasterizer
     }
 
     /// <summary>The colour the font's ink is drawn in for a colour code, as opaque 0xAARRGGBB.</summary>
-    public static uint InkColor(GlyphFont font, int color, ReadOnlySpan<uint> lut)
+    public static uint InkColor(GlyphFont font, int color, ReadOnlySpan<uint> lut, TextColorMode mode = TextColorMode.Smush)
     {
-        int index = MapValue(font.Ink, NoTransparent(font.Ink), color);
+        int index = MapValue(font.Ink, NoTransparent(font.Ink), color, mode);
         return lut[index < 0 ? 0xFF : index];
     }
 
     /// <summary>The colour of the font's outline for a colour code, or null when it has none.</summary>
-    public static uint? OutlineColor(GlyphFont font, int color, ReadOnlySpan<uint> lut)
+    public static uint? OutlineColor(GlyphFont font, int color, ReadOnlySpan<uint> lut, TextColorMode mode = TextColorMode.Smush)
     {
         if (font.Outline is not { } v) return null;
-        int index = MapValue(v, NoTransparent(v), color);
+        int index = MapValue(v, NoTransparent(v), color, mode);
         return lut[index < 0 ? 0 : index];
     }
 
