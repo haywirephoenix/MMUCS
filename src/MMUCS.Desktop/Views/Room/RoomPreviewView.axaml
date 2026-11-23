@@ -81,6 +81,7 @@
                   HoldScene="{Binding IsSwitchingRoom}"
                   LiveCostume="{Binding LiveCostume}"
                   ZMasks="{Binding ZMasks}"
+                  ImageSets="{Binding ImageSets}"
                   MaskActors="{Binding ZPlaneMasking}"
                   ZPlaneOverlay="{Binding ZPlaneOverlay}"
                   SelectedObjects="{Binding SelectedObjects}" />

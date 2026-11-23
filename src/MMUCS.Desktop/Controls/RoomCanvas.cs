@@ -75,6 +75,9 @@ public sealed class RoomCanvas : SkiaViewport
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(HoldScene));
 
     /// <summary>The room's z-plane masks (index 0 = plane 1), opaque where they hide actors; null for none.</summary>
+    public static readonly StyledProperty<IReadOnlyList<ImageSet>> ImageSetsProperty =
+        AvaloniaProperty.Register<RoomCanvas, IReadOnlyList<ImageSet>>(nameof(ImageSets));
+
     public static readonly StyledProperty<IReadOnlyList<SKImage>> ZMasksProperty =
         AvaloniaProperty.Register<RoomCanvas, IReadOnlyList<SKImage>>(nameof(ZMasks));
 
@@ -119,6 +122,11 @@ public sealed class RoomCanvas : SkiaViewport
     public bool HoldScene { get => GetValue(HoldSceneProperty); set => SetValue(HoldSceneProperty, value); }
     /// <summary>The Costume viewer's playing frame, shown in place of that costume (Play in place).</summary>
     public LiveCostume LiveCostume { get => GetValue(LiveCostumeProperty); set => SetValue(LiveCostumeProperty, value); }
+    /// <summary>
+    /// The sets every image in the other properties belongs to: each scene holds them while it may be
+    /// drawn, so their owner can release them as soon as it stops showing them.
+    /// </summary>
+    public IReadOnlyList<ImageSet> ImageSets { get => GetValue(ImageSetsProperty); set => SetValue(ImageSetsProperty, value); }
     public IReadOnlyList<SKImage> ZMasks { get => GetValue(ZMasksProperty); set => SetValue(ZMasksProperty, value); }
     public bool MaskActors { get => GetValue(MaskActorsProperty); set => SetValue(MaskActorsProperty, value); }
     public IReadOnlySet<RoomObject> SelectedObjects { get => GetValue(SelectedObjectsProperty); set => SetValue(SelectedObjectsProperty, value); }
@@ -143,7 +151,7 @@ public sealed class RoomCanvas : SkiaViewport
             BackgroundImageProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
             ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty, LiveCostumeProperty,
-            ZMasksProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty, ShowSelectionOutlineProperty,
+            ZMasksProperty, ImageSetsProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty, ShowSelectionOutlineProperty,
             SelectionOutlineColorProperty, SelectionOutlineThicknessProperty);
     }
 
@@ -252,7 +260,8 @@ public sealed class RoomCanvas : SkiaViewport
         ZPlaneOverlay,
         ShowSelectionOutline ? SelectedObjects : null,
         SelectStroke,
-        _paints ??= new OverlayPaints(this));
+        _paints ??= new OverlayPaints(this),
+        ImageSets);
 
     private OverlayPaints _paints;
 
@@ -406,8 +415,22 @@ public sealed class RoomCanvas : SkiaViewport
 
     private sealed class Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
         IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
-        IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke, RoomCanvas.OverlayPaints paints) : IViewportScene
+        IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke, RoomCanvas.OverlayPaints paints,
+        IReadOnlyList<ImageSet> imageSets) : IRetainedScene
     {
+        // The images below stay alive while a draw operation may still show this scene.
+        private readonly IReadOnlyList<ImageSet> _imageSets = imageSets;
+
+        public void Retain()
+        {
+            if (_imageSets != null) foreach (var set in _imageSets) set.Retain();
+        }
+
+        public void Release()
+        {
+            if (_imageSets != null) foreach (var set in _imageSets) set.Release();
+        }
+
         private readonly SKImage _bg = bg;
         private readonly IReadOnlyList<RoomObjectLayer> _drawLayers = drawLayers;
         private readonly IReadOnlyList<RoomObjectLayer> _allLayers = allLayers;

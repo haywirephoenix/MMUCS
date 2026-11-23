@@ -121,6 +121,78 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>For the canvas: -1 draws no planes, 0 all of them, N plane N.</summary>
     public int ZPlaneOverlay => ShowZPlanes ? Math.Max(0, ZPlaneShown) : -1;
     /// <summary>
+    /// The sets every image shown here belongs to, for the canvas: it holds them while it may still draw
+    /// them, so each set is freed as soon as neither this view model nor a pending draw uses it.
+    /// </summary>
+    [ObservableProperty] public partial IReadOnlyList<ImageSet> ImageSets { get; set; }
+
+    // Every image this view model shows belongs to one of these sets.
+    /// <summary>The room's own background, decoded once per room and kept for reloads of the same room.</summary>
+    private (RoomModel Room, ImageSet Set, SKImage Image, RgbaImage Rgba) _background;
+    /// <summary>Object and costume images from the last finished load.</summary>
+    private ImageSet _loadImages;
+    private ImageSet _maskImages;
+    private ImageSet _liveImages;
+    /// <summary>Object images swapped in since that load by a state change.</summary>
+    private readonly Dictionary<RoomObject, ImageSet> _stateImages = [];
+    /// <summary>
+    /// Sets from an earlier room that the background choices (or the layers) may still show until the new
+    /// room's load finishes and replaces them all.
+    /// </summary>
+    private readonly List<ImageSet> _retiredImages = [];
+
+    /// <summary>Tells the canvas which sets are in use now. Call after changing the properties that show them.</summary>
+    private void PublishImages()
+    {
+        var sets = new List<ImageSet>();
+        foreach (var set in new[] { _background.Set, _loadImages, _maskImages, _liveImages })
+        {
+            if (set != null) sets.Add(set);
+        }
+        sets.AddRange(_stateImages.Values);
+        sets.AddRange(_retiredImages);
+        ImageSets = sets;
+    }
+
+    /// <summary>Puts <paramref name="next"/> in <paramref name="field"/>'s place and frees the set it replaces.</summary>
+    private void ReplaceImages(ref ImageSet field, ImageSet next)
+    {
+        var old = field;
+        field = next;
+        PublishImages();
+        if (!ReferenceEquals(old, next)) old?.Release();
+    }
+
+    /// <summary>The room's own background (decoded and converted once per room), or null when it has none.</summary>
+    private async Task<(SKImage Image, RgbaImage Rgba)> RoomBackgroundAsync(RoomModel room, CancellationToken token)
+    {
+        if (ReferenceEquals(_background.Room, room))
+        {
+            return (_background.Image, _background.Rgba);
+        }
+
+        var bg = await ScummBackgroundCache.GetCachedBackgroundAsync(
+            BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, 0, token);
+        if (token.IsCancellationRequested || bg.ExecutedImage == null)
+        {
+            return (null, bg.ExecutedImage);
+        }
+
+        if (ReferenceEquals(_background.Room, room))
+        {
+            return (_background.Image, _background.Rgba); // made meanwhile by another load of this room
+        }
+
+        // The old room's background may still be on screen (or a background choice) until this room's
+        // load finishes.
+        if (_background.Set != null) _retiredImages.Add(_background.Set);
+        var set = new ImageSet();
+        _background = (room, set, set.Add(bg.ExecutedImage.ToSkImage()), bg.ExecutedImage);
+        PublishImages();
+        return (_background.Image, _background.Rgba);
+    }
+
+    /// <summary>
     /// The room's z-plane masks as drawn now (index 0 = plane 1): the background's planes with the shown
     /// objects' planes over them, as alpha images. Null when masking is off or the room has none.
     /// </summary>
@@ -260,10 +332,20 @@ public sealed partial class RoomViewModel : ObservableObject
                 return; // another room opened meanwhile
             }
 
-            var image = result.ExecutedImage?.ToSkImage();
+            var set = new ImageSet();
+            var image = set.Add(result.ExecutedImage?.ToSkImage());
             if (ObjectLayers != null)
             {
                 ObjectLayers = [.. ObjectLayers.Select(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly ? l with { Image = image } : l)];
+                // The image this one replaces goes with its set when it came from an earlier state change.
+                _stateImages.Remove(obj, out var old);
+                _stateImages[obj] = set;
+                PublishImages();
+                old?.Release();
+            }
+            else
+            {
+                set.Release();
             }
         }
         if (Objects.FirstOrDefault(o => ReferenceEquals(o.Object, obj)) is { HasToggle: true } item && item.IsVisible != state > 0)
@@ -363,6 +445,7 @@ public sealed partial class RoomViewModel : ObservableObject
         {
             _zMaskKey = null;
             ZMasks = null;
+            ReplaceImages(ref _maskImages, null);
             return;
         }
         // Objects write their planes over the room's while they're drawn (shown, with an image), blank
@@ -391,13 +474,15 @@ public sealed partial class RoomViewModel : ObservableObject
             }
             return (o, p);
         }));
+        var maskSet = new ImageSet();
         var masks = new SKImage[planes.Length];
         for (int k = 0; k < planes.Length; k++)
         {
-            masks[k] = MaskImage(planes[k], room.Width, room.Height);
+            masks[k] = maskSet.Add(MaskImage(planes[k], room.Width, room.Height));
         }
 
         ZMasks = masks;
+        ReplaceImages(ref _maskImages, maskSet);
     }
 
     /// <summary>A plane as an alpha image: opaque where it hides actors.</summary>
@@ -479,6 +564,10 @@ public sealed partial class RoomViewModel : ObservableObject
 
         IsSwitchingRoom = true;
         LiveCostume = null;
+        ReplaceImages(ref _liveImages, null);
+        // The old room's state-changed images stay on screen until this room's images are ready.
+        _retiredImages.AddRange(_stateImages.Values);
+        _stateImages.Clear();
         Room = room;
         OnPropertyChanged(nameof(HasRoom));
         Title = room.RoomNo > 0
@@ -576,6 +665,7 @@ public sealed partial class RoomViewModel : ObservableObject
         if (placed.Key is not { } actor)
         {
             LiveCostume = null;
+            ReplaceImages(ref _liveImages, null);
             _livePalette = default;
             return;
         }
@@ -594,12 +684,15 @@ public sealed partial class RoomViewModel : ObservableObject
                 rgba = AkosFrames.Render(actor.Data, frame, out ox, out oy, mirror: actor.Mirrored);
             }
             float f = actor.ScaleFactor;
-            LiveCostume = new LiveCostume(placed.Value, rgba?.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), f, actor.ZPlane);
+            var set = new ImageSet();
+            LiveCostume = new LiveCostume(placed.Value, set.Add(rgba?.ToSkImage()), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), f, actor.ZPlane);
+            ReplaceImages(ref _liveImages, set);
         }
         catch (Exception ex)
         {
             Log.Error($"Play in place failed: {ex.Message}");
             LiveCostume = null;
+            ReplaceImages(ref _liveImages, null);
         }
     }
 
@@ -612,16 +705,15 @@ public sealed partial class RoomViewModel : ObservableObject
     {
         try
         {
-            var bg = await ScummBackgroundCache.GetCachedBackgroundAsync(
-                BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, 0, CancellationToken.None);
-            if (!ReferenceEquals(Room, room) || bg.ExecutedImage == null)
+            var (image, _) = await RoomBackgroundAsync(room, CancellationToken.None);
+            if (!ReferenceEquals(Room, room) || image == null)
             {
                 return; // no image of its own: wait for the full load
             }
 
             ObjectLayers = []; // the old room's labels and hotspots go too
             BackgroundObject = null;
-            BackgroundImage = bg.ExecutedImage.ToSkImage();
+            BackgroundImage = image;
             BackgroundLabel = "room";
             IsSwitchingRoom = false;
         }
@@ -854,7 +946,7 @@ public sealed partial class RoomViewModel : ObservableObject
 
     /// <summary>Renders the actors' frames, each in the palette the game shows its costume in, keyed by where they're shown.</summary>
     private Dictionary<RoomObject, (SKImage Image, int X, int Y, int Depth, int Actor, float Scale, int ZPlane)> RenderActors(
-        Dictionary<RoomActor, RoomObject> targets, CancellationToken token)
+        Dictionary<RoomActor, RoomObject> targets, ImageSet images, CancellationToken token)
     {
         var result = new Dictionary<RoomObject, (SKImage, int, int, int, int, float, int)>();
         foreach (var (actor, target) in targets)
@@ -877,7 +969,7 @@ public sealed partial class RoomViewModel : ObservableObject
                 float f = actor.ScaleFactor;
                 if (rgba != null)
                 {
-                    result[target] = (rgba.ToSkImage(), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), actor.SortY, actor.Actor, f, actor.ZPlane);
+                    result[target] = (images.Add(rgba.ToSkImage()), actor.X - (int)(ox * f), actor.DrawY - (int)(oy * f), actor.SortY, actor.Actor, f, actor.ZPlane);
                 }
             }
         }
@@ -896,20 +988,20 @@ public sealed partial class RoomViewModel : ObservableObject
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
         IsBusy = true;
+        // This load's object and costume images; freed again unless the load finishes and shows them.
+        var images = new ImageSet();
+        bool shown = false;
 
         try
         {
-            var bg = await ScummBackgroundCache.GetCachedBackgroundAsync(
-                BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, 0, token);
+            var (roomBackgroundImage, roomBackground) = await RoomBackgroundAsync(room, token);
             if (token.IsCancellationRequested)
             {
                 return;
             }
 
-            var roomBackground = bg.ExecutedImage;
-
             var targets = _actorTargets;
-            var costumes = await Task.Run(() => RenderActors(targets, token), token);
+            var costumes = await Task.Run(() => RenderActors(targets, images, token), token);
             if (token.IsCancellationRequested)
             {
                 return;
@@ -936,7 +1028,7 @@ public sealed partial class RoomViewModel : ObservableObject
                     }
 
                     rgba = result.ExecutedImage;
-                    image = rgba?.ToSkImage();
+                    image = images.Add(rgba?.ToSkImage());
                 }
                 costumes.TryGetValue(obj, out var costume);
                 layers.Add(new RoomObjectLayer(obj, image, costume.Image, costume.X, costume.Y, CostumeDepth: costume.Depth, CostumeActor: costume.Actor, CostumeScale: costume.Scale == 0 ? 1 : costume.Scale, CostumeZPlane: costume.ZPlane));
@@ -958,9 +1050,9 @@ public sealed partial class RoomViewModel : ObservableObject
 
             // Background choices: the room's own image first, then every full-width object image.
             var choices = new List<BackgroundChoice>();
-            if (roomBackground != null)
+            if (roomBackgroundImage != null)
             {
-                choices.Add(new BackgroundChoice("room", roomBackground.ToSkImage(), roomBackground, null));
+                choices.Add(new BackgroundChoice("room", roomBackgroundImage, roomBackground, null));
             }
 
             choices.AddRange(fullWidth);
@@ -987,6 +1079,22 @@ public sealed partial class RoomViewModel : ObservableObject
                 ApplyBackgroundChoice();
             }
 
+            // Everything shown now is this load's (or the room's background): the earlier load's images,
+            // state changes and the previous room's sets can go.
+            var stale = new List<ImageSet>(_retiredImages) { _loadImages };
+            stale.AddRange(_stateImages.Values);
+            if (!ReferenceEquals(_background.Room, room))
+            {
+                stale.Add(_background.Set); // this room has no background of its own
+                _background = default;
+            }
+            _retiredImages.Clear();
+            _stateImages.Clear();
+            _loadImages = images;
+            shown = true;
+            PublishImages();
+            foreach (var set in stale) set?.Release();
+
             IsSwitchingRoom = false; // background, objects and overlays all show together
         }
         catch (OperationCanceledException) { }
@@ -996,6 +1104,11 @@ public sealed partial class RoomViewModel : ObservableObject
         }
         finally
         {
+            if (!shown)
+            {
+                images.Release();
+            }
+
             if (!token.IsCancellationRequested)
             {
                 IsBusy = false;
