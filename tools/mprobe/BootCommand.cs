@@ -60,7 +60,7 @@ static class BootCommand
         vm.Effects = effects;
         var voice = new MMUCS.Runtime.Sound.VoicePlayer(MMUCS.Runtime.Sound.VoicePlayer.FromBundles(gameFile));
         vm.Speech = voice;
-        if (gameFile != null) vm.StringWidth = MMUCS.Runtime.ScriptedGame.MeasureWith(MMUCS.Core.Fonts.NutFont.LoadAll(gameFile));
+        if (gameFile != null) MMUCS.Runtime.ScriptedGame.UseFonts(vm, MMUCS.Core.Fonts.NutFont.LoadAll(gameFile));
         vm.Said += (text, tag, actor) => Line($"SAY {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" {tag}" : "")}: {text.Replace('\n', ' ')}", vm.Depth);
         vm.SystemMessage += text => Line($"SYSTEM {text}", vm.Depth);
         MMUCS.Runtime.Sound.ComiMusic music = null;
@@ -170,6 +170,12 @@ static class BootCommand
             foreach (var b in vm.BlastObjects)
                 Console.WriteLine($"  {b.Object,5} {RoomScripts.ObjectName(root, b.Object),-36} image {b.Image} at {b.X},{b.Y} {b.Width}×{b.Height}" +
                                   $"{(b.ScaleX != 255 || b.ScaleY != 255 ? $" scale {b.ScaleX}/{b.ScaleY}" : "")}{(b.Mode == 3 ? " shadow" : "")}{(vm.IsFloating(b.Object) ? " (floating)" : "")}");
+        }
+        var shownVerbs = vm.VerbsShown.ToList();
+        if (shownVerbs.Count > 0)
+        {
+            Console.WriteLine("verbs on the screen (dialogue choices…):");
+            foreach (var (verb, text, (l, t, r, b)) in shownVerbs) Console.WriteLine($"  verb {verb,-4} {l},{t}–{r},{b}  {text.Replace('\n', '|')}");
         }
         if (vm.ScreenTexts.Count > 0)
         {
