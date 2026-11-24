@@ -22,6 +22,9 @@ internal sealed class Asm
     public Asm Label(string name) { _labels[name] = Here; return this; }
     public Asm Jump(byte opcode, string label) { Op(opcode); _fixups.Add((Here, label)); return Word(0); }
     public Asm SubJump(byte opcode, byte sub, string label) { Op(opcode); _code.Add(sub); _fixups.Add((Here, label)); return Word(0); }
+    /// <summary>An inline string (Latin-1, then a 0), as talk and print instructions carry their text.</summary>
+    public Asm Text(string text) { _code.AddRange(System.Text.Encoding.Latin1.GetBytes(text)); _code.Add(0); return this; }
+    public Asm Bytes(params byte[] bytes) { _code.AddRange(bytes); return this; }
     public Asm Break() => Op(0x67);
     public Asm End() => Op(0x7b);
 

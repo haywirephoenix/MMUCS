@@ -154,6 +154,38 @@ public class ScriptedViewTests
         Assert.Equal(0, game.Faults);
     }
 
+    [Fact]
+    public async Task A_talk_line_shows_on_the_page_in_the_game_font()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        using var game = new ScriptedGame();
+        game.Load(root, Game);
+        var view = new ScriptedView(game) { Text = MMUCS.Player.Text.SubtitleRenderer.Create(game.Fonts, MMUCS.Player.Text.SubtitleFontKind.Game, null, true) };
+        game.Play();
+        game.SetMouseCaptured(true);
+        game.MoveCursor(GameState.PageToGame(new GamePoint(320, 224)));
+        for (int i = 0; i < 60; i++) game.Tick();
+        game.Press(MouseButton.Left);
+        for (int i = 0; i < 6; i++) game.Tick();
+        game.Release(MouseButton.Left);
+        for (int i = 0; i < 60 * 120 && (game.IsVideoPlaying || game.CurrentRoom != 9 || game.Vm.Subtitles.Count == 0); i++)
+        {
+            if (game.IsVideoPlaying) game.SkipVideo();
+            game.Tick();
+        }
+        Assert.Single(game.Vm.Subtitles);
+        for (int i = 0; i < 12; i++) game.Tick(); // a frame after it went up, so it's in what the frame drew
+        view.Capture();
+        await view.Building;
+
+        var frame = view.Capture();
+        var text = Assert.Single(frame.Texts, t => t is { IsEmpty: false });
+        Assert.NotNull(frame.Room);
+        using var picture = Draw(frame, "scripted-cannon-talk");
+        Assert.Equal(0, game.Faults);
+    }
+
     /// <summary>A root with nothing in it: enough for the input mapping, which needs no game data.</summary>
     private static ScummBlock TinyGame() => new() { Tag = 0, TagName = "empty" };
 
