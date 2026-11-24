@@ -18,6 +18,7 @@ static class BootCommand
         var inputs = new List<(int Jiffy, string What, string Spec)>();
         for (string c; (c = takeOption(a, "--click")) != null;) inputs.Add(Timed(c, "click"));
         for (string c; (c = takeOption(a, "--right-click")) != null;) inputs.Add(Timed(c, "right-click"));
+        for (string c; (c = takeOption(a, "--hold")) != null;) inputs.Add(Timed(c, "hold"));
         for (string k; (k = takeOption(a, "--key")) != null;) inputs.Add(Timed(k, "key"));
 
         var limits = GameLimits.Read(root) ?? throw new InvalidOperationException("no MAXS block: not a v8 game index");
@@ -110,9 +111,10 @@ static class BootCommand
                 loop.Mouse = point;
                 int under = vm.FindObject(point.X + loop.ScreenOrigin.X, point.Y + loop.ScreenOrigin.Y);
                 Line($"{input.What.ToUpperInvariant()} {point.X},{point.Y} on {(under == 0 ? "nothing" : $"object {under} {RoomScripts.ObjectName(root, under)}")}");
-                var button = input.What == "click" ? MouseButton.Left : MouseButton.Right;
+                var button = input.What == "right-click" ? MouseButton.Right : MouseButton.Left;
                 loop.Press(button);
-                if (button == MouseButton.Left) releaseLeft = i + 6; else releaseRight = i + 6;
+                int held = input.What == "hold" ? 60 : 6; // a hold lasts a second (the verb coin opens meanwhile)
+                if (button == MouseButton.Left) releaseLeft = i + held; else releaseRight = i + held;
             }
             if (i == releaseLeft) loop.Release(MouseButton.Left);
             if (i == releaseRight) loop.Release(MouseButton.Right);
@@ -148,6 +150,13 @@ static class BootCommand
                                   $"{(act.Elevation != 0 ? $" up {act.Elevation}" : "")} facing {act.Facing,-3} anim {act.Frame,-3} box {act.Walkbox,-3} scale {act.ScaleX,-3}" +
                                   $" layer {act.Layer}{(act.Visible ? "" : " hidden")}{(act.Moving != 0 ? $" moving {act.Moving}" : "")}  {drawn}  limbs {limbs}");
             }
+        }
+        if (vm.BlastObjects.Count > 0)
+        {
+            Console.WriteLine("objects blasted over the room (last frame):");
+            foreach (var b in vm.BlastObjects)
+                Console.WriteLine($"  {b.Object,5} {RoomScripts.ObjectName(root, b.Object),-36} image {b.Image} at {b.X},{b.Y} {b.Width}×{b.Height}" +
+                                  $"{(b.ScaleX != 255 || b.ScaleY != 255 ? $" scale {b.ScaleX}/{b.ScaleY}" : "")}{(b.Mode == 3 ? " shadow" : "")}{(vm.IsFloating(b.Object) ? " (floating)" : "")}");
         }
         if (vm.ScreenTexts.Count > 0)
         {
@@ -205,6 +214,19 @@ static class BootCommand
         using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(Math.Max(1, scene.Width), Math.Max(1, scene.Height)));
         surface.Canvas.Clear(SkiaSharp.SKColors.Black);
         scene.Draw(surface.Canvas, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Nearest));
+        // The blasted objects on the page, then the texts, as the game window draws them.
+        var page = new SkiaSharp.SKPoint(vm.State[EngineVars.CameraPosX] - 320, vm.State[EngineVars.CameraPosY] - 240);
+        foreach (var b in vm.BlastObjects)
+        {
+            if (MMUCS.Player.ScriptedView.BlastImage(vm, b) is not { } rgba) continue;
+            var image = MMUCS.Player.SkiaImages.Of(rgba);
+            surface.Canvas.DrawImage(image, SkiaSharp.SKRect.Create(page.X + b.X, page.Y + b.Y, rgba.Width * b.ScaleX / 255f, rgba.Height * b.ScaleY / 255f));
+        }
+        // The actors over the blasts (layer below 0), cut by the room's planes as the others.
+        if (vm.Actors.UpperPictures.Count > 0)
+            new MMUCS.Player.Rooms.RoomScene { Width = scene.Width, Height = scene.Height, ZMasks = scene.ZMasks,
+                Actors = MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.UpperPictures, scene.ZMasks.Count) }
+                .Draw(surface.Canvas, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Nearest));
         // The texts on the page, in the game fonts and the room's palette, as the game window draws them.
         int drawnTexts = 0;
         if (gameFile != null && vm.ScreenTexts.Count > 0)
@@ -226,7 +248,7 @@ static class BootCommand
         using var data = surface.Snapshot().Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
         if (Path.GetDirectoryName(Path.GetFullPath(file)) is { } dir) Directory.CreateDirectory(dir);
         File.WriteAllBytes(file, data.ToArray());
-        Console.WriteLine($"saved room {vm.CurrentRoom} with {scene.Objects.Count} objects, {scene.Actors.Count} actors and {drawnTexts} texts to {Path.GetFullPath(file)}");
+        Console.WriteLine($"saved room {vm.CurrentRoom} with {scene.Objects.Count} objects, {scene.Actors.Count + vm.Actors.UpperPictures.Count} actors and {drawnTexts} texts to {Path.GetFullPath(file)}");
     }
 
     /// <summary>"WHAT@SECONDS" (seconds after boot, default 1) as a jiffy.</summary>
