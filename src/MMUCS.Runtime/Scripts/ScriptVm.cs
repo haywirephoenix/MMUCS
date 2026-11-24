@@ -132,6 +132,12 @@ public sealed partial class ScriptVm
     /// </summary>
     public Action<string> PlayVideo { get; set; }
 
+    /// <summary>
+    /// Takes a <c>sound-kludge</c> list (Digital iMUSE's commands: music states and sequences, sound
+    /// parameters); returns whether it was carried out. Others count as not carried out yet, by command.
+    /// </summary>
+    public Func<int[], bool> SoundKludge { get; set; }
+
     /// <summary>A script started a video (its file name, e.g. <c>opening.san</c>), played or not.</summary>
     public event Action<string> VideoStarted;
 
@@ -571,6 +577,7 @@ public sealed partial class ScriptVm
             case 0x7f: { var args = Args(); int verb = Pop(), obj = Pop(), flags = Pop(); RunObjectScript(obj, verb, (flags & 1) != 0, (flags & 2) != 0, args); return; }
             case 0x80: StopObjectScript(Pop()); return;
             case 0x87: Pop(); return; // debug
+            case 0xb2: SoundKludgeOp(s, ins); return;
 
             // ── Rooms ──
             case 0x9d: StartScene(Pop()); return;
@@ -926,6 +933,20 @@ public sealed partial class ScriptVm
                 return;
         }
         Report(s, ins, [args]);
+    }
+
+    /// <summary>
+    /// <c>sound-kludge [...]</c> (ScummVM <c>o6_soundKludge</c>, to iMUSE's parseScriptCmds): [-1] does nothing
+    /// in v7+; the rest go to <see cref="SoundKludge"/>.
+    /// </summary>
+    private void SoundKludgeOp(ScriptSlot s, ScriptInstruction ins)
+    {
+        var list = State.PopList(16);
+        if (list is [-1] || SoundKludge?.Invoke(list) == true) return;
+        string name = $"{ins.Name}.{(list.Length > 0 ? list[0] : 0)}";
+        _unhandledCounts[name] = _unhandledCounts.GetValueOrDefault(name) + 1;
+        if (Strict) throw new ScriptException($"{name} isn't carried out yet");
+        Unhandled?.Invoke(new UnhandledCall(s.ToString(), ins, [list]));
     }
 
     private void NotHandled(ScriptSlot s, ScriptInstruction ins)

@@ -2,11 +2,13 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using MMUCS.Core.Audio;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Media;
 using MMUCS.Core.Scumm;
 using MMUCS.Core.Smush;
 using MMUCS.Runtime.Scripts;
+using MMUCS.Runtime.Sound;
 
 namespace MMUCS.Runtime;
 
@@ -47,12 +49,17 @@ public sealed class ScriptedGame : IDisposable
     /// <summary>How far into <see cref="Video"/> it is.</summary>
     public TimeSpan VideoTime => _videoClock?.Position ?? TimeSpan.FromSeconds(_videoJiffies / 60.0);
 
-    /// <summary>Where the game's sound goes (a video's sound, for now); without, videos play silently on jiffies.</summary>
+    /// <summary>Where the game's sound goes (videos and music); without, videos play silently on jiffies and the music isn't heard.</summary>
     public void SetAudio(Mixer mixer, IAudioOutput output)
     {
         _mixer = mixer;
         _output = output;
+        if (MusicOutput != null) MusicOutput.Mixer = mixer;
     }
+
+    /// <summary>The music the scripts ask for (null without the game's program, which holds COMI's music tables).</summary>
+    public ComiMusic Music { get; private set; }
+    public MixerMusic MusicOutput { get; private set; }
     private bool _mouseInside, _booted;
 
     /// <summary>Something that's shown changed.</summary>
@@ -89,6 +96,7 @@ public sealed class ScriptedGame : IDisposable
         : !IsPlaying ? "Press Play to boot the game."
         : $"room {CurrentRoom} {Scripts.RoomName(CurrentRoom)} · {Loop.Frames} frames · {Running} scripts" +
           (IsVideoPlaying ? $" · video {VideoName}{(Video == null ? " (loading)" : $" {VideoTime:m\\:ss} / {Video.Duration:m\\:ss}")}" : "") +
+          (MusicOutput?.Current is { } track ? $" · music {track.File}" : "") +
           (Faults > 0 ? $" · {Faults} faults (last: {LastFault})" : "");
 
     private int Running
@@ -122,6 +130,23 @@ public sealed class ScriptedGame : IDisposable
         };
         Loop = new FrameLoop(Vm);
         _booted = false;
+        Music = null;
+        MusicOutput = null;
+        if (MusicTable.Load(gameFile) is { } table)
+        {
+            MusicOutput = new MixerMusic(MixerMusic.FromBundles(gameFile)) { Mixer = _mixer };
+            Music = new ComiMusic(table, MusicOutput);
+            Music.Changed += what => Log.Info($"Game music: {what}");
+            var music = Music;
+            Vm.SoundKludge = list => music.Command(list);
+            // iMUSE's refresh, once a frame after everything else (ScummVM scummLoop_handleSound).
+            Loop.AfterScripts += _ =>
+            {
+                MusicOutput.Update();
+                Music.Refresh();
+            };
+        }
+        else if (gameFile != null) Log.Warn("Game: no comi.exe beside the game, so no music (its tables are in the program)");
         // The camera decides where the page's top left is in the room, for the virtual mouse.
         Loop.BeforeScripts += _ => Loop.ScreenOrigin = (Vm.State[EngineVars.CameraPosX] - 320, Vm.State[EngineVars.CameraPosY] - 240);
         Changed?.Invoke();
@@ -142,6 +167,7 @@ public sealed class ScriptedGame : IDisposable
             _videoClock.Play();
             if (_videoVoice != null) _videoVoice.Paused = false;
         }
+        if (MusicOutput != null) MusicOutput.Paused = false;
         Changed?.Invoke();
     }
 
@@ -151,6 +177,7 @@ public sealed class ScriptedGame : IDisposable
         IsPlaying = false;
         _videoClock?.Pause();
         if (_videoVoice != null) _videoVoice.Paused = true;
+        if (MusicOutput != null) MusicOutput.Paused = true;
         SetMouseCaptured(false);
         Changed?.Invoke();
     }
@@ -302,6 +329,7 @@ public sealed class ScriptedGame : IDisposable
     public void Dispose()
     {
         _videoVoice?.Stop();
+        MusicOutput?.FadeOut(0);
         _engine.Dispose();
     }
 
