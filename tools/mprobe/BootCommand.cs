@@ -68,6 +68,21 @@ static class BootCommand
         if (gameFile != null) MMUCS.Runtime.ScriptedGame.UseFonts(vm, MMUCS.Core.Fonts.NutFont.LoadAll(gameFile));
         vm.Said += (text, tag, actor) => Line($"SAY {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" {tag}" : "")}: {text.Replace('\n', ' ')}", vm.Depth);
         vm.SystemMessage += text => Line($"SYSTEM {text}", vm.Depth);
+        // A system message waits for a key: the next --key given answers it (and isn't pressed again), or none (0).
+        int jiffyNow = 0;
+        vm.AskSystem = text =>
+        {
+            var next = inputs.Where(x => x.What == "key" && x.Jiffy >= jiffyNow).OrderBy(x => x.Jiffy).FirstOrDefault();
+            if (next.Spec == null)
+            {
+                Line("  answered with nothing (no --key after it)", vm.Depth);
+                return 0;
+            }
+            inputs.Remove(next);
+            int code = Key(next.Spec);
+            Line($"  answered with KEY {next.Spec} ({code})", vm.Depth);
+            return code;
+        };
         MMUCS.Runtime.Sound.ComiMusic music = null;
         MMUCS.Runtime.Sound.SilentMusic musicOutput = null;
         if (MMUCS.Core.Audio.MusicTable.Load(gameFile) is { } table)
@@ -141,6 +156,7 @@ static class BootCommand
         int releaseLeft = -1, releaseRight = -1;
         for (int i = 0; i < jiffies; i++)
         {
+            jiffyNow = i;
             foreach (var input in inputs.Where(x => x.Jiffy == i))
             {
                 if (input.What == "save")
