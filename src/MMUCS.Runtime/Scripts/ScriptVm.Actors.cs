@@ -59,6 +59,9 @@ public sealed partial class ScriptVm
         return null;
     }
 
+    /// <summary>The current room's slot for an object, for its image's place; the engine stops on one that isn't here.</summary>
+    private ObjectPlace ImagePlace(int obj) => PlaceOf(obj) ?? throw new ScriptException($"object {obj} is not in room {CurrentRoom}");
+
     private (int X, int Y) Stand(ObjectPlace place)
     {
         var (x, y, _) = place.StandAt(State.Objects.IsObject(place.Id) ? State.Objects.State(place.Id) : 0);
@@ -137,6 +140,11 @@ public sealed partial class ScriptVm
             case 0xeb: Push(ObjectCoordinate(Pop(), y: false)); return true;
             case 0xec: Push(ObjectCoordinate(Pop(), y: true)); return true;
             case 0xed: Push(Actors[Pop()].Frame); return true;
+            // image-x/y/width/height (ScummVM o8_getObjectImageX…): the room slot's image place.
+            case 0xf0: Push(ImagePlace(Pop()).X); return true;
+            case 0xf1: Push(ImagePlace(Pop()).Y); return true;
+            case 0xf2: Push(ImagePlace(Pop()).Width); return true;
+            case 0xf3: Push(ImagePlace(Pop()).Height); return true;
             case 0xf7: // actor-zplane
             {
                 var a = Actors[Pop()];
