@@ -59,6 +59,9 @@ public sealed class ActorTable
     /// <summary>The actors as the last frame drew them, back to front.</summary>
     public IReadOnlyList<ActorPicture> Pictures { get; private set; } = [];
 
+    /// <summary>The actors on a layer below 0, which the engine draws over the blasted objects (ScummVM processUpperActors).</summary>
+    public IReadOnlyList<ActorPicture> UpperPictures { get; private set; } = [];
+
     /// <summary>The current room's walk boxes, with the flags the scripts set.</summary>
     public IReadOnlyList<Walkbox> Boxes => _boxes;
 
@@ -84,6 +87,7 @@ public sealed class ActorTable
         for (int i = 1; i < Count; i++) Hide(_actors[i]);
         foreach (var a in _actors) a.Drawn = null;
         Pictures = [];
+        UpperPictures = [];
     }
 
     /// <summary>The actors in the room just entered come into sight (ScummVM <c>showActors</c>).</summary>
@@ -442,6 +446,17 @@ public sealed class ActorTable
         }
         Pictures = pictures;
         ProcessQueue();
+
+        // Then, after the blast objects, the actors below layer 0, in actor order, each drawn then animated.
+        var upper = new List<ActorPicture>();
+        for (int i = 1; i < Count; i++)
+        {
+            var a = _actors[i];
+            if (a.Layer >= 0 || a.Costume == 0 || !IsInCurrentRoom(a)) continue;
+            if (a.Visible && Draw(a) is { } picture) upper.Add(picture);
+            AnimateCostume(a);
+        }
+        UpperPictures = upper;
     }
 
     /// <summary>The actor as it looks now, and where that puts it for <c>actor-at</c>.</summary>

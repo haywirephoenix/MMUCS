@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MMUCS.Core.Scumm;
 
 namespace MMUCS.Runtime.Scripts;
@@ -142,6 +143,7 @@ public sealed class ScriptStore
         public readonly Dictionary<int, ScriptCode> Locals = [];
         public readonly Dictionary<int, ObjectCode> Objects = [];
         public readonly List<ObjectPlace> Places = [];
+        public readonly Dictionary<int, byte[]> Names = [];
         public ScriptCode Entry, Exit;
     }
 
@@ -297,6 +299,9 @@ public sealed class ScriptStore
         return meta != null && meta.TryGetValue(MetaValue.From(ScummMeta.LFLF.roomName), out var name) ? (string)name : null;
     }
 
+    /// <summary>Object <paramref name="id"/>'s name as its room has it (OBNA, tag and all), or null.</summary>
+    public byte[] ObjectName(int room, int id) => For(room)?.Names.GetValueOrDefault(id);
+
     /// <summary>The room's objects in its object slots (empty for no room).</summary>
     public IReadOnlyList<ObjectPlace> Places(int room)
     {
@@ -367,8 +372,11 @@ public sealed class ScriptStore
                 case ScummTag.EXCD:
                     code.Exit ??= new ScriptCode { Kind = ScriptKind.RoomExit, Number = room, Room = room, Code = b.DataMemory };
                     break;
-                case ScummTag.OBCD when ObjectOf(room, b) is { } obj:
-                    code.Objects.TryAdd(obj.Id, obj);
+                case ScummTag.OBCD:
+                    if (ObjectOf(room, b) is { } obj) code.Objects.TryAdd(obj.Id, obj);
+                    // The name the player sees (OBNA): "/CNNZ069/cannon", a tag and the text, ended by a 0.
+                    if (b.FindChild(ScummTag.CDHD) is { DataLength: >= 6 } cdhd && b.Children.FirstOrDefault(c => c.TagName == "OBNA") is { } obna)
+                        code.Names.TryAdd(cdhd.DataSpan.U16LE(4), obna.DataSpan.ToArray());
                     break;
             }
         }

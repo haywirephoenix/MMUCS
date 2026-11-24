@@ -123,6 +123,7 @@ public sealed partial class ScriptVm
         {
             0xDA or 0xDB => 0, // lip-sync width and height
             0xDC => Actors[a1].TalkStartFrame,
+            0xD8 => FindBlastObject(a1, args.Length > 2 ? args[2] : 0),
             0xDD or 0xDE or 0xDF => 127, // the effects', voices' and music's volume (255 / 2)
             0xE0 => RegistryValue(a1),
             _ => null,
@@ -286,11 +287,12 @@ public sealed partial class ScriptVm
         str.CopyFrom(saved);
     }
 
-    /// <summary>The frame's texts are drawn: what it blasted and the talk lines; the blasts are gone next frame.</summary>
+    /// <summary>The frame is drawn: its blasted objects and texts and the talk lines; the blasts are gone next frame.</summary>
     public void EndFrameTexts()
     {
         ScreenTexts = [.. _blastTexts, .. _subtitles];
         _blastTexts.Clear();
+        EndFrameBlasts();
     }
 
     /// <summary>ScummVM <c>stopTalk</c> (v8): the speech stops, the actor stops talking, the lines go.</summary>
@@ -318,9 +320,21 @@ public sealed partial class ScriptVm
     }
 
     /// <summary>
+    /// ScummVM <c>getObjOrActorName</c>: an actor's name, or an object's from its room (OBNA): the room's own
+    /// objects and floating ones by their home room, carried ones by theirs.
+    /// </summary>
+    public byte[] NameOf(int obj)
+    {
+        if (obj < ActorTable.Count) return Actors.Find(obj)?.Name is { Length: > 0 } n ? Encoding.Latin1.GetBytes(n) : null;
+        if (!State.Objects.IsObject(obj)) return null;
+        return Scripts.ObjectName(State.Objects.Room(obj), obj) ?? Scripts.ObjectName(CurrentRoom, obj);
+    }
+
+    /// <summary>
     /// ScummVM <c>convertMessageToString</c> for v8, with <c>translateText</c>'s tag: "/BCCB301/Hello" says
     /// "Hello" with speech BCCB301. Escapes (0xFF, a code, a 32-bit operand): 1 a new line, 4 a variable's
-    /// number, 7 a string variable; the rest (keep text, wait, verb and object names, sounds, colours) show nothing.
+    /// number, 6 the name of the object or actor a variable holds, 7 a string variable; the rest (keep text,
+    /// wait, verb names, sounds, colours) show nothing.
     /// </summary>
     public string ConvertMessage(ReadOnlySpan<byte> message, out string tag)
     {
@@ -355,6 +369,7 @@ public sealed partial class ScriptVm
             switch (code)
             {
                 case 4: text.Append(State.Read(val)); break;
+                case 6: if (State.Read(val) is int named and not 0 && NameOf(named) is { } name) text.Append(ConvertMessage(name, out _)); break;
                 case 7:
                     if (State.ArrayById(State.Read(val)) is { Type: ArrayType.String } array)
                     {

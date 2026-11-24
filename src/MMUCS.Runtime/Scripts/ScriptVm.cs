@@ -339,8 +339,10 @@ public sealed partial class ScriptVm
         Actors.HideAll();
         CurrentRoom = room;
         State[EngineVars.Room] = room;
+        var oldSlots = _roomObjects;
         _roomObjects = Scripts.Places(room);
         _localStates = new int[_roomObjects.Count + 1];
+        KeepLockedFloatingObjects(oldSlots);
         Actors.LoadBoxes(room);
         RoomEntered?.Invoke(room);
         if (room == 0) return;
@@ -584,9 +586,10 @@ public sealed partial class ScriptVm
             case 0xaf when Effects != null: Effects.Start(Pop()); return;
             case 0xb1 when Effects != null: Effects.Stop(Pop()); return;
             case 0xd5 when Effects != null: a = Pop(); Push(a != 0 && Effects.IsRunning(a)); return;
-            // resourceRoutines: loading, locking and freeing resources mean nothing here, as everything is in
-            // memory; loading an object (0x3E) brings in a floating object, which isn't here yet.
-            case 0xaa when ins.SubOp != 0x3E: Pop(); return;
+            // resourceRoutines: loading an object (0x3E) brings in a floating object; loading, locking and
+            // freeing the other resources mean nothing here, as everything is in memory.
+            case 0xaa when ins.SubOp == 0x3E: LoadFloatingObject(Pop()); return;
+            case 0xaa: Pop(); return;
 
             // ── Rooms ──
             case 0x9d: StartScene(Pop()); return;
@@ -930,6 +933,15 @@ public sealed partial class ScriptVm
             case 29 when args.Length >= 3:
                 (KeyScriptKey, KeyScript) = (args[1], args[2]);
                 return;
+            case 11 or 12 when args.Length >= 2: // lockObject / unlockObject
+                LockFloatingObject(args[1], args[0] == 11);
+                return;
+            case 118 or 119: // blastShadowObject / superBlastObject: obj, x, y, width, height, scale x, scale y, image
+            {
+                int At(int i) => i < args.Length ? args[i] : 0;
+                Blast(At(1), At(2), At(3), At(4), At(5), At(6), At(7), At(8), args[0] == 118 ? 3 : 0);
+                return;
+            }
             case 30:
                 foreach (var other in State.Slots)
                     if (other != s && other.IsAlive)
