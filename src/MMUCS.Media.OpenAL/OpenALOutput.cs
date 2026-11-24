@@ -32,7 +32,12 @@ public sealed unsafe class OpenALOutput : IAudioOutput
     private readonly float[] _mix;
     private readonly short[] _pcm;
     private readonly bool _float;
-    private readonly object _alLock = new();
+    /// <summary>
+    /// OpenAL's current context is the process's, not a thread's, so every output takes this one lock to
+    /// make its context current and use it: two outputs at once (the media player and the game window)
+    /// would otherwise switch each other's context between a call and the next.
+    /// </summary>
+    private static readonly object _alLock = new();
 
     private Thread _thread;
     private volatile bool _running;
@@ -51,24 +56,27 @@ public sealed unsafe class OpenALOutput : IAudioOutput
         _alc = ALContext.GetApi(true);
         _al = AL.GetApi(true);
 
-        _device = _alc.OpenDevice(deviceName);
-        if (_device == null) throw new InvalidOperationException($"OpenAL could not open {(deviceName == null ? "the default sound device" : $"\"{deviceName}\"")}");
-        _context = _alc.CreateContext(_device, null);
-        if (_context == null)
+        lock (_alLock)
         {
-            _alc.CloseDevice(_device);
-            throw new InvalidOperationException("OpenAL could not create a context");
-        }
-        _alc.MakeContextCurrent(_context);
+            _device = _alc.OpenDevice(deviceName);
+            if (_device == null) throw new InvalidOperationException($"OpenAL could not open {(deviceName == null ? "the default sound device" : $"\"{deviceName}\"")}");
+            _context = _alc.CreateContext(_device, null);
+            if (_context == null)
+            {
+                _alc.CloseDevice(_device);
+                throw new InvalidOperationException("OpenAL could not create a context");
+            }
+            _alc.MakeContextCurrent(_context);
 
-        _source = _al.GenSource();
-        _buffers = _al.GenBuffers(Math.Max(2, bufferCount));
-        _al.SetSourceProperty(_source, SourceFloat.Gain, 1f);
-        _al.SetSourceProperty(_source, SourceBoolean.Looping, false);
-        if (_al.IsExtensionPresent("AL_SOFT_direct_channels"))
-            _al.SetSourceProperty(_source, (SourceInteger)DirectChannelsSoft, 1);
-        _float = _al.IsExtensionPresent("AL_EXT_FLOAT32");
-        CheckError("creating the source");
+            _source = _al.GenSource();
+            _buffers = _al.GenBuffers(Math.Max(2, bufferCount));
+            _al.SetSourceProperty(_source, SourceFloat.Gain, 1f);
+            _al.SetSourceProperty(_source, SourceBoolean.Looping, false);
+            if (_al.IsExtensionPresent("AL_SOFT_direct_channels"))
+                _al.SetSourceProperty(_source, (SourceInteger)DirectChannelsSoft, 1);
+            _float = _al.IsExtensionPresent("AL_EXT_FLOAT32");
+            CheckError("creating the source");
+        }
 
         string device = _alc.GetContextProperty(_device, GetContextString.DeviceSpecifier);
         Name = $"OpenAL Soft: {device}";
