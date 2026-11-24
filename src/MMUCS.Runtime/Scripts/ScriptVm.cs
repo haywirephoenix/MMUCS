@@ -643,8 +643,7 @@ public sealed partial class ScriptVm
     /// <summary>
     /// <c>come-out-door obj at x,y</c> (ScummVM <c>o6_loadRoomWithEgo</c>): the ego goes to the object's home
     /// room, where the room's entry puts it at the object facing away from it, with <c>walk-to-object</c> set
-    /// meanwhile; then it walks to x,y unless that's −1. Walking isn't here yet: that part is reported
-    /// through <see cref="Unhandled"/>.
+    /// meanwhile; then it walks to x,y unless that's −1.
     /// </summary>
     private void ComeOutDoor(ScriptInstruction ins)
     {
@@ -656,11 +655,7 @@ public sealed partial class ScriptVm
         State[EngineVars.WalkToObject] = obj;
         StartScene(ego.Room, ego, obj);
         State[EngineVars.WalkToObject] = 0;
-        if (x is not (-1 or 0x7FFFFFFF))
-        {
-            _unhandledCounts["walk"] = _unhandledCounts.GetValueOrDefault("walk") + 1;
-            Unhandled?.Invoke(new UnhandledCall("ego", ins, [[obj], [x], [y]]));
-        }
+        if (x is not (-1 or 0x7FFFFFFF)) Actors.StartWalk(ego, x, y, -1);
     }
 
     /// <summary>

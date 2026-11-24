@@ -95,7 +95,7 @@ public sealed class ObjectCode
 /// </summary>
 public sealed record ObjectPlace(int Slot, int Id, int Parent, int ParentState, int X, int Y, int Width, int Height)
 {
-    /// <summary>The way an actor at it faces, as an 8-way direction (IMHD <c>actordir</c>; ×45 for degrees).</summary>
+    /// <summary>The way an actor at it faces, in degrees as the room file has it (v8 IMHD <c>actordir</c>, an angle).</summary>
     public int ActorDir { get; init; }
 
     /// <summary>Where an actor stands for each image state, relative to <see cref="X"/>,<see cref="Y"/> (IMHD hotspots).</summary>
@@ -109,7 +109,7 @@ public sealed record ObjectPlace(int Slot, int Id, int Parent, int ParentState, 
     {
         int i = Math.Max(0, state - 1);
         var (hx, hy) = i < Hotspots.Count ? Hotspots[i] : (0, 0);
-        return (X + hx, Y + hy, ActorDir * 45);
+        return (X + hx, Y + hy, ActorTable.NormalizeAngle(ActorDir)); // ScummVM: fromSimpleDir(1, toSimpleDir(1, actordir))
     }
 
     /// <summary>Whether a point is on it, edges included (COMI's hit test, ScummVM <c>findObject</c>).</summary>
