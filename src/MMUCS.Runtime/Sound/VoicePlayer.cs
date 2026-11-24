@@ -53,6 +53,18 @@ public sealed class VoicePlayer : ISpeech
         }
     }
 
+    /// <summary>
+    /// The mouth's width and height in the line's first SYNC block at where it plays plus
+    /// <paramref name="aheadMs"/> (ScummVM's getSpeechLipSyncInfo); (0, 0) once the line is over.
+    /// </summary>
+    public (int Width, int Height) LipSync(int aheadMs)
+    {
+        var player = _player;
+        if (player == null || !IsPlaying) return (0, 0);
+        long ms = player.Frame * 1000 / Math.Max(1, player.SampleRate);
+        return player.Sound.LipSync(0, (int)Math.Min(int.MaxValue, ms + aheadMs));
+    }
+
     public void Stop()
     {
         _voice?.Stop();

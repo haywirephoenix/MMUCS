@@ -51,6 +51,8 @@ public static class EngineVars
     /// <summary>Jiffies per character a line stays up.</summary>
     public const int CharInc = 129;
     public const int DebugMode = 130;
+    /// <summary>Milliseconds the lip sync reads ahead of the speech (beyond the engine's own 50).</summary>
+    public const int Sync = 134;
 
     /// <summary>
     /// What the engine sets before the boot script runs (ScummVM <c>resetScummVars</c> for v8): a 640×480

@@ -15,6 +15,8 @@ public interface ISpeech
     void Start(string tag, int actor);
     void Stop();
     bool IsPlaying { get; }
+    /// <summary>The mouth's width and height in the speech <paramref name="aheadMs"/> past where it plays now, (0, 0) when none plays.</summary>
+    (int Width, int Height) LipSync(int aheadMs);
 }
 
 /// <summary>
@@ -116,7 +118,7 @@ public sealed partial class ScriptVm
 
     /// <summary>
     /// ScummVM <c>o8_kernelGetFunctions</c>, the parts COMI asks for so far: an actor's talk animation, the
-    /// registry's settings (text on, full volumes, object names), the volumes and lip sync (none yet: 0).
+    /// registry's settings (text on, full volumes, object names), the volumes and the speech's lip sync.
     /// Others count as not carried out.
     /// </summary>
     private bool KernelGet(ScriptSlot s, ScriptInstruction ins)
@@ -125,7 +127,8 @@ public sealed partial class ScriptVm
         int a1 = args.Length > 1 ? args[1] : 0;
         int? value = (args.Length > 0 ? args[0] : 0) switch
         {
-            0xDA or 0xDB => 0, // lip-sync width and height
+            0xDA => LipSync().Width,
+            0xDB => LipSync().Height,
             0xDC => Actors[a1].TalkStartFrame,
             0xD8 => FindBlastObject(a1, args.Length > 2 ? args[2] : 0),
             0xDD or 0xDE or 0xDF => 127, // the effects', voices' and music's volume (255 / 2)
@@ -143,6 +146,12 @@ public sealed partial class ScriptVm
         Unhandled?.Invoke(new UnhandledCall(s.ToString(), ins, [args]));
         return true;
     }
+
+    /// <summary>
+    /// ScummVM <c>getSpeechLipSyncInfo</c>: the speech's mouth width and height 50 ms plus the <c>sync</c>
+    /// variable ahead of where it plays. The talk scripts pick the mouth frame from them every frame.
+    /// </summary>
+    private (int Width, int Height) LipSync() => Speech?.LipSync(State[EngineVars.Sync] + 50) ?? (0, 0);
 
     /// <summary>The game's registry settings by name, as ScummVM answers them from its own settings.</summary>
     private int RegistryValue(int stringArray)
