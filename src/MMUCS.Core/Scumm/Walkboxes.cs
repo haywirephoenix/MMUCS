@@ -26,6 +26,32 @@ public readonly record struct ScaleSlot(int Scale1, int Y1, int Scale2, int Y2);
 
 public static class Walkboxes
 {
+    /// <summary>
+    /// The next box on the way from box <paramref name="from"/> to box <paramref name="to"/> by a box matrix
+    /// (BOXM, ScummVM getNextBox for v3+): after a leading 0xFF, each box's row is triples "boxes lo..hi go by
+    /// box via" ended by 0xFF; the last triple that covers <paramref name="to"/> wins. −1 when the row has none
+    /// (or the matrix is cut short); 255 is "no box", which leads straight to any box.
+    /// </summary>
+    public static int NextBox(ReadOnlySpan<byte> matrix, int from, int to)
+    {
+        if (from == to) return to;
+        if (to == 0xFF) return -1;
+        if (from == 0xFF) return to;
+        int p = matrix.Length > 0 && matrix[0] == 0xFF ? 1 : 0;
+        for (int i = 0; i < from && p < matrix.Length; i++)
+        {
+            while (p < matrix.Length && matrix[p] != 0xFF) p += 3;
+            p++;
+        }
+        int dest = -1;
+        while (p + 2 < matrix.Length && matrix[p] != 0xFF)
+        {
+            if (matrix[p] <= to && to <= matrix[p + 1]) dest = (sbyte)matrix[p + 2];
+            p += 3;
+        }
+        return dest;
+    }
+
     /// <summary>Parses a v8 SCAL block: per slot, u32 scale1, y1, scale2, y2 (ScummVM's loadRoom).</summary>
     public static List<ScaleSlot> ParseScaleSlots(ScummBlock scal)
     {
