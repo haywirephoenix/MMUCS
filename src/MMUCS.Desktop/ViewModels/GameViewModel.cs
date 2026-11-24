@@ -36,6 +36,7 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         View = new GameView(Game);
         ScriptedView = new ScriptedView(Scripted);
         Fonts = new FontChooser(settings);
+        Scripted.SmoothCamera = settings?.SmoothCamera ?? false;
         Fonts.Changed += () => { ApplyFont(); Refresh(); };
         Game.Changed += Refresh;
         Scripted.Changed += Refresh;

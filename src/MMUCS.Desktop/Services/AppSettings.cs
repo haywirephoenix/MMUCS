@@ -19,6 +19,8 @@ public sealed class AppSettings
 
     public List<string> RecentFiles { get; set; } = [];
     public bool ReopenLastFileOnStartup { get; set; } = true;
+    /// <summary>The game window eases its camera instead of SCUMM's steps.</summary>
+    public bool SmoothCamera { get; set; }
     public bool ShowRoomNames { get; set; } = true;
     public bool ShowObjectNames { get; set; } = true;
     public bool ColorizeTags { get; set; } = true;

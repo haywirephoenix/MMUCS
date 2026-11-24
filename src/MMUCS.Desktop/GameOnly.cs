@@ -17,12 +17,14 @@ namespace MMUCS.Desktop;
 /// <c>MMUCS --game [FILE] [--boot N]</c>: just the game window, for quick testing until there's a standalone
 /// player. It loads FILE (or the game opened last), without the main window, the hierarchy's costume pass or
 /// the single-instance hand-off, opens the game window and presses Play once it's ready. Closing it quits.
-/// <c>--boot N</c> gives the boot script parameter N (ScummVM's <c>-b</c>), which COMI uses to start in a room.
+/// <c>--boot N</c> gives the boot script parameter N (ScummVM's <c>-b</c>), which COMI uses to start in a room;
+/// <c>--smooth-camera</c> eases the camera (as the setting does) for this run.
 /// </summary>
 internal static class GameOnly
 {
     public const string Flag = "--game";
     public const string BootFlag = "--boot";
+    public const string SmoothCameraFlag = "--smooth-camera";
 
     public static bool Requested(string[] args) => args?.Contains(Flag) == true;
 
@@ -58,6 +60,7 @@ internal static class GameOnly
             var root = await Task.Run(() => ScummProject.Load(files, null));
             var vm = new GameViewModel(root, files.Count > 0 ? Path.GetFullPath(files[0]) : file, settings);
             vm.Scripted.BootParam = bootParam;
+            if (desktop.Args?.Contains(SmoothCameraFlag) == true) vm.Scripted.SmoothCamera = true;
             var window = new GameWindow { DataContext = vm };
             desktop.MainWindow = window;
             window.Show();
