@@ -20,6 +20,8 @@ public class TextTests
         public bool IsPlaying { get; set; }
         public void Start(string tag, int actor) { Started.Add($"{tag} by {actor}"); IsPlaying = true; }
         public void Stop() => IsPlaying = false;
+        public int AskedAhead = -1;
+        public (int, int) LipSync(int aheadMs) { AskedAhead = aheadMs; return IsPlaying ? (0x40, 0x27) : (0, 0); }
     }
 
     private static (ScriptVm Vm, FrameLoop Loop, FakeSpeech Speech) Machine(params ScriptCode[] scripts)
@@ -141,6 +143,22 @@ public class TextTests
     }
 
     [Fact]
+    public void Kernel_get_gives_the_speech_s_lip_sync_width_and_height()
+    {
+        var code = new Asm()
+            .List(218).Op(0xd8).Write(300).List(219).Op(0xd8).Write(301) // no line: a closed mouth
+            .Push(3).Push(100).Push(300).Push(5).Op(0xa1)
+            .Push(3).Op(0x91).Text("/cngt001/Hello there")
+            .List(218).Op(0xd8).Write(302).List(219).Op(0xd8).Write(303)
+            .End().Global(10);
+        var (vm, _, speech) = Machine(code);
+        vm.State[EngineVars.Sync] = 30;
+        vm.RunScript(10);
+        Assert.Equal((0, 0, 0x40, 0x27), (vm.State[300], vm.State[301], vm.State[302], vm.State[303]));
+        Assert.Equal(80, speech.AskedAhead); // the sync variable plus the engine's 50 ms
+    }
+
+    [Fact]
     public void String_width_measures_in_the_charset_given()
     {
         var code = new Asm().Push(2).Op(0xf6).Text("abcd").Write(300).End().Global(10);
@@ -176,6 +194,15 @@ public class TextTests
         Assert.Equal("CNGT001", game.Voice.Playing);
         Assert.InRange(line.X, 0, 640); // over Guybrush's head, on the page
         Assert.InRange(line.Y, 0, 480);
+
+        // His mouth follows the speech: the lip sync changes as the line plays.
+        var mouths = new HashSet<(int, int)>();
+        for (int i = 0; i < 60 * 2 && game.Voice.IsPlaying; i++)
+        {
+            mouths.Add(game.Voice.LipSync(50));
+            game.Tick();
+        }
+        Assert.True(mouths.Count >= 3, $"mouths seen: {string.Join(", ", mouths)}");
         Assert.Equal(0, game.Faults);
     }
 }

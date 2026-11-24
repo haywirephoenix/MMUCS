@@ -50,6 +50,21 @@ public class SoundEffectsTests
     }
 
     [Fact]
+    public void Lip_sync_gives_the_mouth_at_or_just_before_the_time()
+    {
+        // SYNC: its position, then entries of (ticks << 16 | width << 8 | height), a tick 16 ms.
+        var raw = Imus(16, 1, new byte[4], ("SYNC", [0, 0x0000_2000, 0x0007_2020, 0x000B_4040, 0x000C_E0FF]));
+        var sound = ImusSound.Parse(raw);
+        Assert.Equal((0x20, 0), sound.LipSync(0, 0));
+        Assert.Equal((0x20, 0), sound.LipSync(0, 7 * 16 - 1));      // before the second entry: the first
+        Assert.Equal((0x20, 0x20), sound.LipSync(0, 7 * 16));       // on it
+        Assert.Equal((0x40, 0x40), sound.LipSync(0, 11 * 16 + 15)); // the same tick
+        Assert.Equal((0x60, 0x7F), sound.LipSync(0, 5000));         // past the end: the last, its signs dropped
+        Assert.Equal((0, 0), sound.LipSync(1, 0));                  // no second SYNC
+        Assert.Equal((0, 0), sound.LipSync(0, 0x10_0000));          // past what a tick count holds
+    }
+
+    [Fact]
     public void THX_s_sound_decodes_to_smooth_sound_not_noise()
     {
         if (Game == null) return;
