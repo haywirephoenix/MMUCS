@@ -25,6 +25,7 @@ static class BootCommand
         for (string k; (k = takeOption(a, "--key")) != null;) inputs.Add(Timed(k, "key"));
         for (string f; (f = takeOption(a, "--save")) != null;) inputs.Add(Timed(f, "save"));
         string loadFile = takeOption(a, "--load");
+        string savesDir = takeOption(a, "--saves");
 
         var limits = GameLimits.Read(root) ?? throw new InvalidOperationException("no MAXS block: not a v8 game index");
         var store = new ScriptStore(root);
@@ -76,7 +77,32 @@ static class BootCommand
         }
         else Console.WriteLine("no comi.exe beside the game: the music isn't followed");
         vm.SoundKludge = MMUCS.Runtime.ScriptedGame.SoundKludge(effects, voice, music, musicOutput);
-        MMUCS.Runtime.ScriptedGame.FollowSaves(loop, effects, voice, music);
+        var sounds = MMUCS.Runtime.ScriptedGame.FollowSaves(loop, effects, voice, music);
+        // The F1 menu's save slots and registry settings: a folder given, or none (empty slots, the registry's defaults).
+        if (savesDir != null)
+        {
+            new MMUCS.Runtime.GameSaves(Path.GetFullPath(savesDir)).Attach(loop, sounds, effects, voice, music);
+            var write = vm.SaveGameWrite;
+            vm.SaveGameWrite = (slot, name) =>
+            {
+                bool ok = write(slot, name);
+                Line($"SAVE slot {slot} \"{name}\"{(ok ? "" : " failed")}", vm.Depth);
+                return ok;
+            };
+            var loadSlot = loop.LoadSlot;
+            loop.LoadSlot = slot =>
+            {
+                bool ok = loadSlot(slot);
+                Line(ok ? $"LOAD slot {slot}: room {vm.CurrentRoom}, {state.Slots.Count(x => x.IsAlive)} scripts running" : $"LOAD slot {slot} failed", vm.Depth);
+                return ok;
+            };
+            var writeRegistry = vm.WriteRegistry;
+            vm.WriteRegistry = (name, value) =>
+            {
+                writeRegistry(name, value);
+                Line($"REGISTRY {name} = {value}", vm.Depth);
+            };
+        }
         loop.AfterScripts += jiffies =>
         {
             effects.Update(jiffies);
