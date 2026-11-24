@@ -104,6 +104,9 @@ public sealed class ScriptedGame : IDisposable
     public bool IsLoaded => Vm != null;
     public bool IsPlaying { get; private set; }
 
+    /// <summary>Whether the game has booted (playing or paused) since it was loaded or last reset.</summary>
+    public bool IsStarted => _booted;
+
     /// <summary>Whether the host has the mouse for the game (its cursor shows and clicks count).</summary>
     public bool IsMouseCaptured { get; private set; }
 
@@ -350,7 +353,7 @@ public sealed class ScriptedGame : IDisposable
     /// </summary>
     public int BootParam { get; set; }
 
-    /// <summary>Boots the game (once; Stop leaves it where it is, Play carries on).</summary>
+    /// <summary>Boots the game (once; <see cref="Stop"/> pauses it where it is and Play carries on; <see cref="Reset"/> ends it).</summary>
     public void Play()
     {
         if (Vm == null || IsPlaying) return;

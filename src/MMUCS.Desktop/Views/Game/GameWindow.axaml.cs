@@ -15,7 +15,7 @@ namespace MMUCS.Desktop.Views.Game;
 /// <summary>
 /// The game window (Window ▸ Game, a testing ground). While playing, a click on the canvas captures the
 /// mouse: the system cursor hides and is kept inside the picture, and the game draws its own. Ctrl+Alt,
-/// Stop, or leaving the window lets it go; Esc goes to the game (it skips videos and cutscenes). With Scripts on, buttons and keys go to the game's scripts; with it off,
+/// Pause, Stop, or leaving the window lets it go; Esc goes to the game (it skips videos and cutscenes). With Scripts on, buttons and keys go to the game's scripts; with it off,
 /// holding the button on a hotspot opens the verb coin until it's let go, and I toggles the inventory.
 /// </summary>
 public partial class GameWindow : Window

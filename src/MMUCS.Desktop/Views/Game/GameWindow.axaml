@@ -15,14 +15,16 @@
     </Style>
   </Window.Styles>
 
-  <!-- The viewers' shared preview panel (Controls/ViewerPreview.cs): its toolbar holds Play / Stop; the canvas keeps 16:9. -->
+  <!-- The viewers' shared preview panel (Controls/ViewerPreview.cs): its toolbar holds Play / Pause / Stop; the canvas keeps 16:9. -->
   <c:ViewerPreview Title="Game" Info="{Binding Status}" ShowZoom="False">
     <c:ViewerPreview.Tools>
       <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,8,0">
         <Button Classes="transport" Content="Play" Command="{Binding PlayCommand}"
                 ToolTip.Tip="Start the game; then click the canvas to capture the mouse" />
+        <Button Classes="transport" Content="Pause" Command="{Binding PauseCommand}"
+                ToolTip.Tip="Pause the game where it is and let the mouse go; Play carries on" />
         <Button Classes="transport" Content="Stop" Command="{Binding StopCommand}"
-                ToolTip.Tip="Stop the game and let the mouse go" />
+                ToolTip.Tip="End the game, as its own Quit does: Play boots it afresh" />
         <ToggleButton Content="Scripts" IsChecked="{Binding RunScripts}" Margin="8,0,0,0"
                       ToolTip.Tip="On: the game runs its own scripts from boot (MMUCS.Runtime's interpreter). Off: the hand-written stand-ins (a hotspot, the verb coin and the inventory). Switching stops the game." />
         <ToggleButton Content="Smooth camera" IsChecked="{Binding SmoothCamera}" Margin="8,0,0,0"

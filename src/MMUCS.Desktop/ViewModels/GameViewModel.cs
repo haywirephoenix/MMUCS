@@ -140,8 +140,14 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Hint))]
-    [NotifyCanExecuteChangedFor(nameof(PlayCommand), nameof(StopCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PlayCommand), nameof(PauseCommand), nameof(StopCommand))]
     public partial bool IsPlaying { get; private set; }
+
+    /// <summary>Whether the scripts' game has booted and not been stopped (playing or paused): Stop ends it.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Hint))]
+    [NotifyCanExecuteChangedFor(nameof(StopCommand))]
+    public partial bool IsStarted { get; private set; }
 
     /// <summary>Whether the game has the mouse; the window sets it when it captures or lets go.</summary>
     public bool IsMouseCaptured
@@ -162,7 +168,7 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         : new(Game.CursorPosition.X, Game.CursorPosition.Y);
 
     /// <summary>The line drawn over the canvas: what to do next.</summary>
-    public string Hint => !IsPlaying ? (RunScripts ? "Press Play to boot the game." : "Press Play to start.")
+    public string Hint => !IsPlaying ? (!RunScripts ? "Press Play to start." : IsStarted ? "Paused: Play carries on, Stop ends the game." : "Press Play to boot the game.")
         : IsVideoPlaying ? "Esc skips the video."
         : IsMouseCaptured ? null
         : RunScripts ? "Click the canvas to capture the mouse (Ctrl+Alt lets it go). Clicks and keys go to the game's scripts; Esc skips cutscenes."
@@ -176,13 +182,23 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
     }
     private bool CanPlay() => !IsPlaying;
 
-    [RelayCommand(CanExecute = nameof(CanStop))]
-    private void Stop()
+    /// <summary>Pauses the game where it is (and lets the mouse go); Play carries on.</summary>
+    [RelayCommand(CanExecute = nameof(CanPause))]
+    private void Pause()
     {
         if (RunScripts) Scripted.Stop();
         else Game.Stop();
     }
-    private bool CanStop() => IsPlaying;
+    private bool CanPause() => IsPlaying;
+
+    /// <summary>Ends the game, as its own Quit does: its state is cleared and Play boots it afresh. The stand-ins just stop.</summary>
+    [RelayCommand(CanExecute = nameof(CanStop))]
+    private void Stop()
+    {
+        if (RunScripts) Scripted.Reset();
+        else Game.Stop();
+    }
+    private bool CanStop() => IsPlaying || (RunScripts && IsStarted);
 
     /// <summary>Moves the game cursor to <paramref name="position"/> (game units).</summary>
     public void MoveCursor(Point position)
@@ -245,6 +261,7 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
     private void Refresh()
     {
         IsPlaying = RunScripts ? Scripted.IsPlaying : Game.IsPlaying;
+        IsStarted = RunScripts && Scripted.IsStarted;
         Status = RunScripts ? Scripted.Status : Game.Status;
         Frame = RunScripts ? ScriptedView.Capture() : View.Capture();
         if (IsVideoPlaying != _wasVideo)
