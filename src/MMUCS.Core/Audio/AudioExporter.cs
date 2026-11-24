@@ -29,7 +29,7 @@ public sealed record AudioExportSummary(string Bundle, int Entries, int Written,
 /// out/music/1098.wav        musdisk*.bun: the number the file name starts with ("1098-C~1.IMX")
 /// out/music/1098.meta.json  format, title, regions, jumps, markers and stop, in sample frames
 /// out/voice/bccb301.wav     voxdisk*.bun: the line's code, also the /BCCB301/ code of its subtitle
-/// out/voice/bccb301.meta.json  as above, with the lip-sync data
+/// out/voice/bccb301.meta.json  as above, with the lip sync (mouth width and height over time)
 /// </code>
 /// Sounds on both discs are written once (compared by content). musdisk's PRELOAD is skipped: it only
 /// repeats the start of each track.
@@ -205,14 +205,17 @@ public static class AudioExporter
 
         if (s.Syncs.Count > 0)
         {
-            // Lip-sync data, kept as the raw 32-bit words until its format is decoded.
+            // Lip sync: the mouth's width and height (0–127) from each time on, in ms (60 Hz ticks of 16 ms in
+            // the file), as ImusSound.LipSync reads them.
             w.WriteStartArray("syncs");
             foreach (var y in s.Syncs)
             {
                 w.WriteStartObject();
                 w.WriteNumber("at", Frame(y.Offset));
-                w.WritePropertyName("data");
-                w.WriteRawValue("[" + string.Join(",", y.Data) + "]", skipInputValidation: true);
+                w.WritePropertyName("mouth");
+                w.WriteRawValue("[" + string.Join(",", Array.ConvertAll(y.Data,
+                    d => $"{{\"ms\":{(d >> 16) * 16},\"width\":{(d >> 8) & 0x7F},\"height\":{d & 0x7F}}}")) + "]",
+                    skipInputValidation: true);
                 w.WriteEndObject();
             }
             w.WriteEndArray();

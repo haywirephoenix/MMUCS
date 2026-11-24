@@ -294,7 +294,7 @@ lighting), which a single-image-per-room format can't do.
   "sampleRate": 22050, "channels": 2, "bits": 16, "frames": 1234567,
   "regions": [ { "id": 0, "start": 0, "length": 441000 } ],
   "jumps":   [ { "from": 441000, "toRegion": 1, "hook": 0, "fadeMs": 0 } ],
-  "syncs":   [ { "at": 12345, "data": "…" } ],
+  "syncs":   [ { "at": 12345, "mouth": [ { "ms": 112, "width": 32, "height": 32 }, … ] } ],
   "markers": [ { "at": 0, "text": "…" } ],
   "stop": 1234567 }
 ```

@@ -14,7 +14,7 @@ namespace MMUCS.Core.Audio;
 /// <item>REGN: a stretch of audio. Playback runs region to region.</item>
 /// <item>JUMP: at a position, go to another one when the hook matches (music loops and transitions), with a crossfade.</item>
 /// <item>TEXT: a marker that fires a trigger in the scripts; the first one names the track.</item>
-/// <item>SYNC: lip-sync data for speech.</item>
+/// <item>SYNC: lip-sync data for speech: mouth width and height over time (<see cref="LipSync"/>).</item>
 /// <item>STOP: where playback ends.</item>
 /// </list>
 /// </summary>
@@ -69,6 +69,25 @@ public sealed class ImusSound
                 if (m.Offset == DataOffset && m.Text.Length > 0 && m.Text.Trim('*').Length > 0) return m.Text;
             return null;
         }
+    }
+
+    /// <summary>
+    /// The mouth's width and height (0–127 each) at <paramref name="ms"/> into the sound, from the SYNC block
+    /// <paramref name="sync"/> (ScummVM's tracksLipSync). Each 32-bit entry holds a time in 60 Hz ticks (16 ms)
+    /// in its top half, then the width and the height a byte each; the entry is the last one at or before
+    /// the time. (0, 0) without that block, or for a time past what a tick count holds.
+    /// </summary>
+    public (int Width, int Height) LipSync(int sync, int ms)
+    {
+        if (ms < 0 || sync < 0 || sync >= Syncs.Count || ((ms >> 4) & 0xFFFF0000) != 0) return (0, 0);
+        var data = Syncs[sync].Data;
+        if (data.Length == 0) return (0, 0);
+        uint ticks = (uint)(ms >> 4);
+        int i = 0;
+        while (i < data.Length && data[i] >> 16 < ticks) i++;
+        // Past the end, or on an entry later than the time: the one before it.
+        if (i == data.Length || data[i] >> 16 > ticks) i = Math.Max(0, i - 1);
+        return ((int)(data[i] >> 8) & 0x7F, (int)data[i] & 0x7F);
     }
 
     private ImusSound(byte[] bytes) => Bytes = bytes;
