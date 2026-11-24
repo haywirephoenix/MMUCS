@@ -39,6 +39,7 @@ public static class RoomScripts
         public readonly Dictionary<(int Room, long Offset), int> ScriptAt = [];
         public readonly Dictionary<int, string> ObjectNames = [];
         public readonly List<(int Room, long Offset)> Globals = [];
+        public readonly List<(int Room, long Offset)> Sounds = [];
     }
 
     private static readonly ConditionalWeakTable<ScummBlock, Index> Indexes = [];
@@ -57,9 +58,10 @@ public static class RoomScripts
     private static Index Build(ScummBlock root)
     {
         var index = new Index();
-        ScummBlock dscr = null, dobj = null;
+        ScummBlock dscr = null, dobj = null, dsou = null;
         foreach (var b in Walk(root, 3))
         {
+            if (b.Tag == ScummTag.DSOU) dsou ??= b;
             if (b.Tag == ScummTag.DSCR) dscr ??= b;
             else if (b.Tag == ScummTag.DOBJ) dobj ??= b;
         }
@@ -82,6 +84,8 @@ public static class RoomScripts
                     }
             }
         }
+
+        if (dsou != null) index.Sounds.AddRange(Directory(dsou));
 
         if (dobj != null)
         {
@@ -199,6 +203,28 @@ public static class RoomScripts
     public static IReadOnlyList<(int Room, long Offset)> GlobalScripts(ScummBlock any)
     {
         return any == null ? [] : IndexFor(any).Globals;
+    }
+
+    /// <summary>
+    /// The sound directory (DSOU): for each sound number, its room and its offset from that room's LFLF
+    /// (0, 0 for none), laid out as DSCR.
+    /// </summary>
+    public static IReadOnlyList<(int Room, long Offset)> Sounds(ScummBlock any)
+    {
+        return any == null ? [] : IndexFor(any).Sounds;
+    }
+
+    /// <summary>A resource directory (DSCR, DSOU, DCOS…): count (u16, u32 in v8), rooms[count], offsets[count].</summary>
+    private static List<(int Room, long Offset)> Directory(ScummBlock dir)
+    {
+        var list = new List<(int, long)>();
+        var d = dir.DataSpan;
+        if (d.Length < 2) return list;
+        int n = d.U16LE(0);
+        int header = d.Length >= 4 + n * 5 && d.U16LE(2) == 0 ? 4 : 2;
+        if (d.Length < header + n * 5) return list;
+        for (int i = 0; i < n; i++) list.Add((d[header + i], d.U32LE(header + n + i * 4)));
+        return list;
     }
 
     private static ScriptEntry ObjectEntry(ScummBlock obcd)
