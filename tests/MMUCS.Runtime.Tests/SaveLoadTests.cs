@@ -59,6 +59,33 @@ public class SaveLoadTests
     }
 
     [Fact]
+    public void A_load_puts_the_line_s_speech_back_where_it_was_when_the_save_was_taken()
+    {
+        if (Game == null) return;
+        var save = new Asm().Sub(0xab, 0x5D).Break().End().Global(10);
+        var load = new Asm().Push(0).Sub(0xab, 0x5E).Break().End().Global(11);
+        var vm = new ScriptVm(ScriptStore.Of([save, load], [], new Dictionary<int, (int, int)> { [5] = (640, 480) }), new VmState(GameLimits.Comi));
+        vm.Faulted += f => throw new Xunit.Sdk.XunitException(f.ToString());
+        vm.State[EngineVars.TimerNext] = 1;
+        vm.StartScene(5);
+        var loop = new FrameLoop(vm);
+        var voice = new Sound.VoicePlayer(Sound.VoicePlayer.FromBundles(Game)); // no mixer: it moves on only by Update
+        ScriptedGame.FollowSaves(loop, null, voice, null);
+
+        voice.Start("CNWY034", 2); // Wally: "Blast ye scurvy dogs!"
+        voice.Update(30);
+        var place = Assert.IsType<Sound.SpeechPlace>(voice.Place);
+        Assert.True(place.Frame > 0);
+        vm.RunScript(10);
+        loop.RunFrame(1); // saved, with the speech half a second in
+
+        voice.Stop(); // the F1 menu's room change cuts it
+        vm.RunScript(11);
+        loop.RunFrame(1); // loaded: the speech carries on from where it was
+        Assert.Equal(place, voice.Place);
+    }
+
+    [Fact]
     public void Quit_and_query_quit_ask_the_host_to_quit()
     {
         var quit = new Asm().Sub(0xb3, 0x29).End().Global(10);
@@ -92,6 +119,7 @@ public class SaveLoadTests
         Assert.Equal(9, game.CurrentRoom);
         var running = game.Vm.State.Slots.Where(s => s.IsAlive).Select(s => (s.Number, s.Pc)).ToList();
         int musicState = game.Music?.State.SoundId ?? 0;
+        var musicPlace = game.MusicOutput?.Place;
 
         game.PressKey(FrameLoop.F1Key);
         Seconds(2);
@@ -104,6 +132,8 @@ public class SaveLoadTests
         foreach (var (number, _) in running) Assert.Contains(game.Vm.State.Slots, s => s.IsAlive && s.Number == number);
         Assert.DoesNotContain(game.Vm.State.Slots, s => s.IsAlive && s.Number == 448);
         if (game.Music != null) Assert.Equal(musicState, game.Music.State.SoundId);
+        // The track that played goes on from where it was when F1 was pressed, not from its start.
+        if (game.MusicOutput is { } output) Assert.Equal(musicPlace?.Cue, output.Current);
         Assert.Equal(0, game.Faults);
 
         int quits = 0;

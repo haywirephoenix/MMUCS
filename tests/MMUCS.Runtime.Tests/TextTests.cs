@@ -38,6 +38,25 @@ public class TextTests
     }
 
     [Fact]
+    public void Leaving_the_room_ends_the_line_and_its_speech_at_once()
+    {
+        // As ScummVM's startScene does first: the F1 menu taking the screen cuts the line being said.
+        var code = new Asm()
+            .Push(3).Push(100).Push(300).Push(5).Op(0xa1)
+            .Push(3).Op(0x91).Text("/cngt001/Hello there")
+            .End().Global(10);
+        var (vm, _, speech) = Machine(code);
+        vm.RunScript(10);
+        Assert.True(speech.IsPlaying);
+        Assert.Single(vm.Subtitles);
+
+        vm.StartScene(5);
+        Assert.False(speech.IsPlaying);
+        Assert.Empty(vm.Subtitles);
+        Assert.Equal((0, 0, 0), (vm.State[EngineVars.TalkActor], vm.State[EngineVars.HaveMessage], vm.TalkDelay));
+    }
+
+    [Fact]
     public void A_line_goes_up_with_its_speech_and_talk_animation_and_goes_when_both_are_over()
     {
         // Actor 3 talks in colour 7, its talk script (20) records the animations it's asked for; then the

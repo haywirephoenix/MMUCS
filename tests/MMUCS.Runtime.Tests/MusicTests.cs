@@ -31,6 +31,8 @@ public class MusicTests
         public void SetHook(int hook) => Calls.Add($"hook {hook}");
         public void ArmEnd(int soundId) { Armed = soundId; Calls.Add($"arm {soundId}"); }
         public bool TakeEnd() { bool e = End; End = false; return e; }
+        public MusicPlace? Place { get; set; }
+        public void Resume(MusicPlace place) { Playing = place.Cue.SoundId; Calls.Add($"resume {place.Cue.SoundId} at {place.Frame} hook {place.Hook}"); }
     }
 
     /// <summary>A program holding the two tables in the game's 76-byte rows.</summary>
@@ -196,5 +198,41 @@ public class MusicTests
         }
         Assert.True(heard);
         Assert.Contains("music 1099-Menu", game.Status);
+    }
+
+    [Fact]
+    public void A_load_puts_back_the_track_that_was_playing_where_it_was()
+    {
+        var output = new Recorder();
+        var music = new ComiMusic(Rows, output);
+        var cue = Rows.States[1];
+        output.Playing = cue.SoundId;
+        output.Place = new MusicPlace(cue, 2, 123456);
+        var saved = music.Save();
+
+        output.FadeOut(0); // the F1 menu's stop-all
+        output.Calls.Clear();
+        music.Restore(saved);
+        Assert.Equal([$"resume {cue.SoundId} at 123456 hook 2"], output.Calls);
+
+        // Nothing was playing: a load leaves silence.
+        output.Place = null;
+        var silent = music.Save();
+        output.Playing = cue.SoundId;
+        output.Calls.Clear();
+        music.Restore(silent);
+        Assert.Equal(["fade 0ms"], output.Calls);
+    }
+
+    [Fact]
+    public void A_resumed_track_starts_from_the_frame_it_was_saved_at()
+    {
+        if (Game == null || MusicTable.Load(Game) is not { } table) return;
+        var output = new MixerMusic(MixerMusic.FromBundles(Game)); // no mixer: the track doesn't move on by itself
+        var cue = table.States.First(c => c.File.Length > 0 && c.SoundId != 0);
+        output.Resume(new MusicPlace(cue, 0, 44100));
+        for (int i = 0; i < 500 && !output.IsLoaded; i++) { output.Update(); Thread.Sleep(10); }
+        Assert.True(output.IsLoaded);
+        Assert.Equal(new MusicPlace(cue, 0, 44100), output.Place);
     }
 }
