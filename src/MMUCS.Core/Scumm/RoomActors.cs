@@ -383,6 +383,9 @@ public static partial class RoomActors
             return _links.TryGetValue(LinkKey(room.RoomNo, obj.Name), out int c) ? c : null;
     }
 
+    /// <summary>Costume <paramref name="costume"/>'s AKOS block, through the index's DCOS (any block of the game finds it), or null.</summary>
+    public static ScummBlock CostumeBlock(ScummBlock anyBlock, int costume) => costume <= 0 ? null : DirectoryFor(anyBlock).Resolve(costume, null);
+
     /// <summary>Costume number → AKOS block, from the index file's DCOS.</summary>
     private sealed class CostumeDirectory
     {
@@ -419,6 +422,7 @@ public static partial class RoomActors
             if (!_entries.TryGetValue(costume, out var e)) return null;
             if (!_lflfByRoom.TryGetValue(e.Room, out var target)) target = null;
             target ??= lflf;
+            if (target == null) return null;
             long abs = target.Offset + e.Offset;
             foreach (var c in target.Children)
                 if (c.Tag == ScummTag.AKOS && c.Offset == abs) return c;

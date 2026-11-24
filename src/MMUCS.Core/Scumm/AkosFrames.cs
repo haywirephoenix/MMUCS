@@ -48,7 +48,7 @@ public static class AkosFrames
 {
     public const int InitFrame = 1, StandFrame = 3;
 
-    private const int OpEmptyCel = 0xC001, OpDrawMany = 0xC020, OpDrawCondA = 0xC021, OpDrawCondB = 0xC022;
+    private const int OpEmptyCel = 0xC001, OpDrawMany = 0xC020, OpDrawCondA = 0xC021, OpDrawCondB = 0xC022, OpDrawMany2 = 0xC025;
 
     /// <summary>
     /// The chore of an animation in one of the costume's directions: anim × 4 + dir for four-direction
@@ -291,6 +291,47 @@ public static class AkosFrames
         {
             var steps = GetFrameSteps(d, limb);
             if (steps.Count > 0) AddStep(d, steps[step % steps.Count], frame, ref xmove, ref ymove);
+        }
+        return frame;
+    }
+
+    /// <summary>
+    /// The frame an actor shows with its limbs at these AKSQ positions, in limb order (ScummVM
+    /// <c>AkosRenderer::drawLimb</c> for each active limb that isn't stopped): a cel, a list of cels
+    /// (0xC020, 0xC025 with its extra offset, the conditional 0xC021/0xC022 drawn like their plain
+    /// forms), or nothing for a control step.
+    /// </summary>
+    public static AkosFrame ComposeAt(AkosData d, IEnumerable<int> positions)
+    {
+        var frame = new AkosFrame();
+        var seq = d.Sequence.Span;
+        int xmove = 0, ymove = 0;
+        foreach (int start in positions)
+        {
+            int pos = start;
+            if (pos < 0 || pos + 1 >= seq.Length) continue;
+            int code = ReadCode(seq, pos);
+            if (code is OpDrawCondA or OpDrawCondB)
+            {
+                if (pos + 3 >= seq.Length) continue;
+                pos += seq[pos + 3] + 2;
+                code = code == OpDrawCondA ? OpDrawMany : OpDrawMany2;
+            }
+            if (code == OpDrawMany2) pos += 4;
+            if (code is OpDrawMany or OpDrawMany2)
+            {
+                if (pos + 2 >= seq.Length) continue;
+                int n = seq[pos + 2], r = pos + 3;
+                for (int i = 0; i < n && r + 4 < seq.Length; i++)
+                {
+                    int x = (short)seq.U16LE(r), y = (short)seq.U16LE(r + 2);
+                    int celCode = ReadCode(seq, r + 4);
+                    r += (seq[r + 4] & 0x80) != 0 ? 6 : 5;
+                    AddCel(d, celCode & 0xFFF, xmove + x, ymove + y, frame);
+                }
+                continue;
+            }
+            AddStep(d, pos, frame, ref xmove, ref ymove);
         }
         return frame;
     }
