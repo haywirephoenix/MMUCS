@@ -214,13 +214,14 @@ public class ScriptedViewTests
         for (int i = 0; i < 6; i++) game.Tick();
         game.Release(MouseButton.Right);
         for (int i = 0; i < 30; i++) game.Tick();
-        for (int i = 0; i < 5; i++)
+        var frame = view.Capture();
+        for (int i = 0; i < 100 && frame.Blasts.Count < game.Vm.BlastObjects.Count; i++)
         {
-            view.Capture();
             await view.CursorLoading;
             await view.Building;
+            await Task.Delay(20);
+            frame = view.Capture();
         }
-        var frame = view.Capture();
         Assert.Equal(game.Vm.BlastObjects.Count, frame.Blasts.Count);
         Assert.True(frame.Blasts.Count >= 2);
         Assert.Equal(GameState.PageOrigin.X, frame.Blasts[0].Bounds.X, 3); // inventory-bg-object at the page's 0,0

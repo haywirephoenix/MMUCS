@@ -112,6 +112,20 @@ public class ActorTests
     }
 
     [Fact]
+    public void Setting_an_actor_up_gives_it_object_0_s_classes_as_the_v7_engine_does()
+    {
+        // COMI makes object 0 untouchable before setting up overlay actors, so actor-at passes over them.
+        var code = Current(new Asm(), 3).Sub(0xac, 0x6D).End().Global(10);   // actor 3 default
+        var vm = Machine(code);
+        vm.Actors[3].Drawn = (0, 0, 100, 100);
+        Assert.Equal(3, vm.ActorAt(50, 50));
+        vm.State.Objects.SetClass(0, ObjectTables.Untouchable, true);
+        vm.RunScript(10);
+        Assert.True(vm.State.Objects.HasClass(3, ObjectTables.Untouchable));
+        Assert.Equal(0, vm.ActorAt(50, 50));
+    }
+
+    [Fact]
     public void An_actor_variable_past_the_table_is_a_fault()
     {
         var code = Current(new Asm(), 3).Push(27).Push(1).Sub(0xac, 0x7b).End().Global(10);

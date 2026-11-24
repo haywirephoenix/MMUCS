@@ -108,6 +108,12 @@ public class TextTests
         Assert.Equal("AB12", tag);
         Assert.Equal("No tag", vm.ConvertMessage("No tag"u8, out tag));
         Assert.Equal("", tag);
+
+        // A string variable's text is converted too: a verb name loses its tag (the verb coin's labels).
+        var verb = vm.State.DefineArray(301, ArrayType.String, 0, 32);
+        "/PU_M018/examine"u8.CopyTo(verb.Bytes);
+        byte[] label = [0xFF, 7, .. BitConverter.GetBytes(301), .. " cannon"u8, 0];
+        Assert.Equal("examine cannon", vm.ConvertMessage(label, out _));
     }
 
     [Fact]

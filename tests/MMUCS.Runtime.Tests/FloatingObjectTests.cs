@@ -130,6 +130,9 @@ public class FloatingObjectTests
         game.MoveCursor(GameState.PageToGame(new GamePoint(152, 268)));
         game.Press(MouseButton.Left);
         for (int i = 0; i < 40; i++) game.Tick();
+        // Held on the cannon it's the cannon that's clicked, not the full-screen overlay actor over it, so
+        // its name stays up as the label.
+        Assert.Contains(game.Vm.ScreenTexts, t => t.Text == "cannon");
         var coin = Assert.Single(game.Vm.Actors.UpperPictures);
         Assert.Equal(50, coin.Actor);
         Assert.Equal(1, game.Vm.Actors[50].Costume);
