@@ -489,7 +489,7 @@ public sealed class ActorTable
             {
                 case 1: Put(a, 0, 0, 0); break;
                 case 4: StartAnim(a, q.Param); break;
-                case 5: a.ForceClip = q.Param; break;
+                case 5: a.ForceClip = q.Param & 0xFF; break;
                 // 3: a sound effect (no sound yet).
             }
         }

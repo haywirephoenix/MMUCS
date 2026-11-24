@@ -209,7 +209,9 @@ public sealed partial class ScriptVm
             case 0x72: a.Width = A0(); break;
             case 0x73: a.ScaleX = a.ScaleY = A0(); break;
             case 0x74: a.ForceClip = 0; break;
-            case 0x75: a.ForceClip = A0() == 255 ? Actor.BoxClip : A0(); break;
+            case 0x75: // the engine keeps it in a byte, so −1 is 255 too: the walk box's plane
+                a.ForceClip = (A0() & 0xFF) == 255 ? Actor.BoxClip : A0() & 0xFF;
+                break;
             case 0x76:
             case 0x77:
                 a.IgnoreBoxes = ins.SubOp == 0x76;

@@ -60,7 +60,7 @@ public sealed class Actor
     public int Layer { get; set; }
     public int ShadowMode { get; set; }
 
-    /// <summary>The z-plane it's drawn behind: 0 none, <see cref="BoxClip"/> its walk box's.</summary>
+    /// <summary>The z-plane it's drawn behind: 0 none, <see cref="BoxClip"/> its walk box's (0–255, a byte in the engine).</summary>
     public int ForceClip { get; set; }
 
     public bool IgnoreBoxes { get; set; }
