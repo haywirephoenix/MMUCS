@@ -56,6 +56,11 @@ static class BootCommand
         var effects = new MMUCS.Runtime.Sound.SoundEffects(MMUCS.Runtime.Sound.SoundEffects.FromResources(store, root));
         effects.Started += id => Line($"SOUND {id} starts", vm.Depth);
         vm.Effects = effects;
+        var voice = new MMUCS.Runtime.Sound.VoicePlayer(MMUCS.Runtime.Sound.VoicePlayer.FromBundles(gameFile));
+        vm.Speech = voice;
+        if (gameFile != null) vm.StringWidth = MMUCS.Runtime.ScriptedGame.MeasureWith(MMUCS.Core.Fonts.NutFont.LoadAll(gameFile));
+        vm.Said += (text, tag, actor) => Line($"SAY {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" {tag}" : "")}: {text.Replace('\n', ' ')}", vm.Depth);
+        vm.SystemMessage += text => Line($"SYSTEM {text}", vm.Depth);
         MMUCS.Runtime.Sound.ComiMusic music = null;
         if (MMUCS.Core.Audio.MusicTable.Load(gameFile) is { } table)
         {
@@ -67,6 +72,7 @@ static class BootCommand
         loop.AfterScripts += jiffies =>
         {
             effects.Update(jiffies);
+            voice.Update(jiffies);
             music?.Refresh();
         };
         vm.Faulted += f => { faults++; Line($"FAULT {f}", vm.Depth); };
