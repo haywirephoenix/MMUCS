@@ -1,0 +1,104 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using MMUCS.Core;
+using MMUCS.Core.Audio;
+using MMUCS.Core.Diagnostics;
+using MMUCS.Core.Media;
+using MMUCS.Runtime.Scripts;
+
+namespace MMUCS.Runtime.Sound;
+
+/// <summary>
+/// The lines' speech (ScummVM <c>playSpeech</c> for COMI): the tag names an entry of the voice bundles
+/// (BCCB301 is BCCB301.IMX), played through the mixer's voice group. One line at a time. Without a mixer
+/// the line is read along with the game's time (<see cref="Update"/>), so a line lasts as long as its speech.
+/// </summary>
+public sealed class VoicePlayer : ISpeech
+{
+    private readonly Func<string, ImusSound> _load;
+    private ImusPlayer _player;
+    private MixerVoice _voice;
+    private float[] _scratch = [];
+    private bool _paused;
+
+    /// <param name="load">A voice file by name ("BCCB301.IMX"), or null when there's none.</param>
+    public VoicePlayer(Func<string, ImusSound> load) => _load = load ?? throw new ArgumentNullException(nameof(load));
+
+    public Mixer Mixer { get; set; }
+
+    /// <summary>The line's tag playing now, or null.</summary>
+    public string Playing => IsPlaying ? _tag : null;
+    private string _tag;
+
+    public bool IsPlaying => _player != null && (_voice != null ? !_voice.Finished : !_player.Finished);
+
+    public void Start(string tag, int actor)
+    {
+        Stop();
+        ImusSound sound;
+        try { sound = _load(tag + ".IMX"); }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warn($"Game speech {tag}: {ex.Message}");
+            return;
+        }
+        if (sound == null) return;
+        _tag = tag;
+        _player = new ImusPlayer(sound);
+        if (Mixer != null)
+        {
+            _voice = Mixer.Play(_player, MixGroup.Voice);
+            _voice.Paused = _paused;
+        }
+    }
+
+    public void Stop()
+    {
+        _voice?.Stop();
+        _voice = null;
+        _player = null;
+        _tag = null;
+    }
+
+    public bool Paused
+    {
+        get => _paused;
+        set
+        {
+            _paused = value;
+            if (_voice != null) _voice.Paused = value;
+        }
+    }
+
+    /// <summary>Once a frame: without a mixer, the line is read for <paramref name="jiffies"/>.</summary>
+    public void Update(int jiffies)
+    {
+        if (Mixer != null || _paused || _player == null) return;
+        int need = _player.SampleRate * jiffies / 60 * _player.Channels;
+        if (_scratch.Length < need) _scratch = new float[need];
+        _player.Read(_scratch.AsSpan(0, need));
+    }
+
+    /// <summary>A loader for the voice bundles (.bun beside <paramref name="gameFile"/>), by entry name, either disc's.</summary>
+    public static Func<string, ImusSound> FromBundles(string gameFile)
+    {
+        var index = new Lazy<Dictionary<string, (string, int)>>(() =>
+        {
+            var map = new Dictionary<string, (string, int)>(StringComparer.OrdinalIgnoreCase);
+            foreach (var bun in GameFiles.Find(gameFile, ".bun"))
+            {
+                if (AudioExporter.KindOf(bun) == "music") continue;
+                using var bundle = Bundle.Open(bun);
+                for (int i = 0; i < bundle.Entries.Count; i++) map.TryAdd(bundle.Entries[i].Name, (bun, i));
+            }
+            return map;
+        });
+        return name =>
+        {
+            if (gameFile == null || !index.Value.TryGetValue(name, out var at)) return null;
+            using var bundle = Bundle.Open(at.Item1);
+            return ImusSound.Parse(BundleCodec.Decompress(bundle.Read(bundle.Entries[at.Item2])));
+        };
+    }
+}

@@ -619,7 +619,7 @@ public sealed partial class ScriptVm
             case 0xd3: Push(IsScriptRunning(Pop())); return;
             case 0xd6: Push(Math.Abs(Pop())); return;
         }
-        if (ExecActor(s, ins)) return;
+        if (ExecActor(s, ins) || ExecText(s, ins)) return;
         NotHandled(s, ins);
     }
 

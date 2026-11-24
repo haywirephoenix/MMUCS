@@ -56,7 +56,27 @@ public sealed class ScriptedGame : IDisposable
         _output = output;
         if (MusicOutput != null) MusicOutput.Mixer = mixer;
         if (Effects != null) Effects.Mixer = mixer;
+        if (Voice != null) Voice.Mixer = mixer;
     }
+
+    /// <summary>
+    /// <c>get-string-width</c> in these fonts (charset N is fontN.nut): the widest line's pen advance, the
+    /// text's ^ codes skipped; 0 for a charset there's no font for.
+    /// </summary>
+    public static Func<int, string, int> MeasureWith(MMUCS.Core.Fonts.GlyphFont[] fonts) => (charset, text) =>
+    {
+        var font = charset >= 0 && charset < fonts.Length ? fonts[charset] : null;
+        if (font == null) return 0;
+        int width = 0;
+        foreach (var line in text.Split('\n')) width = Math.Max(width, (int)MMUCS.Core.Fonts.TextLayouter.Width(line, 0, line.Length, font));
+        return width;
+    };
+
+    /// <summary>The game's fonts by charset number (empty without the game's files).</summary>
+    public MMUCS.Core.Fonts.GlyphFont[] Fonts { get; private set; } = [];
+
+    /// <summary>The lines' speech.</summary>
+    public VoicePlayer Voice { get; private set; }
 
     /// <summary>The sound effects the scripts start.</summary>
     public SoundEffects Effects { get; private set; }
@@ -138,6 +158,13 @@ public sealed class ScriptedGame : IDisposable
         MusicOutput = null;
         var effects = Effects = new SoundEffects(SoundEffects.FromResources(Scripts, root)) { Mixer = _mixer };
         Vm.Effects = effects;
+        var voice = Voice = new VoicePlayer(VoicePlayer.FromBundles(gameFile)) { Mixer = _mixer };
+        Vm.Speech = voice;
+        // The game's fonts, for get-string-width (the scripts centre and fit text with it).
+        var fonts = gameFile == null ? [] : MMUCS.Core.Fonts.NutFont.LoadAll(gameFile);
+        Fonts = fonts;
+        Vm.StringWidth = MeasureWith(fonts);
+        Vm.Said += (text, tag, actor) => Log.Info($"Game: {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" ({tag})" : "")}: {text}");
         if (MusicTable.Load(gameFile) is { } table)
         {
             MusicOutput = new MixerMusic(MixerMusic.FromBundles(gameFile)) { Mixer = _mixer };
@@ -157,6 +184,7 @@ public sealed class ScriptedGame : IDisposable
         Loop.AfterScripts += jiffies =>
         {
             effects.Update(jiffies);
+            voice.Update(jiffies);
             musicOutput?.Update();
             music?.Refresh();
         };
@@ -182,6 +210,7 @@ public sealed class ScriptedGame : IDisposable
         }
         if (MusicOutput != null) MusicOutput.Paused = false;
         if (Effects != null) Effects.Paused = false;
+        if (Voice != null) Voice.Paused = false;
         Changed?.Invoke();
     }
 
@@ -193,6 +222,7 @@ public sealed class ScriptedGame : IDisposable
         if (_videoVoice != null) _videoVoice.Paused = true;
         if (MusicOutput != null) MusicOutput.Paused = true;
         if (Effects != null) Effects.Paused = true;
+        if (Voice != null) Voice.Paused = true;
         SetMouseCaptured(false);
         Changed?.Invoke();
     }
@@ -346,6 +376,7 @@ public sealed class ScriptedGame : IDisposable
         _videoVoice?.Stop();
         MusicOutput?.FadeOut(0);
         Effects?.StopAll();
+        Voice?.Stop();
         _engine.Dispose();
     }
 

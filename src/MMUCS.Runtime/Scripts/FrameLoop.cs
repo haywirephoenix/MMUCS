@@ -118,6 +118,7 @@ public sealed class FrameLoop
 
         int step = Math.Min(jiffies, MaxDelayStep);
         Vm.DecreaseDelays(step);
+        Vm.TalkTime(step);
 
         int input = ProcessInput();
         BeforeScripts?.Invoke(step);
@@ -126,6 +127,8 @@ public sealed class FrameLoop
         CheckExecVerbs(input);
         if (Vm.CurrentRoom != 0) Vm.WalkActors();
         Vm.UpdateObjectStates();
+        Vm.Charset();
+        Vm.EndFrameTexts();
         if (Vm.CurrentRoom != 0) Vm.ProcessActors();
         Frames++;
         AfterScripts?.Invoke(step);
