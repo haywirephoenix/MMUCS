@@ -36,6 +36,8 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         _gameFile = gameFile;
         View = new GameView(Game);
         ScriptedView = new ScriptedView(Scripted);
+        // A save's thumbnail: the page as last shown (before the F1 menu draws itself, or at F6).
+        Scripted.TakeThumbnail = () => Frame?.PagePng(ScriptedGame.ThumbnailWidth, ScriptedGame.ThumbnailHeight);
         Fonts = new FontChooser(settings);
         _settings = settings;
         Scripted.SmoothCamera = SmoothCamera = settings?.SmoothCamera ?? true;

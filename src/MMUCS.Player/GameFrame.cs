@@ -77,7 +77,27 @@ public sealed class GameFrame
     /// Draws the frame into <paramref name="viewport"/> on <paramref name="canvas"/>: the 16:9 picture as large as it
     /// fits, centred, black around it; game pixels stay square (nearest-neighbour when enlarged).
     /// </summary>
-    public void Render(SKCanvas canvas, SKRect viewport)
+    public void Render(SKCanvas canvas, SKRect viewport) => Render(canvas, viewport, cursor: true);
+
+    /// <summary>
+    /// The 640×480 page as a PNG of <paramref name="width"/>×<paramref name="height"/> (a save's thumbnail), drawn
+    /// as <see cref="Render(SKCanvas, SKRect)"/> draws it, without the cursor.
+    /// </summary>
+    public byte[] PagePng(int width, int height)
+    {
+        int canvasWidth = (int)Math.Ceiling(GameState.CanvasWidth), canvasHeight = (int)GameState.CanvasHeight;
+        using var full = SKSurface.Create(new SKImageInfo(canvasWidth, canvasHeight));
+        Render(full.Canvas, new SKRect(0, 0, (float)GameState.CanvasWidth, canvasHeight), cursor: false);
+        using var picture = full.Snapshot();
+        using var small = SKSurface.Create(new SKImageInfo(width, height));
+        var page = SKRect.Create((float)GameState.PageOrigin.X, (float)GameState.PageOrigin.Y, (float)GameState.PageSize.Width, (float)GameState.PageSize.Height);
+        small.Canvas.DrawImage(picture, page, new SKRect(0, 0, width, height), new SKSamplingOptions(SKCubicResampler.Mitchell));
+        using var thumbnail = small.Snapshot();
+        using var png = thumbnail.Encode(SKEncodedImageFormat.Png, 100);
+        return png.ToArray();
+    }
+
+    private void Render(SKCanvas canvas, SKRect viewport, bool cursor)
     {
         using var paint = new SKPaint { IsAntialias = false };
         paint.Color = Letterbox;
@@ -157,7 +177,7 @@ public sealed class GameFrame
             label.Draw(canvas, smooth: scale < 0.999f);
             canvas.Restore();
         }
-        if (Cursor is { } cursor) canvas.DrawImage(cursor.Image, Rect(cursor.Bounds), sampling);
+        if (cursor && Cursor is { } pointer) canvas.DrawImage(pointer.Image, Rect(pointer.Bounds), sampling);
         canvas.Restore();
     }
 

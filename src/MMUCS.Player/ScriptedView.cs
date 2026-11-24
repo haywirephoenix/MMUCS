@@ -93,7 +93,7 @@ public sealed class ScriptedView
             UpperActors = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 && game.Vm.Actors.UpperPictures.Count > 0
                 ? new RoomScene { Width = _scene.Width, Height = _scene.Height, ZMasks = _scene.ZMasks, Actors = SceneActors(_scene, game.Vm.Actors.UpperPictures) }
                 : null,
-            Blasts = BlastFrames(),
+            Blasts = [.. BlastFrames(), .. StampFrames()],
             Camera = game.Camera,
             TextShift = new(game.EngineCamera.X - game.Camera.X, game.EngineCamera.Y - game.Camera.Y),
             Texts = ScreenTexts(overActor: false),
@@ -251,6 +251,61 @@ public sealed class ScriptedView
     {
         if (_actorImages.Count > 512) _actorImages.Clear();
         return RoomSceneBuilder.SceneActors(pictures, scene.ZMasks.Count, _actorImages, Game.ActorSlide, _screen);
+    }
+
+    private readonly Dictionary<(int Slot, int Brightness), (object Source, SKImage Image)> _thumbnails = [];
+
+    /// <summary>
+    /// The save thumbnails the F1 menu stamped, on the page over its blasted objects: slot 0's from the menu's
+    /// snapshot, the others from their save files, dimmed by the stamp's brightness. A slot without one shows
+    /// nothing (the menu's frame stays empty).
+    /// </summary>
+    private List<FrameImage> StampFrames()
+    {
+        var stamps = Game.Vm.SaveStamps;
+        if (stamps.Count == 0) return [];
+        var list = new List<FrameImage>(stamps.Count);
+        var page = GameState.PageOrigin;
+        foreach (var stamp in stamps)
+            if (Thumbnail(stamp.Slot, stamp.Brightness) is { } image)
+                list.Add(new FrameImage(image, new GameRect(page.X + stamp.X, page.Y + stamp.Y, stamp.Width, stamp.Height)));
+        return list;
+    }
+
+    /// <summary>A slot's thumbnail at a brightness, decoded once for each save written (its file's time) or snapshot taken.</summary>
+    private SKImage Thumbnail(int slot, int brightness)
+    {
+        object source;
+        if (slot == 0) source = Game.Snapshot?.Thumbnail;
+        else
+        {
+            string path = Game.Saves?.SlotPath(slot);
+            source = path != null && System.IO.File.Exists(path) ? System.IO.File.GetLastWriteTimeUtc(path) : null;
+        }
+        var key = (slot, brightness);
+        if (source == null) return null;
+        if (_thumbnails.TryGetValue(key, out var cached) && Equals(cached.Source, source)) return cached.Image;
+        byte[] png = slot == 0 ? (byte[])source : Game.Saves.SlotThumbnail(slot);
+        SKImage image = null;
+        if (png != null)
+        {
+            using var decoded = SKImage.FromEncodedData(png);
+            if (decoded != null) image = Dimmed(decoded, Math.Clamp(brightness, 0, 255) / 255f);
+        }
+        // The image replaced isn't disposed: a frame drawn on another thread may still hold it.
+        _thumbnails[key] = (source, image);
+        return image;
+    }
+
+    private static SKImage Dimmed(SKImage image, float brightness)
+    {
+        using var surface = SKSurface.Create(new SKImageInfo(image.Width, image.Height));
+        using var paint = new SKPaint
+        {
+            ColorFilter = SKColorFilter.CreateColorMatrix([brightness, 0, 0, 0, 0, 0, brightness, 0, 0, 0, 0, 0, brightness, 0, 0, 0, 0, 0, 1, 0]),
+        };
+        surface.Canvas.DrawImage(image, 0, 0, paint);
+        return surface.Snapshot();
     }
 
     /// <summary>
