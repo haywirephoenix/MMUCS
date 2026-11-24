@@ -374,6 +374,13 @@ int ShowBox(List<string> a)
     }
     var (px, py, box) = RoomActors.PutInBox(boxes, x, y, player);
     Console.WriteLine($"engine: box {box} (mask {(box < boxes.Count ? boxes[box].Mask & 0xFF : 0)}){(px != x || py != y ? $", moved to {px},{py}" : "")}");
+    if (room.Lflf?.FindChildRecursive(ScummTag.BOXM) is { } boxm && box > 0)
+    {
+        var ways = Enumerable.Range(1, boxes.Count - 1).Where(to => to != box)
+            .Select(to => (To: to, Via: Walkboxes.NextBox(boxm.DataSpan, box, to)))
+            .Select(w => w.Via < 0 ? $"{w.To} none" : w.Via == w.To ? $"{w.To} direct" : $"{w.To} via {w.Via}");
+        Console.WriteLine($"ways from box {box} (BOXM): {string.Join(", ", ways)}");
+    }
     return 0;
 }
 
