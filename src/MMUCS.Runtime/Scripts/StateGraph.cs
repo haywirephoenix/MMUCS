@@ -148,7 +148,7 @@ public static class StateGraph
     });
 
     /// <summary>Whether values of the type are shared rather than copied (immutable values, resources, services).</summary>
-    private static bool IsShared(Type type) => Shared.GetOrAdd(type, static t =>
+    internal static bool IsShared(Type type) => Shared.GetOrAdd(type, static t =>
     {
         if (t.IsPrimitive || t.IsEnum || t.IsPointer || t == typeof(string) || t == typeof(decimal)) return true;
         if (typeof(Delegate).IsAssignableFrom(t) || typeof(MemberInfo).IsAssignableFrom(t)) return true;

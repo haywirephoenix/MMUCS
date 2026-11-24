@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using MMUCS.Core;
 using MMUCS.Core.Audio;
 using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Media;
@@ -223,7 +224,6 @@ public sealed class ScriptedGame : IDisposable
     {
         Root = root ?? throw new ArgumentNullException(nameof(root));
         GameFile = gameFile;
-        _quickSave = null;
         Scripts = new ScriptStore(root);
         Music = null;
         MusicOutput = null;
@@ -448,44 +448,110 @@ public sealed class ScriptedGame : IDisposable
         if (IsPlaying) Loop?.PressKey(code);
     }
 
-    private (ScriptVm State, ComiMusic.Saved Music, SpeechPlace? Speech)? _quickSave;
+    /// <summary>
+    /// The quick save's file (F6 and F4): in the saves folder under the app's data, one folder per game, so it
+    /// outlasts the app.
+    /// </summary>
+    public string QuickSavePath => Path.Combine(CorePaths.Root, "saves",
+        GameFile == null ? "unnamed" : Path.GetFileNameWithoutExtension(GameFile).ToLowerInvariant(), "quick.mmucs-save");
 
     /// <summary>Whether there's a quick save to load.</summary>
-    public bool HasQuickSave => _quickSave != null;
+    public bool HasQuickSave => File.Exists(QuickSavePath);
 
     /// <summary>
-    /// A quick save (F6): a copy of the whole engine in memory, with the music and the line's speech where they
-    /// are, as the F1 menu's temporary save keeps them. Nothing goes to disk, so it lasts until the game is reset
-    /// or closed. Not during a video (the engine is in the middle of a frame). Returns whether it was taken.
+    /// A quick save (F6): the whole engine written to <see cref="QuickSavePath"/>, with the music, the line's
+    /// speech and the effects playing, and where they are (<see cref="WriteSave"/>). Not during a video (the engine is in
+    /// the middle of a frame). Returns whether it was written.
     /// </summary>
     public bool QuickSave()
     {
         if (!_booted || Vm == null || IsVideoPlaying || _engine.IsParked) return false;
-        ScriptVm state = null;
-        Step(() => state = Vm.SaveState());
-        if (state == null) return false;
-        _quickSave = (state, Music?.Save(), Voice?.Place);
-        Log.Info($"Game: quick save in room {state.CurrentRoom}");
-        return true;
+        try
+        {
+            string path = QuickSavePath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            string temp = path + ".new";
+            StateFile.Summary summary = null;
+            Exception failed = null;
+            Step(() =>
+            {
+                try
+                {
+                    using var file = File.Create(temp);
+                    summary = WriteSave(file, Vm, Music, Voice, Effects);
+                }
+                catch (Exception ex) { failed = ex; } // a failed save leaves the game running
+            });
+            if (failed != null) throw failed;
+            if (summary == null) return false;
+            File.Move(temp, path, overwrite: true);
+            Log.Info($"Game: quick save in room {CurrentRoom}: {summary.Objects} objects, {summary.Bytes / 1024} KiB, to {path}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Game: quick save failed: {ex}");
+            return false;
+        }
     }
 
     /// <summary>
-    /// Loads the quick save (F4): the engine as it was, the effects stopped and the music and speech carried on
-    /// from where they were. It stays, so it can be loaded again. Returns whether there was one to load.
+    /// Loads the quick save (F4): the engine as it was, and the music, speech and effects carried on from where
+    /// they were. The file stays, so it can be loaded again. Returns whether it was loaded.
     /// </summary>
     public bool QuickLoad()
     {
-        if (_quickSave is not { } save || Vm == null || IsVideoPlaying || _engine.IsParked) return false;
-        Step(() => Loop.LoadState(save.State));
-        _booted = true; // after a Stop, the save goes on in the fresh engine rather than a new boot
-        Effects?.StopAll();
-        Voice?.Stop();
-        if (save.Speech is { } speech) Voice?.Resume(speech);
-        if (save.Music != null) Music?.Restore(save.Music);
-        _viewRoom = -1; // the camera shown goes straight to the loaded one
-        Log.Info($"Game: quick load into room {CurrentRoom}");
-        Changed?.Invoke();
-        return true;
+        if (!HasQuickSave || Vm == null || IsVideoPlaying || _engine.IsParked) return false;
+        try
+        {
+            var missing = new System.Collections.Generic.List<string>();
+            bool loaded = false;
+            Exception failed = null;
+            Step(() =>
+            {
+                try
+                {
+                    using var file = File.OpenRead(QuickSavePath);
+                    ReadSave(file, Loop, Effects, Voice, Music, missing);
+                    loaded = true;
+                }
+                catch (Exception ex) { failed = ex; }
+            });
+            if (failed != null) throw failed;
+            if (!loaded) return false;
+            foreach (var what in missing.Distinct()) Log.Warn($"Game: quick load: {what} isn't there any more");
+            _booted = true; // after a Stop, the save goes on in the fresh engine rather than a new boot
+            _viewRoom = -1; // the camera shown goes straight to the loaded one
+            Log.Info($"Game: quick load into room {CurrentRoom}");
+            Changed?.Invoke();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Game: quick load failed: {ex}");
+            return false;
+        }
+    }
+
+    /// <summary>A save as a file: the engine, the music's state and track, the line's speech and the effects playing, and where they were.</summary>
+    public static StateFile.Summary WriteSave(Stream stream, ScriptVm vm, ComiMusic music, VoicePlayer voice, SoundEffects effects) =>
+        StateFile.Write(stream, new object[] { vm, music?.Save(), voice?.Place, effects?.Save() });
+
+    /// <summary>
+    /// Loads a save written by <see cref="WriteSave"/> into the loop's engine: the music, speech and effects carry on
+    /// from where they were. What the game no longer has goes in <paramref name="missing"/>.
+    /// </summary>
+    public static void ReadSave(Stream stream, FrameLoop loop, SoundEffects effects, VoicePlayer voice, ComiMusic music,
+        System.Collections.Generic.List<string> missing = null)
+    {
+        if (StateFile.Read(stream, loop.Vm, missing) is not object[] { Length: >= 3 } parts || parts[0] is not ScriptVm saved)
+            throw new InvalidDataException("not a game save");
+        loop.LoadState(saved);
+        if (parts.Length > 3 && parts[3] is System.Collections.Generic.List<SoundEffects.Saved> playing) effects?.Restore(playing);
+        else effects?.StopAll();
+        voice?.Stop();
+        if (parts[2] is SpeechPlace speech) voice?.Resume(speech);
+        if (parts[1] is ComiMusic.Saved savedMusic) music?.Restore(savedMusic);
     }
 
     /// <summary>One jiffy (1/60 s) while playing: the video plays on, or a frame runs every timer-next jiffies.</summary>

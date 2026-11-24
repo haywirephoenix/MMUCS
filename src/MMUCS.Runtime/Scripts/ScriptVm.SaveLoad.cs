@@ -45,6 +45,7 @@ public sealed partial class ScriptVm
         StateGraph.Restore(saved, this);
         _blastObjects.Clear();
         BlastObjects = [];
+        Guarded("drawing the loaded actors", Actors.Redraw);
         RoomEntered?.Invoke(CurrentRoom); // hosts show the room loaded
     }
 

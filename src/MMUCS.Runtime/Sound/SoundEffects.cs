@@ -55,6 +55,38 @@ public sealed class SoundEffects(Func<int, ImusSound> load)
     /// <summary><c>start-sound</c>: a new copy of sound <paramref name="id"/> from its start.</summary>
     public void Start(int id)
     {
+        if (Add(id) != null) Started?.Invoke(id);
+    }
+
+    /// <summary>A sound playing, as a save keeps it: where it is, the hook taken, and its volume and pan.</summary>
+    public sealed record Saved(int Id, long Frame, int Hook, float Volume, float Pan);
+
+    /// <summary>The sounds playing now, for a save.</summary>
+    public List<Saved> Save()
+    {
+        var list = new List<Saved>();
+        foreach (var t in _tracks)
+            if (!t.Ended) list.Add(new Saved(t.Id, t.Player.Frame, t.Player.Hook, t.Voice?.Volume ?? 1, t.Voice?.Pan ?? 0));
+        return list;
+    }
+
+    /// <summary>The sounds a save had playing, carried on from where they were (the others stop).</summary>
+    public void Restore(IEnumerable<Saved> saved)
+    {
+        StopAll();
+        foreach (var s in saved)
+        {
+            if (Add(s.Id) is not { } track) continue;
+            track.Player.Seek(s.Frame);
+            track.Player.Hook = s.Hook;
+            if (track.Voice == null) continue;
+            track.Voice.Volume = s.Volume;
+            track.Voice.Pan = s.Pan;
+        }
+    }
+
+    private Track Add(int id)
+    {
         if (!_sounds.TryGetValue(id, out var sound))
         {
             try { sound = _load(id); }
@@ -65,7 +97,7 @@ public sealed class SoundEffects(Func<int, ImusSound> load)
             }
             _sounds[id] = sound;
         }
-        if (sound == null) return;
+        if (sound == null) return null;
         var track = new Track { Id = id, Player = new ImusPlayer(sound) };
         if (Mixer != null)
         {
@@ -73,7 +105,7 @@ public sealed class SoundEffects(Func<int, ImusSound> load)
             track.Voice.Paused = _paused;
         }
         _tracks.Add(track);
-        Started?.Invoke(id);
+        return track;
     }
 
     /// <summary><c>stop-sound</c>: every copy of it ends.</summary>

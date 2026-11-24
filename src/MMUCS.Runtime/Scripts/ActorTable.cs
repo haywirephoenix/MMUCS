@@ -91,10 +91,12 @@ public sealed partial class ActorTable
 
     public IEnumerable<Actor> All => _actors;
 
-    /// <summary>The actors as the last frame drew them, back to front.</summary>
+    /// <summary>The actors as the last frame drew them, back to front (not saved: <see cref="Redraw"/> makes them again after a load).</summary>
+    [field: NonSerialized]
     public IReadOnlyList<ActorPicture> Pictures { get; private set; } = [];
 
     /// <summary>The actors on a layer below 0, which the engine draws over the blasted objects (ScummVM processUpperActors).</summary>
+    [field: NonSerialized]
     public IReadOnlyList<ActorPicture> UpperPictures { get; private set; } = [];
 
     /// <summary>The current room's walk boxes, with the flags the scripts set.</summary>
@@ -490,7 +492,15 @@ public sealed partial class ActorTable
     /// back to front by y less 2000 per layer with the engine's own unstable sort, are drawn and then their
     /// costumes step on; the commands the costumes queued run last, newest first.
     /// </summary>
-    internal void Process()
+    internal void Process() => DrawAll(animate: true);
+
+    /// <summary>
+    /// The pictures made again from the actors as they are, without stepping their costumes on or running the
+    /// queue: after a load, whose actors the last frame drawn didn't show.
+    /// </summary>
+    internal void Redraw() => DrawAll(animate: false);
+
+    private void DrawAll(bool animate)
     {
         var sorted = new List<Actor>();
         for (int i = 1; i < Count; i++)
@@ -509,10 +519,10 @@ public sealed partial class ActorTable
         {
             if (a.Costume == 0) continue;
             if (a.Visible && Draw(a) is { } picture) pictures.Add(picture);
-            AnimateCostume(a);
+            if (animate) AnimateCostume(a);
         }
         Pictures = pictures;
-        ProcessQueue();
+        if (animate) ProcessQueue();
 
         // Then, after the blast objects, the actors below layer 0, in actor order, each drawn then animated.
         var upper = new List<ActorPicture>();
@@ -521,7 +531,7 @@ public sealed partial class ActorTable
             var a = _actors[i];
             if (a.Layer >= 0 || a.Costume == 0 || !IsInCurrentRoom(a)) continue;
             if (a.Visible && Draw(a) is { } picture) upper.Add(picture);
-            AnimateCostume(a);
+            if (animate) AnimateCostume(a);
         }
         UpperPictures = upper;
     }
