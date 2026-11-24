@@ -69,6 +69,8 @@ usage: mprobe [--game FILE] COMMAND ...
                        with the right; --key presses a key (a character, esc, enter, space, f1…f9 or a code).
                        --limbs prints those actors' animation and limbs (position in the sequence, s if
                        stopped) each time they change, with the speech's lip sync while the actor talks.
+                       SAVE and LOAD show the scripts' temporary save (the F1 menu's) being taken and put
+                       back; QUIT a script quitting, which ends the run.
                        The room's objects are listed at the end. Exits 1 if a script faulted.
 
 The game is the first resource file (COMI.LA0); the others beside it are loaded too. It comes from

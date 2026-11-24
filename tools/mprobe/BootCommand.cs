@@ -79,6 +79,10 @@ static class BootCommand
             voice.Update(jiffies);
             music?.Refresh();
         };
+        bool quit = false;
+        vm.QuitRequested += () => { quit = true; Line("QUIT (the run ends after this frame)", vm.Depth); };
+        loop.StateSaved += () => Line($"SAVE temporary (game-loaded {state[EngineVars.GameLoaded]})", vm.Depth);
+        loop.StateLoaded += () => Line($"LOAD temporary: room {vm.CurrentRoom}, {state.Slots.Count(x => x.IsAlive)} scripts running", vm.Depth);
         vm.Faulted += f => { faults++; Line($"FAULT {f}", vm.Depth); };
         vm.Warned += w => { warnings++; Line($"warning: {w}", vm.Depth); };
         if (calls) vm.Unhandled += c => Line($"· {c.Instruction.Name}({string.Join(", ", c.Args.Select(x => x.Length == 1 ? x[0].ToString() : $"[{string.Join(", ", x)}]"))}){(c.Instruction.Text is { } t ? " " + t : "")}", vm.Depth);
@@ -127,6 +131,7 @@ static class BootCommand
             if (i == releaseLeft) loop.Release(MouseButton.Left);
             if (i == releaseRight) loop.Release(MouseButton.Right);
             loop.Tick();
+            if (quit) break;
             foreach (int n in watchLimbs)
             {
                 // Each change of the actor's limbs (frame, position in the sequence), with the speech's mouth.
