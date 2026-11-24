@@ -141,16 +141,17 @@ public static class RoomSceneBuilder
     /// A costume frame as the engine draws it (each cel scaled on its own with SCUMM's scale table), with
     /// where the actor's origin is in it, or null when it draws nothing. With <paramref name="screen"/> (the
     /// colours on the screen) it's in those, through the actor's <paramref name="remap"/>, as the game draws
-    /// it; without, in the costume's room's palette.
+    /// it; without, in the costume's room's palette. With <paramref name="shadow"/> its shadow colours draw
+    /// as that says (in mode 3, into its layer).
     /// </summary>
     public static (RgbaImage Image, int OriginX, int OriginY)? CostumeFrame(AkosData data, ScummBlock akos, AkosFrame frame, int scale, bool mirrored, CancellationToken token = default,
-        byte[] screen = null, int[] remap = null)
+        byte[] screen = null, int[] remap = null, AkosShadow shadow = null)
     {
         if (frame is not { IsEmpty: false }) return null;
         lock (data)
         {
             if (screen == null) AkosParser.UpdatePaletteOnly(data, akos, data.DefaultPaletteIndex);
-            var rgba = AkosFrames.RenderScaled(data, frame, scale, out int ox, out int oy, mirrored, token, screen, remap);
+            var rgba = AkosFrames.RenderScaled(data, frame, scale, out int ox, out int oy, mirrored, token, screen, remap, shadow);
             return rgba == null ? null : (rgba, ox, oy);
         }
     }
@@ -160,35 +161,42 @@ public static class RoomSceneBuilder
     /// a room with <paramref name="planes"/> z-planes (the walk box's plane stays within them, as the engine
     /// keeps it). <paramref name="cache"/> keeps rendered frames by <see cref="ActorPicture.Key"/>, so it's for one
     /// <paramref name="screen"/> palette (the colours on the screen; null: each costume's room's palette).
+    /// With <paramref name="shadowFactors"/> (<see cref="ScreenPalette.ShadowFactors"/>) an actor's shadow
+    /// colours draw by its shadow mode: in mode 3, as a layer the scene multiplies onto what's under it.
     /// </summary>
     public static List<SceneActor> SceneActors(IReadOnlyList<ActorPicture> pictures, int planes,
-        Dictionary<string, (SKImage Image, int OriginX, int OriginY)?> cache = null, double slide = 1, byte[] screen = null)
+        Dictionary<string, ActorImage> cache = null, double slide = 1, byte[] screen = null, byte[] shadowFactors = null)
     {
         var list = new List<SceneActor>(pictures.Count);
         for (int i = 0; i < pictures.Count; i++)
         {
             var p = pictures[i];
-            (SKImage, int, int)? image = null;
-            if (cache == null || !cache.TryGetValue(p.Key, out image))
+            var shadow = shadowFactors != null ? new AkosShadow(p.ShadowMode, shadowFactors) : null;
+            string key = p.ShadowMode == 3 && shadowFactors != null ? p.Key + ":" + Convert.ToHexString(shadowFactors) : p.Key;
+            ActorImage image = null;
+            if (cache == null || !cache.TryGetValue(key, out image))
             {
                 try
                 {
-                    image = CostumeFrame(p.Costume.Data, p.Costume.Block, p.Frame, p.Scale, p.Mirrored, default, screen, screen == null ? null : p.Remap) is var (rgba, ox, oy)
-                        ? (SkiaImages.Of(rgba), ox, oy) : null;
+                    image = CostumeFrame(p.Costume.Data, p.Costume.Block, p.Frame, p.Scale, p.Mirrored, default, screen, screen == null ? null : p.Remap, shadow) is var (rgba, ox, oy)
+                        ? new ActorImage(SkiaImages.Of(rgba), shadow?.Image is { } layer ? SkiaImages.Of(layer) : null, ox, oy) : null;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     MMUCS.Core.Diagnostics.Log.Warn($"Game actor {p.Actor} costume {p.Costume.Number}: {ex.Message}");
                 }
-                if (cache != null) cache[p.Key] = image;
+                if (cache != null) cache[key] = image;
             }
-            if (image is not var (img, originX, originY)) continue;
+            if (image == null) continue;
             int plane = p.FromBox ? Math.Min(p.ZPlane, planes) : p.ZPlane;
             var (x, y) = Slid(p, slide);
-            list.Add(new SceneActor(img, x - originX, y - originY, 1, plane, i, p.Actor));
+            list.Add(new SceneActor(image.Image, x - image.OriginX, y - image.OriginY, 1, plane, i, p.Actor, image.Shadow));
         }
         return list;
     }
+
+    /// <summary>A rendered actor frame: its picture, its shadow layer (or null) and where the actor's origin is in them.</summary>
+    public sealed record ActorImage(SKImage Image, SKImage Shadow, int OriginX, int OriginY);
 
     /// <summary>The most an actor moves in a frame and still slides there; further is a jump, drawn where it lands.</summary>
     public const int MaxSlide = 32;

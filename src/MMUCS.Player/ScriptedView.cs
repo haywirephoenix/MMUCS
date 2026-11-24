@@ -32,7 +32,7 @@ public sealed class ScriptedView
     private readonly Dictionary<int, RoomModel> _rooms = [];
     private readonly Dictionary<(int Object, int Image), RgbaImage> _cursors = [];
     private readonly HashSet<(int, int)> _cursorsLoading = [];
-    private readonly Dictionary<string, (SKImage Image, int OriginX, int OriginY)?> _actorImages = [];
+    private readonly Dictionary<string, RoomSceneBuilder.ActorImage> _actorImages = [];
     private readonly Dictionary<ScreenText, SubtitleOverlay> _texts = [];
     private SubtitleRenderer _textsBy;
     private string _sceneKey, _pendingKey;
@@ -250,7 +250,7 @@ public sealed class ScriptedView
     private List<SceneActor> SceneActors(RoomScene scene, IReadOnlyList<ActorPicture> pictures)
     {
         if (_actorImages.Count > 512) _actorImages.Clear();
-        return RoomSceneBuilder.SceneActors(pictures, scene.ZMasks.Count, _actorImages, Game.ActorSlide, _screen);
+        return RoomSceneBuilder.SceneActors(pictures, scene.ZMasks.Count, _actorImages, Game.ActorSlide, _screen, Game.Vm.Palette.ShadowFactors);
     }
 
     private readonly Dictionary<(int Slot, int Brightness), (object Source, SKImage Image)> _thumbnails = [];

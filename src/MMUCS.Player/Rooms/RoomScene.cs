@@ -14,7 +14,7 @@ public sealed record SceneObject(RoomObject Object, SKImage Image, int X, int Y)
 /// size, cut by z-plane <paramref name="ZPlane"/> (0: none). Actors are drawn in order of
 /// <paramref name="Depth"/> (y before elevation), then <paramref name="Actor"/>.
 /// </summary>
-public sealed record SceneActor(SKImage Image, float X, float Y, float Scale = 1, int ZPlane = 0, int Depth = 0, int Actor = 0);
+public sealed record SceneActor(SKImage Image, float X, float Y, float Scale = 1, int ZPlane = 0, int Depth = 0, int Actor = 0, SKImage Shadow = null);
 
 /// <summary>
 /// A room as the engine draws it, ready to draw on any thread: the background, the objects shown in the
@@ -87,6 +87,7 @@ public sealed class RoomScene
         if (mask == null)
         {
             canvas.DrawImage(a.Image, bounds, sampling);
+            if (a.Shadow != null) canvas.DrawImage(a.Shadow, bounds, sampling, Multiply);
             return;
         }
         if (cutColor is { } color)
@@ -103,7 +104,19 @@ public sealed class RoomScene
         canvas.DrawImage(a.Image, bounds, sampling);
         canvas.DrawImage(mask, 0, 0, MaskOut);
         canvas.Restore();
+        if (a.Shadow == null) return;
+        // The shade, cut by the same plane, multiplied onto what's under it (the actor included).
+        canvas.SaveLayer(bounds, Multiply);
+        canvas.DrawImage(a.Shadow, bounds, sampling);
+        canvas.DrawImage(mask, 0, 0, MaskOut);
+        canvas.Restore();
     }
+
+    /// <summary>
+    /// How a shadow layer draws: the engine turns each colour under a shadow pixel into its shadow table's
+    /// (the colour scaled by the table's factors), so the layer, in those factors, multiplies.
+    /// </summary>
+    private static readonly SKPaint Multiply = new() { BlendMode = SKBlendMode.Multiply };
 
     /// <summary>A z-plane as an alpha image of <paramref name="width"/>×<paramref name="height"/>: opaque where it hides actors.</summary>
     public static SKImage MaskImage(ZPlane plane, int width, int height)
