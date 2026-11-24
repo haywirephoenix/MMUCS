@@ -207,6 +207,32 @@ public class WalkTests
     }
 
     [Fact]
+    public void The_mouse_reaches_the_room_shown_beside_the_screen_so_the_town_s_end_exit_can_be_pointed_at()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        using var game = new ScriptedGame { BootParam = 15 };
+        game.Load(root, Game);
+        game.Play();
+        for (int i = 0; i < 150; i++) game.Tick();
+        var vm = game.Vm;
+        vm.CameraAt(1776, 240); // as far right as the engine goes in the town
+        Assert.Equal(2096 - GameState.CanvasWidth / 2, game.Camera.X); // the view stops short, so the end is beside the screen
+
+        int exit = vm.Scripts.ObjectId("town-plndrmap-door-1"); // at room x 2024–2104
+        game.Loop.Mouse = (719, 300);
+        for (int i = 0; i < 10; i++) game.Tick();
+        int left = (int)Math.Round(game.Camera.X) - 320;
+        Assert.Equal((719, 719 + left), (vm.State[EngineVars.MouseX], vm.State[EngineVars.VirtMouseX]));
+        Assert.Equal(exit, vm.FindObject(vm.State[EngineVars.VirtMouseX], vm.State[EngineVars.VirtMouseY]));
+
+        // Only as far as the room goes: past its end the mouse stops at its last pixel.
+        game.Loop.Mouse = (800, 300);
+        for (int i = 0; i < 10; i++) game.Tick();
+        Assert.Equal(2095, vm.State[EngineVars.VirtMouseX]);
+    }
+
+    [Fact]
     public void Guybrush_walks_across_the_barbershop_through_the_box_between()
     {
         if (Game == null) return;
