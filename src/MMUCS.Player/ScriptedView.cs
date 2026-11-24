@@ -88,7 +88,8 @@ public sealed class ScriptedView
         return new GameFrame
         {
             IsRunning = game.IsPlaying,
-            Room = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 ? _scene.WithActors(SceneActors(_scene, game.Vm.Actors.Pictures)) : null,
+            // Black (not the window's empty stage) in room 0 and while a new room's scene is still being built, as the engine shows it.
+            Room = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 ? _scene.WithActors(SceneActors(_scene, game.Vm.Actors.Pictures)) : RoomScene.Blank,
             UpperActors = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 && game.Vm.Actors.UpperPictures.Count > 0
                 ? new RoomScene { Width = _scene.Width, Height = _scene.Height, ZMasks = _scene.ZMasks, Actors = SceneActors(_scene, game.Vm.Actors.UpperPictures) }
                 : null,
