@@ -58,6 +58,9 @@ public sealed class GameFrame
     public string Label { get; init; }
     public SubtitleOverlay LabelText { get; init; }
 
+    /// <summary>The scripts' texts on the page (talk lines, blasted labels), drawn in order over the room.</summary>
+    public IReadOnlyList<SubtitleOverlay> Texts { get; init; } = [];
+
     /// <summary>The game cursor, placed with its hotspot on the cursor's position; null while the game hasn't got the mouse.</summary>
     public FrameImage? Cursor { get; init; }
 
@@ -117,6 +120,13 @@ public sealed class GameFrame
 
         foreach (var blast in Blasts) canvas.DrawImage(blast.Image, Rect(blast.Bounds), sampling);
         if (Coin is { } coin) canvas.DrawImage(coin.Image, Rect(coin.Bounds), sampling);
+        if (Texts.Count > 0)
+        {
+            canvas.Save();
+            canvas.Translate((float)GameState.PageOrigin.X, (float)GameState.PageOrigin.Y);
+            foreach (var text in Texts) text?.Draw(canvas, smooth: scale < 0.999f);
+            canvas.Restore();
+        }
         if (LabelText is { IsEmpty: false } label)
         {
             canvas.Save();

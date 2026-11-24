@@ -9,6 +9,7 @@ using MMUCS.Core.Scumm;
 using MMUCS.Player.Rooms;
 using MMUCS.Player.Text;
 using MMUCS.Runtime;
+using MMUCS.Runtime.Scripts;
 using SkiaSharp;
 
 namespace MMUCS.Player;
@@ -29,6 +30,9 @@ public sealed class ScriptedView
     private readonly Dictionary<(int Object, int Image), RgbaImage> _cursors = [];
     private readonly HashSet<(int, int)> _cursorsLoading = [];
     private readonly Dictionary<string, (SKImage Image, int OriginX, int OriginY)?> _actorImages = [];
+    private readonly Dictionary<ScreenText, SubtitleOverlay> _texts = [];
+    private SubtitleRenderer _textsBy;
+    private (int Room, byte[] Palette) _textPalette = (-1, null);
     private string _sceneKey, _pendingKey;
     private RoomScene _scene;
     private int _sceneRoom = -1;
@@ -75,6 +79,7 @@ public sealed class ScriptedView
             IsRunning = game.IsPlaying,
             Room = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 ? _scene.WithActors(SceneActors(_scene)) : null,
             Camera = game.Camera,
+            Texts = ScreenTexts(),
             Cursor = CursorFrame(),
         };
     }
@@ -169,6 +174,38 @@ public sealed class ScriptedView
             if (_pendingKey == key) _pendingKey = null;
             _sceneKey = key; // don't try the same again every frame
         }
+    }
+
+    /// <summary>
+    /// The texts the last frame drew, in the room's palette and <see cref="Text"/>'s fonts, each made once
+    /// while it's shown (old ones are left to the finalizer: a frame may still be drawing one).
+    /// </summary>
+    private List<SubtitleOverlay> ScreenTexts()
+    {
+        var texts = Game.Vm.ScreenTexts;
+        if (texts.Count == 0 || Text == null) return [];
+        int room = Game.CurrentRoom;
+        if (_textPalette.Room != room)
+            _textPalette = (room, RoomModelOf(room) is { } model ? Core.Scumm.ObimCache.ExtractPaletteContext(model.Room, 0).rawBytes : null);
+        if (_textPalette.Palette == null) return [];
+        if (!ReferenceEquals(_textsBy, Text) || _texts.Count > 256)
+        {
+            _texts.Clear();
+            _textsBy = Text;
+        }
+        var list = new List<SubtitleOverlay>(texts.Count);
+        foreach (var t in texts)
+        {
+            if (!_texts.TryGetValue(t, out var overlay))
+            {
+                var flags = (t.Center ? Core.Smush.SmushTextFlags.Center : 0) | (t.Wrap ? Core.Smush.SmushTextFlags.Wrap : 0);
+                overlay = Text.BuildText(new Core.Smush.SmushText { X = t.X, Y = t.Y, Flags = flags, Font = t.Charset, Color = t.Color, Text = t.Text },
+                    _textPalette.Palette, (int)GameState.PageSize.Width, (int)GameState.PageSize.Height);
+                _texts[t] = overlay;
+            }
+            if (overlay != null) list.Add(overlay);
+        }
+        return list;
     }
 
     /// <summary>The actors as the engine drew them in the last frame, each frame rendered once and kept while it's shown.</summary>
