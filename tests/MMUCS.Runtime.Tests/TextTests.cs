@@ -169,6 +169,35 @@ public class TextTests
     }
 
     [Fact]
+    public void Wally_s_mouth_follows_his_speech_through_the_talk_script()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        var vm = new ScriptVm(new ScriptStore(root), new VmState(GameLimits.Read(root)));
+        var faults = new List<ScriptFault>();
+        vm.Faulted += faults.Add;
+        var voice = new MMUCS.Runtime.Sound.VoicePlayer(MMUCS.Runtime.Sound.VoicePlayer.FromBundles(Game));
+        vm.Speech = voice;
+        var loop = new FrameLoop(vm);
+        loop.AfterScripts += voice.Update;
+        vm.Boot(9); // straight to the cannon room, where Wally shouts at the pirates
+        for (int i = 0; i < 60 * 30 && voice.Playing == null; i++) loop.Tick();
+        Assert.NotNull(voice.Playing);
+
+        // Global 28 starts his talk animation and steps his head limb to the mouth the lip sync picks, every frame.
+        var wally = vm.Actors[2];
+        var mouths = new List<int>();
+        while (voice.IsPlaying && vm.State[EngineVars.TalkActor] == 2)
+        {
+            loop.Tick();
+            if (mouths.Count == 0 || mouths[^1] != wally.CurPos[1]) mouths.Add(wally.CurPos[1]);
+        }
+        Assert.True(mouths.Distinct().Count() >= 6, string.Join(",", mouths));
+        Assert.True(mouths.Count >= 15, string.Join(",", mouths)); // it keeps changing until the line is over
+        Assert.Empty(faults);
+    }
+
+    [Fact]
     public void COMI_s_first_scene_says_its_first_line_with_its_speech()
     {
         if (Game == null) return;
