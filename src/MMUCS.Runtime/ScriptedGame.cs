@@ -121,6 +121,7 @@ public sealed class ScriptedGame : IDisposable
         : $"room {CurrentRoom} {Scripts.RoomName(CurrentRoom)} · {Loop.Frames} frames · {Running} scripts" +
           (IsVideoPlaying ? $" · video {VideoName}{(Video == null ? " (loading)" : $" {VideoTime:m\\:ss} / {Video.Duration:m\\:ss}")}" : "") +
           (MusicOutput?.Current is { } track ? $" · music {track.File}" : "") +
+          (BootParam != 0 ? $" · booted with param {BootParam}" : "") +
           (Faults > 0 ? $" · {Faults} faults (last: {LastFault})" : "");
 
     private int Running
@@ -193,6 +194,12 @@ public sealed class ScriptedGame : IDisposable
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// The boot parameter the boot script gets (ScummVM <c>-b</c>, 0 for a normal start): COMI's boot script
+    /// jumps straight to the room it names, without the flags, inventory or music playing there would have set.
+    /// </summary>
+    public int BootParam { get; set; }
+
     /// <summary>Boots the game (once; Stop leaves it where it is, Play carries on).</summary>
     public void Play()
     {
@@ -201,7 +208,7 @@ public sealed class ScriptedGame : IDisposable
         if (!_booted)
         {
             _booted = true;
-            Step(() => Vm.Boot());
+            Step(() => Vm.Boot(BootParam));
         }
         else if (_videoClock != null)
         {

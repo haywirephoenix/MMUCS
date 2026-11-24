@@ -143,6 +143,7 @@ public sealed class FrameLoop
         state[EngineVars.MouseY] = Mouse.Y;
         state[EngineVars.VirtMouseX] = Mouse.X + ScreenOrigin.X;
         state[EngineVars.VirtMouseY] = Mouse.Y + ScreenOrigin.Y;
+        state[EngineVars.DebugMode] = Vm.DebugMode ? 1 : 0;
 
         int input = 0, key = _key;
         _key = 0;

@@ -169,10 +169,18 @@ public sealed partial class ScriptVm
 
     // ── Starting and stopping ──
 
+    /// <summary>
+    /// The engine's debug mode, which the scripts read from their debug-mode variable (set each frame). A boot
+    /// parameter turns it on, as in ScummVM: COMI's boot script only jumps to the room it names in debug mode.
+    /// </summary>
+    public bool DebugMode { get; set; }
+
     /// <summary>Sets the engine's variables and runs the boot script, global 1, with <paramref name="bootParam"/> (ScummVM <c>runBootscript</c>).</summary>
     public void Boot(int bootParam = 0)
     {
         EngineVars.Reset(State);
+        if (bootParam != 0) DebugMode = true;
+        State[EngineVars.DebugMode] = DebugMode ? 1 : 0;
         RunScript(1, args: [bootParam]);
     }
 
@@ -354,8 +362,7 @@ public sealed partial class ScriptVm
         State[EngineVars.CameraMaxX] = width - ScreenWidth / 2;
         State[EngineVars.CameraMinY] = ScreenHeight / 2;
         State[EngineVars.CameraMaxY] = height - ScreenHeight / 2;
-        State[EngineVars.CameraPosX] = State[EngineVars.CameraDestX] = ScreenWidth / 2;
-        State[EngineVars.CameraPosY] = State[EngineVars.CameraDestY] = ScreenHeight / 2;
+        SetCameraAt(ScreenWidth / 2, ScreenHeight / 2);
 
         if (ego != null)
         {
@@ -369,6 +376,7 @@ public sealed partial class ScriptVm
         Actors.EgoPositioned = false;
 
         RunRoomCode(EngineVars.EntryScript, Scripts.RoomEntry(room), EntryCodeNumber, EngineVars.EntryScript2);
+        if (CameraFollows != 0) SetCameraAt(Actors[CameraFollows].X, Actors[CameraFollows].Y);
     }
 
     /// <summary>The engine's exit or entry sequence: the script one variable names, the room's own code, the script the other names.</summary>
@@ -581,6 +589,8 @@ public sealed partial class ScriptVm
             case 0x85: EndOverride(); return;
             case 0x7f: { var args = Args(); int verb = Pop(), obj = Pop(), flags = Pop(); RunObjectScript(obj, verb, (flags & 1) != 0, (flags & 2) != 0, args); return; }
             case 0x80: StopObjectScript(Pop()); return;
+            case 0x8d: SetCameraFollows(Actors[Pop()]); return;
+            case 0x8e: { int y = Pop(); CameraAt(Pop(), y); return; }
             case 0x87: Pop(); return; // debug
             case 0xb2: SoundKludgeOp(s, ins); return;
             case 0xaf when Effects != null: Effects.Start(Pop()); return;
