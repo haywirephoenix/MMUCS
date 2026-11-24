@@ -16,18 +16,13 @@ public enum SlotStatus
 /// it is. The stack is shared by all scripts (<see cref="VmState.Push"/>): a called script hands back its
 /// result by leaving it there.
 /// </summary>
-public sealed class ScriptSlot
+public sealed class ScriptSlot(int index)
 {
     /// <summary>Locals 0–25 can be read and written (v8 checks 0..25); starting a script sets the first 25.</summary>
     public const int LocalCount = 26, InitializedLocals = 25;
 
-    public ScriptSlot(int index)
-    {
-        Index = index;
-    }
-
     /// <summary>This slot's place in <see cref="VmState.Slots"/> (slot 0 is never handed out).</summary>
-    public int Index { get; }
+    public int Index { get; } = index;
 
     public SlotStatus Status { get; set; }
     public ScriptKind Kind { get; set; }

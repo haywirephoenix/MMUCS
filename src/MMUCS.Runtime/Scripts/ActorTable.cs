@@ -230,15 +230,15 @@ public sealed partial class ActorTable
     private int ScaleFromSlot(int slot, int x, int y)
     {
         if (slot < 1 || slot > _scaleSlots.Length) throw new ScriptException($"invalid scale slot {slot}");
-        var s = _scaleSlots[slot - 1];
-        if (s.Y1 == s.Y2 && s.X1 == s.X2) throw new ScriptException($"invalid scale slot {slot}");
+        var (X1, Y1, S1, X2, Y2, S2) = _scaleSlots[slot - 1];
+        if (Y1 == Y2 && X1 == X2) throw new ScriptException($"invalid scale slot {slot}");
         int scaleY = 0, scale;
-        if (s.Y1 != s.Y2) scaleY = (s.S2 - s.S1) * (Math.Max(0, y) - s.Y1) / (s.Y2 - s.Y1) + s.S1;
-        if (s.X1 == s.X2) scale = scaleY;
+        if (Y1 != Y2) scaleY = (S2 - S1) * (Math.Max(0, y) - Y1) / (Y2 - Y1) + S1;
+        if (X1 == X2) scale = scaleY;
         else
         {
-            int scaleX = (s.S2 - s.S1) * (x - s.X1) / (s.X2 - s.X1) + s.S1;
-            scale = s.Y1 == s.Y2 ? scaleX : (scaleX + scaleY) / 2;
+            int scaleX = (S2 - S1) * (x - X1) / (X2 - X1) + S1;
+            scale = Y1 == Y2 ? scaleX : (scaleX + scaleY) / 2;
         }
         return Math.Clamp(scale, 1, 255);
     }
@@ -362,7 +362,7 @@ public sealed partial class ActorTable
     }
 
     /// <summary>ScummVM <c>turnToDirection</c> (v7+): starts turning, which happens over the next frames.</summary>
-    public void TurnTo(Actor a, int direction)
+    public static void TurnTo(Actor a, int direction)
     {
         if (direction == -1 || a.IgnoreTurns) return;
         a.Moving &= ~Actor.Turning;
@@ -545,9 +545,9 @@ public sealed partial class ActorTable
         a.Drawn = (a.X + l * scale / 255, y + t * scale / 255, a.X + r * scale / 255, y + b * scale / 255);
 
         bool fromBox = a.ForceClip == Actor.BoxClip;
-        var from = a.LastPicturePlace ?? (a.X, y);
+        var (X, Y) = a.LastPicturePlace ?? (a.X, y);
         a.LastPicturePlace = (a.X, y);
-        return new ActorPicture(a.Number, costume, frame, mirrored, scale, a.X, y, fromBox ? BoxMask(a.Walkbox) : a.ForceClip, fromBox, from.X, from.Y,
+        return new ActorPicture(a.Number, costume, frame, mirrored, scale, a.X, y, fromBox ? BoxMask(a.Walkbox) : a.ForceClip, fromBox, X, Y,
             ActorPicture.RemapOf(a.Palette, costume.Data.Palette.Length));
     }
 
@@ -629,9 +629,9 @@ public sealed partial class ActorTable
         _ => a >= b,
     };
 
-    private int GetVar(Actor a, int var) => var is >= 0 and < Actor.AnimVars ? a.Vars[var] : throw new ScriptException($"{a} animation variable {var} out of range");
+    private static int GetVar(Actor a, int var) => var is >= 0 and < Actor.AnimVars ? a.Vars[var] : throw new ScriptException($"{a} animation variable {var} out of range");
 
-    private void SetVar(Actor a, int var, int value)
+    private static void SetVar(Actor a, int var, int value)
     {
         if (var is < 0 or >= Actor.AnimVars) throw new ScriptException($"{a} animation variable {var} out of range");
         a.Vars[var] = value;

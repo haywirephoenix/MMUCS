@@ -135,7 +135,7 @@ public static class StateGraph
 
     /// <summary>Delegates and <see cref="NonSerializedAttribute"/> fields aren't state; they stay with the live objects.</summary>
     private static bool Skipped(FieldInfo f) =>
-        f.IsNotSerialized || typeof(Delegate).IsAssignableFrom(f.FieldType);
+        f.IsDefined(typeof(NonSerializedAttribute), inherit: false) || typeof(Delegate).IsAssignableFrom(f.FieldType);
 
     /// <summary>Every instance field of the type and its base types; for a struct only those holding state (the rest come with the box).</summary>
     private static FieldInfo[] FieldsOf(Type type) => Fields.GetOrAdd(type, static t =>

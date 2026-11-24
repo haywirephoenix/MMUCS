@@ -21,7 +21,7 @@ public readonly record struct InventoryHit(InventoryHitKind Kind, GameObjectImag
 /// page in the middle of the 16:9 canvas. There's no ego to hold things yet, so the items are every
 /// inventory icon in the icons room (the *-icon-object images), enough for several pages.
 /// </summary>
-public sealed class Inventory
+public sealed class Inventory(Func<GamePoint, GamePoint> pageToGame)
 {
     public const string BackgroundName = "inventory-bg-object";
     public const string NextPageArrowName = "increment-inventory-arrow", PreviousPageArrowName = "decrement-inventory-arrow";
@@ -41,11 +41,9 @@ public sealed class Inventory
     /// </summary>
     public static bool InArea(GamePoint page) => page.X > 45 && page.X < 607 && page.Y > 100 && page.Y < 446;
 
-    private readonly Func<GamePoint, GamePoint> _pageToGame;
+    private readonly Func<GamePoint, GamePoint> _pageToGame = pageToGame;
     private readonly List<GameObjectImages> _items = [];
     private readonly Dictionary<GameObjectImages, (int Id, string Name, uint Classes)> _info = [];
-
-    public Inventory(Func<GamePoint, GamePoint> pageToGame) => _pageToGame = pageToGame;
 
     public GameObjectImages Background { get; private set; }
     public GameObjectImages NextPageArrow { get; private set; }

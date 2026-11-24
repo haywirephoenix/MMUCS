@@ -43,7 +43,7 @@ public interface IMusicOutput
 /// the state's until it ends, then the state's comes back). Each is a row of <see cref="MusicTable"/>, whose
 /// transition says how its track takes over. <see cref="Refresh"/> runs once a frame.
 /// </summary>
-public sealed class ComiMusic
+public sealed class ComiMusic(MusicTable table, IMusicOutput output)
 {
     /// <summary>The sound-kludge commands for music (ScummVM parseScriptCmds).</summary>
     public const int SetStateCommand = 0x1000, SetSequenceCommand = 0x1001, SetCuePointCommand = 0x1002, SetAttributeCommand = 0x1003;
@@ -51,18 +51,12 @@ public sealed class ComiMusic
     /// <summary>Where the attributes for the states' attribute positions start (ScummVM COMI_STATE_OFFSET).</summary>
     private const int StateOffset = 3;
 
-    private readonly IMusicOutput _output;
+    private readonly IMusicOutput _output = output ?? throw new ArgumentNullException(nameof(output));
     private readonly int[] _attributes = new int[1024];
     private int _curState, _curSeq, _nextSeq;
     private bool _stopSequence;
 
-    public ComiMusic(MusicTable table, IMusicOutput output)
-    {
-        Table = table ?? throw new ArgumentNullException(nameof(table));
-        _output = output ?? throw new ArgumentNullException(nameof(output));
-    }
-
-    public MusicTable Table { get; }
+    public MusicTable Table { get; } = table ?? throw new ArgumentNullException(nameof(table));
 
     /// <summary>The state and sequence in force (rows of the tables), 0 for their null entries.</summary>
     public MusicCue State => Table.States[_curState];

@@ -273,7 +273,7 @@ public sealed partial class ScriptVm
                 a.Moving &= ~Actor.Turning;
                 Actors.SetDirection(a, A0());
                 break;
-            case 0x82: Actors.TurnTo(a, A0()); break;
+            case 0x82: ActorTable.TurnTo(a, A0()); break;
             case 0x83: a.WalkScript = A0(); break;
             case 0x84: a.TalkScript = A0(); break;
             case 0x85: a.Moving |= Actor.Frozen; break;

@@ -13,7 +13,8 @@ namespace MMUCS.Runtime.Sound;
 /// stopping, a volume or a pan goes to every copy of it. Without a mixer the tracks are still read along
 /// with the game's time (<see cref="Update"/>), so the scripts that wait for a sound to end see it end.
 /// </summary>
-public sealed class SoundEffects
+/// <param name="load">A sound resource by number, or null when there's none.</param>
+public sealed class SoundEffects(Func<int, ImusSound> load)
 {
     /// <summary>iMUSE's parameters and the sound-kludge commands that set them (ScummVM dimuse_defs.h, parseScriptCmds).</summary>
     public const int VolumeParam = 0x600, PanParam = 0x700;
@@ -28,14 +29,11 @@ public sealed class SoundEffects
         public bool Ended => Stopped || (Voice != null ? Voice.Finished : Player.Finished);
     }
 
-    private readonly Func<int, ImusSound> _load;
+    private readonly Func<int, ImusSound> _load = load ?? throw new ArgumentNullException(nameof(load));
     private readonly List<Track> _tracks = [];
     private readonly Dictionary<int, ImusSound> _sounds = [];
     private float[] _scratch = [];
     private bool _paused;
-
-    /// <param name="load">A sound resource by number, or null when there's none.</param>
-    public SoundEffects(Func<int, ImusSound> load) => _load = load ?? throw new ArgumentNullException(nameof(load));
 
     /// <summary>Where the effects play; without one they're only read along with the game's time.</summary>
     public Mixer Mixer { get; set; }
@@ -143,7 +141,7 @@ public sealed class SoundEffects
         {
             _paused = value;
             foreach (var t in _tracks)
-                if (t.Voice != null) t.Voice.Paused = value;
+                t.Voice?.Paused = value;
         }
     }
 
@@ -162,7 +160,7 @@ public sealed class SoundEffects
 
     private static void End(Track t, int fadeMs)
     {
-        if (t.Voice != null) t.Voice.Stop(fadeMs);
+        t.Voice?.Stop(fadeMs);
         if (fadeMs <= 0 || t.Voice == null) t.Stopped = true;
     }
 

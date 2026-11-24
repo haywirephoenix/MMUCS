@@ -54,9 +54,9 @@ public sealed class ScriptedGame : IDisposable
     {
         _mixer = mixer;
         _output = output;
-        if (MusicOutput != null) MusicOutput.Mixer = mixer;
-        if (Effects != null) Effects.Mixer = mixer;
-        if (Voice != null) Voice.Mixer = mixer;
+        MusicOutput?.Mixer = mixer;
+        Effects?.Mixer = mixer;
+        Voice?.Mixer = mixer;
     }
 
     /// <summary>
@@ -363,11 +363,11 @@ public sealed class ScriptedGame : IDisposable
         else if (_videoClock != null)
         {
             _videoClock.Play();
-            if (_videoVoice != null) _videoVoice.Paused = false;
+            _videoVoice?.Paused = false;
         }
-        if (MusicOutput != null) MusicOutput.Paused = false;
-        if (Effects != null) Effects.Paused = false;
-        if (Voice != null) Voice.Paused = false;
+        MusicOutput?.Paused = false;
+        Effects?.Paused = false;
+        Voice?.Paused = false;
         Changed?.Invoke();
     }
 
@@ -376,10 +376,10 @@ public sealed class ScriptedGame : IDisposable
         if (!IsPlaying) return;
         IsPlaying = false;
         _videoClock?.Pause();
-        if (_videoVoice != null) _videoVoice.Paused = true;
-        if (MusicOutput != null) MusicOutput.Paused = true;
-        if (Effects != null) Effects.Paused = true;
-        if (Voice != null) Voice.Paused = true;
+        _videoVoice?.Paused = true;
+        MusicOutput?.Paused = true;
+        Effects?.Paused = true;
+        Voice?.Paused = true;
         SetMouseCaptured(false);
         Changed?.Invoke();
     }
@@ -403,7 +403,7 @@ public sealed class ScriptedGame : IDisposable
         CursorPosition = new GamePoint(Math.Clamp(position.X, 0, GameState.CanvasWidth), Math.Clamp(position.Y, 0, GameState.CanvasHeight));
         var page = GameState.PageOrigin;
         _mouseInside = CursorPosition.X >= page.X && CursorPosition.X < page.X + GameState.PageSize.Width;
-        if (Loop != null) Loop.Mouse = ((int)Math.Floor(CursorPosition.X - page.X), (int)Math.Floor(CursorPosition.Y - page.Y));
+        Loop?.Mouse = ((int)Math.Floor(CursorPosition.X - page.X), (int)Math.Floor(CursorPosition.Y - page.Y));
         Changed?.Invoke();
     }
 

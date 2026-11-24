@@ -14,16 +14,14 @@ namespace MMUCS.Runtime.Sound;
 /// (BCCB301 is BCCB301.IMX), played through the mixer's voice group. One line at a time. Without a mixer
 /// the line is read along with the game's time (<see cref="Update"/>), so a line lasts as long as its speech.
 /// </summary>
-public sealed class VoicePlayer : ISpeech
+/// <param name="load">A voice file by name ("BCCB301.IMX"), or null when there's none.</param>
+public sealed class VoicePlayer(Func<string, ImusSound> load) : ISpeech
 {
-    private readonly Func<string, ImusSound> _load;
+    private readonly Func<string, ImusSound> _load = load ?? throw new ArgumentNullException(nameof(load));
     private ImusPlayer _player;
     private MixerVoice _voice;
     private float[] _scratch = [];
     private bool _paused;
-
-    /// <param name="load">A voice file by name ("BCCB301.IMX"), or null when there's none.</param>
-    public VoicePlayer(Func<string, ImusSound> load) => _load = load ?? throw new ArgumentNullException(nameof(load));
 
     public Mixer Mixer { get; set; }
 
@@ -79,7 +77,7 @@ public sealed class VoicePlayer : ISpeech
         set
         {
             _paused = value;
-            if (_voice != null) _voice.Paused = value;
+            _voice?.Paused = value;
         }
     }
 

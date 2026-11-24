@@ -25,7 +25,7 @@ public enum MouseButton
 /// actors, drawing) hook in through <see cref="BeforeScripts"/> and <see cref="AfterScripts"/>.
 /// </para>
 /// </summary>
-public sealed class FrameLoop
+public sealed class FrameLoop(ScriptVm vm)
 {
     /// <summary>The most a frame counts paused scripts down by, however long it took (ScummVM caps delta at 15).</summary>
     public const int MaxDelayStep = 15;
@@ -40,12 +40,7 @@ public sealed class FrameLoop
     /// <summary>The key codes the engine knows besides ASCII: Esc, and F1–F9 as 315–323.</summary>
     public const int EscapeKey = 27, F1Key = 315;
 
-    public FrameLoop(ScriptVm vm)
-    {
-        Vm = vm ?? throw new ArgumentNullException(nameof(vm));
-    }
-
-    public ScriptVm Vm { get; }
+    public ScriptVm Vm { get; } = vm ?? throw new ArgumentNullException(nameof(vm));
 
     /// <summary>Jiffies ticked so far.</summary>
     public long Jiffies { get; private set; }

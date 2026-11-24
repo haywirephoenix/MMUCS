@@ -17,7 +17,8 @@ namespace MMUCS.Runtime.Sound;
 /// then. Markers come from the audio thread and are acted on at the next <see cref="Update"/>. Without a
 /// mixer it only keeps track of what would play.
 /// </summary>
-public sealed class MixerMusic : IMusicOutput
+/// <param name="load">Loads a cue's track (it runs on a worker); <see cref="FromBundles"/> reads the game's.</param>
+public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
 {
     private sealed class Stream
     {
@@ -32,16 +33,13 @@ public sealed class MixerMusic : IMusicOutput
         public bool SamePlace;
     }
 
-    private readonly Func<MusicCue, ImusSound> _load;
+    private readonly Func<MusicCue, ImusSound> _load = load ?? throw new ArgumentNullException(nameof(load));
     private readonly object _gate = new();
     private Stream _current;
     private (MusicCue Cue, int FadeMs, int Hook)? _atExit;
     private volatile int _endArmed;
     private volatile bool _endReached, _exitReached;
     private bool _paused;
-
-    /// <param name="load">Loads a cue's track (it runs on a worker); <see cref="FromBundles"/> reads the game's.</param>
-    public MixerMusic(Func<MusicCue, ImusSound> load) => _load = load ?? throw new ArgumentNullException(nameof(load));
 
     /// <summary>Where the music plays; null keeps it silent.</summary>
     public Mixer Mixer { get; set; }
@@ -92,7 +90,7 @@ public sealed class MixerMusic : IMusicOutput
     {
         if (_current is not { } s) return;
         s.Hook = hook;
-        if (s.Player != null) s.Player.Hook = hook;
+        s.Player?.Hook = hook;
     }
 
     public void ArmEnd(int soundId) => _endArmed = soundId;
