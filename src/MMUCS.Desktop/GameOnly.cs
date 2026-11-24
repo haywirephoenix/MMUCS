@@ -14,13 +14,15 @@ using MMUCS.Desktop.Views.Game;
 namespace MMUCS.Desktop;
 
 /// <summary>
-/// <c>MMUCS --game [FILE]</c>: just the game window, for quick testing until there's a standalone player. It
-/// loads FILE (or the game opened last), without the main window, the hierarchy's costume pass or the
-/// single-instance hand-off, opens the game window and presses Play once it's ready. Closing it quits.
+/// <c>MMUCS --game [FILE] [--boot N]</c>: just the game window, for quick testing until there's a standalone
+/// player. It loads FILE (or the game opened last), without the main window, the hierarchy's costume pass or
+/// the single-instance hand-off, opens the game window and presses Play once it's ready. Closing it quits.
+/// <c>--boot N</c> gives the boot script parameter N (ScummVM's <c>-b</c>), which COMI uses to start in a room.
 /// </summary>
 internal static class GameOnly
 {
     public const string Flag = "--game";
+    public const string BootFlag = "--boot";
 
     public static bool Requested(string[] args) => args?.Contains(Flag) == true;
 
@@ -37,16 +39,25 @@ internal static class GameOnly
             desktop.Shutdown(1);
             return;
         }
-        _ = OpenAsync(desktop, Path.GetFullPath(file), settings);
+        int boot = 0;
+        int bootAt = Array.IndexOf(args, BootFlag);
+        if (bootAt >= 0 && (bootAt + 1 >= args.Length || !int.TryParse(args[bootAt + 1], out boot)))
+        {
+            Log.Error($"{BootFlag}: give the boot parameter as a number");
+            desktop.Shutdown(1);
+            return;
+        }
+        _ = OpenAsync(desktop, Path.GetFullPath(file), settings, boot);
     }
 
-    private static async Task OpenAsync(IClassicDesktopStyleApplicationLifetime desktop, string file, AppSettings settings)
+    private static async Task OpenAsync(IClassicDesktopStyleApplicationLifetime desktop, string file, AppSettings settings, int bootParam)
     {
         try
         {
             var files = ScummProject.FindRelatedFiles(file);
             var root = await Task.Run(() => ScummProject.Load(files, null));
             var vm = new GameViewModel(root, files.Count > 0 ? Path.GetFullPath(files[0]) : file, settings);
+            vm.Scripted.BootParam = bootParam;
             var window = new GameWindow { DataContext = vm };
             desktop.MainWindow = window;
             window.Show();
