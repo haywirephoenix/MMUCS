@@ -26,9 +26,14 @@ usage: mprobe [--game FILE] COMMAND ...
                        costumes, and writes the listings to OUT/costumes.txt, where each actor's line
                        also gives its walkbox and the scale that box would give it.
   box ROOM X Y [--player]
-                       The walkboxes at a point: each box holding it or near it, with its flags and mask,
-                       and the box the engine puts an actor there in (and where it moves it), as an actor
-                       that follows the boxes. --player for the player's actor (player-only boxes).
+                       The walkboxes at a point: each box holding it or near it, with its flags, mask and
+                       scale (its own, or its scale slot and what that gives at the point), the box the engine
+                       puts an actor there in (and where it moves it), as an actor that follows the boxes, and
+                       the ways out of that box by the room's box matrix. --player for the player's actor.
+  fonts [N] [--char C …]
+                       The game's fonts (charset N is fontN.nut): glyphs, line height, the ink and dark-edge
+                       values and whether the edge is an outline all round or a drop shadow, every pixel
+                       value with its count; --char draws a glyph (# ink, o edge, . transparent).
 
   audio OUT [music|voice] [--check]
                        Decode the Digital iMUSE bundles (.bun) into OUT/music/NNNN.wav and OUT/voice/CODE.wav,
@@ -99,6 +104,7 @@ try
         "play" => Play(argv),
         "listen" => Listen(argv),
         "boot" => BootCommand.Run(root, argv, TakeOption, game),
+        "fonts" => FontsCommand.Run(argv, TakeOption, game),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }
@@ -369,9 +375,14 @@ int ShowBox(List<string> a)
         if (!inside && dx * dx + dy * dy > 80 * 80) continue;
         uint f = b.Flags & 0xFF;
         string flags = $"0x{f:X2}{((f & 0x80) != 0 ? " invisible" : "")}{((f & 0x20) != 0 ? " player-only" : "")}";
-        Console.WriteLine($"  box {b.Index,3}  {(inside ? "holds it" : $"{Math.Sqrt(dx * dx + dy * dy),5:0} px away")}  mask {b.Mask & 0xFF}  flags {flags}"
+        string scale = b.ScaleSlot == 0 ? $"scale {b.Scale}"
+            : $"scale slot {b.ScaleSlot} ({Walkboxes.ScaleAt(boxes, room.ScaleSlots, b.Index, x, y)} here)";
+        Console.WriteLine($"  box {b.Index,3}  {(inside ? "holds it" : $"{Math.Sqrt(dx * dx + dy * dy),5:0} px away")}  mask {b.Mask & 0xFF}  flags {flags}  {scale}"
             + $"  ({string.Join(" ", q.Select(p => $"{p.X},{p.Y}"))})");
     }
+    if (room.ScaleSlots.Count > 0)
+        Console.WriteLine("scale slots (SCAL; the scripts can change them): " +
+                          string.Join(", ", room.ScaleSlots.Select((sl, i) => (sl, i)).Where(t => t.sl.Y1 != t.sl.Y2).Select(t => $"{t.i + 1}: {t.sl.Scale1} at y {t.sl.Y1} to {t.sl.Scale2} at y {t.sl.Y2}")));
     var (px, py, box) = RoomActors.PutInBox(boxes, x, y, player);
     Console.WriteLine($"engine: box {box} (mask {(box < boxes.Count ? boxes[box].Mask & 0xFF : 0)}){(px != x || py != y ? $", moved to {px},{py}" : "")}");
     if (room.Lflf?.FindChildRecursive(ScummTag.BOXM) is { } boxm && box > 0)
