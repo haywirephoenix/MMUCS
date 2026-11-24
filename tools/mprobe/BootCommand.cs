@@ -395,7 +395,7 @@ static class BootCommand
         int StateOf(RoomObject o) => drawn.GetValueOrDefault(vm.Scripts.ObjectId(o.Name));
         var screen = vm.Palette.Snapshot();
         var scene = MMUCS.Player.Rooms.RoomSceneBuilder.BuildIndexedAsync(model, StateOf).GetAwaiter().GetResult().Colour(screen);
-        scene = scene.WithActors(MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.Pictures, scene.ZMasks.Count, screen: screen));
+        scene = scene.WithActors(MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.Pictures, scene.ZMasks.Count, screen: screen, shadowFactors: vm.Palette.ShadowFactors));
         using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(Math.Max(1, scene.Width), Math.Max(1, scene.Height)));
         surface.Canvas.Clear(SkiaSharp.SKColors.Black);
         scene.Draw(surface.Canvas, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Nearest));
@@ -410,7 +410,7 @@ static class BootCommand
         // The actors over the blasts (layer below 0), cut by the room's planes as the others.
         if (vm.Actors.UpperPictures.Count > 0)
             new MMUCS.Player.Rooms.RoomScene { Width = scene.Width, Height = scene.Height, ZMasks = scene.ZMasks,
-                Actors = MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.UpperPictures, scene.ZMasks.Count, screen: screen) }
+                Actors = MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.UpperPictures, scene.ZMasks.Count, screen: screen, shadowFactors: vm.Palette.ShadowFactors) }
                 .Draw(surface.Canvas, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Nearest));
         // The texts on the page, in the game fonts and the screen's colours, as the game window draws them.
         int drawnTexts = 0;
