@@ -126,6 +126,9 @@ public sealed class Actor
     /// <summary>Where it was last drawn, in room pixels (for <c>actor-at</c>), or null when it wasn't.</summary>
     public (int Left, int Top, int Right, int Bottom)? Drawn { get; set; }
 
+    /// <summary>Where its picture was placed when last drawn (room pixels, lifted by the elevation), or null.</summary>
+    public (int X, int Y)? LastPicturePlace { get; set; }
+
     public bool IsMoving => Moving != 0;
 
     /// <summary>ScummVM <c>CostumeData::reset</c>: every limb idle with nothing decoded.</summary>

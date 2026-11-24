@@ -6,7 +6,8 @@ using MMUCS.Core.Scumm;
 namespace MMUCS.Runtime.Scripts;
 
 /// <summary>A line on the screen (ScummVM's v7+ subtitle queue): page pixels, font (charset) and palette colour.</summary>
-public sealed record ScreenText(string Text, int X, int Y, int Color, int Charset, bool Center, bool Wrap);
+/// <remarks><see cref="OverActor"/>: placed over the talking actor in the room (an overhead talk line), rather than on the screen.</remarks>
+public sealed record ScreenText(string Text, int X, int Y, int Color, int Charset, bool Center, bool Wrap, bool OverActor = false);
 
 /// <summary>Plays the speech for a line: its tag names the voice file (<c>BCCB301</c> plays <c>BCCB301.IMX</c>).</summary>
 public interface ISpeech
@@ -280,7 +281,7 @@ public sealed partial class ScriptVm
         string line = _charsetBuffer[_charsetBufPos..];
         _talkDelay = State[EngineVars.DefaultTalkDelay] + line.Length * State[EngineVars.CharInc];
         if (line.Length > 0 && line != " ")
-            _subtitles.Add(new ScreenText(line, str.X, str.Y, _charsetColor, str.Charset, str.Center, str.Wrapping));
+            _subtitles.Add(new ScreenText(line, str.X, str.Y, _charsetColor, str.Charset, str.Center, str.Wrapping, a != null && str.Overhead));
         _charsetBufPos = _charsetBuffer.Length;
         _haveMsg = State[EngineVars.HaveMessage] = str.NoTalkAnim ? 2 : 1;
         _keepText = false;

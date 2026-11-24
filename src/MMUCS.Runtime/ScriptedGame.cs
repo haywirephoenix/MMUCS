@@ -144,6 +144,23 @@ public sealed class ScriptedGame : IDisposable
     /// </summary>
     public bool SmoothCamera { get; set; }
 
+    /// <summary>
+    /// How far to slide actors from where the last frame drew them to where this one does: with the smooth
+    /// camera, the way through the wait for the next frame (so walking glides with the camera instead of
+    /// stepping against it); otherwise 1, where the engine has them.
+    /// </summary>
+    public double ActorSlide => SmoothCamera && Loop != null ? Loop.Progress : 1;
+
+    /// <summary>Whether an actor drawn last frame moved, so the picture changes as it slides.</summary>
+    private bool ActorsSliding()
+    {
+        foreach (var p in Vm.Actors.Pictures)
+            if (p.X != p.FromX || p.Y != p.FromY) return true;
+        foreach (var p in Vm.Actors.UpperPictures)
+            if (p.X != p.FromX || p.Y != p.FromY) return true;
+        return false;
+    }
+
     public const double SmoothCameraHalfLife = 4;
     public const int SmoothCameraSnap = 100;
 
@@ -344,7 +361,7 @@ public sealed class ScriptedGame : IDisposable
         Step(() => ran = Loop.Tick());
         var before = Camera;
         EaseCamera();
-        if (ran || IsVideoPlaying || Camera != before) Changed?.Invoke();
+        if (ran || IsVideoPlaying || Camera != before || (SmoothCamera && ActorsSliding())) Changed?.Invoke();
     }
 
     /// <summary>Ends the video now; the cutscene it was in is skipped on the next frame.</summary>

@@ -59,6 +59,9 @@ public sealed class FrameLoop
     /// </summary>
     public int Wait { get; private set; }
 
+    /// <summary>How far through the wait for the next frame the jiffies are, from 0 (a frame just ran) towards 1.</summary>
+    public double Progress => Wait > 0 ? (double)_elapsed / Wait : 0;
+
     /// <summary>The mouse on the 640×480 screen, written to the mouse variables each frame (kept within <see cref="MouseRangeX"/> and the screen's height).</summary>
     public (int X, int Y) Mouse { get; set; }
 

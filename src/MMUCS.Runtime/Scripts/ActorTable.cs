@@ -9,9 +9,10 @@ namespace MMUCS.Runtime.Scripts;
 /// An actor as the engine drew it in the last frame (before its costume stepped on, as ScummVM draws then
 /// animates): its costume's frame, which way round and how big, where (room pixels; <see cref="Y"/> already
 /// lifted by the elevation), and the z-plane it's cut by (<see cref="FromBox"/>: the walk box's, which the
-/// engine keeps within the room's planes).
+/// engine keeps within the room's planes). <see cref="FromX"/>, <see cref="FromY"/>: where the frame before
+/// drew it (its own place when it wasn't drawn), for a view that slides actors between frames.
 /// </summary>
-public sealed record ActorPicture(int Actor, Costume Costume, AkosFrame Frame, bool Mirrored, int Scale, int X, int Y, int ZPlane, bool FromBox)
+public sealed record ActorPicture(int Actor, Costume Costume, AkosFrame Frame, bool Mirrored, int Scale, int X, int Y, int ZPlane, bool FromBox, int FromX, int FromY)
 {
     /// <summary>What decides the picture's pixels (not where it is), for caching them.</summary>
     public string Key { get; } = $"{Costume.Number}:{(Mirrored ? 1 : 0)}:{Scale}:" + string.Join(";", Frame.Cels.Select(c => $"{c.Cel},{c.X},{c.Y}"));
@@ -108,7 +109,7 @@ public sealed partial class ActorTable
     internal void HideAll()
     {
         for (int i = 1; i < Count; i++) Hide(_actors[i]);
-        foreach (var a in _actors) a.Drawn = null;
+        foreach (var a in _actors) (a.Drawn, a.LastPicturePlace) = (null, null);
         Pictures = [];
         UpperPictures = [];
     }
@@ -266,7 +267,7 @@ public sealed partial class ActorTable
         }
         a.Visible = false;
         a.NeedRedraw = false;
-        a.Drawn = null;
+        (a.Drawn, a.LastPicturePlace) = (null, null);
     }
 
     public void StopMoving(Actor a)
@@ -530,7 +531,9 @@ public sealed partial class ActorTable
         a.Drawn = (a.X + l * scale / 255, y + t * scale / 255, a.X + r * scale / 255, y + b * scale / 255);
 
         bool fromBox = a.ForceClip == Actor.BoxClip;
-        return new ActorPicture(a.Number, costume, frame, mirrored, scale, a.X, y, fromBox ? BoxMask(a.Walkbox) : a.ForceClip, fromBox);
+        var from = a.LastPicturePlace ?? (a.X, y);
+        a.LastPicturePlace = (a.X, y);
+        return new ActorPicture(a.Number, costume, frame, mirrored, scale, a.X, y, fromBox ? BoxMask(a.Walkbox) : a.ForceClip, fromBox, from.X, from.Y);
     }
 
     /// <summary>ScummVM <c>animateCostume</c>: every <i>animation speed</i> frames, each active limb steps on.</summary>
