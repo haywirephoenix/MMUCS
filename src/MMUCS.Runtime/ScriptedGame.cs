@@ -247,7 +247,11 @@ public sealed class ScriptedGame : IDisposable
             music?.Refresh();
         };
         // The camera shown decides where the page's top left is in the room, for the virtual mouse.
-        Loop.BeforeScripts += _ => Loop.ScreenOrigin = ((int)Math.Round(Camera.X) - 320, (int)Math.Round(Camera.Y) - 240);
+        Loop.BeforeScripts += _ =>
+        {
+            Loop.ScreenOrigin = ((int)Math.Round(Camera.X) - 320, (int)Math.Round(Camera.Y) - 240);
+            Loop.MouseRangeX = MouseRange();
+        };
         Changed?.Invoke();
     }
 
@@ -444,6 +448,19 @@ public sealed class ScriptedGame : IDisposable
         Effects?.StopAll();
         Voice?.Stop();
         _engine.Dispose();
+    }
+
+    /// <summary>
+    /// Where the mouse may go across the screen: the screen itself, and beside it as far as the canvas shows the
+    /// room (the camera shown keeps a wide room's ends on the canvas, past the 640 screen), so the exits at a
+    /// room's ends can be pointed at; a 640 room keeps 0–639.
+    /// </summary>
+    private (int Min, int Max) MouseRange()
+    {
+        int side = (int)Math.Ceiling(GameState.PageOrigin.X); // the canvas shows part of a pixel more on each side
+        if (CurrentRoom == 0) return (0, 639);
+        int left = Loop.ScreenOrigin.X, width = Vm.State[EngineVars.RoomWidth];
+        return (Math.Min(0, Math.Max(-side, -left)), Math.Max(639, Math.Min(639 + side, width - 1 - left)));
     }
 
     /// <summary>Whether the cursor is over the page (the scripts' screen) rather than the canvas's sides.</summary>

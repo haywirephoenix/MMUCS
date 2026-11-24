@@ -59,8 +59,14 @@ public sealed class FrameLoop
     /// </summary>
     public int Wait { get; private set; }
 
-    /// <summary>The mouse on the 640×480 screen, written to the mouse variables each frame (kept on the screen).</summary>
+    /// <summary>The mouse on the 640×480 screen, written to the mouse variables each frame (kept within <see cref="MouseRangeX"/> and the screen's height).</summary>
     public (int X, int Y) Mouse { get; set; }
+
+    /// <summary>
+    /// How far left and right the mouse goes on the screen (0–639, the engine's screen); wider when more of the
+    /// room is shown beside the screen, so the room there can be pointed at.
+    /// </summary>
+    public (int Min, int Max) MouseRangeX { get; set; } = (0, 639);
 
     /// <summary>A button went down: it counts as a click in the next frame, and as held until <see cref="Release"/>.</summary>
     public void Press(MouseButton button)
@@ -146,7 +152,7 @@ public sealed class FrameLoop
     private int ProcessInput()
     {
         var state = Vm.State;
-        Mouse = (Math.Clamp(Mouse.X, 0, 639), Math.Clamp(Mouse.Y, 0, 479));
+        Mouse = (Math.Clamp(Mouse.X, MouseRangeX.Min, MouseRangeX.Max), Math.Clamp(Mouse.Y, 0, 479));
         state[EngineVars.MouseX] = Mouse.X;
         state[EngineVars.MouseY] = Mouse.Y;
         state[EngineVars.VirtMouseX] = Mouse.X + ScreenOrigin.X;
