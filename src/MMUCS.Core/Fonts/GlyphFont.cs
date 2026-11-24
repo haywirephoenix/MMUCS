@@ -81,6 +81,47 @@ public sealed class GlyphFont : IGlyphMetrics
     public float CharWidth(char c) => this[c].PenAdvance;
     public float CharHeight(char c) => c < Glyphs.Count ? Glyphs[c].Height : LineHeight;
 
+    private (bool AllRound, bool Shadow)? _edge;
+
+    /// <summary>
+    /// Whether the dark edge (<see cref="Outline"/>) goes all round the letters: a pixel on every side, as
+    /// in fonts 1 and 2. Font 4's edge is only a shadow.
+    /// </summary>
+    public bool OutlineAllRound => (_edge ??= MeasureEdge()).AllRound;
+
+    /// <summary>
+    /// Whether the dark edge is heavier down and to the right: a hard drop shadow a pixel down-right (fonts 1,
+    /// 2 and 4), which a replacement typeface draws too.
+    /// </summary>
+    public bool HasShadow => (_edge ??= MeasureEdge()).Shadow;
+
+    /// <summary>
+    /// Where the edge lies against the ink, over every glyph: an outline has as much edge left as right of the
+    /// letters; a shadow has half as much again two pixels right and below as left and above.
+    /// </summary>
+    private (bool, bool) MeasureEdge()
+    {
+        if (Outline is not { } edge) return (false, false);
+        int left = 0, right = 0, farLeft = 0, farRight = 0, farUp = 0, farDown = 0;
+        foreach (var g in Glyphs)
+        {
+            if (!g.IsIndexed || g.Width == 0) continue;
+            bool Is(int x, int y, byte v) => x >= 0 && y >= 0 && x < g.Width && y < g.Height && g.Indices[y * g.Width + x] == v;
+            for (int y = 0; y < g.Height; y++)
+                for (int x = 0; x < g.Width; x++)
+                {
+                    if (!Is(x, y, Ink)) continue;
+                    if (Is(x - 1, y, edge)) left++;
+                    if (Is(x + 1, y, edge)) right++;
+                    if (!Is(x - 1, y, Ink) && Is(x - 2, y, edge)) farLeft++;
+                    if (!Is(x + 1, y, Ink) && Is(x + 2, y, edge)) farRight++;
+                    if (!Is(x, y - 1, Ink) && Is(x, y - 2, edge)) farUp++;
+                    if (!Is(x, y + 1, Ink) && Is(x, y + 2, edge)) farDown++;
+                }
+        }
+        return (left * 2 >= right, (farRight + farDown) * 2 > (farLeft + farUp) * 3);
+    }
+
     private (float Cap, float Baseline)? _capMetrics;
 
     /// <summary>
