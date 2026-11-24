@@ -14,8 +14,10 @@ internal static class Program
     {
         AppDomain.CurrentDomain.UnhandledException += (_, e) => WriteCrash(e.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException      += (_, e) => { WriteCrash(e.Exception); e.SetObserved(); };
-        // One instance per user: a second launch hands its file to the running one and exits.
-        if (!SingleInstance.TryAcquire())
+        // One instance per user: a second launch hands its file to the running one and exits. The game window
+        // on its own (--game) runs beside it.
+        bool gameOnly = GameOnly.Requested(args);
+        if (!gameOnly && !SingleInstance.TryAcquire())
         {
             SingleInstance.SendToRunning(args);
             return;
@@ -32,7 +34,7 @@ internal static class Program
         }
         finally
         {
-            SingleInstance.Release();
+            if (!gameOnly) SingleInstance.Release();
         }
     }
 
