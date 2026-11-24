@@ -356,6 +356,7 @@ public sealed partial class ScriptVm
         KeepLockedFloatingObjects(oldSlots);
         Actors.LoadBoxes(room);
         if (room != 0) SetRoomPalette(0);
+        _saveStamps.Clear(); // the F1 menu's thumbnails go with its room
         RoomEntered?.Invoke(room);
         if (room == 0) return;
 
@@ -997,7 +998,8 @@ public sealed partial class ScriptVm
             case 27 when args.Length >= 2: // saveGameRead: slot
                 SaveGameReadSlot(args[1]);
                 return;
-            case 28: // saveGameStampScreenshot: slot, x, y, width, height, brightness (no thumbnails yet)
+            case 28 when args.Length >= 7: // saveGameStampScreenshot: slot, x, y, width, height, brightness
+                StampSaveThumbnail(new SaveStamp(args[1], args[2], args[3], args[4], args[5], args[6]));
                 return;
             case 32 when args.Length >= 3: // writeRegistryValue: name, value
                 WriteRegistry?.Invoke(StringOf(args[1]), args[2]);

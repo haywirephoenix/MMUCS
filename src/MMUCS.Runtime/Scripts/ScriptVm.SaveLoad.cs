@@ -14,6 +14,13 @@ public enum SaveLoadRequest
 }
 
 /// <summary>
+/// A save's thumbnail the F1 menu put on the screen (kernel set 28, <c>save-game-stamp-screenshot</c>): slot 0 is
+/// the game about to be saved (the F1 snapshot's), the others the slots'. <paramref name="Brightness"/> is of 255
+/// (the menu dims the slots the mouse isn't on).
+/// </summary>
+public readonly record struct SaveStamp(int Slot, int X, int Y, int Width, int Height, int Brightness);
+
+/// <summary>
 /// Saving and loading (ScummVM saveload.cpp and <c>scummLoop_handleSaveLoad</c>), and quitting. COMI's F1 menu
 /// works on a temporary save: its key script does <c>room save-game</c> before taking the screen over with room
 /// 92, and Return to Game does <c>room load-game</c>, which puts everything back as it was; the key script
@@ -112,9 +119,26 @@ public sealed partial class ScriptVm
         return false;
     }
 
+    private readonly System.Collections.Generic.List<SaveStamp> _saveStamps = [];
+
+    /// <summary>
+    /// The thumbnails the F1 menu has on the screen, in the order stamped, for the host to draw over the room.
+    /// The engine draws them once and they stay until drawn over; here one stays until another is stamped in its
+    /// place, the menu reads a page's first slot name again (the page is shown afresh) or the room changes.
+    /// </summary>
+    public System.Collections.Generic.IReadOnlyList<SaveStamp> SaveStamps => _saveStamps;
+
+    private void StampSaveThumbnail(SaveStamp stamp)
+    {
+        _saveStamps.RemoveAll(s => s.X == stamp.X && s.Y == stamp.Y);
+        _saveStamps.Add(stamp);
+    }
+
     /// <summary>Kernel set 25: a slot's name into string array <paramref name="array"/>; an empty slot leaves it as it is.</summary>
     private void SaveGameReadName(int slot, int array)
     {
+        // The menu reads a page's names in order, stamping each slot's thumbnail as it goes: the first is a page shown afresh.
+        if ((slot - 1) % 6 == 0) _saveStamps.Clear();
         if (SaveGameName?.Invoke(slot) is not { } name) return;
         var bytes = System.Text.Encoding.Latin1.GetBytes(name);
         var text = new ScriptArray(ArrayType.String, 0, bytes.Length + 1);

@@ -33,6 +33,13 @@ public sealed class GameSaves(string folder)
         return File.Exists(path) ? ScriptedGame.ReadSaveName(path) ?? "" : null;
     }
 
+    /// <summary>A slot's thumbnail (a PNG), or null when the slot is empty or its save has none.</summary>
+    public byte[] SlotThumbnail(int slot)
+    {
+        string path = SlotPath(slot);
+        return File.Exists(path) ? ScriptedGame.ReadSaveHeader(path)?.Thumbnail : null;
+    }
+
     private string RegistryPath => Path.Combine(Folder, "registry.json");
 
     /// <summary>A registry setting the game wrote, or null when it hasn't.</summary>
@@ -74,9 +81,9 @@ public sealed class GameSaves(string folder)
 
     /// <summary>
     /// Gives the engine the slots and the registry: the menu reads the slots' names, writes the F1 snapshot
-    /// with the sounds as they were then (<paramref name="sounds"/>), and loads a slot with its sounds.
+    /// with the sounds and thumbnail as they were then (<paramref name="sounds"/>), and loads a slot with its sounds.
     /// </summary>
-    public void Attach(FrameLoop loop, ScriptedGame.SavedSounds sounds, SoundEffects effects, VoicePlayer voice, ComiMusic music)
+    public void Attach(FrameLoop loop, ScriptedGame.SnapshotExtras sounds, SoundEffects effects, VoicePlayer voice, ComiMusic music)
     {
         var vm = loop.Vm;
         vm.ReadRegistry = Registry;
@@ -89,7 +96,7 @@ public sealed class GameSaves(string folder)
             {
                 Directory.CreateDirectory(Folder);
                 using (var file = File.Create(temp))
-                    ScriptedGame.WriteSave(file, vm.TemporaryState, sounds?.Music, sounds?.Speech, sounds?.Effects, name);
+                    ScriptedGame.WriteSave(file, vm.TemporaryState, sounds?.Music, sounds?.Speech, sounds?.Effects, name, sounds?.Thumbnail);
                 File.Move(temp, path, overwrite: true);
                 Log.Info($"Game: saved \"{name}\" in slot {slot} ({path})");
                 return true;

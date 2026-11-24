@@ -280,9 +280,10 @@ public sealed class ScriptedGame : IDisposable
             musicOutput?.Update();
             music?.Refresh();
         };
-        var sounds = FollowSaves(Loop, effects, voice, music);
+        var snapshot = Snapshot = FollowSaves(Loop, effects, voice, music);
+        Loop.StateSaved += () => snapshot.Thumbnail = Thumbnail();
         Saves = GameFile == null ? null : new GameSaves(GameSaves.FolderFor(GameFile));
-        Saves?.Attach(Loop, sounds, effects, voice, music);
+        Saves?.Attach(Loop, snapshot, effects, voice, music);
         if (Loop.LoadSlot is { } loadSlot)
             Loop.LoadSlot = slot =>
             {
@@ -315,13 +316,31 @@ public sealed class ScriptedGame : IDisposable
         return effects.Command(list) || music?.Command(list) == true;
     };
 
-    /// <summary>The sounds as the scripts' temporary save (the F1 menu's) found them, for a save slot to keep with it.</summary>
-    public sealed class SavedSounds
+    /// <summary>
+    /// What the scripts' temporary save (the F1 menu's) keeps beside the engine, for a save slot to write with
+    /// it: the sounds as they were, and the thumbnail of the last frame before the menu.
+    /// </summary>
+    public sealed class SnapshotExtras
     {
         public ComiMusic.Saved Music { get; internal set; }
         public SpeechPlace? Speech { get; internal set; }
         public System.Collections.Generic.List<SoundEffects.Saved> Effects { get; internal set; }
+
+        /// <summary>The page as it looked, as a PNG of <see cref="ThumbnailSize"/>, or null when the host draws none.</summary>
+        public byte[] Thumbnail { get; set; }
     }
+
+    /// <summary>A save's thumbnail, as the F1 menu draws it.</summary>
+    public const int ThumbnailWidth = 140, ThumbnailHeight = 105;
+
+    /// <summary>
+    /// The host's thumbnail of the page as last drawn (a PNG of <see cref="ThumbnailWidth"/>×<see cref="ThumbnailHeight"/>),
+    /// taken when the F1 menu saves (before it draws itself) and by <see cref="QuickSave"/>. Null: saves have none.
+    /// </summary>
+    public Func<byte[]> TakeThumbnail { get; set; }
+
+    /// <summary>What the F1 menu's snapshot keeps beside the engine (its thumbnail is slot 0's, the game about to be saved).</summary>
+    public SnapshotExtras Snapshot { get; private set; }
 
     /// <summary>
     /// The scripts' temporary save (the F1 menu's) for the sounds, which live outside the engine. As ScummVM's
@@ -330,9 +349,9 @@ public sealed class ScriptedGame : IDisposable
     /// where they were, so the menu's silence in between is a pause. The effects playing are kept too, for a
     /// save slot written from the menu (<see cref="GameSaves"/>).
     /// </summary>
-    public static SavedSounds FollowSaves(FrameLoop loop, SoundEffects effects, VoicePlayer voice, ComiMusic music)
+    public static SnapshotExtras FollowSaves(FrameLoop loop, SoundEffects effects, VoicePlayer voice, ComiMusic music)
     {
-        var saved = new SavedSounds();
+        var saved = new SnapshotExtras();
         loop.StateSaved += () =>
         {
             saved.Music = music?.Save();
@@ -495,12 +514,13 @@ public sealed class ScriptedGame : IDisposable
             string temp = path + ".new";
             StateFile.Summary summary = null;
             Exception failed = null;
+            var thumbnail = Thumbnail();
             Step(() =>
             {
                 try
                 {
                     using var file = File.Create(temp);
-                    summary = WriteSave(file, Vm, Music, Voice, Effects, "Quick save");
+                    summary = WriteSave(file, Vm, Music, Voice, Effects, "Quick save", thumbnail);
                 }
                 catch (Exception ex) { failed = ex; } // a failed save leaves the game running
             });
@@ -561,48 +581,84 @@ public sealed class ScriptedGame : IDisposable
         }
     }
 
+    /// <summary>The host's thumbnail, or null when it has none or it fails (a save goes on without one).</summary>
+    private byte[] Thumbnail()
+    {
+        try { return TakeThumbnail?.Invoke(); }
+        catch (Exception ex)
+        {
+            Log.Warn($"Game: thumbnail: {ex.Message}");
+            return null;
+        }
+    }
+
     /// <summary>A save as a file: the engine, the music's state and track, the line's speech and the effects playing, and where they were.</summary>
-    public static StateFile.Summary WriteSave(Stream stream, ScriptVm vm, ComiMusic music, VoicePlayer voice, SoundEffects effects, string name = null) =>
-        WriteSave(stream, vm, music?.Save(), voice?.Place, effects?.Save(), name);
+    public static StateFile.Summary WriteSave(Stream stream, ScriptVm vm, ComiMusic music, VoicePlayer voice, SoundEffects effects, string name = null,
+        byte[] thumbnail = null) =>
+        WriteSave(stream, vm, music?.Save(), voice?.Place, effects?.Save(), name, thumbnail);
 
     private const string SaveMagic = "MMUCS-SAVE";
 
     /// <summary>
-    /// A save as a file, from the sounds as they were saved: a header (the name, when, the room) that a slot
-    /// list reads without the rest, then the state.
+    /// A save as a file, from the sounds as they were saved: a header that a slot list reads without the rest
+    /// (the name, when, the room and the thumbnail, a PNG), then the state.
     /// </summary>
     public static StateFile.Summary WriteSave(Stream stream, ScriptVm vm, ComiMusic.Saved music, SpeechPlace? speech,
-        System.Collections.Generic.List<SoundEffects.Saved> effects, string name)
+        System.Collections.Generic.List<SoundEffects.Saved> effects, string name, byte[] thumbnail = null)
     {
         using (var header = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
         {
             header.Write(SaveMagic);
-            header.Write(1);
+            header.Write(SaveVersion);
             header.Write(name ?? "");
             header.Write(DateTime.UtcNow.Ticks);
             header.Write(vm.CurrentRoom);
+            header.Write(thumbnail?.Length ?? 0);
+            if (thumbnail != null) header.Write(thumbnail);
         }
         return StateFile.Write(stream, new object[] { vm, music, speech, effects });
     }
 
-    /// <summary>A save file's name, or null when it isn't one (a quick save from before saves had names reads as "").</summary>
-    public static string ReadSaveName(string path)
+    /// <summary>A save file's header: version 1 has no thumbnail, version 2 adds it.</summary>
+    private const int SaveVersion = 2;
+
+    /// <summary>A save file's header, read up to where the state starts (null when it isn't a save; a quick save from before the header has an empty one).</summary>
+    private static (string Name, byte[] Thumbnail)? ReadHeader(BinaryReader r, Stream stream)
+    {
+        long start = stream.Position;
+        string magic = r.ReadString();
+        if (magic == "MMUCS-STATE")
+        {
+            stream.Position = start;
+            return ("", null);
+        }
+        if (magic != SaveMagic) return null;
+        int version = r.ReadInt32();
+        string name = r.ReadString();
+        r.ReadInt64();
+        r.ReadInt32();
+        byte[] thumbnail = null;
+        if (version >= 2 && r.ReadInt32() is int length and > 0) thumbnail = r.ReadBytes(length);
+        return (name, thumbnail);
+    }
+
+    /// <summary>A save file's name and thumbnail (a PNG, or null), or null when it isn't a save.</summary>
+    public static (string Name, byte[] Thumbnail)? ReadSaveHeader(string path)
     {
         try
         {
             using var file = File.OpenRead(path);
             using var r = new BinaryReader(file);
-            string magic = r.ReadString();
-            if (magic == "MMUCS-STATE") return "";
-            if (magic != SaveMagic) return null;
-            r.ReadInt32();
-            return r.ReadString();
+            return ReadHeader(r, file);
         }
         catch (Exception ex) when (ex is IOException or EndOfStreamException or UnauthorizedAccessException)
         {
             return null;
         }
     }
+
+    /// <summary>A save file's name, or null when it isn't one.</summary>
+    public static string ReadSaveName(string path) => ReadSaveHeader(path)?.Name;
 
     /// <summary>
     /// Loads a save written by <see cref="WriteSave"/> into the loop's engine: the music, speech and effects carry on
@@ -611,18 +667,8 @@ public sealed class ScriptedGame : IDisposable
     public static void ReadSave(Stream stream, FrameLoop loop, SoundEffects effects, VoicePlayer voice, ComiMusic music,
         System.Collections.Generic.List<string> missing = null)
     {
-        long start = stream.Position;
         using (var header = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true))
-        {
-            if (header.ReadString() == SaveMagic)
-            {
-                header.ReadInt32();
-                header.ReadString();
-                header.ReadInt64();
-                header.ReadInt32();
-            }
-            else stream.Position = start; // a quick save from before the header
-        }
+            if (ReadHeader(header, stream) == null) throw new InvalidDataException("not a game save");
         if (StateFile.Read(stream, loop.Vm, missing) is not object[] { Length: >= 3 } parts || parts[0] is not ScriptVm saved)
             throw new InvalidDataException("not a game save");
         loop.LoadState(saved);
