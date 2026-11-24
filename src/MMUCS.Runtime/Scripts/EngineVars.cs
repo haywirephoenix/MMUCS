@@ -42,6 +42,8 @@ public static class EngineVars
     public const int Tmr1 = 113, Tmr2 = 114, Tmr3 = 115;
     /// <summary>How far the camera's centre may go: half a screen in from the room's edges.</summary>
     public const int CameraMinX = 116, CameraMaxX = 117, CameraMinY = 118, CameraMaxY = 119;
+    /// <summary>The camera's speed (pixels a frame, at most 8) and how much it speeds up each frame (hundredths).</summary>
+    public const int CameraSpeedX = 120, CameraSpeedY = 121, CameraAccelX = 122, CameraAccelY = 123;
     /// <summary>How far the followed actor may get from the camera's centre before it moves.</summary>
     public const int CameraThresholdX = 124, CameraThresholdY = 125;
     public const int Ego = 126;

@@ -111,7 +111,7 @@ public sealed class ScriptedGame : IDisposable
     /// Where the camera looks in the room (its centre, room pixels), from the camera variables; the page's top
     /// left is half a screen up and left of it.
     /// </summary>
-    public GamePoint Camera => Vm == null ? new(320, 240) : new(Vm.State[EngineVars.CameraPosX], Vm.State[EngineVars.CameraPosY]);
+    public GamePoint Camera => Vm == null ? new(320, 240) : new(Vm.CameraX, Vm.CameraY);
 
     public int CurrentRoom => Vm?.CurrentRoom ?? 0;
 
@@ -190,7 +190,7 @@ public sealed class ScriptedGame : IDisposable
             music?.Refresh();
         };
         // The camera decides where the page's top left is in the room, for the virtual mouse.
-        Loop.BeforeScripts += _ => Loop.ScreenOrigin = (Vm.State[EngineVars.CameraPosX] - 320, Vm.State[EngineVars.CameraPosY] - 240);
+        Loop.BeforeScripts += _ => Loop.ScreenOrigin = (Vm.CameraX - 320, Vm.CameraY - 240);
         Changed?.Invoke();
     }
 

@@ -261,7 +261,7 @@ public sealed partial class ScriptVm
         var saved = str.Copy();
         if (a != null && str.Overhead)
         {
-            int left = State[EngineVars.CameraPosX] - ScreenWidth / 2, top = State[EngineVars.CameraPosY] - ScreenHeight / 2;
+            int left = CameraX - ScreenWidth / 2, top = CameraY - ScreenHeight / 2;
             int s = a.ScaleX * a.TalkX / 255;
             str.X = a.X - left + (a.TalkX - s) / 2 + s;
             s = a.ScaleY * a.TalkY / 255;

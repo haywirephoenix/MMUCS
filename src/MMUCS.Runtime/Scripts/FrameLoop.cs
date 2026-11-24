@@ -121,11 +121,16 @@ public sealed class FrameLoop
         Vm.TalkTime(step);
 
         int input = ProcessInput();
+        Vm.UpdateCameraVars();
         BeforeScripts?.Invoke(step);
 
         Vm.RunAllScripts();
         CheckExecVerbs(input);
-        if (Vm.CurrentRoom != 0) Vm.WalkActors();
+        if (Vm.CurrentRoom != 0)
+        {
+            Vm.WalkActors();
+            Vm.MoveCamera();
+        }
         Vm.UpdateObjectStates();
         Vm.Charset();
         Vm.EndFrameTexts();

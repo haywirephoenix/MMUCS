@@ -591,6 +591,8 @@ public sealed partial class ScriptVm
             case 0x80: StopObjectScript(Pop()); return;
             case 0x8d: SetCameraFollows(Actors[Pop()]); return;
             case 0x8e: { int y = Pop(); CameraAt(Pop(), y); return; }
+            case 0x8c: { int y = Pop(); PanCameraTo(Pop(), y); return; }
+            case 0xad: if (CameraOps(ins)) return; break;
             case 0x87: Pop(); return; // debug
             case 0xb2: SoundKludgeOp(s, ins); return;
             case 0xaf when Effects != null: Effects.Start(Pop()); return;
