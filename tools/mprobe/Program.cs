@@ -52,7 +52,7 @@ usage: mprobe [--game FILE] COMMAND ...
                        mapping every frame to the picture it shows. NAME picks videos (opening, finale…).
 
   boot [--seconds N] [--click WHAT@S …] [--right-click WHAT@S …] [--key KEY@S …] [--calls] [--every-frame]
-       [--vars V,V…] [--param N]
+       [--vars V,V…] [--boot N]
                        Run the game's scripts headless with MMUCS.Runtime's interpreter: the boot script,
                        then N seconds of frames (default 10). Prints each script starting (▸) and ending (◂),
                        indented by nesting, rooms entered, faults and warnings; then the scripts still running,

@@ -11,7 +11,7 @@ static class BootCommand
     public static int Run(ScummBlock root, List<string> a, Func<List<string>, string, string> takeOption, string gameFile = null)
     {
         double seconds = double.TryParse(takeOption(a, "--seconds"), System.Globalization.CultureInfo.InvariantCulture, out var s) ? s : 10;
-        int bootParam = int.TryParse(takeOption(a, "--param"), out var p) ? p : 0;
+        int bootParam = int.TryParse(takeOption(a, "--boot") ?? takeOption(a, "--param"), out var p) ? p : 0;
         string vars = takeOption(a, "--vars");
         string png = takeOption(a, "--png");
         bool calls = a.Contains("--calls"), everyFrame = a.Contains("--every-frame");
