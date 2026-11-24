@@ -19,6 +19,7 @@ static class BootCommand
         for (string c; (c = takeOption(a, "--click")) != null;) inputs.Add(Timed(c, "click"));
         for (string c; (c = takeOption(a, "--right-click")) != null;) inputs.Add(Timed(c, "right-click"));
         for (string c; (c = takeOption(a, "--hold")) != null;) inputs.Add(Timed(c, "hold"));
+        for (string c; (c = takeOption(a, "--move")) != null;) inputs.Add(Timed(c, "move"));
         for (string k; (k = takeOption(a, "--key")) != null;) inputs.Add(Timed(k, "key"));
 
         var limits = GameLimits.Read(root) ?? throw new InvalidOperationException("no MAXS block: not a v8 game index");
@@ -109,6 +110,11 @@ static class BootCommand
                     continue;
                 }
                 loop.Mouse = point;
+                if (input.What == "move")
+                {
+                    Line($"MOVE {point.X},{point.Y}");
+                    continue;
+                }
                 int under = vm.FindObject(point.X + loop.ScreenOrigin.X, point.Y + loop.ScreenOrigin.Y);
                 Line($"{input.What.ToUpperInvariant()} {point.X},{point.Y} on {(under == 0 ? "nothing" : $"object {under} {RoomScripts.ObjectName(root, under)}")}");
                 var button = input.What == "right-click" ? MouseButton.Right : MouseButton.Left;
