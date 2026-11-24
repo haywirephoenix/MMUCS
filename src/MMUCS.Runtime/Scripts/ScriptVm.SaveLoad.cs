@@ -128,6 +128,20 @@ public sealed partial class ScriptVm
     /// </summary>
     public System.Collections.Generic.IReadOnlyList<SaveStamp> SaveStamps => _saveStamps;
 
+    /// <summary>
+    /// An object's state was set, which redraws it (ScummVM <c>o6_setState</c> marks its rect dirty): the
+    /// thumbnails under it are drawn over. The F1 menu turns its pages so, with a 640×480 object.
+    /// </summary>
+    private void DrawnOver(int obj)
+    {
+        if (_saveStamps.Count == 0) return;
+        foreach (var o in RoomObjects)
+        {
+            if (o.Id != obj || o.Width <= 0 || o.Height <= 0) continue;
+            _saveStamps.RemoveAll(s => s.X < o.X + o.Width && o.X < s.X + s.Width && s.Y < o.Y + o.Height && o.Y < s.Y + s.Height);
+        }
+    }
+
     private void StampSaveThumbnail(SaveStamp stamp)
     {
         _saveStamps.RemoveAll(s => s.X == stamp.X && s.Y == stamp.Y);

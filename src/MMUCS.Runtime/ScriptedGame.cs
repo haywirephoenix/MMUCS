@@ -29,6 +29,11 @@ public sealed class ScriptedGame : IDisposable
 {
     private EngineThread _engine = new();
     private string _requestedVideo;
+    private string _askedMessage;
+    private int _messageAnswer;
+
+    /// <summary>A system message waiting for a key (the F1 menu's "overwrite this game?"), or null; the game stops meanwhile.</summary>
+    public string SystemMessage { get; private set; }
     private Task<(SmushVideo Video, SmushAudioTrack Sound)> _videoLoad;
     private MediaClock _videoClock;
     private MixerVoice _videoVoice;
@@ -258,6 +263,14 @@ public sealed class ScriptedGame : IDisposable
             _requestedVideo = name;
             _engine.Park();
         };
+        // A system message: the engine thread waits here for the key that answers it.
+        Vm.AskSystem = text =>
+        {
+            if (!_engine.IsEngineThread) return 0;
+            _askedMessage = text;
+            _engine.Park();
+            return _messageAnswer;
+        };
         Loop = new FrameLoop(Vm);
         _booted = false;
         _quitRequested = false;
@@ -384,6 +397,8 @@ public sealed class ScriptedGame : IDisposable
         _videoClock = null;
         _videoLoad = null;
         _requestedVideo = null;
+        _askedMessage = null;
+        SystemMessage = null;
         Video = null;
         VideoName = null;
         Effects?.StopAll();
@@ -391,7 +406,7 @@ public sealed class ScriptedGame : IDisposable
         MusicOutput?.FadeOut(0);
         if (_engine.IsParked)
         {
-            // A step parked in start-video can't be carried on with a new engine: give it a thread of its own.
+            // A step parked in start-video or a system message can't be carried on with a new engine: give it a thread of its own.
             _engine.Dispose();
             _engine = new EngineThread();
         }
@@ -475,7 +490,9 @@ public sealed class ScriptedGame : IDisposable
 
     public void Press(MouseButton button)
     {
-        if (IsMouseCaptured) Loop?.Press(button);
+        if (!IsMouseCaptured) return;
+        if (SystemMessage != null) Answer(0);
+        else Loop?.Press(button);
     }
 
     public void Release(MouseButton button) => Loop?.Release(button);
@@ -483,7 +500,9 @@ public sealed class ScriptedGame : IDisposable
     /// <summary>A key, as the engine numbers it (ASCII; F1–F9 are 315–323).</summary>
     public void PressKey(int code)
     {
-        if (IsPlaying) Loop?.PressKey(code);
+        if (!IsPlaying) return;
+        if (SystemMessage != null) Answer(code);
+        else Loop?.PressKey(code);
     }
 
     /// <summary>
@@ -682,7 +701,7 @@ public sealed class ScriptedGame : IDisposable
     /// <summary>One jiffy (1/60 s) while playing: the video plays on, or a frame runs every timer-next jiffies.</summary>
     public void Tick()
     {
-        if (!IsPlaying || Loop == null) return;
+        if (!IsPlaying || Loop == null || SystemMessage != null) return; // a system message stops the game until it's answered
         if (IsVideoPlaying)
         {
             AdvanceVideo();
@@ -711,7 +730,7 @@ public sealed class ScriptedGame : IDisposable
     {
         try
         {
-            if (!_engine.Run(work)) BeginVideo();
+            if (!_engine.Run(work)) Parked();
         }
         catch (Exception ex)
         {
@@ -720,6 +739,40 @@ public sealed class ScriptedGame : IDisposable
             LastFault = ex.Message;
             IsPlaying = false;
         }
+    }
+
+    /// <summary>The engine stopped in the middle of a step: for a system message's key, or to play a video.</summary>
+    private void Parked()
+    {
+        if (_askedMessage != null)
+        {
+            SystemMessage = _askedMessage;
+            _askedMessage = null;
+            Log.Info($"Game: system message: {SystemMessage}");
+            Changed?.Invoke();
+            return;
+        }
+        BeginVideo();
+    }
+
+    /// <summary>The key (or a click, 0) answers the system message, and the engine carries on from it.</summary>
+    private void Answer(int key)
+    {
+        SystemMessage = null;
+        _messageAnswer = key;
+        try
+        {
+            if (!_engine.Resume()) Parked();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Game engine: {ex}");
+            Faults++;
+            LastFault = ex.Message;
+            IsPlaying = false;
+        }
+        QuitIfAsked();
+        Changed?.Invoke();
     }
 
     private void BeginVideo()
@@ -782,7 +835,7 @@ public sealed class ScriptedGame : IDisposable
         if (skipped) Loop.VideoSkipped();
         try
         {
-            if (!_engine.Resume()) BeginVideo();
+            if (!_engine.Resume()) Parked();
         }
         catch (Exception ex)
         {

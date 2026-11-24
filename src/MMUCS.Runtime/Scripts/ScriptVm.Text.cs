@@ -74,6 +74,12 @@ public sealed partial class ScriptVm
     /// <summary>A system message (<c>print-system</c>: "insert disc 2"…), which the game shows in a box.</summary>
     public event Action<string> SystemMessage;
 
+    /// <summary>
+    /// Shows a system message and waits for the key that answers it (a click answers 0). The host can stop the
+    /// engine in the middle of the instruction, as for a video; without one the message doesn't wait.
+    /// </summary>
+    public Func<string, int> AskSystem { get; set; }
+
     /// <summary>Speech for lines with a tag; without, lines show for their talk delay only.</summary>
     public ISpeech Speech { get; set; }
 
@@ -212,7 +218,15 @@ public sealed partial class ScriptVm
         switch (m)
         {
             case 0: ActorTalk(message); break;
-            case 3: SystemMessage?.Invoke(ConvertMessage(message, out _)); break;
+            case 3:
+            {
+                // ScummVM showMessageDialog: the message waits for a key, which goes in keypress (the F1 menu's
+                // "overwrite this game? (Y/N)" reads it on the next line).
+                string text = ConvertMessage(message, out _);
+                SystemMessage?.Invoke(text);
+                if (AskSystem != null) State[EngineVars.Keypress] = AskSystem(text);
+                break;
+            }
             case 4: // ScummVM ScummEngine_v8::printString's blast text: drawn this frame
             {
                 var str = _strings[4];

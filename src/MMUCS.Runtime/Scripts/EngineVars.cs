@@ -51,6 +51,8 @@ public static class EngineVars
     /// <summary>Jiffies per character a line stays up.</summary>
     public const int CharInc = 129;
     public const int DebugMode = 130;
+    /// <summary>The key that answered the last system message (ScummVM <c>VAR_KEYPRESS</c>, v8).</summary>
+    public const int Keypress = 132;
     /// <summary>Milliseconds the lip sync reads ahead of the speech (beyond the engine's own 50).</summary>
     public const int Sync = 134;
 

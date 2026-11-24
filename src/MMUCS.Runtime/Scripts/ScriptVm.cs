@@ -625,7 +625,7 @@ public sealed partial class ScriptVm
 
             // ── Objects ──
             case 0x89: SetClasses(); return;
-            case 0x8a: { int state = Pop(), obj = Pop(); State.Objects.SetState(obj, state); return; }
+            case 0x8a: { int state = Pop(), obj = Pop(); State.Objects.SetState(obj, state); DrawnOver(obj); return; }
             case 0x8b: { int owner = Pop(), obj = Pop(); SetOwner(obj, owner); return; }
             case 0xa6: PickUp(Pop()); return;
             case 0xc9: { var args = Args(); int verb = Pop(), obj = Pop(); RunObjectScript(obj, verb, recursive: true, args: args); return; }
