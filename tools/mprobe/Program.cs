@@ -98,7 +98,7 @@ try
         "audio" => await ExportAudio(argv),
         "play" => Play(argv),
         "listen" => Listen(argv),
-        "boot" => BootCommand.Run(root, argv, TakeOption),
+        "boot" => BootCommand.Run(root, argv, TakeOption, game),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }

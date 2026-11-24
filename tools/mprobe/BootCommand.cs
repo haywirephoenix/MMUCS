@@ -8,7 +8,7 @@ using MMUCS.Runtime.Scripts;
 /// </summary>
 static class BootCommand
 {
-    public static int Run(ScummBlock root, List<string> a, Func<List<string>, string, string> takeOption)
+    public static int Run(ScummBlock root, List<string> a, Func<List<string>, string, string> takeOption, string gameFile = null)
     {
         double seconds = double.TryParse(takeOption(a, "--seconds"), System.Globalization.CultureInfo.InvariantCulture, out var s) ? s : 10;
         int bootParam = int.TryParse(takeOption(a, "--param"), out var p) ? p : 0;
@@ -51,6 +51,15 @@ static class BootCommand
             ? "ROOM 0 (no room)"
             : $"ROOM {room} {store.RoomName(room)}{(store.RoomSize(room) is { } size ? $" ({size.Width}×{size.Height})" : "")}", vm.Depth);
         vm.VideoStarted += name => Line($"VIDEO {name} (not played here: the script goes straight on)", vm.Depth);
+        // The music the scripts ask for (its tables are in comi.exe), followed but not heard.
+        if (MMUCS.Core.Audio.MusicTable.Load(gameFile) is { } table)
+        {
+            var music = new MMUCS.Runtime.Sound.ComiMusic(table, new MMUCS.Runtime.Sound.SilentMusic());
+            music.Changed += what => Line($"MUSIC {what}", vm.Depth);
+            vm.SoundKludge = list => music.Command(list);
+            loop.AfterScripts += _ => music.Refresh();
+        }
+        else Console.WriteLine("no comi.exe beside the game: the music isn't followed");
         vm.Faulted += f => { faults++; Line($"FAULT {f}", vm.Depth); };
         vm.Warned += w => { warnings++; Line($"warning: {w}", vm.Depth); };
         if (calls) vm.Unhandled += c => Line($"· {c.Instruction.Name}({string.Join(", ", c.Args.Select(x => x.Length == 1 ? x[0].ToString() : $"[{string.Join(", ", x)}]"))}){(c.Instruction.Text is { } t ? " " + t : "")}", vm.Depth);
