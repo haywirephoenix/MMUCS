@@ -186,6 +186,62 @@ public class ScriptedViewTests
         Assert.Equal(0, game.Faults);
     }
 
+    [Fact]
+    public async Task The_inventory_and_verb_coin_show_over_the_room()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        using var game = new ScriptedGame();
+        game.Load(root, Game);
+        var view = new ScriptedView(game);
+        game.Play();
+        game.SetMouseCaptured(true);
+        game.MoveCursor(GameState.PageToGame(new GamePoint(320, 224)));
+        for (int i = 0; i < 60; i++) game.Tick();
+        game.Press(MouseButton.Left);
+        for (int i = 0; i < 6; i++) game.Tick();
+        game.Release(MouseButton.Left);
+        for (int i = 0; i < 60 * 200 && game.Loop.Jiffies < 60 * 140; i++)
+        {
+            if (game.IsVideoPlaying) game.SkipVideo();
+            game.Tick();
+        }
+        Assert.Equal(9, game.CurrentRoom);
+
+        // The inventory: its blasted images load in the background, then the frame has them on the page.
+        game.MoveCursor(GameState.PageToGame(new GamePoint(320, 300)));
+        game.Press(MouseButton.Right);
+        for (int i = 0; i < 6; i++) game.Tick();
+        game.Release(MouseButton.Right);
+        for (int i = 0; i < 30; i++) game.Tick();
+        for (int i = 0; i < 5; i++)
+        {
+            view.Capture();
+            await view.CursorLoading;
+            await view.Building;
+        }
+        var frame = view.Capture();
+        Assert.Equal(game.Vm.BlastObjects.Count, frame.Blasts.Count);
+        Assert.True(frame.Blasts.Count >= 2);
+        Assert.Equal(GameState.PageOrigin.X, frame.Blasts[0].Bounds.X, 3); // inventory-bg-object at the page's 0,0
+        using (Draw(frame, "scripted-inventory")) { }
+
+        // The verb coin: actor 50, drawn over the blasts.
+        game.Press(MouseButton.Right);
+        for (int i = 0; i < 6; i++) game.Tick();
+        game.Release(MouseButton.Right);
+        for (int i = 0; i < 30; i++) game.Tick();
+        game.MoveCursor(GameState.PageToGame(new GamePoint(152, 268)));
+        game.Press(MouseButton.Left);
+        for (int i = 0; i < 40; i++) game.Tick();
+        frame = view.Capture();
+        var upper = Assert.IsType<MMUCS.Player.Rooms.RoomScene>(frame.UpperActors);
+        Assert.Equal(50, Assert.Single(upper.Actors).Actor);
+        using (Draw(frame, "scripted-verb-coin")) { }
+        game.Release(MouseButton.Left);
+        Assert.Equal(0, game.Faults);
+    }
+
     /// <summary>A root with nothing in it: enough for the input mapping, which needs no game data.</summary>
     private static ScummBlock TinyGame() => new() { Tag = 0, TagName = "empty" };
 

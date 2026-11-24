@@ -168,7 +168,7 @@ public class InputTests
         var loop = new FrameLoop(vm);
 
         // Room 87's objects: the two buttons (hard 1364 below easy 1365), the choice text and a placard.
-        Assert.Equal([1364, 1365, 1366, 1367], vm.RoomObjects.Select(o => o.Id));
+        Assert.Equal([1364, 1365, 1366, 1367], vm.RoomObjects.Where(o => !vm.IsFloating(o.Id)).Select(o => o.Id)); // its own (the interface brings in floating ones)
         var hard = vm.RoomObjects[0];
         Assert.Equal((64, 176, 512, 96), (hard.X, hard.Y, hard.Width, hard.Height));
         Assert.Equal((FrameLoop.F1Key, 448), (vm.KeyScriptKey, vm.KeyScript)); // boot's F1 menu
