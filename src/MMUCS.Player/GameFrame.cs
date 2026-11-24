@@ -58,6 +58,9 @@ public sealed class GameFrame
     public string Label { get; init; }
     public SubtitleOverlay LabelText { get; init; }
 
+    /// <summary>Actors the engine draws over the blasted objects (layer below 0), in room pixels like <see cref="Room"/>'s.</summary>
+    public RoomScene UpperActors { get; init; }
+
     /// <summary>The scripts' texts on the page (talk lines, blasted labels), drawn in order over the room.</summary>
     public IReadOnlyList<SubtitleOverlay> Texts { get; init; } = [];
 
@@ -120,6 +123,13 @@ public sealed class GameFrame
 
         foreach (var blast in Blasts) canvas.DrawImage(blast.Image, Rect(blast.Bounds), sampling);
         if (Coin is { } coin) canvas.DrawImage(coin.Image, Rect(coin.Bounds), sampling);
+        if (UpperActors != null && Room != null && Cutscene == null)
+        {
+            canvas.Save();
+            canvas.Translate((float)(GameState.CanvasWidth / 2 - Camera.X), (float)(GameState.CanvasHeight / 2 - Camera.Y));
+            UpperActors.Draw(canvas, sampling);
+            canvas.Restore();
+        }
         if (Texts.Count > 0)
         {
             canvas.Save();

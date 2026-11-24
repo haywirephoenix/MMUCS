@@ -57,7 +57,7 @@ public sealed class ScriptedView
     /// <summary>A scene being built for what the game shows now (tests wait on it).</summary>
     public Task Building { get; private set; } = Task.CompletedTask;
 
-    /// <summary>The cursor image being loaded, if any (tests wait on it).</summary>
+    /// <summary>The object image being loaded (the cursor's or a blasted object's), if any (tests wait on it).</summary>
     public Task CursorLoading { get; private set; } = Task.CompletedTask;
 
     /// <summary>What the game shows now, ready to draw on any thread.</summary>
@@ -77,7 +77,11 @@ public sealed class ScriptedView
         return new GameFrame
         {
             IsRunning = game.IsPlaying,
-            Room = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 ? _scene.WithActors(SceneActors(_scene)) : null,
+            Room = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 ? _scene.WithActors(SceneActors(_scene, game.Vm.Actors.Pictures)) : null,
+            UpperActors = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 && game.Vm.Actors.UpperPictures.Count > 0
+                ? new RoomScene { Width = _scene.Width, Height = _scene.Height, ZMasks = _scene.ZMasks, Actors = SceneActors(_scene, game.Vm.Actors.UpperPictures) }
+                : null,
+            Blasts = BlastFrames(),
             Camera = game.Camera,
             Texts = ScreenTexts(),
             Cursor = CursorFrame(),
@@ -209,10 +213,41 @@ public sealed class ScriptedView
     }
 
     /// <summary>The actors as the engine drew them in the last frame, each frame rendered once and kept while it's shown.</summary>
-    private List<SceneActor> SceneActors(RoomScene scene)
+    private List<SceneActor> SceneActors(RoomScene scene, IReadOnlyList<ActorPicture> pictures)
     {
         if (_actorImages.Count > 512) _actorImages.Clear();
-        return RoomSceneBuilder.SceneActors(Game.Vm.Actors.Pictures, scene.ZMasks.Count, _actorImages);
+        return RoomSceneBuilder.SceneActors(pictures, scene.ZMasks.Count, _actorImages);
+    }
+
+    /// <summary>
+    /// The objects the last frame blasted, on the page, each image loaded in the background the first time
+    /// (from the object's home room, in that room's palette, as the cursor's).
+    /// </summary>
+    private List<FrameImage> BlastFrames()
+    {
+        var vm = Game.Vm;
+        var blasts = vm.BlastObjects;
+        if (blasts.Count == 0) return [];
+        var list = new List<FrameImage>(blasts.Count);
+        var page = GameState.PageOrigin;
+        foreach (var b in blasts)
+        {
+            int room = vm.State.Objects.IsObject(b.Object) ? vm.State.Objects.Room(b.Object) : 0;
+            if (ObjectImage(b.Object, room, b.Image) is not { } rgba) continue;
+            list.Add(new FrameImage(SkiaImages.Of(rgba), new GameRect(page.X + b.X, page.Y + b.Y, rgba.Width * b.ScaleX / 255.0, rgba.Height * b.ScaleY / 255.0)));
+        }
+        return list;
+    }
+
+    /// <summary>A blasted object's image, loaded now (for a tool drawing one frame), or null.</summary>
+    public static Core.Imaging.RgbaImage BlastImage(ScriptVm vm, BlastObject b)
+    {
+        int room = vm.State.Objects.IsObject(b.Object) ? vm.State.Objects.Room(b.Object) : 0;
+        if (vm.Scripts.RoomBlock(room) is not { } lflf || !RoomModel.TryCreate(lflf, out var model)) return null;
+        string name = RoomScripts.ObjectName(lflf, b.Object);
+        return model.Objects.FirstOrDefault(o => o.Name == name) is { } ro
+            ? RoomSceneBuilder.ObjectImageAsync(model, ro, Math.Max(0, b.Image - 1)).GetAwaiter().GetResult()
+            : null;
     }
 
     private RoomModel RoomModelOf(int room)
@@ -232,20 +267,21 @@ public sealed class ScriptedView
         var vm = game.Vm;
         if (!game.IsMouseCaptured || vm.CursorLevel <= 0) return null;
         var (obj, room, image) = vm.CursorImage;
-        if (obj <= 0) return null;
-        var key = (obj, image);
-        RgbaImage rgba;
-        lock (_cursors)
-        {
-            if (!_cursors.TryGetValue(key, out rgba))
-            {
-                if (_cursorsLoading.Add(key)) CursorLoading = LoadCursor(obj, room, image);
-                return null;
-            }
-        }
-        if (rgba == null) return null;
+        if (obj <= 0 || ObjectImage(obj, room, image) is not { } rgba) return null;
         var hotspot = vm.CursorHotspot is { X: 0, Y: 0 } ? new GamePoint(rgba.Width / 2.0, rgba.Height / 2.0) : new GamePoint(vm.CursorHotspot.X, vm.CursorHotspot.Y);
         return new FrameImage(SkiaImages.Of(rgba), new GameRect(game.CursorPosition - hotspot, new GameSize(rgba.Width, rgba.Height)));
+    }
+
+    /// <summary>Image <paramref name="image"/> (from 1) of an object of <paramref name="room"/>, once loaded; the first ask starts loading it.</summary>
+    private RgbaImage ObjectImage(int obj, int room, int image)
+    {
+        var key = (obj, image);
+        lock (_cursors)
+        {
+            if (_cursors.TryGetValue(key, out var rgba)) return rgba;
+            if (_cursorsLoading.Add(key)) CursorLoading = LoadCursor(obj, room, image);
+            return null;
+        }
     }
 
     private async Task LoadCursor(int obj, int room, int image)
