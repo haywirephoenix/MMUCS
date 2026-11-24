@@ -262,6 +262,7 @@ public static class StateFile
     {
         private Type[] _types;
         private (FieldInfo Field, bool Known)[][] _fields;
+        private FieldInfo[][] _absent; // the type's fields the file doesn't have (a save from before they were added)
         private Kind[] _kinds;
         private object[] _objects;
         private readonly List<(object Collection, List<(object, object)> Entries)> _collections = [];
@@ -274,6 +275,7 @@ public static class StateFile
             _types = new Type[typeCount];
             _fields = new (FieldInfo, bool)[typeCount][];
             _kinds = new Kind[typeCount];
+            _absent = new FieldInfo[typeCount][];
             for (int i = 0; i < typeCount; i++)
             {
                 string name = input.ReadString();
@@ -291,6 +293,8 @@ public static class StateFile
                     string key = input.ReadString();
                     _fields[i][j] = byKey.TryGetValue(key, out var f) ? (f, true) : (null, false);
                 }
+                var inFile = _fields[i].Where(x => x.Known).Select(x => x.Field).ToHashSet();
+                _absent[i] = [.. current.Where(f => !inFile.Contains(f))];
             }
 
             int count = input.ReadInt32();
@@ -369,7 +373,32 @@ public static class StateFile
                 var value = Value();
                 if (known) Set(() => field.SetValue(target, value));
             }
+            foreach (var field in _absent[typeId]) Set(() => field.SetValue(target, Fresh(field)));
         }
+
+        /// <summary>
+        /// A field an older file doesn't have starts as a new object of its type would have it: from the type's own
+        /// parameterless constructor when it has one, otherwise an empty collection for a collection (such as a list
+        /// added since), and left as it is for the rest.
+        /// </summary>
+        private object Fresh(FieldInfo field)
+        {
+            var owner = field.DeclaringType;
+            if (!_fresh.TryGetValue(owner, out var made))
+            {
+                try { made = owner.IsAbstract ? null : Activator.CreateInstance(owner, nonPublic: true); }
+                catch (Exception ex) when (ex is MissingMethodException or TargetInvocationException or MemberAccessException) { made = null; }
+                _fresh[owner] = made;
+            }
+            if (made != null) return field.GetValue(made);
+            var t = field.FieldType;
+            if (t.IsArray) return Array.CreateInstance(t.GetElementType(), 0);
+            if (!t.IsValueType && !t.IsAbstract && !t.IsInterface && t.Namespace == "System.Collections.Generic" && t.GetConstructor(Type.EmptyTypes) != null)
+                return Activator.CreateInstance(t);
+            return field.FieldType.IsValueType ? Activator.CreateInstance(field.FieldType) : null;
+        }
+
+        private readonly Dictionary<Type, object> _fresh = [];
 
         /// <summary>A value that no longer fits where it goes (the field's type changed) is left out.</summary>
         private void Set(Action set)
