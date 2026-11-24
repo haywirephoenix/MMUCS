@@ -10,7 +10,7 @@ namespace MMUCS.Core.Audio;
 /// A Digital iMUSE sound (iMUS): a MAP of events, then DATA holding the PCM. Every event's position is
 /// a byte offset into the whole iMUS file (so the first region starts where DATA's samples do).
 /// <list type="bullet">
-/// <item>FRMT: sample size, rate and channels.</item>
+/// <item>FRMT: sample size, rate and channels. 12-bit samples are widened to 16-bit as the sound is parsed.</item>
 /// <item>REGN: a stretch of audio. Playback runs region to region.</item>
 /// <item>JUMP: at a position, go to another one when the hook matches (music loops and transitions), with a crossfade.</item>
 /// <item>TEXT: a marker that fires a trigger in the scripts; the first one names the track.</item>
@@ -96,7 +96,41 @@ public sealed class ImusSound
             pos = body + size;
         }
         if (s.DataOffset == 0) throw new InvalidDataException("iMUS sound has no DATA");
-        return s;
+        return s.Bits == 12 ? Widen12(s) : s;
+    }
+
+    /// <summary>
+    /// 12-bit samples (the sound resources' effects) as 16-bit: every 3 bytes hold two unsigned samples
+    /// centred on 0x800, the first in byte 0 and byte 1's low nibble, the second in byte 2 and byte 1's high
+    /// nibble (ScummVM's mixBits12). The map's positions in the samples grow by 4/3 with them.
+    /// </summary>
+    private static ImusSound Widen12(ImusSound s)
+    {
+        var src = s.Samples;
+        int pairs = src.Length / 3;
+        var bytes = new byte[s.DataOffset + pairs * 4];
+        s.Bytes.AsSpan(0, s.DataOffset).CopyTo(bytes);
+        for (int i = 0, o = s.DataOffset; i < pairs; i++, o += 4)
+        {
+            int b0 = src[i * 3], b1 = src[i * 3 + 1], b2 = src[i * 3 + 2];
+            BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(o), (short)(((b0 | (b1 & 0x0F) << 8) - 0x800) << 4));
+            BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(o + 2), (short)(((b2 | (b1 & 0xF0) << 4) - 0x800) << 4));
+        }
+
+        long At(long offset) => offset <= s.DataOffset ? offset : s.DataOffset + (offset - s.DataOffset) * 4 / 3;
+        var w = new ImusSound(bytes)
+        {
+            Bits = 16, SampleRate = s.SampleRate, Channels = s.Channels,
+            DataOffset = s.DataOffset, DataLength = pairs * 4,
+            Stop = s.Stop is { } stop ? At(stop) : null,
+        };
+        foreach (var r in s.Regions) w.Regions.Add(new Region(At(r.Offset), At(r.Offset + r.Length) - At(r.Offset)));
+        foreach (var j in s.Jumps) w.Jumps.Add(j with { Offset = At(j.Offset), Destination = At(j.Destination) });
+        foreach (var m in s.Markers) w.Markers.Add(m with { Offset = At(m.Offset) });
+        foreach (var y in s.Syncs) w.Syncs.Add(y with { Offset = At(y.Offset) });
+        foreach (var e in s.Events) w.Events.Add(e with { Offset = At(e.Offset) });
+        w.UnknownEvents.AddRange(s.UnknownEvents);
+        return w;
     }
 
     private void ParseMap(ReadOnlySpan<byte> map)
