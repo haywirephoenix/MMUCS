@@ -1,3 +1,4 @@
+using MMUCS.Core.Audio;
 using MMUCS.Core.Media;
 using MMUCS.Core.Scumm;
 using MMUCS.Runtime.Scripts;
@@ -19,6 +20,48 @@ public class SoundEffectsTests
     {
         var mixer = withMixer ? new Mixer() : null;
         return (new SoundEffects(SoundEffects.FromResources(new ScriptStore(root), root)) { Mixer = mixer }, mixer);
+    }
+
+    /// <summary>An iMUS sound: a MAP with these events (big-endian fields), then DATA.</summary>
+    private static byte[] Imus(int bits, int channels, byte[] data, params (string Tag, uint[] Fields)[] events)
+    {
+        static byte[] Chunk(string tag, byte[] body) => [.. System.Text.Encoding.ASCII.GetBytes(tag), .. BE((uint)body.Length), .. body];
+        static byte[] BE(uint v) => [(byte)(v >> 24), (byte)(v >> 16), (byte)(v >> 8), (byte)v];
+        var map = new List<byte>(Chunk("FRMT", [.. BE(0), .. BE(0), .. BE((uint)bits), .. BE(22050), .. BE((uint)channels)]));
+        foreach (var (tag, fields) in events) map.AddRange(Chunk(tag, [.. fields.SelectMany(BE)]));
+        var body = new List<byte>(Chunk("MAP ", [.. map]));
+        body.AddRange(Chunk("DATA", data));
+        return Chunk("iMUS", [.. body]);
+    }
+
+    [Fact]
+    public void Twelve_bit_samples_are_widened_to_sixteen_bit_with_the_map_s_positions()
+    {
+        // Two 3-byte groups: silence (0x800, 0x800), then the top (0xFFF) and just below the middle (0x7FF).
+        byte[] data = [0x00, 0x88, 0x00, 0xFF, 0x7F, 0xFF];
+        int dataAt = 8 + 8 + (8 + 20) + (8 + 8) + (8 + 16) + 8; // iMUS, MAP, FRMT, REGN, JUMP, DATA headers
+        var raw = Imus(12, 1, data, ("REGN", [(uint)dataAt, 6]), ("JUMP", [(uint)dataAt + 6, (uint)dataAt + 3, 0, 0]));
+        var sound = ImusSound.Parse(raw);
+        Assert.Equal((16, dataAt, 8, 4L), (sound.Bits, sound.DataOffset, sound.DataLength, sound.FrameCount));
+        var samples = sound.Samples.ToArray();
+        Assert.Equal([0, 0, 0x7FF0, -16], Enumerable.Range(0, 4).Select(i => (int)BitConverter.ToInt16(samples, i * 2)));
+        Assert.Equal((dataAt, 8L), (sound.Regions[0].Offset, sound.Regions[0].Length));
+        Assert.Equal((dataAt + 8L, dataAt + 4L), (sound.Jumps[0].Offset, sound.Jumps[0].Destination)); // 3 bytes in: the second pair
+    }
+
+    [Fact]
+    public void THX_s_sound_decodes_to_smooth_sound_not_noise()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        var sound = SoundEffects.FromResources(new ScriptStore(root), root)(246);
+        Assert.Equal((16, 2), (sound.Bits, sound.Channels)); // stored as 12-bit
+        Assert.InRange(sound.FrameCount / (double)sound.SampleRate, 29, 31); // the room waits 28 s for it
+        var buffer = new float[sound.SampleRate * 2 * 4];
+        int frames = new ImusPlayer(sound).Read(buffer);
+        double rms = Math.Sqrt(buffer.Take(frames * 2).Average(x => (double)x * x));
+        double step = Enumerable.Range(1, frames - 1).Average(i => Math.Abs(buffer[i * 2] - buffer[(i - 1) * 2]));
+        Assert.True(rms > 0.001 && step < rms / 2, $"rms {rms}, step between samples {step}"); // noise steps as far as it's loud
     }
 
     [Fact]
