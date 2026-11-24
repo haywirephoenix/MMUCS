@@ -54,7 +54,7 @@ public class RoomTests
         Assert.Equal((5, 5, 5), (vm.CurrentRoom, s[EngineVars.Room], s[210]));
         Assert.Equal((1280, 480, 1280), (s[EngineVars.RoomWidth], s[EngineVars.RoomHeight], s[211]));
         Assert.Equal((320, 960, 240, 240), (s[EngineVars.CameraMinX], s[EngineVars.CameraMaxX], s[EngineVars.CameraMinY], s[EngineVars.CameraMaxY]));
-        Assert.Equal((320, 240), (s[EngineVars.CameraPosX], s[EngineVars.CameraPosY]));
+        Assert.Equal((320, 240), (vm.CameraX, vm.CameraY));
 
         // Room 0 is no room: nothing is entered, though the exit code still runs.
         vm.StartScene(0);
@@ -179,7 +179,8 @@ public class RoomTests
         vm.RunScript(10);
         Assert.Equal(5, vm.CurrentRoom);
         Assert.Equal((1, 1), (vm.CameraFollows, s[EngineVars.CameraFollowedActor]));
-        Assert.Equal((960, 240), (s[EngineVars.CameraPosX], s[EngineVars.CameraPosY])); // as near as the room allows
+        Assert.Equal((960, 240), (vm.CameraX, vm.CameraY)); // as near as the room allows
+        Assert.Equal((960, 240), (s[EngineVars.CameraPosX], s[EngineVars.CameraPosY])); // set for the scroll script
         Assert.Equal((960, 240), (s[EngineVars.CameraDestX], s[EngineVars.CameraDestY]));
         Assert.Equal([1], Logged(vm));
 
@@ -187,6 +188,43 @@ public class RoomTests
         Assert.Equal((0, 0), (vm.CameraFollows, s[EngineVars.CameraFollowedActor]));
         Assert.Equal((400, 240), (s[EngineVars.CameraPosX], s[EngineVars.CameraPosY]));
         Assert.Equal([1, 1], Logged(vm));
+    }
+
+    [Fact]
+    public void The_camera_follows_its_actor_past_the_threshold_speeding_up_and_snaps_when_the_threshold_is_0()
+    {
+        var vm = Machine(
+            Mark(1).End().Global(12),                  // the scroll script
+            new Asm().Sub(0xad, 0x32).End().Global(20), // camera-pause
+            new Asm().Sub(0xad, 0x33).End().Global(21)); // camera-resume
+        var s = vm.State;
+        var guybrush = vm.Actors[1];
+        vm.Actors.Put(guybrush, 400, 240, 5);
+        vm.StartScene(5);
+        vm.SetCameraFollows(guybrush); // 80 pixels off: within half a screen, but past a 0 threshold
+        Assert.Equal(400, vm.CameraX);
+        (s[EngineVars.CameraThresholdX], s[EngineVars.CameraThresholdY], s[EngineVars.CameraAccelX]) = (100, 100, 100);
+        s[EngineVars.ScrollScript] = 12;
+
+        vm.Actors.Put(guybrush, 900, 240, 5);
+        var xs = new List<int>();
+        for (int i = 0; i < 5; i++)
+        {
+            vm.MoveCamera();
+            xs.Add(vm.CameraX);
+        }
+        Assert.Equal([400, 401, 404, 410, 418], xs); // speed 0, 1, 3, 6, then at most 8
+        Assert.Equal((900, 8), (s[EngineVars.CameraDestX], s[EngineVars.CameraSpeedX]));
+        Assert.Equal((418, 4), (s[EngineVars.CameraPosX], Logged(vm).Length)); // each move ran the scroll script
+
+        // Paused, it stays; with a 0 threshold it's on the actor at once, and stops.
+        vm.State[EngineVars.CameraThresholdX] = 0;
+        vm.RunScript(20);
+        vm.MoveCamera();
+        Assert.Equal(418, vm.CameraX);
+        vm.RunScript(21);
+        vm.MoveCamera();
+        Assert.Equal((900, 0), (vm.CameraX, s[EngineVars.CameraSpeedX]));
     }
 }
 
