@@ -33,6 +33,7 @@ public class ActorTests
             .Push(4).Sub(0xac, 0x6e)                                  // elevation 4
             .Push(7).Push(77).Sub(0xac, 0x7b)                         // variable 7 is 77
             .Push(2).Sub(0xac, 0x7f)                                  // depth (layer) 2
+            .Push(3).Sub(0xac, 0x75)                                  // always-zclip 3
             .Push(3).Push(100).Push(200).Push(5).Op(0xa1)             // put-actor 3 at 100,200 in-room 5
             .Push(3).Op(0xe2).Write(300)                              // actor-room
             .Push(3).Op(0xeb).Write(301)                              // x-of
@@ -48,7 +49,16 @@ public class ActorTests
         Assert.Equal((5, 100, 200, 4, 77, 2, 0), (s[300], s[301], s[302], s[303], s[304], s[305], s[306]));
         var actor = vm.Actors[3];
         Assert.True(actor.Visible);
-        Assert.Equal(Actor.BoxClip, actor.ForceClip); // a new actor is cut by its box's plane
+        Assert.Equal(3, actor.ForceClip);
+
+        // always-zclip 255 means the walk box's plane, and so does −1: the engine keeps it in a byte.
+        foreach (int clip in new[] { 255, -1 })
+        {
+            var zclip = Current(new Asm(), 3).Push(clip).Sub(0xac, 0x75).Push(3).Op(0xf7).Write(310).End().Global(11);
+            var other = Machine(zclip);
+            other.RunScript(11);
+            Assert.Equal((Actor.BoxClip, 0), (other.Actors[3].ForceClip, other.State[310])); // no boxes here: box 0's plane, none
+        }
 
         // Elsewhere it's out of sight; put back, it shows again.
         vm.Actors.Put(actor, 10, 10, 6);
@@ -140,6 +150,8 @@ public class ActorTests
         Assert.Contains(1, drawn);
         Assert.All(actors.Pictures, p => Assert.False(p.Frame.IsEmpty));
         Assert.NotNull(ego.Drawn);
+        // COMI says always-zclip −1 for Guybrush: he's cut by his box's plane (box 2: plane 1).
+        Assert.Equal((Actor.BoxClip, 1), (ego.ForceClip, actors.Pictures.Single(p => p.Actor == 1).ZPlane));
 
         // Two seconds later some limb has moved on: the costumes animate.
         var before = actors.All.Where(a => a.Room == 9).ToDictionary(a => a.Number, a => a.CurPos.ToArray());
