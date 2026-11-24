@@ -564,6 +564,24 @@ public sealed partial class ActorTable
         if (changed) a.NeedRedraw = true;
     }
 
+    /// <summary>
+    /// ScummVM <c>Actor::animateLimb</c>: limb <paramref name="limb"/> steps <paramref name="steps"/> times
+    /// through its sequence (as <see cref="AnimateCostume"/> steps every limb once), on the frames the
+    /// animation speed lets it. The talk scripts start the talk animation and step the mouth limb to the
+    /// frame the lip sync picks this way, every frame.
+    /// </summary>
+    public void AnimateLimb(Actor a, int limb, int steps)
+    {
+        if (steps == 0) return;
+        if (++a.AnimProgress < a.AnimSpeed) return;
+        a.AnimProgress = 0;
+        if (a.Costume == 0 || limb is < 0 or >= Actor.Limbs) return;
+        if (_vm.Scripts.Costume(a.Costume) is not { Data: var d }) return;
+        while (steps-- > 0)
+            if (a.Active[limb] != 0) IncreaseAnim(a, limb, d.Sequence, d.FrameOffsets);
+        a.NeedRedraw = true;
+    }
+
     private void Queue(int cmd, Actor a, int param) => _queue.Push((cmd, a.Number, param));
 
     private void ProcessQueue()

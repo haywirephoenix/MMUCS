@@ -944,7 +944,7 @@ public sealed partial class ScriptVm
         return true;
     }
 
-    /// <summary>Kernel calls (ScummVM <c>o8_kernelSetFunctions</c>): those carried out here (scale slots, floating objects, blasts, the key script, ending every other script); the rest are reported.</summary>
+    /// <summary>Kernel calls (ScummVM <c>o8_kernelSetFunctions</c>): those carried out here (scale slots, floating objects, blasts, the key script, a limb's frame, ending every other script); the rest are reported.</summary>
     private void KernelSet(ScriptSlot s, ScriptInstruction ins)
     {
         var args = State.PopList(30);
@@ -953,6 +953,13 @@ public sealed partial class ScriptVm
             case 29 when args.Length >= 3:
                 (KeyScriptKey, KeyScript) = (args[1], args[2]);
                 return;
+            case 23 when args.Length >= 5: // setActorChoreLimbFrame: actor, animation, limb, steps (the talk scripts' mouths)
+            {
+                var a = Actors[args[1]];
+                Actors.StartAnim(a, args[2]);
+                Actors.AnimateLimb(a, args[3], args[4]);
+                return;
+            }
             case 20 when args.Length >= 3: // setBoxScaleSlot: box, slot
                 Actors.SetBoxScaleSlot(args[1], args[2]);
                 return;
