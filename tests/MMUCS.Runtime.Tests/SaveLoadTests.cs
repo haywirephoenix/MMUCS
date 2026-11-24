@@ -53,6 +53,9 @@ public class SaveLoadTests
         vm.LoadState(vm.TemporaryState);
         Assert.Equal(100, actor.X);
         Assert.Equal(10, vm.State.Slots.Single(s => s.IsAlive).Number);
+
+        // A save leaves out what isn't state ([NonSerialized]): it doesn't hold the save before it.
+        Assert.Null(vm.SaveState().TemporaryState);
     }
 
     [Fact]
