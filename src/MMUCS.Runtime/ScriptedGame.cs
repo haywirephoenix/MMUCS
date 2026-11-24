@@ -499,9 +499,15 @@ public sealed class ScriptedGame : IDisposable
     /// Loads the quick save (F4): the engine as it was, and the music, speech and effects carried on from where
     /// they were. The file stays, so it can be loaded again. Returns whether it was loaded.
     /// </summary>
-    public bool QuickLoad()
+    public bool QuickLoad() => HasQuickSave && LoadFile(QuickSavePath);
+
+    /// <summary>
+    /// Loads a save file written by <see cref="QuickSave"/> (or <see cref="WriteSave"/>), as <see cref="QuickLoad"/>
+    /// does. Not during a video. Returns whether it was loaded.
+    /// </summary>
+    public bool LoadFile(string path)
     {
-        if (!HasQuickSave || Vm == null || IsVideoPlaying || _engine.IsParked) return false;
+        if (Vm == null || IsVideoPlaying || _engine.IsParked) return false;
         try
         {
             var missing = new System.Collections.Generic.List<string>();
@@ -511,7 +517,7 @@ public sealed class ScriptedGame : IDisposable
             {
                 try
                 {
-                    using var file = File.OpenRead(QuickSavePath);
+                    using var file = File.OpenRead(path);
                     ReadSave(file, Loop, Effects, Voice, Music, missing);
                     loaded = true;
                 }
@@ -519,16 +525,16 @@ public sealed class ScriptedGame : IDisposable
             });
             if (failed != null) throw failed;
             if (!loaded) return false;
-            foreach (var what in missing.Distinct()) Log.Warn($"Game: quick load: {what} isn't there any more");
+            foreach (var what in missing.Distinct()) Log.Warn($"Game: loading {path}: {what} isn't there any more");
             _booted = true; // after a Stop, the save goes on in the fresh engine rather than a new boot
             _viewRoom = -1; // the camera shown goes straight to the loaded one
-            Log.Info($"Game: quick load into room {CurrentRoom}");
+            Log.Info($"Game: loaded {path} into room {CurrentRoom}");
             Changed?.Invoke();
             return true;
         }
         catch (Exception ex)
         {
-            Log.Error($"Game: quick load failed: {ex}");
+            Log.Error($"Game: loading {path} failed: {ex}");
             return false;
         }
     }
