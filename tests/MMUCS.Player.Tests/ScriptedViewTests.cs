@@ -67,7 +67,9 @@ public class ScriptedViewTests
         game.Release(MouseButton.Left);
         for (int i = 0; i < 60 * 5 && game.CurrentRoom == 87; i++) game.Tick();
         Assert.Equal(2, game.CurrentRoom);
-        view.Capture();
+        // Before room 2's scene is built the frame is black, not the window's grey stage.
+        using (var waiting = Draw(view.Capture(), "scripted-room-change"))
+            Assert.Equal(SKColors.Black, waiting.GetPixel(426, 240));
         await view.Building;
         using var thx = Draw(view.Capture(), "scripted-thx");
         Assert.Equal(0, game.Faults);
