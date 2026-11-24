@@ -163,6 +163,18 @@ public sealed class FrameLoop(ScriptVm vm)
     /// <summary>The engine was put back as a save had it; the host follows (its sounds, the camera it shows).</summary>
     public event Action StateLoaded;
 
+    /// <summary>
+    /// Puts the engine back as a host's own save has it (the quick save), between frames, with the clicks and key
+    /// waiting dropped as after the scripts' loads. <see cref="StateLoaded"/> isn't raised: that one follows the
+    /// scripts' temporary save, and the host puts its own sounds back.
+    /// </summary>
+    public void LoadState(ScriptVm saved)
+    {
+        Vm.LoadState(saved);
+        _leftClicked = _rightClicked = false;
+        _key = 0;
+    }
+
     private void HandleSaveLoad()
     {
         switch (Vm.HandleSaveLoad())

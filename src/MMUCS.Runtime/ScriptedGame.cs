@@ -223,6 +223,7 @@ public sealed class ScriptedGame : IDisposable
     {
         Root = root ?? throw new ArgumentNullException(nameof(root));
         GameFile = gameFile;
+        _quickSave = null;
         Scripts = new ScriptStore(root);
         Music = null;
         MusicOutput = null;
@@ -445,6 +446,46 @@ public sealed class ScriptedGame : IDisposable
     public void PressKey(int code)
     {
         if (IsPlaying) Loop?.PressKey(code);
+    }
+
+    private (ScriptVm State, ComiMusic.Saved Music, SpeechPlace? Speech)? _quickSave;
+
+    /// <summary>Whether there's a quick save to load.</summary>
+    public bool HasQuickSave => _quickSave != null;
+
+    /// <summary>
+    /// A quick save (F6): a copy of the whole engine in memory, with the music and the line's speech where they
+    /// are, as the F1 menu's temporary save keeps them. Nothing goes to disk, so it lasts until the game is reset
+    /// or closed. Not during a video (the engine is in the middle of a frame). Returns whether it was taken.
+    /// </summary>
+    public bool QuickSave()
+    {
+        if (!_booted || Vm == null || IsVideoPlaying || _engine.IsParked) return false;
+        ScriptVm state = null;
+        Step(() => state = Vm.SaveState());
+        if (state == null) return false;
+        _quickSave = (state, Music?.Save(), Voice?.Place);
+        Log.Info($"Game: quick save in room {state.CurrentRoom}");
+        return true;
+    }
+
+    /// <summary>
+    /// Loads the quick save (F4): the engine as it was, the effects stopped and the music and speech carried on
+    /// from where they were. It stays, so it can be loaded again. Returns whether there was one to load.
+    /// </summary>
+    public bool QuickLoad()
+    {
+        if (_quickSave is not { } save || Vm == null || IsVideoPlaying || _engine.IsParked) return false;
+        Step(() => Loop.LoadState(save.State));
+        _booted = true; // after a Stop, the save goes on in the fresh engine rather than a new boot
+        Effects?.StopAll();
+        Voice?.Stop();
+        if (save.Speech is { } speech) Voice?.Resume(speech);
+        if (save.Music != null) Music?.Restore(save.Music);
+        _viewRoom = -1; // the camera shown goes straight to the loaded one
+        Log.Info($"Game: quick load into room {CurrentRoom}");
+        Changed?.Invoke();
+        return true;
     }
 
     /// <summary>One jiffy (1/60 s) while playing: the video plays on, or a frame runs every timer-next jiffies.</summary>
