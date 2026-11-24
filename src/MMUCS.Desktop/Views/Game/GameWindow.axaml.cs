@@ -5,6 +5,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using MMUCS.Core.Diagnostics;
+using MMUCS.Desktop.Controls;
 using MMUCS.Desktop.Services;
 using MMUCS.Desktop.ViewModels;
 
@@ -20,6 +22,7 @@ public partial class GameWindow : Window
 {
     private static readonly Cursor Hidden = new(StandardCursorType.None);
     private readonly PointerConfinement _confinement = new();
+    private readonly ReleaseChord _chord = new();
     private readonly DispatcherTimer _timer;
     private readonly System.Diagnostics.Stopwatch _clock = new();
     private long _jiffies;
@@ -38,7 +41,12 @@ public partial class GameWindow : Window
         Canvas.SizeChanged += (_, _) => Confine();
         PositionChanged += (_, _) => Confine();
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
-        Deactivated += (_, _) => ReleaseMouse();
+        AddHandler(KeyUpEvent, (_, e) => _chord.Up(e.Key), RoutingStrategies.Tunnel);
+        Deactivated += (_, _) =>
+        {
+            _chord.Reset();
+            ReleaseMouse("the window lost focus");
+        };
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -72,11 +80,12 @@ public partial class GameWindow : Window
             e.Handled = true;
             return;
         }
+        // Anywhere on the canvas captures, the bars beside the picture too (the cursor is kept to the picture).
         var at = e.GetPosition(Canvas);
-        if (!Canvas.PictureRect.Contains(at)) return; // the letterbox isn't the game
         Canvas.Focus();
         Canvas.Cursor = Hidden;
         _vm.IsMouseCaptured = true;
+        Log.Info($"Game window: mouse captured ({(_vm.IsMouseCaptured ? "the game has it" : "the game didn't take it")})");
         Confine();
         _vm.MoveCursor(Canvas.ToGame(at));
         e.Handled = true;
@@ -116,10 +125,9 @@ public partial class GameWindow : Window
     /// </summary>
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
-        const KeyModifiers release = KeyModifiers.Control | KeyModifiers.Alt;
-        if (e.Key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt && (e.KeyModifiers & release) == release)
+        if (ReleaseChord.IsPart(e.Key))
         {
-            if (_vm is { IsMouseCaptured: true }) ReleaseMouse();
+            if (_chord.Down(e.Key)) ReleaseMouse("Ctrl+Alt");
             e.Handled = true;
         }
         else if (e.Key == Key.Escape && _vm is { IsVideoPlaying: true })
@@ -159,15 +167,17 @@ public partial class GameWindow : Window
         _confinement.Confine(new PixelRect(topLeft, bottomRight));
     }
 
-    private void ReleaseMouse()
+    private void ReleaseMouse(string why)
     {
-        if (_vm != null) _vm.IsMouseCaptured = false;
+        if (_vm is not { IsMouseCaptured: true }) return;
+        _vm.IsMouseCaptured = false;
+        Log.Info($"Game window: mouse let go ({why})");
     }
 
     protected override void OnClosed(EventArgs e)
     {
         _timer.Stop();
-        ReleaseMouse();
+        ReleaseMouse("the window closed");
         _confinement.Dispose();
         _vm?.PropertyChanged -= OnVmPropertyChanged;
         _vm?.Dispose();
