@@ -51,15 +51,24 @@ static class BootCommand
             ? "ROOM 0 (no room)"
             : $"ROOM {room} {store.RoomName(room)}{(store.RoomSize(room) is { } size ? $" ({size.Width}×{size.Height})" : "")}", vm.Depth);
         vm.VideoStarted += name => Line($"VIDEO {name} (not played here: the script goes straight on)", vm.Depth);
-        // The music the scripts ask for (its tables are in comi.exe), followed but not heard.
+        // The sound effects (read along with the game's time, so the scripts see them end) and the music the
+        // scripts ask for (its tables are in comi.exe), followed but not heard.
+        var effects = new MMUCS.Runtime.Sound.SoundEffects(MMUCS.Runtime.Sound.SoundEffects.FromResources(store, root));
+        effects.Started += id => Line($"SOUND {id} starts", vm.Depth);
+        vm.Effects = effects;
+        MMUCS.Runtime.Sound.ComiMusic music = null;
         if (MMUCS.Core.Audio.MusicTable.Load(gameFile) is { } table)
         {
-            var music = new MMUCS.Runtime.Sound.ComiMusic(table, new MMUCS.Runtime.Sound.SilentMusic());
+            music = new MMUCS.Runtime.Sound.ComiMusic(table, new MMUCS.Runtime.Sound.SilentMusic());
             music.Changed += what => Line($"MUSIC {what}", vm.Depth);
-            vm.SoundKludge = list => music.Command(list);
-            loop.AfterScripts += _ => music.Refresh();
         }
         else Console.WriteLine("no comi.exe beside the game: the music isn't followed");
+        vm.SoundKludge = list => effects.Command(list) || music?.Command(list) == true;
+        loop.AfterScripts += jiffies =>
+        {
+            effects.Update(jiffies);
+            music?.Refresh();
+        };
         vm.Faulted += f => { faults++; Line($"FAULT {f}", vm.Depth); };
         vm.Warned += w => { warnings++; Line($"warning: {w}", vm.Depth); };
         if (calls) vm.Unhandled += c => Line($"· {c.Instruction.Name}({string.Join(", ", c.Args.Select(x => x.Length == 1 ? x[0].ToString() : $"[{string.Join(", ", x)}]"))}){(c.Instruction.Text is { } t ? " " + t : "")}", vm.Depth);
