@@ -149,7 +149,16 @@ public class ScriptedViewTests
         Assert.Equal(game.Vm.Actors.Pictures.Count, room.Actors.Count);
         var ego = Assert.Single(room.Actors, a => a.Actor == 1);
         using (var pixels = SKBitmap.FromImage(ego.Image))
+        {
             Assert.Contains(pixels.Pixels, p => p.Alpha > 0); // Guybrush's costume drew something
+            // In the colours on the screen, as the engine draws him: room 9's, lit by its lamp (local 2014), not his own RGBS.
+            var screen = Assert.IsType<byte[]>(view.ScreenColours);
+            Assert.Equal(screen, game.Vm.Palette.Current);
+            var colours = Enumerable.Range(0, 256).Select(i => new SKColor(screen[i * 3], screen[i * 3 + 1], screen[i * 3 + 2])).ToHashSet();
+            Assert.All(pixels.Pixels.Where(p => p.Alpha == 255), p => Assert.Contains(p, colours));
+        }
+        var room9 = game.Vm.RoomPalettes(9)[0];
+        Assert.NotEqual(room9[240 * 3 + 2], game.Vm.Palette.Current[240 * 3 + 2]); // the lamp's slots aren't the room's own
         using var picture = Draw(frame, "scripted-cannon");
         Assert.Equal(0, game.Faults);
     }
