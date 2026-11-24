@@ -32,6 +32,16 @@ public sealed class FrameLoop(ScriptVm vm)
 
     private int _elapsed;
     private bool _leftDown, _rightDown, _leftClicked, _rightClicked;
+
+    /// <summary>
+    /// Frames a click still counts as held after it's taken, however soon the button came up. The game's
+    /// release watcher (global 41) runs the verb script again once the hold ends; ending it in the frame after
+    /// the click would cut short the click's own run of the verb script, waiting at a <c>break-here</c> (the F1
+    /// menu's slots and page corners), so a quick click was lost. Two frames lets it finish first.
+    /// </summary>
+    private const int MinHoldFrames = 2;
+
+    private int _leftKeep, _rightKeep;
     private int _key;
 
     /// <summary>MBS_LEFT_CLICK / MBS_RIGHT_CLICK; below 0x200 the value is a key.</summary>
@@ -225,8 +235,12 @@ public sealed class FrameLoop(ScriptVm vm)
         else if (_leftClicked) input = LeftClick;
         else if (_rightClicked) input = RightClick;
 
-        state[EngineVars.LeftButtonHold] = _leftDown ? 1 : 0;
-        state[EngineVars.RightButtonHold] = _rightDown ? 1 : 0;
+        if (_leftClicked) _leftKeep = MinHoldFrames;
+        if (_rightClicked) _rightKeep = MinHoldFrames;
+        state[EngineVars.LeftButtonHold] = _leftDown || _leftKeep > 0 ? 1 : 0;
+        state[EngineVars.RightButtonHold] = _rightDown || _rightKeep > 0 ? 1 : 0;
+        if (_leftKeep > 0) _leftKeep--;
+        if (_rightKeep > 0) _rightKeep--;
         state[EngineVars.LeftButtonDown] = _leftClicked ? 1 : 0;
         state[EngineVars.RightButtonDown] = _rightClicked ? 1 : 0;
         _leftClicked = _rightClicked = false;
