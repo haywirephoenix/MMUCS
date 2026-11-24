@@ -97,19 +97,31 @@ public class RoomTests
     }
 
     [Fact]
-    public void Come_out_door_enters_the_object_s_room_with_walk_to_object_set()
+    public void Come_out_door_enters_the_object_s_room_with_the_ego_at_it_and_walk_to_object_set()
     {
-        // Object 7's home room is 5; room 5's entry code records walk-to-object.
+        // Object 7's home room is 5, where its hotspot is 30,40 from its place at 100,200 and actors face
+        // south-east (3 × 45°) at it; room 5's entry code records walk-to-object and where the ego is.
         var limits = GameLimits.Comi with { IndexObjects = [.. Enumerable.Range(0, 10).Select(i => ((byte)0, (byte)(i == 7 ? 5 : 0), 0u))] };
+        var door = new ObjectPlace(1, 7, 0, 0, 100, 200, 50, 80) { ActorDir = 3, Hotspots = [(30, 40)] };
         var store = ScriptStore.Of([
-            new Asm().PushVar(EngineVars.WalkToObject).Write(100).End().Entry(5),
-            new Asm().Push(7).Push(-1).Push(-1).Op(0x9e).End().Global(1)], []);
+            new Asm().PushVar(EngineVars.WalkToObject).Write(100).Push(1).Op(0xeb).Write(101).Push(1).Op(0xec).Write(102).End().Entry(5),
+            new Asm().Push(7).Push(-1).Push(-1).Op(0x9e).End().Global(1),
+            new Asm().Push(7).Push(300).Push(250).Op(0x9e).End().Global(2)], [],
+            places: new Dictionary<int, IReadOnlyList<ObjectPlace>> { [5] = [door] });
         var vm = new ScriptVm(store, new VmState(limits));
+        vm.State[EngineVars.Ego] = 1;
         var calls = new List<UnhandledCall>();
         vm.Unhandled += calls.Add;
         vm.RunScript(1);
         Assert.Equal((5, 7, 0), (vm.CurrentRoom, vm.State[100], vm.State[EngineVars.WalkToObject]));
-        Assert.Equal("loadRoomWithEgo", Assert.Single(calls).Instruction.Name); // placing the ego is the actors' part
+        var ego = vm.Actors[1];
+        Assert.Equal((130, 240, 5), (vm.State[101], vm.State[102], ego.Room)); // put there before the entry code ran
+        Assert.Equal((315, true), (ego.Facing, ego.Visible)); // away from the door: 135 + 180
+        Assert.Empty(calls);
+
+        // With somewhere to walk to, the walk is what's left (walking isn't here yet).
+        vm.RunScript(2);
+        Assert.Equal("loadRoomWithEgo", Assert.Single(calls).Instruction.Name);
     }
 
     [Fact]

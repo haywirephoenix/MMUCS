@@ -54,7 +54,7 @@ public class GameViewModelTests
             Assert.Equal(0, vm.Scripted.Faults);
 
             await vm.ScriptedView.Building; // room 2's scene: let it land before the test's UI thread ends
-            Assert.Same(vm.ScriptedView.Scene, vm.Frame.Room);
+            Assert.Same(vm.ScriptedView.Scene.Background, vm.Frame.Room.Background); // the scene, with the actors of the last frame
 
             // Switching to the stand-ins stops the game.
             vm.RunScripts = false;

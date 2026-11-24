@@ -201,17 +201,17 @@ public class ScriptVmTests(ITestOutputHelper output)
     public void Instructions_not_carried_out_yet_take_their_arguments_and_return_0()
     {
         var code = new Asm()
-            .Push(5).Push(1).Op(0xe2).Op(0x0e).Write(100) // 5 + actor-room(1)
+            .Push(5).Push(1).Op(0xd5).Op(0x0e).Write(100) // 5 + sound-running(1)
             .Push(0).List(3, 4).Op(0xd8).Write(101) // kernel-get [3, 4] → 0
             .End().Global(1);
         var (vm, calls, faults) = Machine(code);
         vm.RunScript(1);
         Assert.Empty(faults);
-        Assert.Equal(["getActorRoom(1)", "kernelGetFunctions([3, 4])"],
+        Assert.Equal(["isSoundRunning(1)", "kernelGetFunctions([3, 4])"],
             calls.Select(c => c.ToString()[(c.ToString().IndexOf(": ") + 2)..]));
         Assert.Equal((5, 0), (vm.State[100], vm.State[101]));
         Assert.Equal([0], vm.State.Stack); // the 0 pushed under the list was never used
-        Assert.Equal(1, vm.UnhandledCounts["getActorRoom"]);
+        Assert.Equal(1, vm.UnhandledCounts["isSoundRunning"]);
 
         vm.Strict = true;
         Assert.Throws<ScriptException>(() => vm.RunScript(1));

@@ -1,4 +1,5 @@
 using MMUCS.Core.Scumm;
+using MMUCS.Player.Rooms;
 using MMUCS.Runtime;
 using MMUCS.Runtime.Scripts;
 using SkiaSharp;
@@ -120,6 +121,37 @@ public class ScriptedViewTests
         var after = view.Capture();
         Assert.Null(after.Cutscene);
         Assert.Equal(4, game.CurrentRoom);
+    }
+
+    [Fact]
+    public async Task The_first_scene_shows_the_actors_the_scripts_put_there()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        using var game = new ScriptedGame();
+        game.Load(root); // no videos: the opening is passed over
+        var view = new ScriptedView(game);
+        game.Play();
+        game.SetMouseCaptured(true);
+        game.MoveCursor(GameState.PageToGame(new GamePoint(320, 224)));
+        for (int i = 0; i < 60; i++) game.Tick();
+        game.Press(MouseButton.Left);
+        for (int i = 0; i < 6; i++) game.Tick();
+        game.Release(MouseButton.Left);
+        for (int i = 0; i < 60 * 60 && game.CurrentRoom != 9; i++) game.Tick();
+        for (int i = 0; i < 60 * 5; i++) game.Tick();
+        Assert.Equal(9, game.CurrentRoom);
+        view.Capture();
+        await view.Building;
+
+        var frame = view.Capture();
+        var room = Assert.IsType<RoomScene>(frame.Room);
+        Assert.Equal(game.Vm.Actors.Pictures.Count, room.Actors.Count);
+        var ego = Assert.Single(room.Actors, a => a.Actor == 1);
+        using (var pixels = SKBitmap.FromImage(ego.Image))
+            Assert.Contains(pixels.Pixels, p => p.Alpha > 0); // Guybrush's costume drew something
+        using var picture = Draw(frame, "scripted-cannon");
+        Assert.Equal(0, game.Faults);
     }
 
     /// <summary>A root with nothing in it: enough for the input mapping, which needs no game data.</summary>

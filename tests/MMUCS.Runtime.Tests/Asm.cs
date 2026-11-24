@@ -21,6 +21,7 @@ internal sealed class Asm
     public Asm List(params int[] items) { foreach (int i in items) Push(i); return Push(items.Length); }
     public Asm Label(string name) { _labels[name] = Here; return this; }
     public Asm Jump(byte opcode, string label) { Op(opcode); _fixups.Add((Here, label)); return Word(0); }
+    public Asm SubJump(byte opcode, byte sub, string label) { Op(opcode); _code.Add(sub); _fixups.Add((Here, label)); return Word(0); }
     public Asm Break() => Op(0x67);
     public Asm End() => Op(0x7b);
 
