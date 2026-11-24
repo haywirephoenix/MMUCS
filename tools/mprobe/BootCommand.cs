@@ -66,13 +66,15 @@ static class BootCommand
         vm.Said += (text, tag, actor) => Line($"SAY {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" {tag}" : "")}: {text.Replace('\n', ' ')}", vm.Depth);
         vm.SystemMessage += text => Line($"SYSTEM {text}", vm.Depth);
         MMUCS.Runtime.Sound.ComiMusic music = null;
+        MMUCS.Runtime.Sound.SilentMusic musicOutput = null;
         if (MMUCS.Core.Audio.MusicTable.Load(gameFile) is { } table)
         {
-            music = new MMUCS.Runtime.Sound.ComiMusic(table, new MMUCS.Runtime.Sound.SilentMusic());
+            music = new MMUCS.Runtime.Sound.ComiMusic(table, musicOutput = new MMUCS.Runtime.Sound.SilentMusic());
             music.Changed += what => Line($"MUSIC {what}", vm.Depth);
         }
         else Console.WriteLine("no comi.exe beside the game: the music isn't followed");
-        vm.SoundKludge = list => effects.Command(list) || music?.Command(list) == true;
+        vm.SoundKludge = MMUCS.Runtime.ScriptedGame.SoundKludge(effects, voice, music, musicOutput);
+        MMUCS.Runtime.ScriptedGame.FollowSaves(loop, effects, voice, music);
         loop.AfterScripts += jiffies =>
         {
             effects.Update(jiffies);
