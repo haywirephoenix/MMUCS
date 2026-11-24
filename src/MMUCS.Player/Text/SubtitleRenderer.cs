@@ -17,7 +17,8 @@ namespace MMUCS.Player.Text;
 public sealed class SubtitleOverlay : IDisposable
 {
     internal readonly List<(SKImage Image, int X, int Y)> Images = [];
-    internal readonly List<(SKTextBlob Blob, SKColor Fill, SKColor? Outline, float Stroke)> Runs = [];
+    /// <summary>A replacement typeface's runs: fill, the dark edge (all round when <c>AllRound</c>) and a hard shadow <c>Shadow</c> pixels down-right (0: none).</summary>
+    internal readonly List<(SKTextBlob Blob, SKColor Fill, SKColor? Outline, float Stroke, bool AllRound, float Shadow)> Runs = [];
 
     public bool IsEmpty => Images.Count == 0 && Runs.Count == 0;
 
@@ -28,15 +29,30 @@ public sealed class SubtitleOverlay : IDisposable
             canvas.DrawImage(image, x, y, sampling);
         if (Runs.Count == 0) return;
         using var paint = new SKPaint { IsAntialias = true };
-        foreach (var (blob, fill, outline, stroke) in Runs)
+        foreach (var (blob, fill, outline, stroke, allRound, shadow) in Runs)
         {
             if (outline is { } o)
             {
-                paint.Style = SKPaintStyle.Stroke;
-                paint.StrokeWidth = stroke;
-                paint.StrokeJoin = SKStrokeJoin.Round;
+                // As the game's fonts: the shadow (the outlined letters again, a pixel down-right), then the
+                // outline, then the letters.
                 paint.Color = o;
-                canvas.DrawText(blob, 0, 0, paint);
+                paint.StrokeJoin = SKStrokeJoin.Round;
+                paint.StrokeWidth = stroke;
+                if (shadow > 0)
+                {
+                    paint.Style = SKPaintStyle.Fill;
+                    canvas.DrawText(blob, shadow, shadow, paint);
+                    if (allRound)
+                    {
+                        paint.Style = SKPaintStyle.Stroke;
+                        canvas.DrawText(blob, shadow, shadow, paint);
+                    }
+                }
+                if (allRound)
+                {
+                    paint.Style = SKPaintStyle.Stroke;
+                    canvas.DrawText(blob, 0, 0, paint);
+                }
             }
             paint.Style = SKPaintStyle.Fill;
             paint.Color = fill;
@@ -216,7 +232,8 @@ public sealed class SubtitleRenderer
             {
                 uint fill = TextRasterizer.InkColor(gameFont, color, lut, mode);
                 uint? outline = TextRasterizer.OutlineColor(gameFont, color, lut, mode);
-                overlay.Runs.Add((blob, new SKColor(fill), outline is { } o ? new SKColor(o) : null, tf.Stroke));
+                overlay.Runs.Add((blob, new SKColor(fill), outline is { } o ? new SKColor(o) : null, tf.Stroke,
+                    gameFont.OutlineAllRound, gameFont.HasShadow ? Scale : 0));
             }
             start = end;
         }
