@@ -233,6 +233,21 @@ public class WalkTests
     }
 
     [Fact]
+    public void Actors_at_an_object_face_the_room_file_s_angle()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        var store = new ScriptStore(root);
+        int Facing(int room, string name)
+        {
+            int id = store.ObjectId(name);
+            return store.Places(room).Last(p => p.Id == id).StandAt(1).Dir;
+        }
+        Assert.Equal(225, Facing(9, "cannon-wally-object"));  // south-west, towards Wally (it was read as 45)
+        Assert.Equal(45, Facing(14, "fortbase-chicken-5"));   // north-east, towards the feral chicken (it was read as 225)
+    }
+
+    [Fact]
     public void Guybrush_walks_across_the_barbershop_through_the_box_between()
     {
         if (Game == null) return;
