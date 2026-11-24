@@ -143,7 +143,13 @@ static class BootCommand
             Console.WriteLine("room objects (what --click OBJECT aims at):");
             foreach (var o in vm.RoomObjects)
                 Console.WriteLine($"  {o.Id,5} {RoomScripts.ObjectName(root, o.Id),-36} {o.X},{o.Y} {o.Width}×{o.Height}" +
+                                  $"  stand {Stand(o)}" +
                                   $"{(state.Objects.HasClass(o.Id, ObjectTables.Untouchable) ? "  untouchable" : "")}{(o.Parent != 0 ? $"  parent slot {o.Parent} in state {o.ParentState}" : "")}");
+        }
+        string Stand(ObjectPlace o)
+        {
+            var (sx, sy, dir) = o.StandAt(state.Objects.IsObject(o.Id) ? state.Objects.State(o.Id) : 0);
+            return $"{sx},{sy} facing {dir} ({o.ActorDir}°)";
         }
         var actors = vm.Actors.All.Where(x => x.Number > 0 && x.Room == vm.CurrentRoom && vm.CurrentRoom != 0).ToList();
         if (actors.Count > 0)
