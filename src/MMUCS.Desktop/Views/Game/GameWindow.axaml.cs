@@ -12,8 +12,8 @@ namespace MMUCS.Desktop.Views.Game;
 
 /// <summary>
 /// The game window (Window ▸ Game, a testing ground). While playing, a click on the canvas captures the
-/// mouse: the system cursor hides and is kept inside the picture, and the game draws its own. Esc, Stop,
-/// or leaving the window lets it go. With Scripts on, buttons and keys go to the game's scripts; with it off,
+/// mouse: the system cursor hides and is kept inside the picture, and the game draws its own. Ctrl+Alt,
+/// Stop, or leaving the window lets it go; Esc goes to the game (it skips videos and cutscenes). With Scripts on, buttons and keys go to the game's scripts; with it off,
 /// holding the button on a hotspot opens the verb coin until it's let go, and I toggles the inventory.
 /// </summary>
 public partial class GameWindow : Window
@@ -110,16 +110,21 @@ public partial class GameWindow : Window
         if (_vm is { IsMouseCaptured: true }) _confinement.Warp(Canvas.PointToScreen(Canvas.ToControl(_vm.CursorPosition)));
     }
 
+    /// <summary>
+    /// Ctrl+Alt lets the mouse go (pressed together, in either order). Esc skips a playing video, otherwise it
+    /// goes to the scripts like any other key, where it skips the cutscene on (the THX screen, the intro).
+    /// </summary>
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && _vm is { IsVideoPlaying: true })
+        const KeyModifiers release = KeyModifiers.Control | KeyModifiers.Alt;
+        if (e.Key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt && (e.KeyModifiers & release) == release)
         {
-            _vm.SkipVideo();
+            if (_vm is { IsMouseCaptured: true }) ReleaseMouse();
             e.Handled = true;
         }
-        else if (e.Key == Key.Escape && _vm is { IsMouseCaptured: true })
+        else if (e.Key == Key.Escape && _vm is { IsVideoPlaying: true })
         {
-            ReleaseMouse();
+            _vm.SkipVideo();
             e.Handled = true;
         }
         else if (_vm is { IsPlaying: true } && (e.KeyModifiers & ~KeyModifiers.Shift) == KeyModifiers.None && _vm.PressKey(KeyCode(e.Key)))
@@ -128,7 +133,7 @@ public partial class GameWindow : Window
         }
     }
 
-    /// <summary>A key as the engine numbers it: letters (lower case), digits, space, Enter, Tab, Backspace, F1–F9 (315–323); 0 for others.</summary>
+    /// <summary>A key as the engine numbers it: letters (lower case), digits, space, Enter, Tab, Backspace, Esc, F1–F9 (315–323); 0 for others.</summary>
     private static int KeyCode(Key key) => key switch
     {
         >= Key.A and <= Key.Z => 'a' + (key - Key.A),
@@ -139,6 +144,7 @@ public partial class GameWindow : Window
         Key.Enter => 13,
         Key.Tab => 9,
         Key.Back => 8,
+        Key.Escape => 27,
         Key.OemPeriod => '.',
         _ => 0,
     };

@@ -146,8 +146,8 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
     public string Hint => !IsPlaying ? (RunScripts ? "Press Play to boot the game." : "Press Play to start.")
         : IsVideoPlaying ? "Esc skips the video."
         : IsMouseCaptured ? null
-        : RunScripts ? "Click the canvas to capture the mouse (Esc lets it go). Clicks and keys go to the game's scripts."
-        : "Click the canvas to capture the mouse (Esc lets it go). I or a right-click opens the inventory.";
+        : RunScripts ? "Click the canvas to capture the mouse (Ctrl+Alt lets it go). Clicks and keys go to the game's scripts; Esc skips cutscenes."
+        : "Click the canvas to capture the mouse (Ctrl+Alt lets it go). I or a right-click opens the inventory.";
 
     [RelayCommand(CanExecute = nameof(CanPlay))]
     private void Play()
