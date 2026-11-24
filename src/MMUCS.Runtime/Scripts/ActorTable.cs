@@ -14,13 +14,14 @@ namespace MMUCS.Runtime.Scripts;
 /// <see cref="Remap"/> is the actor's own colours for the costume's (<c>actor N palette</c>, <c>remap-costume</c>):
 /// a screen colour for each costume colour, 0xFF for the costume's own (AKPL); null when there are none.
 /// The colours are the screen's (<see cref="ScreenPalette"/>) when it's drawn.
+/// <see cref="ShadowMode"/> is how its shadow colours draw (<see cref="AkosShadow"/>).
 /// </summary>
 public sealed record ActorPicture(int Actor, Costume Costume, AkosFrame Frame, bool Mirrored, int Scale, int X, int Y, int ZPlane, bool FromBox, int FromX, int FromY,
-    int[] Remap = null)
+    int[] Remap = null, int ShadowMode = 0)
 {
     /// <summary>What decides the picture's pixels in palette indices (not where it is, nor the palette), for caching them.</summary>
     public string Key { get; } = $"{Costume.Number}:{(Mirrored ? 1 : 0)}:{Scale}:" + string.Join(";", Frame.Cels.Select(c => $"{c.Cel},{c.X},{c.Y}"))
-        + (Remap == null ? "" : ":" + string.Join(",", Remap));
+        + (Remap == null ? "" : ":" + string.Join(",", Remap)) + (ShadowMode == 0 ? "" : $":s{ShadowMode}");
 
     /// <summary>The actor's colours for a costume of <paramref name="colours"/> colours, or null when it has none of its own.</summary>
     public static int[] RemapOf(int[] palette, int colours)
@@ -558,7 +559,7 @@ public sealed partial class ActorTable
         var (X, Y) = a.LastPicturePlace ?? (a.X, y);
         a.LastPicturePlace = (a.X, y);
         return new ActorPicture(a.Number, costume, frame, mirrored, scale, a.X, y, fromBox ? BoxMask(a.Walkbox) : a.ForceClip, fromBox, X, Y,
-            ActorPicture.RemapOf(a.Palette, costume.Data.Palette.Length));
+            ActorPicture.RemapOf(a.Palette, costume.Data.Palette.Length), a.ShadowMode);
     }
 
     /// <summary>ScummVM <c>animateCostume</c>: every <i>animation speed</i> frames, each active limb steps on.</summary>

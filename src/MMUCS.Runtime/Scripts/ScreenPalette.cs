@@ -32,6 +32,12 @@ public sealed class ScreenPalette
     /// <summary>The shadow tables, 256 colours each (ScummVM <c>_shadowPalette</c>).</summary>
     public byte[] Shadows { get; } = new byte[ShadowSlots * Colours];
 
+    /// <summary>
+    /// What each shadow table scales a colour by, an RGB triple of 0–255 for each (255: as it was), so a
+    /// host drawing in RGB can shade as the tables do. A table never built maps every colour to 0, so 0.
+    /// </summary>
+    public byte[] ShadowFactors { get; } = new byte[ShadowSlots * 3];
+
     /// <summary>Goes up each time a colour changes.</summary>
     public int Version { get; private set; }
 
@@ -169,6 +175,9 @@ public sealed class ScreenPalette
         if (start is < 0 or > 255 || end is < 0 or > 255 || end < start) throw new ScriptException($"shadow palette range {start} to {end}");
         var table = Shadows.AsSpan(slot * Colours, Colours);
         for (int i = 0; i < Colours; i++) table[i] = (byte)i;
+        ShadowFactors[slot * 3] = (byte)Math.Clamp(redScale * 255 / 256, 0, 255);
+        ShadowFactors[slot * 3 + 1] = (byte)Math.Clamp(greenScale * 255 / 256, 0, 255);
+        ShadowFactors[slot * 3 + 2] = (byte)Math.Clamp(blueScale * 255 / 256, 0, 255);
         for (int i = start; i <= end; i++)
             table[i] = (byte)Nearest(Current[i * 3] * redScale >> 8, Current[i * 3 + 1] * greenScale >> 8, Current[i * 3 + 2] * blueScale >> 8);
     }
