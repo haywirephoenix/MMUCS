@@ -243,6 +243,12 @@ static class BootCommand
                 Console.WriteLine($"  {b.Object,5} {RoomScripts.ObjectName(root, b.Object),-36} image {b.Image} at {b.X},{b.Y} {b.Width}×{b.Height}" +
                                   $"{(b.ScaleX != 255 || b.ScaleY != 255 ? $" scale {b.ScaleX}/{b.ScaleY}" : "")}{(b.Mode == 3 ? " shadow" : "")}{(vm.IsFloating(b.Object) ? " (floating)" : "")}");
         }
+        if (vm.SaveStamps.Count > 0)
+        {
+            Console.WriteLine("save thumbnails on the screen (the F1 menu's):");
+            foreach (var t in vm.SaveStamps)
+                Console.WriteLine($"  slot {t.Slot,-3} at {t.X},{t.Y} {t.Width}×{t.Height} brightness {t.Brightness}");
+        }
         var shownVerbs = vm.VerbsShown.ToList();
         if (shownVerbs.Count > 0)
         {
