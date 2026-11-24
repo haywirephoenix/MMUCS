@@ -26,6 +26,13 @@ public class GameViewModelTests
             var vm = new GameViewModel(root, Game);
             await vm.Loading;
             Assert.True(vm.RunScripts); // the default
+            Assert.True(vm.SmoothCamera); // the default too (no settings here, so nothing is saved)
+            Assert.True(vm.Scripted.SmoothCamera);
+            vm.SmoothCamera = false; // the toolbar button
+            Assert.False(vm.Scripted.SmoothCamera);
+            vm.SmoothCamera = true;
+            Assert.True(vm.Scripted.SmoothCamera);
+            Assert.True(new Services.AppSettings().SmoothCamera); // new settings start with it on
             Assert.False(vm.Frame.IsRunning);
 
             vm.PlayCommand.Execute(null);
