@@ -64,6 +64,9 @@ public sealed class GameFrame
     /// <summary>The scripts' texts on the page (talk lines, blasted labels), drawn in order over the room.</summary>
     public IReadOnlyList<SubtitleOverlay> Texts { get; init; } = [];
 
+    /// <summary>How far the texts move to stay with the room when the camera shown isn't the engine's (a smooth camera easing).</summary>
+    public GamePoint TextShift { get; init; }
+
     /// <summary>The game cursor, placed with its hotspot on the cursor's position; null while the game hasn't got the mouse.</summary>
     public FrameImage? Cursor { get; init; }
 
@@ -133,7 +136,7 @@ public sealed class GameFrame
         if (Texts.Count > 0)
         {
             canvas.Save();
-            canvas.Translate((float)GameState.PageOrigin.X, (float)GameState.PageOrigin.Y);
+            canvas.Translate((float)(GameState.PageOrigin.X + TextShift.X), (float)(GameState.PageOrigin.Y + TextShift.Y));
             foreach (var text in Texts) text?.Draw(canvas, smooth: scale < 0.999f);
             canvas.Restore();
         }

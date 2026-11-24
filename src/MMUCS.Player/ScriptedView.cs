@@ -83,6 +83,7 @@ public sealed class ScriptedView
                 : null,
             Blasts = BlastFrames(),
             Camera = game.Camera,
+            TextShift = new(game.EngineCamera.X - game.Camera.X, game.EngineCamera.Y - game.Camera.Y),
             Texts = ScreenTexts(),
             Cursor = CursorFrame(),
         };
