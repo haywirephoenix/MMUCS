@@ -576,6 +576,8 @@ public static class AkosFrames
             for (int x = 0; x < surface.Width; x++)
             {
                 int dx = cols[x] - l;
+                // A column the scale drops lands on the one before: the engine doesn't shade there again (skipColumn).
+                bool repeat = x > 0 && cols[x] == cols[x - 1];
                 for (int y = 0; y < surface.Height; y++)
                 {
                     if (rows[y] == int.MinValue) continue;
@@ -583,7 +585,7 @@ public static class AkosFrames
                     if (local == transparent) continue;
                     int global = Global(local, akpl, passthrough, remap);
                     int o = ((rows[y] - t) * w + dx) * 4;
-                    if (global > 0 && global < 8 && Shade(rgba, o, global, shadow)) continue;
+                    if (global > 0 && global < 8 && (repeat && shadow?.Mode == 3 || Shade(rgba, o, global, shadow))) continue;
                     Paint(rgba, o, global, colors, screen);
                     shadow?.Clear(o);
                 }
