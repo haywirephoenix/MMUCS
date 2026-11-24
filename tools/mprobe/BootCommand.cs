@@ -13,6 +13,7 @@ static class BootCommand
         double seconds = double.TryParse(takeOption(a, "--seconds"), System.Globalization.CultureInfo.InvariantCulture, out var s) ? s : 10;
         int bootParam = int.TryParse(takeOption(a, "--param"), out var p) ? p : 0;
         string vars = takeOption(a, "--vars");
+        string png = takeOption(a, "--png");
         bool calls = a.Contains("--calls"), everyFrame = a.Contains("--every-frame");
         var inputs = new List<(int Jiffy, string What, string Spec)>();
         for (string c; (c = takeOption(a, "--click")) != null;) inputs.Add(Timed(c, "click"));
@@ -111,6 +112,19 @@ static class BootCommand
                 Console.WriteLine($"  {o.Id,5} {RoomScripts.ObjectName(root, o.Id),-36} {o.X},{o.Y} {o.Width}×{o.Height}" +
                                   $"{(state.Objects.HasClass(o.Id, ObjectTables.Untouchable) ? "  untouchable" : "")}{(o.Parent != 0 ? $"  parent slot {o.Parent} in state {o.ParentState}" : "")}");
         }
+        var actors = vm.Actors.All.Where(x => x.Number > 0 && x.Room == vm.CurrentRoom && vm.CurrentRoom != 0).ToList();
+        if (actors.Count > 0)
+        {
+            Console.WriteLine("actors in the room (what --click actorN aims at):");
+            foreach (var act in actors)
+            {
+                string limbs = string.Join(" ", Enumerable.Range(0, Actor.Limbs).Where(i => act.Active[i] != 0).Select(i => $"{i}:{act.CurPos[i]}{((act.Stopped >> i & 1) != 0 ? "s" : "")}"));
+                string drawn = act.Drawn is var (l, t, r, b) ? $"drawn {l},{t}–{r},{b}" : "not drawn";
+                Console.WriteLine($"  actor {act.Number,-2} {(act.Name is { Length: > 0 } n ? n : ""),-12} costume {act.Costume,-4} at {act.X},{act.Y}" +
+                                  $"{(act.Elevation != 0 ? $" up {act.Elevation}" : "")} facing {act.Facing,-3} anim {act.Frame,-3} box {act.Walkbox,-3} scale {act.ScaleX,-3}" +
+                                  $" layer {act.Layer}{(act.Visible ? "" : " hidden")}{(act.Moving != 0 ? $" moving {act.Moving}" : "")}  {drawn}  limbs {limbs}");
+            }
+        }
         Console.WriteLine("running:");
         foreach (var slot in state.Slots.Where(x => x.IsAlive))
         {
@@ -137,7 +151,34 @@ static class BootCommand
 
         Console.WriteLine();
         Console.WriteLine($"{faults} faults, {warnings} warnings");
+        if (png != null) SaveRoom(vm, png);
         return faults > 0 ? 1 : 0;
+    }
+
+    /// <summary>
+    /// The current room as the game window draws it: the objects the engine draws in their states, and the
+    /// actors as the last frame drew them, at the room's full size.
+    /// </summary>
+    private static void SaveRoom(ScriptVm vm, string file)
+    {
+        if (vm.CurrentRoom == 0 || vm.Scripts.RoomBlock(vm.CurrentRoom) is not { } lflf || !RoomModel.TryCreate(lflf, out var model))
+        {
+            Console.WriteLine($"no room to save to {file}");
+            return;
+        }
+        var drawn = new Dictionary<int, int>();
+        foreach (var o in vm.RoomObjects)
+            if (vm.IsDrawn(o.Id)) drawn[o.Id] = vm.LocalState(o.Id);
+        int StateOf(RoomObject o) => drawn.GetValueOrDefault(vm.Scripts.ObjectId(o.Name));
+        var scene = MMUCS.Player.Rooms.RoomSceneBuilder.BuildAsync(model, StateOf).GetAwaiter().GetResult();
+        scene = scene.WithActors(MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.Pictures, scene.ZMasks.Count));
+        using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(Math.Max(1, scene.Width), Math.Max(1, scene.Height)));
+        surface.Canvas.Clear(SkiaSharp.SKColors.Black);
+        scene.Draw(surface.Canvas, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Nearest));
+        using var data = surface.Snapshot().Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+        if (Path.GetDirectoryName(Path.GetFullPath(file)) is { } dir) Directory.CreateDirectory(dir);
+        File.WriteAllBytes(file, data.ToArray());
+        Console.WriteLine($"saved room {vm.CurrentRoom} with {scene.Objects.Count} objects and {scene.Actors.Count} actors to {Path.GetFullPath(file)}");
     }
 
     /// <summary>"WHAT@SECONDS" (seconds after boot, default 1) as a jiffy.</summary>
@@ -148,11 +189,13 @@ static class BootCommand
         return ((int)Math.Round(at * 60), what, parts[0]);
     }
 
-    /// <summary>A click target: "X,Y" on the screen, or an object (number or name) of the current room, at its middle.</summary>
+    /// <summary>A click target: "X,Y" on the screen, an object (number or name) of the current room at its middle, or "actorN" at the middle of where it was drawn.</summary>
     private static (int X, int Y)? Point(string spec, ScriptVm vm, ScummBlock root)
     {
         var xy = spec.Split(',');
         if (xy.Length == 2 && int.TryParse(xy[0], out int x) && int.TryParse(xy[1], out int y)) return (x, y);
+        if (spec.StartsWith("actor") && int.TryParse(spec[5..], out int n) && vm.Actors.Find(n)?.Drawn is var (l, t, r, b))
+            return ((l + r) / 2, (t + b) / 2);
         foreach (var o in vm.RoomObjects)
             if (o.Id.ToString() == spec || RoomScripts.ObjectName(root, o.Id) == spec)
                 return (o.X + o.Width / 2, o.Y + o.Height / 2);
