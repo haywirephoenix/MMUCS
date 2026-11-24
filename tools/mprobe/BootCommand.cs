@@ -161,9 +161,11 @@ static class BootCommand
                 string drawn = act.Drawn is var (l, t, r, b) ? $"drawn {l},{t}–{r},{b}" : "not drawn";
                 Console.WriteLine($"  actor {act.Number,-2} {(act.Name is { Length: > 0 } n ? n : ""),-12} costume {act.Costume,-4} at {act.X},{act.Y}" +
                                   $"{(act.Elevation != 0 ? $" up {act.Elevation}" : "")} facing {act.Facing,-3} anim {act.Frame,-3} box {act.Walkbox,-3} scale {act.ScaleX,-3}" +
-                                  $" layer {act.Layer}{(act.Visible ? "" : " hidden")}{(act.Moving != 0 ? $" moving {act.Moving}" : "")}  {drawn}  limbs {limbs}");
+                                  $" layer {act.Layer}{(act.Visible ? "" : " hidden")}{(act.Moving != 0 ? $" moving {act.Moving}" : "")}  {drawn}  limbs {limbs}" +
+                                  $"{(act.ShadowMode != 0 ? $"  special-draw {act.ShadowMode}" : "")}{CostumeColours(vm, act)}");
             }
         }
+        PrintPalette(vm);
         if (vm.BlastObjects.Count > 0)
         {
             Console.WriteLine("objects blasted over the room (last frame):");
@@ -214,6 +216,77 @@ static class BootCommand
     }
 
     /// <summary>
+    /// The screen's colours against the room's palette in use: the slots the scripts changed, in runs that
+    /// share a scale (what <c>palette-intensity</c> gave them; <c>set</c> where a colour isn't a scaled room colour).
+    /// </summary>
+    private static void PrintPalette(ScriptVm vm)
+    {
+        if (vm.CurrentRoom == 0) return;
+        var palettes = vm.RoomPalettes(vm.CurrentRoom);
+        if (palettes.Count == 0) return;
+        var room = palettes[Math.Clamp(vm.PaletteIndex, 0, palettes.Count - 1)];
+        var cur = vm.Palette.Current;
+        // The scales (per channel, as a range) that give a slot's colour from the room's: now = was * scale / 255,
+        // at most 255. Null when the colour is the room's; empty when no scale gives it (a colour set outright).
+        (int Lo, int Hi)[] ScalesOf(int i)
+        {
+            if (i * 3 + 2 >= room.Length) return [];
+            if (cur.AsSpan(i * 3, 3).SequenceEqual(room.AsSpan(i * 3, 3))) return null;
+            var r = new (int, int)[3];
+            for (int c = 0; c < 3; c++)
+            {
+                int was = room[i * 3 + c], now = cur[i * 3 + c];
+                if (was == 0) { if (now != 0) return []; r[c] = (0, 999); continue; }
+                int lo = (now * 255 + was - 1) / was, hi = now == 255 ? 999 : ((now + 1) * 255 + was - 1) / was - 1;
+                if (lo > hi) return [];
+                r[c] = (lo, hi);
+            }
+            return r;
+        }
+        var runs = new List<(int From, int To, (int Lo, int Hi)[] Scales)>();
+        for (int i = 0; i < ScreenPalette.Colours; i++)
+        {
+            var scales = ScalesOf(i);
+            if (scales == null) continue;
+            if (runs.Count > 0 && runs[^1].To == i - 1 && runs[^1].Scales.Length == 3 && scales.Length == 3)
+            {
+                var both = runs[^1].Scales.Zip(scales, (x, y) => (Math.Max(x.Lo, y.Lo), Math.Min(x.Hi, y.Hi))).ToArray();
+                if (both.All(x => x.Item1 <= x.Item2)) { runs[^1] = (runs[^1].From, i, both); continue; }
+            }
+            else if (runs.Count > 0 && runs[^1].To == i - 1 && runs[^1].Scales.Length == 0 && scales.Length == 0)
+            {
+                runs[^1] = (runs[^1].From, i, scales);
+                continue;
+            }
+            runs.Add((i, i, scales));
+        }
+        static string Scale((int Lo, int Hi)[] s) =>
+            s.Length == 0 ? "set" : string.Join(",", s.Select(x => x.Hi >= 999 ? (x.Lo == 0 ? "any" : $"{x.Lo}+") : x.Lo == x.Hi ? $"{x.Lo}" : $"{x.Lo}–{x.Hi}"));
+        Console.WriteLine($"palette: room {vm.CurrentRoom}'s palette {vm.PaletteIndex}{(vm.Palette.IsTransforming ? ", transforming" : "")}" +
+                          (runs.Count == 0 ? ", as the room has it" : ", changed by the scripts (slots: the intensity r,g,b of 255 that gives them, or set):"));
+        foreach (var (from, to, scales) in runs.Take(24))
+            Console.WriteLine($"  {(from == to ? $"{from}" : $"{from}–{to}"),-8} {Scale(scales)}");
+        if (runs.Count > 24) Console.WriteLine($"  … {runs.Count - 24} more runs");
+    }
+
+    /// <summary>The screen colours an actor's costume draws in (its AKPL through the actor's own), as ranges, shadow colours (1–7) left out.</summary>
+    private static string CostumeColours(ScriptVm vm, Actor a)
+    {
+        if (vm.Scripts.Costume(a.Costume) is not { } costume) return "";
+        var akpl = costume.Data.Palette.Span;
+        if (akpl.IsEmpty || costume.Data.IsPassthroughPalette) return "  colours: the palette's own";
+        var remap = ActorPicture.RemapOf(a.Palette, akpl.Length);
+        var used = new SortedSet<int>();
+        for (int i = 1; i < akpl.Length; i++)
+            if (AkosFrames.Global((byte)i, akpl, false, remap) is var g and >= 8) used.Add(g);
+        var ranges = new List<string>();
+        foreach (int g in used)
+            if (ranges.Count > 0 && ranges[^1].Split('–') is var r && int.Parse(r[^1]) == g - 1) ranges[^1] = $"{r[0]}–{g}";
+            else ranges.Add(g.ToString());
+        return $"  colours {string.Join(",", ranges)}{(remap != null ? " (remapped)" : "")}";
+    }
+
+    /// <summary>
     /// The current room as the game window draws it: the objects the engine draws in their states, and the
     /// actors as the last frame drew them, at the room's full size.
     /// </summary>
@@ -228,8 +301,9 @@ static class BootCommand
         foreach (var o in vm.RoomObjects)
             if (vm.IsDrawn(o.Id)) drawn[o.Id] = vm.LocalState(o.Id);
         int StateOf(RoomObject o) => drawn.GetValueOrDefault(vm.Scripts.ObjectId(o.Name));
-        var scene = MMUCS.Player.Rooms.RoomSceneBuilder.BuildAsync(model, StateOf).GetAwaiter().GetResult();
-        scene = scene.WithActors(MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.Pictures, scene.ZMasks.Count));
+        var screen = vm.Palette.Snapshot();
+        var scene = MMUCS.Player.Rooms.RoomSceneBuilder.BuildIndexedAsync(model, StateOf).GetAwaiter().GetResult().Colour(screen);
+        scene = scene.WithActors(MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.Pictures, scene.ZMasks.Count, screen: screen));
         using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(Math.Max(1, scene.Width), Math.Max(1, scene.Height)));
         surface.Canvas.Clear(SkiaSharp.SKColors.Black);
         scene.Draw(surface.Canvas, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Nearest));
@@ -244,14 +318,14 @@ static class BootCommand
         // The actors over the blasts (layer below 0), cut by the room's planes as the others.
         if (vm.Actors.UpperPictures.Count > 0)
             new MMUCS.Player.Rooms.RoomScene { Width = scene.Width, Height = scene.Height, ZMasks = scene.ZMasks,
-                Actors = MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.UpperPictures, scene.ZMasks.Count) }
+                Actors = MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.UpperPictures, scene.ZMasks.Count, screen: screen) }
                 .Draw(surface.Canvas, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Nearest));
-        // The texts on the page, in the game fonts and the room's palette, as the game window draws them.
+        // The texts on the page, in the game fonts and the screen's colours, as the game window draws them.
         int drawnTexts = 0;
         if (gameFile != null && vm.ScreenTexts.Count > 0)
         {
             var text = MMUCS.Player.Text.SubtitleRenderer.Create(MMUCS.Core.Fonts.NutFont.LoadAll(gameFile), MMUCS.Player.Text.SubtitleFontKind.Game, null, true);
-            var palette = ObimCache.ExtractPaletteContext(model.Room, 0).rawBytes;
+            var palette = screen;
             surface.Canvas.Save();
             surface.Canvas.Translate(vm.CameraX - 320, vm.CameraY - 240);
             foreach (var t in vm.ScreenTexts)
