@@ -386,16 +386,34 @@ public static class AkosFrames
     }
 
     /// <summary>
+    /// A shadow pixel (colours 1–7): without <paramref name="shadow"/>, translucent black where nothing is
+    /// drawn yet; in shadow mode 3, a pixel of the shadow layer; in the other modes it isn't one (false), and
+    /// is drawn in its own colour as the engine does.
+    /// </summary>
+    private static bool Shade(byte[] rgba, int o, int global, AkosShadow shadow)
+    {
+        if (shadow == null)
+        {
+            if (rgba[o + 3] == 0) { rgba[o] = rgba[o + 1] = rgba[o + 2] = 0; rgba[o + 3] = 102; }
+            return true;
+        }
+        if (shadow.Mode != 3) return false;
+        shadow.Shade(o, global);
+        return true;
+    }
+
+    /// <summary>
     /// Renders a frame with the costume's resolved colours. Shadow indices (1–7) become translucent
-    /// black. <paramref name="originX"/>/<paramref name="originY"/> give the actor origin within the image.
+    /// black, or with <paramref name="shadow"/> go as the actor's shadow mode says. <paramref name="originX"/>/<paramref name="originY"/> give the actor origin within the image.
     /// </summary>
     /// <param name="mirror">Flip it about the actor's origin (<see cref="IsMirrored"/>).</param>
     /// <param name="screen">The colours on the screen (256 RGB triples) to draw in instead of the costume's resolved ones, as the engine does.</param>
     /// <param name="remap">The actor's own colours (<see cref="Global"/>), or null.</param>
     public static RgbaImage Render(AkosData d, AkosFrame frame, out int originX, out int originY, bool mirror = false, CancellationToken token = default,
-        byte[] screen = null, int[] remap = null)
+        byte[] screen = null, int[] remap = null, AkosShadow shadow = null)
     {
         originX = originY = 0;
+        shadow?.Reset();
         if (frame == null || frame.IsEmpty) return null;
         var (l, t, r, b) = frame.Bounds;
         int w = r - l, h = b - t;
@@ -404,6 +422,7 @@ public static class AkosFrames
         originY = -t;
 
         var rgba = new byte[w * h * 4];
+        shadow?.Start(w, h);
         var akpl = d.Palette.Span;
         var colors = d.ResolvedColors;
         bool passthrough = d.IsPassthroughPalette;
@@ -426,12 +445,9 @@ public static class AkosFrames
                     if (local == transparent) continue;
                     int global = Global(local, akpl, passthrough, remap);
                     int o = (dy * w + dx) * 4;
-                    if (global > 0 && global < 8)
-                    {
-                        if (rgba[o + 3] == 0) { rgba[o] = rgba[o + 1] = rgba[o + 2] = 0; rgba[o + 3] = 102; }
-                        continue;
-                    }
+                    if (global > 0 && global < 8 && Shade(rgba, o, global, shadow)) continue;
                     Paint(rgba, o, global, colors, screen);
+                    shadow?.Clear(o);
                 }
             }
         }
@@ -442,6 +458,7 @@ public static class AkosFrames
                     for (int k = 0; k < 4; k++)
                         (rgba[i * 4 + k], rgba[j * 4 + k]) = (rgba[j * 4 + k], rgba[i * 4 + k]);
             originX = w - originX;
+            shadow?.Mirror();
         }
         return new RgbaImage(w, h, rgba);
     }
@@ -524,10 +541,11 @@ public static class AkosFrames
     /// At 255 this is <see cref="Render"/>.
     /// </summary>
     public static RgbaImage RenderScaled(AkosData d, AkosFrame frame, int scale, out int originX, out int originY, bool mirror = false, CancellationToken token = default,
-        byte[] screen = null, int[] remap = null)
+        byte[] screen = null, int[] remap = null, AkosShadow shadow = null)
     {
-        if (scale >= 255) return Render(d, frame, out originX, out originY, mirror, token, screen, remap);
+        if (scale >= 255) return Render(d, frame, out originX, out originY, mirror, token, screen, remap, shadow);
         originX = originY = 0;
+        shadow?.Reset();
         if (frame == null || frame.IsEmpty) return null;
         scale = Math.Max(scale, 1);
 
@@ -549,6 +567,7 @@ public static class AkosFrames
         originY = -t;
 
         var rgba = new byte[w * h * 4];
+        shadow?.Start(w, h);
         var akpl = d.Palette.Span;
         var colors = d.ResolvedColors;
         bool passthrough = d.IsPassthroughPalette;
@@ -564,12 +583,9 @@ public static class AkosFrames
                     if (local == transparent) continue;
                     int global = Global(local, akpl, passthrough, remap);
                     int o = ((rows[y] - t) * w + dx) * 4;
-                    if (global > 0 && global < 8)
-                    {
-                        if (rgba[o + 3] == 0) { rgba[o] = rgba[o + 1] = rgba[o + 2] = 0; rgba[o + 3] = 102; }
-                        continue;
-                    }
+                    if (global > 0 && global < 8 && Shade(rgba, o, global, shadow)) continue;
                     Paint(rgba, o, global, colors, screen);
+                    shadow?.Clear(o);
                 }
             }
         return new RgbaImage(w, h, rgba);
