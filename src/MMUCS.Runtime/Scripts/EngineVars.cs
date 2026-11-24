@@ -11,7 +11,7 @@ public static class EngineVars
     public const int MouseX = 3, MouseY = 4, VirtMouseX = 5, VirtMouseY = 6;
     /// <summary>The cursor's and userput's levels (on when above 0), copied after every cursor command.</summary>
     public const int CursorState = 7, UserPut = 8;
-    public const int TalkActor = 14;
+    public const int TalkActor = 14, HaveMessage = 15;
     /// <summary>Set for the frame a button went down in; held while it stays down.</summary>
     public const int LeftButtonDown = 16, RightButtonDown = 17, LeftButtonHold = 18, RightButtonHold = 19;
     /// <summary>1 after <c>begin-override</c>'s cutscene was skipped, 0 otherwise.</summary>

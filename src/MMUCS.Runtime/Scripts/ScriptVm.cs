@@ -35,7 +35,7 @@ public sealed record ScriptFault(string Slot, int Offset, string Instruction, st
 /// <see cref="Strict"/>). Errors the engine treats as fatal end the slot and go to <see cref="Faulted"/>.
 /// </para>
 /// </summary>
-public sealed class ScriptVm
+public sealed partial class ScriptVm
 {
     /// <summary>ScummVM <c>kMaxScriptNesting</c> and <c>kMaxCutsceneNum</c>.</summary>
     public const int MaxNesting = 15, MaxCutscenes = 5;
@@ -69,6 +69,7 @@ public sealed class ScriptVm
         Scripts = scripts ?? throw new ArgumentNullException(nameof(scripts));
         State = state ?? throw new ArgumentNullException(nameof(state));
         _random = new Random(seed);
+        Actors = new ActorTable(this, _random);
     }
 
     public ScriptStore Scripts { get; }
@@ -301,9 +302,11 @@ public sealed class ScriptVm
     /// Leaves the current room for <paramref name="room"/> (ScummVM <c>startScene</c>): <c>new-room</c> is set,
     /// the old room's exit scripts run, then its local scripts and its objects' and own code end. The new
     /// room becomes current with its size and camera limits in the room variables, and its entry scripts run.
-    /// A room or local script that asked for this stops here; a global one carries on afterwards.
+    /// A room or local script that asked for this stops here; a global one carries on afterwards. Every
+    /// actor goes out of sight; with <paramref name="ego"/> it's put at <paramref name="atObject"/> facing away
+    /// from it (<c>come-out-door</c>); then the actors in the new room come into sight before its entry code.
     /// </summary>
-    public void StartScene(int room)
+    public void StartScene(int room, Actor ego = null, int atObject = 0)
     {
         if (State.Current is { } caller && caller.BelongsToRoom)
         {
@@ -324,10 +327,12 @@ public sealed class ScriptVm
             if (State.Current == s) State.Current = null;
         }
 
+        Actors.HideAll();
         CurrentRoom = room;
         State[EngineVars.Room] = room;
         _roomObjects = Scripts.Places(room);
         _localStates = new int[_roomObjects.Count + 1];
+        Actors.LoadBoxes(room);
         RoomEntered?.Invoke(room);
         if (room == 0) return;
 
@@ -340,6 +345,17 @@ public sealed class ScriptVm
         State[EngineVars.CameraMaxY] = height - ScreenHeight / 2;
         State[EngineVars.CameraPosX] = State[EngineVars.CameraDestX] = ScreenWidth / 2;
         State[EngineVars.CameraPosY] = State[EngineVars.CameraDestY] = ScreenHeight / 2;
+
+        if (ego != null)
+        {
+            if (PlaceOf(atObject) is not { } door) throw new ScriptException($"object {atObject} is not in room {room}");
+            var (x, y, dir) = door.StandAt(State.Objects.State(atObject));
+            Actors.Put(ego, x, y, CurrentRoom);
+            Actors.SetDirection(ego, dir + 180);
+            Actors.StopMoving(ego);
+        }
+        Actors.ShowAll();
+        Actors.EgoPositioned = false;
 
         RunRoomCode(EngineVars.EntryScript, Scripts.RoomEntry(room), EntryCodeNumber, EngineVars.EntryScript2);
     }
@@ -587,22 +603,31 @@ public sealed class ScriptVm
             case 0xd3: Push(IsScriptRunning(Pop())); return;
             case 0xd6: Push(Math.Abs(Pop())); return;
         }
+        if (ExecActor(s, ins)) return;
         NotHandled(s, ins);
     }
 
     /// <summary>
-    /// <c>come-out-door obj at x,y</c>: enters the object's home room with <c>walk-to-object</c> set while it
-    /// does (ScummVM <c>o6_loadRoomWithEgo</c>). Placing the ego at the object and walking it to x,y is the
-    /// actors' part, reported through <see cref="Unhandled"/> for now.
+    /// <c>come-out-door obj at x,y</c> (ScummVM <c>o6_loadRoomWithEgo</c>): the ego goes to the object's home
+    /// room, where the room's entry puts it at the object facing away from it, with <c>walk-to-object</c> set
+    /// meanwhile; then it walks to x,y unless that's −1. Walking isn't here yet: that part is reported
+    /// through <see cref="Unhandled"/>.
     /// </summary>
     private void ComeOutDoor(ScriptInstruction ins)
     {
         int y = Pop(), x = Pop(), obj = Pop();
+        int room = State.Objects.IsObject(obj) ? State.Objects.Room(obj) : 0;
+        var ego = Actors[State[EngineVars.Ego]];
+        Actors.Put(ego, 0, 0, room);
+        Actors.EgoPositioned = false;
         State[EngineVars.WalkToObject] = obj;
-        StartScene(State.Objects.Room(obj));
+        StartScene(ego.Room, ego, obj);
         State[EngineVars.WalkToObject] = 0;
-        _unhandledCounts[ins.Name] = _unhandledCounts.GetValueOrDefault(ins.Name) + 1;
-        Unhandled?.Invoke(new UnhandledCall("ego", ins, [[obj], [x], [y]]));
+        if (x is not (-1 or 0x7FFFFFFF))
+        {
+            _unhandledCounts["walk"] = _unhandledCounts.GetValueOrDefault("walk") + 1;
+            Unhandled?.Invoke(new UnhandledCall("ego", ins, [[obj], [x], [y]]));
+        }
     }
 
     /// <summary>

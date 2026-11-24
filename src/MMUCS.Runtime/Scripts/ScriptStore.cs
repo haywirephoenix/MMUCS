@@ -94,9 +94,29 @@ public sealed class ObjectCode
 /// </summary>
 public sealed record ObjectPlace(int Slot, int Id, int Parent, int ParentState, int X, int Y, int Width, int Height)
 {
+    /// <summary>The way an actor at it faces, as an 8-way direction (IMHD <c>actordir</c>; ×45 for degrees).</summary>
+    public int ActorDir { get; init; }
+
+    /// <summary>Where an actor stands for each image state, relative to <see cref="X"/>,<see cref="Y"/> (IMHD hotspots).</summary>
+    public IReadOnlyList<(int X, int Y)> Hotspots { get; init; } = [];
+
+    /// <summary>
+    /// Where an actor goes for it in state <paramref name="state"/> (ScummVM <c>getObjectXYPos</c>, v8): its
+    /// place plus the hotspot of image <i>state</i>−1 (the first for state 0), and the way it faces there.
+    /// </summary>
+    public (int X, int Y, int Dir) StandAt(int state)
+    {
+        int i = Math.Max(0, state - 1);
+        var (hx, hy) = i < Hotspots.Count ? Hotspots[i] : (0, 0);
+        return (X + hx, Y + hy, ActorDir * 45);
+    }
+
     /// <summary>Whether a point is on it, edges included (COMI's hit test, ScummVM <c>findObject</c>).</summary>
     public bool Contains(int x, int y) => X <= x && x <= X + Width && Y <= y && y <= Y + Height;
 }
+
+/// <summary>A costume the scripts can give an actor: its number, its AKOS block and what's parsed from it.</summary>
+public sealed record Costume(int Number, ScummBlock Block, AkosData Data);
 
 /// <summary>
 /// Finds the game's scripts by the numbers the scripts use: global scripts through the DSCR directory,
@@ -114,6 +134,7 @@ public sealed class ScriptStore
     private readonly Dictionary<int, RoomCode> _roomCode = [];
     private readonly Dictionary<int, (int, int)> _roomSizes = [];
     private readonly ScummBlock _root;
+    private readonly Dictionary<int, Costume> _costumes = [];
     private Dictionary<string, int> _idsByName;
 
     private sealed class RoomCode
@@ -238,6 +259,30 @@ public sealed class ScriptStore
         return null;
     }
 
+    /// <summary>Costume <paramref name="number"/> (its AKOS, through DCOS), or null without one or a game file.</summary>
+    public Costume Costume(int number)
+    {
+        if (_root == null || number <= 0) return null;
+        lock (_costumes)
+        {
+            if (_costumes.TryGetValue(number, out var cached)) return cached;
+            Costume costume = null;
+            if (RoomActors.CostumeBlock(_root, number) is { } akos)
+            {
+                try { costume = new Costume(number, akos, AkosParser.Parse(akos)); }
+                catch (Exception ex) when (ex is IndexOutOfRangeException or ArgumentException or NullReferenceException) { }
+            }
+            return _costumes[number] = costume;
+        }
+    }
+
+    /// <summary>The room's walk boxes (box 0 is "no box") and scale slots, as the room file has them.</summary>
+    public (IReadOnlyList<Walkbox> Boxes, IReadOnlyList<ScaleSlot> Scales) RoomBoxes(int room)
+    {
+        if (!_rooms.TryGetValue(room, out var lflf)) return ([], []);
+        return (Walkboxes.Parse(lflf.FindChildRecursive(ScummTag.BOXD)), Walkboxes.ParseScaleSlots(lflf.FindChildRecursive(ScummTag.SCAL)));
+    }
+
     /// <summary>The room's LFLF block, or null.</summary>
     public ScummBlock RoomBlock(int room) => _rooms.GetValueOrDefault(room);
 
@@ -339,14 +384,19 @@ public sealed class ScriptStore
     private void AddPlaces(RoomCode code, ScummBlock lflf)
     {
         var rects = new Dictionary<int, (int, int, int, int)>();
+        var stands = new Dictionary<int, (int Dir, (int, int)[] Hotspots)>();
         foreach (var b in Blocks.Walk(lflf, 3))
         {
             if (b.Tag != ScummTag.OBIM || b.FindChild(ScummTag.IMHD) is not { DataLength: >= 64 } imhd) continue;
             var d = imhd.DataSpan;
             int len = d[..32].IndexOf((byte)0);
             string name = System.Text.Encoding.Latin1.GetString(d[..(len < 0 ? 32 : len)]);
-            if (IdsByName().TryGetValue(name, out int id))
-                rects.TryAdd(id, (d.S32LE(48), d.S32LE(52), d.S32LE(56), d.S32LE(60)));
+            if (!IdsByName().TryGetValue(name, out int id) || !rects.TryAdd(id, (d.S32LE(48), d.S32LE(52), d.S32LE(56), d.S32LE(60)))) continue;
+            // v8 IMHD: version at 40 (801; 800 in the demo, without the flags), actordir at 64, then 15 hotspots.
+            int at = d.S32LE(40) == 800 ? 68 : 72;
+            var hotspots = new List<(int, int)>();
+            for (int i = 0; i < 15 && at + 8 * i + 8 <= d.Length; i++) hotspots.Add((d.S32LE(at + 8 * i), d.S32LE(at + 8 * i + 4)));
+            stands[id] = (d.Length >= 68 ? d.S32LE(64) : 0, [.. hotspots]);
         }
         int slot = 1;
         foreach (var b in Blocks.Walk(lflf, 3))
@@ -355,7 +405,8 @@ public sealed class ScriptStore
             var d = cdhd.DataSpan;
             int id = d.U16LE(4);
             var (x, y, w, h) = rects.GetValueOrDefault(id);
-            code.Places.Add(new ObjectPlace(slot++, id, d[6], d[7], x, y, w, h));
+            var (dir, hotspots) = stands.GetValueOrDefault(id, (0, []));
+            code.Places.Add(new ObjectPlace(slot++, id, d[6], d[7], x, y, w, h) { ActorDir = dir, Hotspots = hotspots });
         }
     }
 

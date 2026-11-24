@@ -124,7 +124,9 @@ public sealed class FrameLoop
 
         Vm.RunAllScripts();
         CheckExecVerbs(input);
+        if (Vm.CurrentRoom != 0) Vm.WalkActors();
         Vm.UpdateObjectStates();
+        if (Vm.CurrentRoom != 0) Vm.ProcessActors();
         Frames++;
         AfterScripts?.Invoke(step);
     }
