@@ -252,6 +252,14 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         _toastTimer.Start();
     }
 
+    /// <summary>Loads a save file into the running game (the command line's <c>--load</c>), saying so in the toast.</summary>
+    public bool LoadSave(string path)
+    {
+        bool loaded = Scripted.LoadFile(path);
+        ShowToast(loaded ? "Loaded" : "Can't load the save");
+        return loaded;
+    }
+
     private const int QuickLoadKey = 318, QuickSaveKey = 320; // F4, F6
 
     /// <summary>
