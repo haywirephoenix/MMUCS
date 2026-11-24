@@ -149,6 +149,45 @@ public class RoomTests
         Assert.NotNull(vm.ObjectCodeOf(1365));
         Assert.Empty(vm.State.Stack);
     }
+
+    [Fact]
+    public void The_boot_parameter_is_the_boot_script_s_first_local_and_turns_debug_mode_on()
+    {
+        var boot = new Asm().PushVar(Local).Write(210).PushVar(EngineVars.DebugMode).Write(211).End().Global(1);
+        var vm = Machine(boot);
+        vm.Boot();
+        Assert.Equal((0, 0), (vm.State[210], vm.State[211]));
+
+        vm = Machine(boot);
+        vm.Boot(25);
+        Assert.Equal((25, 1), (vm.State[210], vm.State[211]));
+        Assert.True(vm.DebugMode);
+    }
+
+    [Fact]
+    public void Following_an_actor_in_another_room_starts_that_room_with_the_camera_on_it()
+    {
+        var vm = Machine(
+            new Asm().Push(1).Op(0x8d).End().Global(10),              // camera-follow 1
+            new Asm().Push(400).Push(300).Op(0x8e).End().Global(11),  // camera-at 400,300
+            Mark(1).End().Global(12));                                // the scroll script
+        var s = vm.State;
+        vm.Actors.Put(vm.Actors[1], 1100, 160, 5);
+        vm.StartScene(4);
+        s[EngineVars.ScrollScript] = 12;
+
+        vm.RunScript(10);
+        Assert.Equal(5, vm.CurrentRoom);
+        Assert.Equal((1, 1), (vm.CameraFollows, s[EngineVars.CameraFollowedActor]));
+        Assert.Equal((960, 240), (s[EngineVars.CameraPosX], s[EngineVars.CameraPosY])); // as near as the room allows
+        Assert.Equal((960, 240), (s[EngineVars.CameraDestX], s[EngineVars.CameraDestY]));
+        Assert.Equal([1], Logged(vm));
+
+        vm.RunScript(11);
+        Assert.Equal((0, 0), (vm.CameraFollows, s[EngineVars.CameraFollowedActor]));
+        Assert.Equal((400, 240), (s[EngineVars.CameraPosX], s[EngineVars.CameraPosY]));
+        Assert.Equal([1, 1], Logged(vm));
+    }
 }
 
 internal static class AsmRoomExtensions
