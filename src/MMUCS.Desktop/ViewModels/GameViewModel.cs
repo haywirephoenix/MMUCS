@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MMUCS.Core.Diagnostics;
@@ -234,16 +235,37 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
 
     public void ToggleInventory() => Game.ToggleInventory();
 
+    /// <summary>A short note in the canvas's top right (the quick save's and load's), or null; it goes after a moment.</summary>
+    [ObservableProperty] public partial string Toast { get; private set; }
+
+    private DispatcherTimer _toastTimer;
+
+    private void ShowToast(string text)
+    {
+        Toast = text;
+        _toastTimer ??= new DispatcherTimer(TimeSpan.FromSeconds(1.5), DispatcherPriority.Normal, (_, _) =>
+        {
+            _toastTimer.Stop();
+            Toast = null;
+        });
+        _toastTimer.Stop();
+        _toastTimer.Start();
+    }
+
+    private const int QuickLoadKey = 318, QuickSaveKey = 320; // F4, F6
+
     /// <summary>
     /// A key, as the engine numbers it (ASCII; F1–F9 are 315–323). The scripts get every key; the stand-ins only
-    /// know I. Returns whether it was used.
+    /// know I. F6 and F4 are the host's quick save and load, which the scripts don't see. Returns whether it was used.
     /// </summary>
     public bool PressKey(int code)
     {
         if (!IsPlaying || code <= 0) return false;
         if (RunScripts)
         {
-            Scripted.PressKey(code);
+            if (code == QuickSaveKey) ShowToast(Scripted.QuickSave() ? "Quick Saved" : "Can't quick save now");
+            else if (code == QuickLoadKey) ShowToast(Scripted.QuickLoad() ? "Quick Loaded" : Scripted.HasQuickSave ? "Can't quick load now" : "No quick save");
+            else Scripted.PressKey(code);
             return true;
         }
         if (code != 'i') return false;

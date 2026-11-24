@@ -36,11 +36,18 @@
     <c:GameCanvas x:Name="Canvas" Focusable="True" Frame="{Binding Frame}" />
 
     <c:ViewerPreview.Overlay>
-      <Border IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" IsHitTestVisible="False"
-              VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="12"
-              Background="{DynamicResource OverlayBackgroundBrush}" CornerRadius="3">
-        <TextBlock Text="{Binding Hint}" Margin="10,5" FontSize="12" Foreground="{DynamicResource SubtleTextBrush}" />
-      </Border>
+      <Panel>
+        <Border IsVisible="{Binding Toast, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" IsHitTestVisible="False"
+                VerticalAlignment="Top" HorizontalAlignment="Right" Margin="12"
+                Background="{DynamicResource OverlayBackgroundBrush}" CornerRadius="3">
+          <TextBlock Text="{Binding Toast}" Margin="10,5" FontSize="12" />
+        </Border>
+        <Border IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" IsHitTestVisible="False"
+                VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="12"
+                Background="{DynamicResource OverlayBackgroundBrush}" CornerRadius="3">
+          <TextBlock Text="{Binding Hint}" Margin="10,5" FontSize="12" Foreground="{DynamicResource SubtleTextBrush}" />
+        </Border>
+      </Panel>
     </c:ViewerPreview.Overlay>
   </c:ViewerPreview>
 </Window>
