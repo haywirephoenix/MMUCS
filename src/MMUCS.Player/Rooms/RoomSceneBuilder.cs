@@ -7,6 +7,7 @@ using MMUCS.Core;
 using MMUCS.Core.Imaging;
 using MMUCS.Core.Scumm;
 using SkiaSharp;
+using MMUCS.Runtime.Scripts;
 
 namespace MMUCS.Player.Rooms;
 
@@ -100,6 +101,54 @@ public static class RoomSceneBuilder
             var rgba = AkosFrames.RenderScaled(actor.Data, actor.Frame, actor.Scale, out int ox, out int oy, actor.Mirrored, token);
             return rgba == null ? null : (rgba, actor.X - ox, actor.DrawY - oy);
         }
+    }
+
+    /// <summary>
+    /// A costume frame as the engine draws it (each cel scaled on its own with SCUMM's scale table), with
+    /// where the actor's origin is in it, or null when it draws nothing.
+    /// </summary>
+    public static (RgbaImage Image, int OriginX, int OriginY)? CostumeFrame(AkosData data, ScummBlock akos, AkosFrame frame, int scale, bool mirrored, CancellationToken token = default)
+    {
+        if (frame is not { IsEmpty: false }) return null;
+        lock (data)
+        {
+            AkosParser.UpdatePaletteOnly(data, akos, data.DefaultPaletteIndex);
+            var rgba = AkosFrames.RenderScaled(data, frame, scale, out int ox, out int oy, mirrored, token);
+            return rgba == null ? null : (rgba, ox, oy);
+        }
+    }
+
+    /// <summary>
+    /// The actors the interpreter drew (<see cref="ActorTable.Pictures"/>, back to front) as scene actors, in
+    /// a room with <paramref name="planes"/> z-planes (the walk box's plane stays within them, as the engine
+    /// keeps it). <paramref name="cache"/> keeps rendered frames by <see cref="ActorPicture.Key"/>.
+    /// </summary>
+    public static List<SceneActor> SceneActors(IReadOnlyList<ActorPicture> pictures, int planes,
+        Dictionary<string, (SKImage Image, int OriginX, int OriginY)?> cache = null)
+    {
+        var list = new List<SceneActor>(pictures.Count);
+        for (int i = 0; i < pictures.Count; i++)
+        {
+            var p = pictures[i];
+            (SKImage, int, int)? image = null;
+            if (cache == null || !cache.TryGetValue(p.Key, out image))
+            {
+                try
+                {
+                    image = CostumeFrame(p.Costume.Data, p.Costume.Block, p.Frame, p.Scale, p.Mirrored) is var (rgba, ox, oy)
+                        ? (SkiaImages.Of(rgba), ox, oy) : null;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    MMUCS.Core.Diagnostics.Log.Warn($"Game actor {p.Actor} costume {p.Costume.Number}: {ex.Message}");
+                }
+                if (cache != null) cache[p.Key] = image;
+            }
+            if (image is not var (img, originX, originY)) continue;
+            int plane = p.FromBox ? Math.Min(p.ZPlane, planes) : p.ZPlane;
+            list.Add(new SceneActor(img, p.X - originX, p.Y - originY, 1, plane, i, p.Actor));
+        }
+        return list;
     }
 
     /// <summary>The room's actors as its scripts place them (<see cref="RoomActors.Analyze"/>), drawn as the engine draws them.</summary>

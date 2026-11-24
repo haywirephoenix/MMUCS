@@ -46,6 +46,14 @@ public sealed class RoomScene
     /// <summary>The z-plane masks (plane 1 first) as alpha images of the room's size: opaque where they hide actors.</summary>
     public IReadOnlyList<SKImage> ZMasks { get; init; } = [];
 
+    /// <summary>The same room with other actors (the background, objects and planes are shared).</summary>
+    public RoomScene WithActors(IReadOnlyList<SceneActor> actors) => new()
+    {
+        Width = Width, Height = Height,
+        Background = Background, BackgroundX = BackgroundX, BackgroundY = BackgroundY,
+        Objects = Objects, Actors = actors ?? [], ZMasks = ZMasks,
+    };
+
     /// <summary>
     /// Draws the room at room pixels on <paramref name="canvas"/> (transform it to place and scale the room).
     /// <paramref name="beforeActors"/> draws between the objects and the actors (the Room viewer's tinted

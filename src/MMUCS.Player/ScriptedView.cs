@@ -9,6 +9,7 @@ using MMUCS.Core.Scumm;
 using MMUCS.Player.Rooms;
 using MMUCS.Player.Text;
 using MMUCS.Runtime;
+using SkiaSharp;
 
 namespace MMUCS.Player;
 
@@ -18,6 +19,7 @@ namespace MMUCS.Player;
 /// object slots as the scripts left them, placed by the camera; a new scene is built in the background when
 /// the room or what it shows changes (<see cref="Changed"/> says when one is ready). The cursor is the object
 /// image the scripts chose (<c>cursor image</c>), shown while the cursor is on and the game has the mouse.
+/// The actors are drawn as the engine drew them in its last frame (<see cref="MMUCS.Runtime.Scripts.ActorTable.Pictures"/>).
 /// While a script's video plays, its frames are decoded in the background and shown on the page instead,
 /// with their text in <see cref="Text"/>.
 /// </summary>
@@ -26,6 +28,7 @@ public sealed class ScriptedView
     private readonly Dictionary<int, RoomModel> _rooms = [];
     private readonly Dictionary<(int Object, int Image), RgbaImage> _cursors = [];
     private readonly HashSet<(int, int)> _cursorsLoading = [];
+    private readonly Dictionary<string, (SKImage Image, int OriginX, int OriginY)?> _actorImages = [];
     private string _sceneKey, _pendingKey;
     private RoomScene _scene;
     private int _sceneRoom = -1;
@@ -70,7 +73,7 @@ public sealed class ScriptedView
         return new GameFrame
         {
             IsRunning = game.IsPlaying,
-            Room = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 ? _scene : null,
+            Room = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 ? _scene.WithActors(SceneActors(_scene)) : null,
             Camera = game.Camera,
             Cursor = CursorFrame(),
         };
@@ -166,6 +169,13 @@ public sealed class ScriptedView
             if (_pendingKey == key) _pendingKey = null;
             _sceneKey = key; // don't try the same again every frame
         }
+    }
+
+    /// <summary>The actors as the engine drew them in the last frame, each frame rendered once and kept while it's shown.</summary>
+    private List<SceneActor> SceneActors(RoomScene scene)
+    {
+        if (_actorImages.Count > 512) _actorImages.Clear();
+        return RoomSceneBuilder.SceneActors(Game.Vm.Actors.Pictures, scene.ZMasks.Count, _actorImages);
     }
 
     private RoomModel RoomModelOf(int room)
