@@ -31,6 +31,8 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
         public Stream TakesOverFrom;
         public int FadeMs;
         public bool SamePlace;
+        /// <summary>Where the track starts once loaded (a resumed one carries on from here).</summary>
+        public long StartFrame;
     }
 
     private readonly Func<MusicCue, ImusSound> _load = load ?? throw new ArgumentNullException(nameof(load));
@@ -44,6 +46,9 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
     /// <summary>Where the music plays; null keeps it silent.</summary>
     public Mixer Mixer { get; set; }
 
+    /// <summary>Whether the track playing has loaded (and started).</summary>
+    public bool IsLoaded => _current is { Started: true, Failed: false };
+
     /// <summary>The track playing (or loading) and its hook, for a status line.</summary>
     public MusicCue Current => _current?.Cue;
 
@@ -56,6 +61,23 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
             if (s.Started && s.Voice is { Finished: true }) return 0;
             return s.Cue.SoundId;
         }
+    }
+
+    public MusicPlace? Place
+    {
+        get
+        {
+            if (Playing == 0 || _current is not { } s) return null;
+            return new MusicPlace(s.Cue, s.Hook, s.Player?.Frame ?? s.StartFrame);
+        }
+    }
+
+    public void Resume(MusicPlace place)
+    {
+        Stop(_current, 0);
+        _current = New(place.Cue, place.Hook);
+        _current.StartFrame = place.Frame;
+        _atExit = null;
     }
 
     public void Start(MusicCue cue, int hook)
@@ -135,6 +157,7 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
         s.Player = new ImusPlayer(s.Load.Result) { Hook = s.Hook };
         s.Player.EventRaised += e => OnEvent(s, e);
         if (s.SamePlace && s.TakesOverFrom?.Player is { } was) s.Player.Seek(was.Frame);
+        else if (s.StartFrame > 0) s.Player.Seek(s.StartFrame);
         if (Mixer != null)
         {
             s.Voice = Mixer.Play(s.Player, MixGroup.Music);

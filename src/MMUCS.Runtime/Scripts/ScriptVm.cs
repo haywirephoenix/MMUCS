@@ -327,6 +327,7 @@ public sealed partial class ScriptVm
     /// </summary>
     public void StartScene(int room, Actor ego = null, int atObject = 0)
     {
+        StopTalk(); // the line being said and its speech end with the room (ScummVM startScene)
         if (State.Current is { } caller && caller.BelongsToRoom)
         {
             if (caller.CutsceneOverride != 0) throw new ScriptException($"{caller} stopped with an active cutscene/override in exit");

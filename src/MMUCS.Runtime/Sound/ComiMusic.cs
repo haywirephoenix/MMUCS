@@ -7,8 +7,17 @@ namespace MMUCS.Runtime.Sound;
 /// Where <see cref="ComiMusic"/> plays: one music stream at a time, named by its cue's sound id, which a new
 /// one takes over from with a crossfade (ScummVM's iMUSE streams, switchStream and hooks).
 /// </summary>
+/// <summary>A music track playing and where: its cue, its hook and the sample frame it has reached.</summary>
+public readonly record struct MusicPlace(MusicCue Cue, int Hook, long Frame);
+
 public interface IMusicOutput
 {
+    /// <summary>The track playing (or loading) and where it is, for a save; null when none plays.</summary>
+    MusicPlace? Place { get; }
+
+    /// <summary>Starts <paramref name="place"/>'s track where it was, with nothing else playing (a load putting the music back).</summary>
+    void Resume(MusicPlace place);
+
     /// <summary>The sound id of the music stream playing (or loading), 0 when none is.</summary>
     int Playing { get; }
 
@@ -141,31 +150,31 @@ public sealed class ComiMusic(MusicTable table, IMusicOutput output)
         if (_curSeq != 0) SetSequence(0);
     }
 
-    /// <summary>The music's part of a save: the state and sequence in force, the one waiting, and the attributes (the hooks taken).</summary>
-    public sealed record Saved(int State, int Sequence, int NextSequence, bool StopSequence, int[] Attributes);
+    /// <summary>
+    /// The music's part of a save: the state and sequence in force, the one waiting, the attributes (the hooks
+    /// taken) and the track playing and where.
+    /// </summary>
+    public sealed record Saved(int State, int Sequence, int NextSequence, bool StopSequence, int[] Attributes, MusicPlace? Playing);
 
-    public Saved Save() => new(_curState, _curSeq, _nextSeq, _stopSequence, (int[])_attributes.Clone());
+    public Saved Save() => new(_curState, _curSeq, _nextSeq, _stopSequence, (int[])_attributes.Clone(), _output.Place);
 
     /// <summary>
-    /// Puts the music back as <paramref name="saved"/> had it (ScummVM's iMUSE restores its tracks on a load):
-    /// the sequence's track, else the state's, crossfades in from its start unless it's what plays already.
+    /// Puts the music back as <paramref name="saved"/> had it, as ScummVM's iMUSE restores its tracks on a load:
+    /// the track that was playing carries on from where it was (the F1 menu's silence in between is a pause).
     /// </summary>
     public void Restore(Saved saved)
     {
         ArgumentNullException.ThrowIfNull(saved);
         (_curState, _curSeq, _nextSeq, _stopSequence) = (saved.State, saved.Sequence, saved.NextSequence, saved.StopSequence);
         Array.Copy(saved.Attributes, _attributes, Math.Min(saved.Attributes.Length, _attributes.Length));
-        var cue = _curSeq != 0 ? Table.Sequences[_curSeq] : _curState != 0 ? Table.States[_curState] : null;
-        if (cue == null || cue.File.Length == 0 || cue.SoundId == 0)
+        if (saved.Playing is not { } place)
         {
-            if (_output.Playing != 0) _output.FadeOut(1000);
+            if (_output.Playing != 0) _output.FadeOut(0);
             Changed?.Invoke("loaded: silence");
             return;
         }
-        if (_output.Playing == cue.SoundId) return;
-        if (_output.Playing == 0) _output.Start(cue, 0);
-        else _output.Switch(cue, 1000, samePlace: false, 0);
-        Changed?.Invoke($"loaded: {cue.Name}: {cue.File}");
+        _output.Resume(place);
+        Changed?.Invoke($"loaded: {place.Cue.Name}: {place.Cue.File} from frame {place.Frame}");
     }
 
     private static int IndexOf(System.Collections.Generic.IReadOnlyList<MusicCue> rows, int soundId)
@@ -281,14 +290,19 @@ public sealed class ComiMusic(MusicTable table, IMusicOutput output)
 public sealed class SilentMusic : IMusicOutput
 {
     private int _endArmed;
+    private MusicCue _cue;
 
-    public int Playing { get; private set; }
+    public int Playing => _cue?.SoundId ?? 0;
     public int Hook { get; private set; }
 
-    public void Start(MusicCue cue, int hook) => (Playing, Hook) = (cue.SoundId, hook);
-    public void Switch(MusicCue cue, int fadeMs, bool samePlace, int hook) => (Playing, Hook) = (cue.SoundId, hook);
-    public void SwitchAtExit(MusicCue cue, int fadeMs, int hook) => (Playing, Hook) = (cue.SoundId, hook);
-    public void FadeOut(int ms) => Playing = 0;
+    /// <summary>Where it plays is unknown (nothing is played), so a resumed track starts again from its start.</summary>
+    public MusicPlace? Place => _cue == null ? null : new MusicPlace(_cue, Hook, 0);
+
+    public void Resume(MusicPlace place) => (_cue, Hook) = (place.Cue, place.Hook);
+    public void Start(MusicCue cue, int hook) => (_cue, Hook) = (cue, hook);
+    public void Switch(MusicCue cue, int fadeMs, bool samePlace, int hook) => (_cue, Hook) = (cue, hook);
+    public void SwitchAtExit(MusicCue cue, int fadeMs, int hook) => (_cue, Hook) = (cue, hook);
+    public void FadeOut(int ms) => _cue = null;
     public void SetHook(int hook) => Hook = hook;
     public void ArmEnd(int soundId) => _endArmed = soundId;
     public bool TakeEnd() => false;

@@ -201,7 +201,7 @@ public sealed class ScriptedGame : IDisposable
 
     /// <summary>What's happening, for a status line.</summary>
     public string Status => Vm == null ? "Open the game first."
-        : !IsPlaying ? "Press Play to boot the game."
+        // : !IsPlaying ? "Press Play to boot the game."
         : $"room {CurrentRoom} {Scripts.RoomName(CurrentRoom)} · {Loop.Frames} frames · {Running} scripts" +
           (IsVideoPlaying ? $" · video {VideoName}{(Video == null ? " (loading)" : $" {VideoTime:m\\:ss} / {Video.Duration:m\\:ss}")}" : "") +
           (MusicOutput?.Current is { } track ? $" · music {track.File}" : "") +
@@ -270,12 +270,7 @@ public sealed class ScriptedGame : IDisposable
         Vm.Said += (text, tag, actor) => Log.Info($"Game: {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" ({tag})" : "")}: {text}");
         var music = Music;
         var musicOutput = MusicOutput;
-        // sound-kludge: the effects' commands, then the music's; stop-all stops the music too, as iMUSE does.
-        Vm.SoundKludge = list =>
-        {
-            if (list is [SoundEffects.StopAllCommand, ..]) musicOutput?.FadeOut(0);
-            return effects.Command(list) || music?.Command(list) == true;
-        };
+        Vm.SoundKludge = SoundKludge(effects, voice, music, musicOutput);
         // iMUSE's refresh, once a frame after everything else (ScummVM scummLoop_handleSound).
         Loop.AfterScripts += jiffies =>
         {
@@ -284,17 +279,8 @@ public sealed class ScriptedGame : IDisposable
             musicOutput?.Update();
             music?.Refresh();
         };
-        // The F1 menu's temporary save: the music is the host's to keep; a load stops the sounds playing and
-        // brings the saved music back, and the camera shown goes straight to the loaded one.
-        ComiMusic.Saved savedMusic = null;
-        Loop.StateSaved += () => savedMusic = music?.Save();
-        Loop.StateLoaded += () =>
-        {
-            effects.StopAll();
-            voice.Stop();
-            if (savedMusic != null) music?.Restore(savedMusic);
-            _viewRoom = -1;
-        };
+        FollowSaves(Loop, effects, voice, music);
+        Loop.StateLoaded += () => _viewRoom = -1; // the camera shown goes straight to the loaded one
         // Quitting waits for the engine's step to end (it's in the middle of a script).
         Vm.QuitRequested += () => _quitRequested = true;
         // The camera shown decides where the page's top left is in the room, for the virtual mouse.
@@ -302,6 +288,44 @@ public sealed class ScriptedGame : IDisposable
         {
             Loop.ScreenOrigin = ((int)Math.Round(Camera.X) - 320, (int)Math.Round(Camera.Y) - 240);
             Loop.MouseRangeX = MouseRange();
+        };
+    }
+
+    /// <summary>
+    /// <c>sound-kludge</c> as Digital iMUSE takes it: the effects' commands, then the music's. Stop-all stops
+    /// every iMUSE sound: the effects, the music and the speech.
+    /// </summary>
+    public static Func<int[], bool> SoundKludge(SoundEffects effects, VoicePlayer voice, ComiMusic music, IMusicOutput musicOutput) => list =>
+    {
+        if (list is [SoundEffects.StopAllCommand, ..])
+        {
+            musicOutput?.FadeOut(0);
+            voice?.Stop();
+        }
+        return effects.Command(list) || music?.Command(list) == true;
+    };
+
+    /// <summary>
+    /// The scripts' temporary save (the F1 menu's) for the sounds, which live outside the engine. As ScummVM's
+    /// iMUSE keeps its tracks in a save, a save keeps the music (its state and the track playing, and where)
+    /// and the line's speech (and where); a load stops the effects and puts the music and the speech back
+    /// where they were, so the menu's silence in between is a pause.
+    /// </summary>
+    public static void FollowSaves(FrameLoop loop, SoundEffects effects, VoicePlayer voice, ComiMusic music)
+    {
+        ComiMusic.Saved savedMusic = null;
+        SpeechPlace? savedSpeech = null;
+        loop.StateSaved += () =>
+        {
+            savedMusic = music?.Save();
+            savedSpeech = voice?.Place;
+        };
+        loop.StateLoaded += () =>
+        {
+            effects?.StopAll();
+            voice?.Stop();
+            if (savedSpeech is { } speech) voice?.Resume(speech);
+            if (savedMusic != null) music?.Restore(savedMusic);
         };
     }
 

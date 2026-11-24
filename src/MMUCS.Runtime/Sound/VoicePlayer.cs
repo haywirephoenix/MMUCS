@@ -9,6 +9,9 @@ using MMUCS.Runtime.Scripts;
 
 namespace MMUCS.Runtime.Sound;
 
+/// <summary>A line's speech playing and where: its tag and the sample frame it has reached.</summary>
+public readonly record struct SpeechPlace(string Tag, long Frame);
+
 /// <summary>
 /// The lines' speech (ScummVM <c>playSpeech</c> for COMI): the tag names an entry of the voice bundles
 /// (BCCB301 is BCCB301.IMX), played through the mixer's voice group. One line at a time. Without a mixer
@@ -31,7 +34,15 @@ public sealed class VoicePlayer(Func<string, ImusSound> load) : ISpeech
 
     public bool IsPlaying => _player != null && (_voice != null ? !_voice.Finished : !_player.Finished);
 
-    public void Start(string tag, int actor)
+    /// <summary>The line's speech playing and how far it has got, for a save; null when none plays.</summary>
+    public SpeechPlace? Place => IsPlaying ? new SpeechPlace(_tag, _player.Frame) : null;
+
+    /// <summary>Plays <paramref name="place"/>'s speech from where it was (a load putting the line back).</summary>
+    public void Resume(SpeechPlace place) => Play(place.Tag, place.Frame);
+
+    public void Start(string tag, int actor) => Play(tag, 0);
+
+    private void Play(string tag, long frame)
     {
         Stop();
         ImusSound sound;
@@ -44,6 +55,7 @@ public sealed class VoicePlayer(Func<string, ImusSound> load) : ISpeech
         if (sound == null) return;
         _tag = tag;
         _player = new ImusPlayer(sound);
+        if (frame > 0) _player.Seek(frame);
         if (Mixer != null)
         {
             _voice = Mixer.Play(_player, MixGroup.Voice);
