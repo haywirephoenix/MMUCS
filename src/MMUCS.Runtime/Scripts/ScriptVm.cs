@@ -354,6 +354,7 @@ public sealed partial class ScriptVm
         _localStates = new int[_roomObjects.Count + 1];
         KeepLockedFloatingObjects(oldSlots);
         Actors.LoadBoxes(room);
+        if (room != 0) SetRoomPalette(0);
         RoomEntered?.Invoke(room);
         if (room == 0) return;
 
@@ -611,6 +612,7 @@ public sealed partial class ScriptVm
             case 0x9d: StartScene(Pop()); return;
             case 0x9e: ComeOutDoor(ins); return;
             case 0x9c: if (CursorCommand(ins)) return; break;
+            case 0xab: if (RoomOps(ins)) return; break;
             case 0xae: if (VerbOps(s, ins)) return; break;
             case 0xb4: if (SaveRestoreVerbs(ins)) return; break;
             case 0xdd: { int y = Pop(), x = Pop(); Push(VerbIdOf(FindVerbAt(x, y))); return; }
@@ -966,6 +968,17 @@ public sealed partial class ScriptVm
                 Blast(At(1), At(2), At(3), At(4), At(5), At(6), At(7), At(8), args[0] == 118 ? 3 : 0);
                 return;
             }
+            case 13 or 14 when args.Length >= 5: // remapCostume / remapCostumeInsert: actor, r, g, b(, threshold)
+                RemapCostume(args[1], args[2], args[3], args[4], args[0] == 14 && args.Length >= 6 ? args[5] : -1);
+                return;
+            case 108 when args.Length >= 7: // buildPaletteShadow: slot, r, g, b, from, to
+                Palette.SetShadow(args[1], args[2], args[3], args[4], args[5], args[6]);
+                return;
+            case 109 when args.Length >= 6: // setPaletteShadow: r, g, b, from, to (slot 0)
+                Palette.SetShadow(0, args[1], args[2], args[3], args[4], args[5]);
+                return;
+            case 33: // paletteSetIntensity: ScummVM only logs it
+                return;
             case 30:
                 foreach (var other in State.Slots)
                     if (other != s && other.IsAlive)

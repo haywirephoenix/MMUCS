@@ -148,6 +148,7 @@ public sealed class FrameLoop
         if (Vm.CurrentRoom != 0) Vm.RedrawVerbs(Mouse.X, Mouse.Y); // v7+ redraws the verbs every frame
         Vm.EndFrameTexts();
         if (Vm.CurrentRoom != 0) Vm.ProcessActors();
+        Vm.EndFramePalette();
         Frames++;
         AfterScripts?.Invoke(step);
     }

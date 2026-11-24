@@ -21,6 +21,9 @@ namespace MMUCS.Player;
 /// the room or what it shows changes (<see cref="Changed"/> says when one is ready). The cursor is the object
 /// image the scripts chose (<c>cursor image</c>), shown while the cursor is on and the game has the mouse.
 /// The actors are drawn as the engine drew them in its last frame (<see cref="MMUCS.Runtime.Scripts.ActorTable.Pictures"/>).
+/// The room is kept in palette indices (<see cref="IndexedRoom"/>), and it, the actors and the texts are drawn
+/// in the colours on the screen (<see cref="ScriptVm.Palette"/>), coloured again when the scripts change them
+/// (fades, lights, intensity), as the engine shows everything through its one palette.
 /// While a script's video plays, its frames are decoded in the background and shown on the page instead,
 /// with their text in <see cref="Text"/>.
 /// </summary>
@@ -32,10 +35,14 @@ public sealed class ScriptedView
     private readonly Dictionary<string, (SKImage Image, int OriginX, int OriginY)?> _actorImages = [];
     private readonly Dictionary<ScreenText, SubtitleOverlay> _texts = [];
     private SubtitleRenderer _textsBy;
-    private (int Room, byte[] Palette) _textPalette = (-1, null);
     private string _sceneKey, _pendingKey;
+    private sealed record Built(IndexedRoom Scene, int Room);
+    private Built _built; // one reference, so a build on another thread hands both over at once
     private RoomScene _scene;
+    private IndexedRoom _sceneOf;
     private int _sceneRoom = -1;
+    private byte[] _screen;
+    private int _screenVersion = -1;
     private CutsceneFrame _cutscene;
     private SmushPlayer _cutsceneOf;
     private int _wantedFrame = -1, _shownFrame = -1;
@@ -51,8 +58,11 @@ public sealed class ScriptedView
     /// <summary>A room scene or cursor image finished loading: capture again.</summary>
     public event Action Changed;
 
-    /// <summary>The scene on show, or null before the first one is built.</summary>
+    /// <summary>The scene on show, in the colours on the screen when it was last captured, or null before the first one is built.</summary>
     public RoomScene Scene => _scene;
+
+    /// <summary>The colours the last capture drew in (256 RGB triples), or null before one.</summary>
+    public byte[] ScreenColours => _screen;
 
     /// <summary>A scene being built for what the game shows now (tests wait on it).</summary>
     public Task Building { get; private set; } = Task.CompletedTask;
@@ -74,6 +84,7 @@ public sealed class ScriptedView
         }
         UpdateCutscene(null);
         UpdateScene();
+        UpdateColours();
         return new GameFrame
         {
             IsRunning = game.IsPlaying,
@@ -166,10 +177,9 @@ public sealed class ScriptedView
     {
         try
         {
-            var scene = await RoomSceneBuilder.BuildAsync(model, stateOf);
+            var scene = await RoomSceneBuilder.BuildIndexedAsync(model, stateOf);
             if (_pendingKey != key) return; // something newer is on its way
-            _scene = scene;
-            _sceneRoom = room;
+            _built = new Built(scene, room);
             _sceneKey = key;
             _pendingKey = null;
             Changed?.Invoke();
@@ -183,17 +193,37 @@ public sealed class ScriptedView
     }
 
     /// <summary>
-    /// The texts the last frame drew, in the room's palette and <see cref="Text"/>'s fonts, each made once
+    /// Takes the screen's colours when they changed, and colours the room in them when they or the room did.
+    /// A change drops the actors' and texts' pictures, which were in the old colours.
+    /// </summary>
+    private void UpdateColours()
+    {
+        var palette = Game.Vm.Palette;
+        if (_screen == null || palette.Version != _screenVersion)
+        {
+            _screen = palette.Snapshot();
+            _screenVersion = palette.Version;
+            _actorImages.Clear();
+            _texts.Clear();
+            _sceneOf = null;
+        }
+        if (_built is { } built && !ReferenceEquals(built.Scene, _sceneOf))
+        {
+            _scene = built.Scene.Colour(_screen);
+            _sceneOf = built.Scene;
+            _sceneRoom = built.Room;
+        }
+    }
+
+    /// <summary>
+    /// The texts the last frame drew, in the screen's colours and <see cref="Text"/>'s fonts, each made once
     /// while it's shown (old ones are left to the finalizer: a frame may still be drawing one).
     /// </summary>
     private List<SubtitleOverlay> ScreenTexts(bool overActor)
     {
         var texts = Game.Vm.ScreenTexts;
         if (texts.Count == 0 || Text == null) return [];
-        int room = Game.CurrentRoom;
-        if (_textPalette.Room != room)
-            _textPalette = (room, RoomModelOf(room) is { } model ? Core.Scumm.ObimCache.ExtractPaletteContext(model.Room, 0).rawBytes : null);
-        if (_textPalette.Palette == null) return [];
+        if (_screen == null) return [];
         if (!ReferenceEquals(_textsBy, Text) || _texts.Count > 256)
         {
             _texts.Clear();
@@ -207,7 +237,7 @@ public sealed class ScriptedView
             {
                 var flags = (t.Center ? Core.Smush.SmushTextFlags.Center : 0) | (t.Wrap ? Core.Smush.SmushTextFlags.Wrap : 0);
                 overlay = Text.BuildText(new Core.Smush.SmushText { X = t.X, Y = t.Y, Flags = flags, Font = t.Charset, Color = t.Color, Text = t.Text },
-                    _textPalette.Palette, (int)GameState.PageSize.Width, (int)GameState.PageSize.Height);
+                    _screen, (int)GameState.PageSize.Width, (int)GameState.PageSize.Height);
                 _texts[t] = overlay;
             }
             if (overlay != null) list.Add(overlay);
@@ -219,7 +249,7 @@ public sealed class ScriptedView
     private List<SceneActor> SceneActors(RoomScene scene, IReadOnlyList<ActorPicture> pictures)
     {
         if (_actorImages.Count > 512) _actorImages.Clear();
-        return RoomSceneBuilder.SceneActors(pictures, scene.ZMasks.Count, _actorImages, Game.ActorSlide);
+        return RoomSceneBuilder.SceneActors(pictures, scene.ZMasks.Count, _actorImages, Game.ActorSlide, _screen);
     }
 
     /// <summary>

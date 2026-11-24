@@ -358,11 +358,42 @@ public static class AkosFrames
     }
 
     /// <summary>
+    /// The palette index a costume colour is drawn in (ScummVM <c>AkosRenderer::setPalette</c>): the actor's own
+    /// colour for it when <paramref name="remap"/> has one (not 0xFF), else the costume's (AKPL), or the colour
+    /// itself in a costume that uses the palette as it is.
+    /// </summary>
+    public static int Global(byte local, ReadOnlySpan<byte> akpl, bool passthrough, int[] remap = null) =>
+        remap != null && local < remap.Length && remap[local] != 0xFF ? remap[local] & 0xFF
+        : passthrough ? local : local < akpl.Length ? akpl[local] : local;
+
+    /// <summary>Writes palette index <paramref name="global"/>'s colour, from the screen's colours when given, else the costume's resolved ones.</summary>
+    private static void Paint(byte[] rgba, int o, int global, ScummColor[] colors, byte[] screen)
+    {
+        if (screen != null && global * 3 + 2 < screen.Length)
+        {
+            rgba[o] = screen[global * 3];
+            rgba[o + 1] = screen[global * 3 + 1];
+            rgba[o + 2] = screen[global * 3 + 2];
+        }
+        else
+        {
+            var col = global < colors.Length ? colors[global] : new ScummColor(1, 0, 1, 1);
+            rgba[o] = (byte)(col.R * 255);
+            rgba[o + 1] = (byte)(col.G * 255);
+            rgba[o + 2] = (byte)(col.B * 255);
+        }
+        rgba[o + 3] = 255;
+    }
+
+    /// <summary>
     /// Renders a frame with the costume's resolved colours. Shadow indices (1–7) become translucent
     /// black. <paramref name="originX"/>/<paramref name="originY"/> give the actor origin within the image.
     /// </summary>
     /// <param name="mirror">Flip it about the actor's origin (<see cref="IsMirrored"/>).</param>
-    public static RgbaImage Render(AkosData d, AkosFrame frame, out int originX, out int originY, bool mirror = false, CancellationToken token = default)
+    /// <param name="screen">The colours on the screen (256 RGB triples) to draw in instead of the costume's resolved ones, as the engine does.</param>
+    /// <param name="remap">The actor's own colours (<see cref="Global"/>), or null.</param>
+    public static RgbaImage Render(AkosData d, AkosFrame frame, out int originX, out int originY, bool mirror = false, CancellationToken token = default,
+        byte[] screen = null, int[] remap = null)
     {
         originX = originY = 0;
         if (frame == null || frame.IsEmpty) return null;
@@ -393,18 +424,14 @@ public static class AkosFrames
                     if (dx < 0 || dx >= w) continue;
                     byte local = surface.Pixels[y * surface.Pitch + x];
                     if (local == transparent) continue;
-                    int global = passthrough ? local : local < akpl.Length ? akpl[local] : local;
+                    int global = Global(local, akpl, passthrough, remap);
                     int o = (dy * w + dx) * 4;
                     if (global > 0 && global < 8)
                     {
                         if (rgba[o + 3] == 0) { rgba[o] = rgba[o + 1] = rgba[o + 2] = 0; rgba[o + 3] = 102; }
                         continue;
                     }
-                    var col = global < colors.Length ? colors[global] : new ScummColor(1, 0, 1, 1);
-                    rgba[o] = (byte)(col.R * 255);
-                    rgba[o + 1] = (byte)(col.G * 255);
-                    rgba[o + 2] = (byte)(col.B * 255);
-                    rgba[o + 3] = 255;
+                    Paint(rgba, o, global, colors, screen);
                 }
             }
         }
@@ -496,9 +523,10 @@ public static class AkosFrames
     /// on its own with SCUMM's scale table (<see cref="ScaledColumns"/>), so the result is drawn unscaled.
     /// At 255 this is <see cref="Render"/>.
     /// </summary>
-    public static RgbaImage RenderScaled(AkosData d, AkosFrame frame, int scale, out int originX, out int originY, bool mirror = false, CancellationToken token = default)
+    public static RgbaImage RenderScaled(AkosData d, AkosFrame frame, int scale, out int originX, out int originY, bool mirror = false, CancellationToken token = default,
+        byte[] screen = null, int[] remap = null)
     {
-        if (scale >= 255) return Render(d, frame, out originX, out originY, mirror, token);
+        if (scale >= 255) return Render(d, frame, out originX, out originY, mirror, token, screen, remap);
         originX = originY = 0;
         if (frame == null || frame.IsEmpty) return null;
         scale = Math.Max(scale, 1);
@@ -534,18 +562,14 @@ public static class AkosFrames
                     if (rows[y] == int.MinValue) continue;
                     byte local = surface.Pixels[y * surface.Pitch + x];
                     if (local == transparent) continue;
-                    int global = passthrough ? local : local < akpl.Length ? akpl[local] : local;
+                    int global = Global(local, akpl, passthrough, remap);
                     int o = ((rows[y] - t) * w + dx) * 4;
                     if (global > 0 && global < 8)
                     {
                         if (rgba[o + 3] == 0) { rgba[o] = rgba[o + 1] = rgba[o + 2] = 0; rgba[o + 3] = 102; }
                         continue;
                     }
-                    var col = global < colors.Length ? colors[global] : new ScummColor(1, 0, 1, 1);
-                    rgba[o] = (byte)(col.R * 255);
-                    rgba[o + 1] = (byte)(col.G * 255);
-                    rgba[o + 2] = (byte)(col.B * 255);
-                    rgba[o + 3] = 255;
+                    Paint(rgba, o, global, colors, screen);
                 }
             }
         return new RgbaImage(w, h, rgba);

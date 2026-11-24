@@ -11,11 +11,25 @@ namespace MMUCS.Runtime.Scripts;
 /// lifted by the elevation), and the z-plane it's cut by (<see cref="FromBox"/>: the walk box's, which the
 /// engine keeps within the room's planes). <see cref="FromX"/>, <see cref="FromY"/>: where the frame before
 /// drew it (its own place when it wasn't drawn), for a view that slides actors between frames.
+/// <see cref="Remap"/> is the actor's own colours for the costume's (<c>actor N palette</c>, <c>remap-costume</c>):
+/// a screen colour for each costume colour, 0xFF for the costume's own (AKPL); null when there are none.
+/// The colours are the screen's (<see cref="ScreenPalette"/>) when it's drawn.
 /// </summary>
-public sealed record ActorPicture(int Actor, Costume Costume, AkosFrame Frame, bool Mirrored, int Scale, int X, int Y, int ZPlane, bool FromBox, int FromX, int FromY)
+public sealed record ActorPicture(int Actor, Costume Costume, AkosFrame Frame, bool Mirrored, int Scale, int X, int Y, int ZPlane, bool FromBox, int FromX, int FromY,
+    int[] Remap = null)
 {
-    /// <summary>What decides the picture's pixels (not where it is), for caching them.</summary>
-    public string Key { get; } = $"{Costume.Number}:{(Mirrored ? 1 : 0)}:{Scale}:" + string.Join(";", Frame.Cels.Select(c => $"{c.Cel},{c.X},{c.Y}"));
+    /// <summary>What decides the picture's pixels in palette indices (not where it is, nor the palette), for caching them.</summary>
+    public string Key { get; } = $"{Costume.Number}:{(Mirrored ? 1 : 0)}:{Scale}:" + string.Join(";", Frame.Cels.Select(c => $"{c.Cel},{c.X},{c.Y}"))
+        + (Remap == null ? "" : ":" + string.Join(",", Remap));
+
+    /// <summary>The actor's colours for a costume of <paramref name="colours"/> colours, or null when it has none of its own.</summary>
+    public static int[] RemapOf(int[] palette, int colours)
+    {
+        int n = Math.Min(colours, palette.Length);
+        for (int i = 0; i < n; i++)
+            if (palette[i] != 0xFF) return palette[..n];
+        return null;
+    }
 }
 
 /// <summary>
@@ -533,7 +547,8 @@ public sealed partial class ActorTable
         bool fromBox = a.ForceClip == Actor.BoxClip;
         var from = a.LastPicturePlace ?? (a.X, y);
         a.LastPicturePlace = (a.X, y);
-        return new ActorPicture(a.Number, costume, frame, mirrored, scale, a.X, y, fromBox ? BoxMask(a.Walkbox) : a.ForceClip, fromBox, from.X, from.Y);
+        return new ActorPicture(a.Number, costume, frame, mirrored, scale, a.X, y, fromBox ? BoxMask(a.Walkbox) : a.ForceClip, fromBox, from.X, from.Y,
+            ActorPicture.RemapOf(a.Palette, costume.Data.Palette.Length));
     }
 
     /// <summary>ScummVM <c>animateCostume</c>: every <i>animation speed</i> frames, each active limb steps on.</summary>

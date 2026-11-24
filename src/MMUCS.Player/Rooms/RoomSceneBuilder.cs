@@ -55,6 +55,40 @@ public static class RoomSceneBuilder
         };
     }
 
+    /// <summary>
+    /// The room with each object in <paramref name="stateOf"/>'s state, in palette indices, to be coloured with
+    /// the screen's palette (<see cref="IndexedRoom.Colour"/>), as the game shows it.
+    /// </summary>
+    public static async Task<IndexedRoom> BuildIndexedAsync(RoomModel room, Func<RoomObject, int> stateOf,
+        Func<RoomObject, bool> include = null, CancellationToken token = default)
+    {
+        ArgumentNullException.ThrowIfNull(room);
+        IndexedSurface background = null;
+        if (room.Width > 0)
+            background = (await ScummBackgroundCache.GetCachedBackgroundAsync(BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, 0, token)).Surface;
+
+        var shown = Shown(room, stateOf, include);
+        var objects = new List<IndexedObject>(shown.Count);
+        foreach (var (obj, image) in shown)
+        {
+            token.ThrowIfCancellationRequested();
+            if (obj.ImageCount <= 0 || !ObimDecoders.TryGetObimInfo(obj.Block, out var info)) continue;
+            int frame = Math.Clamp(image, 0, Math.Max(0, (info.TotalFrames > 0 ? info.TotalFrames : 1) - 1));
+            var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(room, obj), bakeImage: false, token);
+            if (result.Surface != null)
+                objects.Add(new IndexedObject(obj, result.Surface, ObimCache.GetTransparentIndex(room.Room, obj.Block, frame), obj.X, obj.Y));
+        }
+
+        var planes = RoomScene.Planes(room, shown);
+        return new IndexedRoom
+        {
+            Width = room.Width, Height = room.Height,
+            Background = background,
+            Objects = objects,
+            ZMasks = [.. planes.Select(p => RoomScene.MaskImage(p, room.Width, room.Height))],
+        };
+    }
+
     /// <summary>The objects drawn, in draw order, each with the image (from 0) its state shows: state 0 isn't drawn.</summary>
     public static List<(RoomObject Object, int Image)> Shown(RoomModel room, Func<RoomObject, int> stateOf, Func<RoomObject, bool> include = null)
     {
@@ -105,15 +139,18 @@ public static class RoomSceneBuilder
 
     /// <summary>
     /// A costume frame as the engine draws it (each cel scaled on its own with SCUMM's scale table), with
-    /// where the actor's origin is in it, or null when it draws nothing.
+    /// where the actor's origin is in it, or null when it draws nothing. With <paramref name="screen"/> (the
+    /// colours on the screen) it's in those, through the actor's <paramref name="remap"/>, as the game draws
+    /// it; without, in the costume's room's palette.
     /// </summary>
-    public static (RgbaImage Image, int OriginX, int OriginY)? CostumeFrame(AkosData data, ScummBlock akos, AkosFrame frame, int scale, bool mirrored, CancellationToken token = default)
+    public static (RgbaImage Image, int OriginX, int OriginY)? CostumeFrame(AkosData data, ScummBlock akos, AkosFrame frame, int scale, bool mirrored, CancellationToken token = default,
+        byte[] screen = null, int[] remap = null)
     {
         if (frame is not { IsEmpty: false }) return null;
         lock (data)
         {
-            AkosParser.UpdatePaletteOnly(data, akos, data.DefaultPaletteIndex);
-            var rgba = AkosFrames.RenderScaled(data, frame, scale, out int ox, out int oy, mirrored, token);
+            if (screen == null) AkosParser.UpdatePaletteOnly(data, akos, data.DefaultPaletteIndex);
+            var rgba = AkosFrames.RenderScaled(data, frame, scale, out int ox, out int oy, mirrored, token, screen, remap);
             return rgba == null ? null : (rgba, ox, oy);
         }
     }
@@ -121,10 +158,11 @@ public static class RoomSceneBuilder
     /// <summary>
     /// The actors the interpreter drew (<see cref="ActorTable.Pictures"/>, back to front) as scene actors, in
     /// a room with <paramref name="planes"/> z-planes (the walk box's plane stays within them, as the engine
-    /// keeps it). <paramref name="cache"/> keeps rendered frames by <see cref="ActorPicture.Key"/>.
+    /// keeps it). <paramref name="cache"/> keeps rendered frames by <see cref="ActorPicture.Key"/>, so it's for one
+    /// <paramref name="screen"/> palette (the colours on the screen; null: each costume's room's palette).
     /// </summary>
     public static List<SceneActor> SceneActors(IReadOnlyList<ActorPicture> pictures, int planes,
-        Dictionary<string, (SKImage Image, int OriginX, int OriginY)?> cache = null, double slide = 1)
+        Dictionary<string, (SKImage Image, int OriginX, int OriginY)?> cache = null, double slide = 1, byte[] screen = null)
     {
         var list = new List<SceneActor>(pictures.Count);
         for (int i = 0; i < pictures.Count; i++)
@@ -135,7 +173,7 @@ public static class RoomSceneBuilder
             {
                 try
                 {
-                    image = CostumeFrame(p.Costume.Data, p.Costume.Block, p.Frame, p.Scale, p.Mirrored) is var (rgba, ox, oy)
+                    image = CostumeFrame(p.Costume.Data, p.Costume.Block, p.Frame, p.Scale, p.Mirrored, default, screen, screen == null ? null : p.Remap) is var (rgba, ox, oy)
                         ? (SkiaImages.Of(rgba), ox, oy) : null;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
