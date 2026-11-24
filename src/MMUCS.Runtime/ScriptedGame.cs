@@ -111,7 +111,64 @@ public sealed class ScriptedGame : IDisposable
     /// Where the camera looks in the room (its centre, room pixels), from the camera variables; the page's top
     /// left is half a screen up and left of it.
     /// </summary>
-    public GamePoint Camera => Vm == null ? new(320, 240) : new(Vm.CameraX, Vm.CameraY);
+    public GamePoint Camera => Vm == null ? new(320, 240) : SmoothCamera ? new(_viewX, _viewY) : CameraTarget;
+
+    /// <summary>Where the camera shown heads: the engine's, kept inside the room (<see cref="InRoom"/>).</summary>
+    public GamePoint CameraTarget => Vm == null ? new(320, 240) : InRoom(EngineCamera);
+
+    /// <summary>
+    /// A camera kept so the whole 16:9 canvas the window shows (wider than the engine's 640 screen) stays inside
+    /// the room, so nothing past the room's edges is drawn: half the canvas in from each edge, or the room's
+    /// middle when it's narrower or shorter than the canvas (a 640 room is where the engine has it). A wide room
+    /// so starts further right than the engine's camera, with the mouse and texts moved to match; the scripts
+    /// still see the engine's camera, which they may also let past the room.
+    /// </summary>
+    private GamePoint InRoom(GamePoint at)
+    {
+        if (CurrentRoom == 0) return at;
+        int width = Vm.State[EngineVars.RoomWidth], height = Vm.State[EngineVars.RoomHeight];
+        return new(Within(at.X, width, GameState.CanvasWidth), Within(at.Y, height, GameState.CanvasHeight));
+
+        static double Within(double centre, int room, double view) =>
+            room <= view ? room / 2.0 : Math.Clamp(centre, view / 2, room - view / 2);
+    }
+
+    /// <summary>Where the engine's camera is (ScummVM's stepping, what the scripts see).</summary>
+    public GamePoint EngineCamera => Vm == null ? new(320, 240) : new(Vm.CameraX, Vm.CameraY);
+
+    /// <summary>
+    /// A smooth camera instead of the engine's steps: what's shown eases towards <see cref="CameraTarget"/> every
+    /// jiffy (half the way in <see cref="SmoothCameraHalfLife"/> jiffies), snapping on a room change or a jump
+    /// of more than <see cref="SmoothCameraSnap"/> pixels in a jiffy. Only the picture and the mouse follow it;
+    /// the scripts still see the engine's camera.
+    /// </summary>
+    public bool SmoothCamera { get; set; }
+
+    public const double SmoothCameraHalfLife = 4;
+    public const int SmoothCameraSnap = 100;
+
+    private double _viewX = 320, _viewY = 240;
+    private int _viewRoom = -1;
+    private GamePoint _lastEngineCamera = new(320, 240);
+
+    /// <summary>A jiffy of the smooth camera easing towards the engine's.</summary>
+    private void EaseCamera()
+    {
+        var engine = EngineCamera;
+        bool jumped = Math.Abs(engine.X - _lastEngineCamera.X) > SmoothCameraSnap || Math.Abs(engine.Y - _lastEngineCamera.Y) > SmoothCameraSnap;
+        _lastEngineCamera = engine;
+        var target = CameraTarget;
+        if (!SmoothCamera || jumped || _viewRoom != CurrentRoom)
+        {
+            (_viewX, _viewY, _viewRoom) = (target.X, target.Y, CurrentRoom);
+            return;
+        }
+        double f = 1 - Math.Pow(0.5, 1 / SmoothCameraHalfLife);
+        _viewX += (target.X - _viewX) * f;
+        _viewY += (target.Y - _viewY) * f;
+        if (Math.Abs(target.X - _viewX) < 0.25) _viewX = target.X;
+        if (Math.Abs(target.Y - _viewY) < 0.25) _viewY = target.Y;
+    }
 
     public int CurrentRoom => Vm?.CurrentRoom ?? 0;
 
@@ -189,8 +246,8 @@ public sealed class ScriptedGame : IDisposable
             musicOutput?.Update();
             music?.Refresh();
         };
-        // The camera decides where the page's top left is in the room, for the virtual mouse.
-        Loop.BeforeScripts += _ => Loop.ScreenOrigin = (Vm.CameraX - 320, Vm.CameraY - 240);
+        // The camera shown decides where the page's top left is in the room, for the virtual mouse.
+        Loop.BeforeScripts += _ => Loop.ScreenOrigin = ((int)Math.Round(Camera.X) - 320, (int)Math.Round(Camera.Y) - 240);
         Changed?.Invoke();
     }
 
@@ -281,7 +338,9 @@ public sealed class ScriptedGame : IDisposable
         }
         bool ran = false;
         Step(() => ran = Loop.Tick());
-        if (ran || IsVideoPlaying) Changed?.Invoke();
+        var before = Camera;
+        EaseCamera();
+        if (ran || IsVideoPlaying || Camera != before) Changed?.Invoke();
     }
 
     /// <summary>Ends the video now; the cutscene it was in is skipped on the next frame.</summary>

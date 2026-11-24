@@ -18,7 +18,7 @@ public sealed partial class ScriptVm
 
     internal void Warn(string message) => Warned?.Invoke(message);
 
-    /// <summary>The frame's turning actors turn (ScummVM <c>walkActors</c>; walking itself comes later).</summary>
+    /// <summary>The frame's walking and turning actors take a step (ScummVM <c>walkActors</c>).</summary>
     public void WalkActors() => Guarded("walking actors", Actors.Walk);
 
     /// <summary>The frame's drawing and costume steps (ScummVM <c>processActors</c>): <see cref="ActorTable.Pictures"/> is what it drew.</summary>
@@ -116,6 +116,8 @@ public sealed partial class ScriptVm
                 return true;
             }
             case 0xa3: { int obj = Pop(); Actors.FaceTo(Actors[Pop()], obj); return true; }
+            case 0x9f: WalkActorToObject(); return true;
+            case 0xa0: { int y = Pop(), x = Pop(); Actors.StartWalk(Actors[Pop()], x, y, -1); return true; }
             case 0xa4: { int anim = Pop(); Actors.Animate(Actors[Pop()], anim); return true; }
             case 0xa7: // set-box [...] to flags
             {
@@ -124,7 +126,7 @@ public sealed partial class ScriptVm
                 for (int i = boxes.Length - 1; i >= 0; i--) Actors.SetBoxFlags(boxes[i], value);
                 return true;
             }
-            case 0xa8: return true; // set-box-path: the walk matrix comes with walking
+            case 0xa8: Actors.CreateBoxMatrix(); return true; // set-box-path
             case 0xd9: { int box = Pop(); Push(Actors.IsInBox(Actors[Pop()], box)); return true; }
             case 0xdb: { int y = Pop(), x = Pop(); Push(ActorAt(x, y)); return true; }
             case 0xe1: { int var = Pop(); var a = Actors[Pop()]; Push(var is >= 0 and < Actor.AnimVars ? a.Vars[var] : throw new ScriptException($"{a} animation variable {var} out of range")); return true; }
@@ -153,6 +155,33 @@ public sealed partial class ScriptVm
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// ScummVM <c>o6_walkActorToObj</c>: to an object of the room, where one stands to use it, facing its way;
+    /// or up to another actor in the room, stopping short of it by <c>dist</c> (0: one and a half times its
+    /// scaled width) on the side the walker comes from.
+    /// </summary>
+    private void WalkActorToObject()
+    {
+        int dist = Pop(), obj = Pop();
+        var a = Actors[Pop()];
+        if (obj >= ActorTable.Count)
+        {
+            if (PlaceOf(obj) is not { } place) return;
+            var (x, y, dir) = place.StandAt(State.Objects.IsObject(obj) ? State.Objects.State(obj) : 0);
+            Actors.StartWalk(a, x, y, dir);
+            return;
+        }
+        var other = Actors[obj];
+        if (!Actors.IsInCurrentRoom(a) || !Actors.IsInCurrentRoom(other)) return;
+        if (dist == 0)
+        {
+            dist = other.ScaleX * other.Width / 0xFF;
+            dist += dist / 2;
+        }
+        int tx = other.X < a.X ? other.X + dist : other.X - dist;
+        Actors.StartWalk(a, tx, other.Y, -1);
     }
 
     /// <summary>
@@ -189,7 +218,7 @@ public sealed partial class ScriptVm
         switch (ins.SubOp)
         {
             case 0x64: Actors.SetCostume(a, A0()); break;
-            case 0x65: a.SpeedX = args[0]; a.SpeedY = args[1]; break;
+            case 0x65: Actors.SetWalkSpeed(a, args[0], args[1]); break;
             case 0x67:
                 a.InitFrame = 1;
                 a.WalkFrame = 2;
@@ -267,8 +296,8 @@ public sealed partial class ScriptVm
         {
             case 0x1E: { var a = Actors[Pop()]; wait = Actors.IsInCurrentRoom(a) && a.IsMoving; break; }
             case 0x1F: wait = State[EngineVars.HaveMessage] != 0; break;
-            case 0x20: wait = false; break;
-            case 0x21: wait = State[EngineVars.SentenceScript] is int sentence and not 0 && IsScriptRunning(sentence); break;
+            case 0x20: wait = CameraX != _cameraDestX || CameraY != _cameraDestY; break;
+            case 0x21: wait = SentenceBusy(); break;
             case 0x22: { var a = Actors[Pop()]; wait = Actors.IsInCurrentRoom(a) && a.NeedRedraw; break; }
             case 0x23: { var a = Actors[Pop()]; wait = Actors.IsInCurrentRoom(a) && (a.Moving & Actor.Turning) != 0; break; }
             default: throw new ScriptException($"wait sub-op 0x{ins.SubOp:x2}");

@@ -66,7 +66,7 @@ public sealed partial class ScriptVm
     }
 
     /// <summary><c>camera-at</c>: the camera stops following and looks at x,y.</summary>
-    private void CameraAt(int x, int y)
+    public void CameraAt(int x, int y)
     {
         CameraFollows = 0;
         State[EngineVars.CameraFollowedActor] = 0;

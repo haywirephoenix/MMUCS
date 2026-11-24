@@ -130,6 +130,9 @@ public sealed class ScriptStore
     public const int FirstLocal = 2000;
 
     private readonly Dictionary<int, ScummBlock> _rooms = [];
+
+    /// <summary>Walk boxes given to a store made with <see cref="Of(IReadOnlyList{ScriptCode}, IReadOnlyList{ObjectCode}, IReadOnlyDictionary{int, ValueTuple{int, int}}, IReadOnlyDictionary{int, IReadOnlyList{ObjectPlace}}, IReadOnlyDictionary{int, IReadOnlyList{Walkbox}})"/> (no matrix: the engine works it out).</summary>
+    private readonly Dictionary<int, IReadOnlyList<Walkbox>> _roomBoxes = [];
     private readonly IReadOnlyList<(int Room, long Offset)> _directory;
     private readonly Dictionary<int, ScriptCode> _globals = [];
     private readonly Dictionary<int, RoomCode> _roomCode = [];
@@ -172,7 +175,8 @@ public sealed class ScriptStore
     /// object code <paramref name="objects"/>, by their rooms, with the rooms' sizes.
     /// </summary>
     public static ScriptStore Of(IReadOnlyList<ScriptCode> scripts, IReadOnlyList<ObjectCode> objects,
-        IReadOnlyDictionary<int, (int Width, int Height)> roomSizes = null, IReadOnlyDictionary<int, IReadOnlyList<ObjectPlace>> places = null)
+        IReadOnlyDictionary<int, (int Width, int Height)> roomSizes = null, IReadOnlyDictionary<int, IReadOnlyList<ObjectPlace>> places = null,
+        IReadOnlyDictionary<int, IReadOnlyList<Walkbox>> boxes = null)
     {
         int globals = 1;
         foreach (var s in scripts)
@@ -191,6 +195,7 @@ public sealed class ScriptStore
             }
         }
         foreach (var (room, size) in roomSizes ?? new Dictionary<int, (int, int)>()) store._roomSizes[room] = size;
+        foreach (var (room, list) in boxes ?? new Dictionary<int, IReadOnlyList<Walkbox>>()) store._roomBoxes[room] = list;
         foreach (var (room, list) in places ?? new Dictionary<int, IReadOnlyList<ObjectPlace>>())
         {
             if (!store._roomCode.TryGetValue(room, out var code)) store._roomCode[room] = code = new RoomCode();
@@ -278,11 +283,13 @@ public sealed class ScriptStore
         }
     }
 
-    /// <summary>The room's walk boxes (box 0 is "no box") and scale slots, as the room file has them.</summary>
-    public (IReadOnlyList<Walkbox> Boxes, IReadOnlyList<ScaleSlot> Scales) RoomBoxes(int room)
+    /// <summary>The room's walk boxes (box 0 is "no box"), scale slots and box matrix (BOXM, which box leads towards which), as the room file has them.</summary>
+    public (IReadOnlyList<Walkbox> Boxes, IReadOnlyList<ScaleSlot> Scales, byte[] Matrix) RoomBoxes(int room)
     {
-        if (!_rooms.TryGetValue(room, out var lflf)) return ([], []);
-        return (Walkboxes.Parse(lflf.FindChildRecursive(ScummTag.BOXD)), Walkboxes.ParseScaleSlots(lflf.FindChildRecursive(ScummTag.SCAL)));
+        if (_roomBoxes.TryGetValue(room, out var given)) return (given, [], null);
+        if (!_rooms.TryGetValue(room, out var lflf)) return ([], [], null);
+        return (Walkboxes.Parse(lflf.FindChildRecursive(ScummTag.BOXD)), Walkboxes.ParseScaleSlots(lflf.FindChildRecursive(ScummTag.SCAL)),
+            lflf.FindChildRecursive(ScummTag.BOXM)?.DataSpan.ToArray());
     }
 
     /// <summary>The room's LFLF block, or null.</summary>

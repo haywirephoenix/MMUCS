@@ -589,6 +589,8 @@ public sealed partial class ScriptVm
             case 0x85: EndOverride(); return;
             case 0x7f: { var args = Args(); int verb = Pop(), obj = Pop(), flags = Pop(); RunObjectScript(obj, verb, (flags & 1) != 0, (flags & 2) != 0, args); return; }
             case 0x80: StopObjectScript(Pop()); return;
+            case 0x86: StopSentence(); return;
+            case 0xa5: { int objB = Pop(), objA = Pop(); DoSentence(Pop(), objA, objB); return; }
             case 0x8d: SetCameraFollows(Actors[Pop()]); return;
             case 0x8e: { int y = Pop(); CameraAt(Pop(), y); return; }
             case 0x8c: { int y = Pop(); PanCameraTo(Pop(), y); return; }
@@ -817,6 +819,7 @@ public sealed partial class ScriptVm
             s.Frozen = true;
             s.FreezeCount++;
         }
+        FreezeSentences();
         if (_cutsceneCaller is { } caller)
         {
             caller.Frozen = false;
@@ -828,6 +831,7 @@ public sealed partial class ScriptVm
     {
         foreach (var s in State.Slots)
             if (s.Frozen && --s.FreezeCount == 0) s.Frozen = false;
+        UnfreezeSentences();
     }
 
     // ── Not carried out yet ──
@@ -936,7 +940,7 @@ public sealed partial class ScriptVm
         return true;
     }
 
-    /// <summary>Kernel calls (ScummVM <c>o8_kernelSetFunctions</c>): 29 sets the key script, 30 ends every other script; the rest are reported.</summary>
+    /// <summary>Kernel calls (ScummVM <c>o8_kernelSetFunctions</c>): those carried out here (scale slots, floating objects, blasts, the key script, ending every other script); the rest are reported.</summary>
     private void KernelSet(ScriptSlot s, ScriptInstruction ins)
     {
         var args = State.PopList(30);
@@ -944,6 +948,12 @@ public sealed partial class ScriptVm
         {
             case 29 when args.Length >= 3:
                 (KeyScriptKey, KeyScript) = (args[1], args[2]);
+                return;
+            case 20 when args.Length >= 3: // setBoxScaleSlot: box, slot
+                Actors.SetBoxScaleSlot(args[1], args[2]);
+                return;
+            case 21 when args.Length >= 8: // setScaleSlot: slot, x1, y1, scale1, x2, y2, scale2
+                Actors.SetScaleSlot(args[1], args[2], args[3], args[4], args[5], args[6], args[7]);
                 return;
             case 11 or 12 when args.Length >= 2: // lockObject / unlockObject
                 LockFloatingObject(args[1], args[0] == 11);

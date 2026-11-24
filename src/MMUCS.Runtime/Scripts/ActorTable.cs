@@ -21,9 +21,9 @@ public sealed record ActorPicture(int Actor, Costume Costume, AkosFrame Frame, b
 /// The engine's actors and the rules for moving, turning, showing and animating them (ScummVM actor.cpp
 /// and akos.cpp for v8): costumes step through their AKOS sequences once a frame (<see cref="Process"/>),
 /// carrying out the sequences' commands (variables, jumps, starting animations, hiding the actor). Walking
-/// along the boxes isn't here yet: an actor turns, but a walk doesn't move it.
+/// is in ActorWalking.cs.
 /// </summary>
-public sealed class ActorTable
+public sealed partial class ActorTable
 {
     /// <summary>v8 has 80 actors (ScummVM <c>_numActors</c>); object numbers below this are actors.</summary>
     public const int Count = 80;
@@ -39,7 +39,9 @@ public sealed class ActorTable
     private readonly Stack<(int Cmd, int Actor, int Param)> _queue = new();
     private readonly int[] _extraBoxFlags = new int[65];
     private List<Walkbox> _boxes = [];
-    private IReadOnlyList<ScaleSlot> _scales = [];
+
+    /// <summary>ScummVM's 20 scale slots: a scale at x1,y1 and another at x2,y2, interpolated between (by y, by x, or both averaged).</summary>
+    private readonly (int X1, int Y1, int S1, int X2, int Y2, int S2)[] _scaleSlots = new (int, int, int, int, int, int)[20];
 
     internal ActorTable(ScriptVm vm, Random random)
     {
@@ -93,9 +95,12 @@ public sealed class ActorTable
     /// <summary>A new room's walk boxes (box flags the scripts set don't carry over, as the engine reloads them).</summary>
     internal void LoadBoxes(int room)
     {
-        var (boxes, scales) = room == 0 ? ([], []) : _vm.Scripts.RoomBoxes(room);
+        var (boxes, scales, matrix) = room == 0 ? ([], [], null) : _vm.Scripts.RoomBoxes(room);
         _boxes = [.. boxes];
-        _scales = scales;
+        for (int i = 0; i < scales.Count && i < _scaleSlots.Length; i++) // the room's SCAL (v8: by y only)
+            _scaleSlots[i] = (0, scales[i].Y1, scales[i].Scale1, 0, scales[i].Y2, scales[i].Scale2);
+        if (matrix != null) _matrix = matrix;
+        else BuildMatrix();
         Array.Clear(_extraBoxFlags);
     }
 
@@ -170,24 +175,71 @@ public sealed class ActorTable
     /// <summary>ScummVM <c>adjustActorPos</c>: into the nearest box (unless it ignores them), stopped.</summary>
     private void AdjustPosition(Actor a)
     {
-        int box = Actor.InvalidBox;
-        if (!a.IgnoreBoxes)
-        {
-            (int x, int y, box) = RoomActors.PutInBox(_boxes, a.X, a.Y, _vm.State.Objects.HasClass(a.Number, ClassPlayer));
-            a.X = x;
-            a.Y = y;
-        }
+        var (x, y, box) = AdjustXY(a, a.X, a.Y);
+        a.X = x;
+        a.Y = y;
+        a.WalkDestBox = box;
         SetBox(a, box);
         StopMoving(a);
     }
 
-    /// <summary>ScummVM <c>setBox</c> and <c>setupActorScale</c>: an actor that follows the boxes takes its box's scale.</summary>
+    /// <summary>ScummVM <c>setBox</c>: the actor's box, and its scale from there.</summary>
     private void SetBox(Actor a, int box)
     {
         a.Walkbox = box;
+        SetupScale(a);
+    }
+
+    /// <summary>
+    /// ScummVM <c>setupActorScale</c>: an actor that follows the boxes takes its box's scale where it stands
+    /// (a scale slot's changes with y). The engine does it on each box change and each time it draws the actor.
+    /// </summary>
+    private void SetupScale(Actor a)
+    {
         if (a.IgnoreBoxes) return;
+        int box = a.Walkbox;
         a.BoxScale = box >= 0 && box < _boxes.Count ? (int)_boxes[box].Scale : 255;
-        a.ScaleX = a.ScaleY = Walkboxes.ScaleAt(_boxes, _scales, box, a.X, a.Y);
+        a.ScaleX = a.ScaleY = ScaleAt(box, a.X, a.Y);
+    }
+
+    /// <summary>ScummVM <c>getScale</c> (v8): a box's scale slot at x,y if it has one, else its own scale; 255 for no box.</summary>
+    private int ScaleAt(int box, int x, int y)
+    {
+        if (box < 0 || box >= _boxes.Count) return 255;
+        var b = _boxes[box];
+        int slot = (int)b.ScaleSlot;
+        return slot == 0 ? Math.Clamp((int)b.Scale, 1, 255) : ScaleFromSlot(slot, x, y);
+    }
+
+    /// <summary>ScummVM <c>getScaleFromSlot</c>: by y, by x, or the two averaged, kept to 1–255.</summary>
+    private int ScaleFromSlot(int slot, int x, int y)
+    {
+        if (slot < 1 || slot > _scaleSlots.Length) throw new ScriptException($"invalid scale slot {slot}");
+        var s = _scaleSlots[slot - 1];
+        if (s.Y1 == s.Y2 && s.X1 == s.X2) throw new ScriptException($"invalid scale slot {slot}");
+        int scaleY = 0, scale;
+        if (s.Y1 != s.Y2) scaleY = (s.S2 - s.S1) * (Math.Max(0, y) - s.Y1) / (s.Y2 - s.Y1) + s.S1;
+        if (s.X1 == s.X2) scale = scaleY;
+        else
+        {
+            int scaleX = (s.S2 - s.S1) * (x - s.X1) / (s.X2 - s.X1) + s.S1;
+            scale = s.Y1 == s.Y2 ? scaleX : (scaleX + scaleY) / 2;
+        }
+        return Math.Clamp(scale, 1, 255);
+    }
+
+    /// <summary>kernel-set 21 (ScummVM <c>setScaleSlot</c>): a scale slot from two points and their scales.</summary>
+    public void SetScaleSlot(int slot, int x1, int y1, int scale1, int x2, int y2, int scale2)
+    {
+        if (slot < 1 || slot > _scaleSlots.Length) throw new ScriptException($"invalid scale slot {slot}");
+        _scaleSlots[slot - 1] = (x1, y1, scale1, x2, y2, scale2);
+    }
+
+    /// <summary>kernel-set 20 (ScummVM <c>setBoxScaleSlot</c>): the scale slot a box scales its actors by.</summary>
+    public void SetBoxScaleSlot(int box, int slot)
+    {
+        if (box < 0 || box >= _boxes.Count) throw new ScriptException($"no box {box} to give scale slot {slot}");
+        _boxes[box] = _boxes[box] with { ScaleSlot = (uint)slot };
     }
 
     public void Show(Actor a)
@@ -383,24 +435,6 @@ public sealed class ActorTable
 
     // ── A frame ──
 
-    /// <summary>
-    /// ScummVM <c>walkActors</c>, the turning part: an actor turning faces the way it's turning to (v7+
-    /// doesn't step through the ways in between) and stops turning the frame after.
-    /// </summary>
-    internal void Walk()
-    {
-        for (int i = 1; i < Count; i++)
-        {
-            var a = _actors[i];
-            if (!IsInCurrentRoom(a) || (a.Moving & Actor.Turning) == 0) continue;
-            if ((a.Moving & (Actor.NewLeg | Actor.InLeg | Actor.LastLeg)) != 0) continue; // walking isn't here yet
-            int dir = UpdateDirection(a);
-            if (a.Facing != dir) SetDirection(a, dir);
-            else if ((a.Moving & Actor.Frozen) != 0) a.Moving &= ~Actor.Turning;
-            else a.Moving = 0;
-        }
-    }
-
     /// <summary>ScummVM <c>updateActorDirection</c> for v7+: the target direction as the box allows it, no steps in between.</summary>
     private int UpdateDirection(Actor a) => RemapDirection(a, a.TargetFacing) & 1023;
 
@@ -482,6 +516,7 @@ public sealed class ActorTable
     {
         a.NeedRedraw = false;
         if (_vm.Scripts.Costume(a.Costume) is not { } costume) return null;
+        SetupScale(a);
         var positions = new List<int>();
         for (int i = 0; i < Actor.Limbs; i++)
             if (a.Active[i] != 0 && (a.Stopped & (1 << i)) == 0) positions.Add(a.CurPos[i]);

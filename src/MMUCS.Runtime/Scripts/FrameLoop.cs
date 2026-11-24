@@ -124,8 +124,11 @@ public sealed class FrameLoop
         Vm.UpdateCameraVars();
         BeforeScripts?.Invoke(step);
 
+        int clears = Vm.ClickClears;
         Vm.RunAllScripts();
+        if (Vm.ClickClears != clears) input = 0; // stop-sentence dropped the click
         CheckExecVerbs(input);
+        Vm.CheckAndRunSentenceScript();
         if (Vm.CurrentRoom != 0)
         {
             Vm.WalkActors();

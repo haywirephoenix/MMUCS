@@ -74,6 +74,24 @@ public sealed class Actor
     public int SpeedX { get; set; }
     public int SpeedY { get; set; }
 
+    // ── The walk (ScummVM ActorWalkData) ──
+    /// <summary>Where the walk ends, in which box, and the way to face there (−1: as it arrives).</summary>
+    public int WalkDestX { get; set; }
+    public int WalkDestY { get; set; }
+    public int WalkDestBox { get; set; }
+    public int WalkDestDir { get; set; }
+    /// <summary>The box the current leg heads into.</summary>
+    public int WalkCurBox { get; set; }
+    /// <summary>The leg: from where, to where, and the step (16.16 fixed point, before scaling) with its fractions.</summary>
+    public int WalkCurX { get; set; }
+    public int WalkCurY { get; set; }
+    public int WalkNextX { get; set; }
+    public int WalkNextY { get; set; }
+    public int WalkDeltaX { get; set; }
+    public int WalkDeltaY { get; set; }
+    public int WalkXFrac { get; set; }
+    public int WalkYFrac { get; set; }
+
     /// <summary>Frames between costume steps (0 or 1: every frame) and the count towards the next.</summary>
     public int AnimSpeed { get; set; }
     public int AnimProgress { get; set; }
@@ -140,6 +158,7 @@ public sealed class Actor
             Array.Clear(Vars);
             Array.Clear(Palette);
             ResetCostume();
+            ResetWalk();
             WalkScript = 0;
         }
         if (mode is 1 or -1)
@@ -180,6 +199,12 @@ public sealed class Actor
         TalkStopFrame = 5;
         WalkScript = 0;
         TalkScript = 0;
+    }
+
+    private void ResetWalk()
+    {
+        WalkDestX = WalkDestY = WalkDestBox = WalkDestDir = WalkCurBox = 0;
+        WalkCurX = WalkCurY = WalkNextX = WalkNextY = WalkDeltaX = WalkDeltaY = WalkXFrac = WalkYFrac = 0;
     }
 
     public override string ToString() => $"actor {Number}";
