@@ -246,6 +246,7 @@ public sealed class ScriptedGame : IDisposable
         var fonts = gameFile == null ? [] : MMUCS.Core.Fonts.NutFont.LoadAll(gameFile);
         Fonts = fonts;
         UseFonts(Vm, fonts);
+        Vm.ViewWidth = (int)Math.Ceiling(GameState.CanvasWidth); // the camera keeps the whole canvas in the room
         Vm.Said += (text, tag, actor) => Log.Info($"Game: {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" ({tag})" : "")}: {text}");
         if (MusicTable.Load(gameFile) is { } table)
         {

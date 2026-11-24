@@ -250,6 +250,8 @@ public sealed partial class ScriptVm
         if (!objects.IsObject(obj)) return null;
         if (objects.Owner(obj) != ObjectTables.RoomOwner)
             return objects.InInventory(obj) ? Scripts.Object(objects.Room(obj), obj) : null;
+        // A floating object's code came with it from its home room (ScummVM's rtFlObject copy).
+        if (IsFloating(obj)) return Scripts.Object(objects.Room(obj), obj);
         return Scripts.Object(CurrentRoom, obj);
     }
 

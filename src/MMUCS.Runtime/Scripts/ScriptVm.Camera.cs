@@ -27,7 +27,23 @@ public sealed partial class ScriptVm
     /// <summary><c>camera-pause</c> / <c>camera-resume</c> (v8): a paused camera stays where it is.</summary>
     public bool CameraFrozen { get; private set; }
 
-    private int ClampCameraX(int x) => Math.Clamp(x, State[EngineVars.CameraMinX], Math.Max(State[EngineVars.CameraMinX], State[EngineVars.CameraMaxX]));
+    /// <summary>
+    /// How wide a view of the room the player sees: the engine's 640 screen in ScummVM; the game window's 16:9
+    /// canvas is wider. The camera also keeps that whole view inside the room (a room no wider than it is
+    /// seen from its middle), so the camera the scripts see is the one drawn, and what they take for the screen
+    /// (blasted objects, the verb coin placed from the camera) lines up with the room around it. A departure
+    /// from ScummVM only when this is wider than the screen.
+    /// </summary>
+    public int ViewWidth { get; set; } = ScreenWidth;
+
+    private int ClampCameraX(int x)
+    {
+        x = Math.Clamp(x, State[EngineVars.CameraMinX], Math.Max(State[EngineVars.CameraMinX], State[EngineVars.CameraMaxX]));
+        int width = State[EngineVars.RoomWidth];
+        if (ViewWidth <= ScreenWidth || width <= 0 || CurrentRoom == 0) return x;
+        int half = ViewWidth / 2;
+        return Math.Clamp(x, Math.Min(half, width / 2), Math.Max(width - half, width / 2));
+    }
     private int ClampCameraY(int y) => Math.Clamp(y, State[EngineVars.CameraMinY], Math.Max(State[EngineVars.CameraMinY], State[EngineVars.CameraMaxY]));
 
     /// <summary>
