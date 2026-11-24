@@ -23,6 +23,8 @@ static class BootCommand
         for (string c; (c = takeOption(a, "--hold")) != null;) inputs.Add(Timed(c, "hold"));
         for (string c; (c = takeOption(a, "--move")) != null;) inputs.Add(Timed(c, "move"));
         for (string k; (k = takeOption(a, "--key")) != null;) inputs.Add(Timed(k, "key"));
+        for (string f; (f = takeOption(a, "--save")) != null;) inputs.Add(Timed(f, "save"));
+        string loadFile = takeOption(a, "--load");
 
         var limits = GameLimits.Read(root) ?? throw new InvalidOperationException("no MAXS block: not a v8 game index");
         var store = new ScriptStore(root);
@@ -91,6 +93,16 @@ static class BootCommand
 
         vm.Boot(bootParam);
         booting = false;
+        if (loadFile != null)
+        {
+            // A save file loaded over the booted game, as the game window's F4 does.
+            var missing = new List<string>();
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            using (var file = File.OpenRead(loadFile))
+                MMUCS.Runtime.ScriptedGame.ReadSave(file, loop, effects, voice, music, missing);
+            Line($"LOAD {loadFile}: room {vm.CurrentRoom}, {state.Slots.Count(x => x.IsAlive)} scripts running ({clock.ElapsedMilliseconds} ms)");
+            foreach (var what in missing.Distinct()) Line($"  missing: {what}");
+        }
 
         Console.WriteLine();
         int next = state[EngineVars.TimerNext];
@@ -105,6 +117,17 @@ static class BootCommand
         {
             foreach (var input in inputs.Where(x => x.Jiffy == i))
             {
+                if (input.What == "save")
+                {
+                    var clock = System.Diagnostics.Stopwatch.StartNew();
+                    MMUCS.Runtime.Scripts.StateFile.Summary summary;
+                    using (var file = File.Create(input.Spec))
+                        summary = MMUCS.Runtime.ScriptedGame.WriteSave(file, vm, music, voice, effects);
+                    Line($"SAVE {input.Spec}: room {vm.CurrentRoom}, {summary.Objects} objects, {summary.Bytes / 1024} KiB ({clock.ElapsedMilliseconds} ms)");
+                    Console.WriteLine("  most objects: " + string.Join(", ", summary.ObjectsByType.Take(12).Select(x => $"{x.Key} ×{x.Value}")));
+                    Console.WriteLine("  the engine's own, by type: " + string.Join(", ", summary.Services.Select(x => $"{x.Key} ×{x.Value}")));
+                    continue;
+                }
                 if (input.What == "key")
                 {
                     int code = Key(input.Spec);
