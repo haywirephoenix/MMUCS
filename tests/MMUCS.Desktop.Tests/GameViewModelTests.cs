@@ -63,6 +63,24 @@ public class GameViewModelTests
             await vm.ScriptedView.Building; // room 2's scene: let it land before the test's UI thread ends
             Assert.Same(vm.ScriptedView.Scene.Background, vm.Frame.Room.Background); // the scene, with the actors of the last frame
 
+            // Pause keeps the game where it is: Play carries on in room 2.
+            vm.PauseCommand.Execute(null);
+            Assert.False(vm.IsPlaying || vm.IsMouseCaptured);
+            Assert.True(vm.IsStarted && vm.StopCommand.CanExecute(null) && !vm.PauseCommand.CanExecute(null));
+            Assert.StartsWith("Paused", vm.Hint);
+            vm.PlayCommand.Execute(null);
+            Assert.StartsWith("room 2 thx", vm.Status);
+
+            // Stop ends it: paused or not, the state goes and Play boots afresh into room 87.
+            vm.PauseCommand.Execute(null);
+            vm.StopCommand.Execute(null);
+            Assert.False(vm.IsPlaying || vm.IsStarted || vm.StopCommand.CanExecute(null));
+            Assert.Equal(0, vm.Scripted.CurrentRoom);
+            Assert.Equal("Press Play to boot the game.", vm.Hint);
+            vm.PlayCommand.Execute(null);
+            Assert.StartsWith("room 87 easyhard", vm.Status);
+            await vm.ScriptedView.Building;
+
             // Switching to the stand-ins stops the game.
             vm.RunScripts = false;
             Assert.False(vm.IsPlaying || vm.IsMouseCaptured);
@@ -118,7 +136,7 @@ public class GameViewModelTests
             vm.ReleaseCursor();
 
             vm.StopCommand.Execute(null);
-            Assert.False(vm.IsPlaying || vm.IsMouseCaptured);
+            Assert.False(vm.IsPlaying || vm.IsMouseCaptured || vm.IsStarted);
             Assert.Empty(vm.Frame.Blasts);
         });
     }
