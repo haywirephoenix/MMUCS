@@ -36,7 +36,8 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         View = new GameView(Game);
         ScriptedView = new ScriptedView(Scripted);
         Fonts = new FontChooser(settings);
-        Scripted.SmoothCamera = settings?.SmoothCamera ?? false;
+        _settings = settings;
+        Scripted.SmoothCamera = SmoothCamera = settings?.SmoothCamera ?? true;
         Fonts.Changed += () => { ApplyFont(); Refresh(); };
         Game.Changed += Refresh;
         Scripted.Changed += Refresh;
@@ -83,6 +84,23 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Hint))]
     public partial bool RunScripts { get; set; } = true;
+
+    private readonly AppSettings _settings;
+
+    /// <summary>The game's camera eases instead of stepping as SCUMM's does (kept in the settings).</summary>
+    [ObservableProperty]
+    public partial bool SmoothCamera { get; set; }
+
+    partial void OnSmoothCameraChanged(bool value)
+    {
+        Scripted.SmoothCamera = value;
+        if (_settings != null && _settings.SmoothCamera != value)
+        {
+            _settings.SmoothCamera = value;
+            _settings.Save();
+        }
+        Refresh();
+    }
 
     partial void OnRunScriptsChanged(bool value)
     {

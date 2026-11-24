@@ -25,7 +25,9 @@
                 ToolTip.Tip="Stop the game and let the mouse go" />
         <ToggleButton Content="Scripts" IsChecked="{Binding RunScripts}" Margin="8,0,0,0"
                       ToolTip.Tip="On: the game runs its own scripts from boot (MMUCS.Runtime's interpreter). Off: the hand-written stand-ins (a hotspot, the verb coin and the inventory). Switching stops the game." />
-        <c:FontPicker Chooser="{Binding Fonts}" Margin="8,0,0,0" ToolTip.Tip="{Binding FontInfo}" />
+        <ToggleButton Content="Smooth camera" IsChecked="{Binding SmoothCamera}" Margin="8,0,0,0"
+                      ToolTip.Tip="On: the camera eases after its target and walking actors glide between frames. Off: the camera steps as SCUMM's does. The scripts see the same camera either way." />
+                <c:FontPicker Chooser="{Binding Fonts}" Margin="8,0,0,0" ToolTip.Tip="{Binding FontInfo}" />
       </StackPanel>
     </c:ViewerPreview.Tools>
 

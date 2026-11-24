@@ -15,12 +15,12 @@ public sealed class AppSettings
 
     /// <summary>Bumped when defaults change in a way existing settings files should pick up.</summary>
     public int SettingsVersion { get; set; }
-    private const int CurrentSettingsVersion = 2;
+    private const int CurrentSettingsVersion = 3;
 
     public List<string> RecentFiles { get; set; } = [];
     public bool ReopenLastFileOnStartup { get; set; } = true;
-    /// <summary>The game window eases its camera instead of SCUMM's steps.</summary>
-    public bool SmoothCamera { get; set; }
+    /// <summary>The game window eases its camera instead of SCUMM's steps (on by default; the window's Smooth camera button).</summary>
+    public bool SmoothCamera { get; set; } = true;
     public bool ShowRoomNames { get; set; } = true;
     public bool ShowObjectNames { get; set; } = true;
     public bool ColorizeTags { get; set; } = true;
@@ -107,6 +107,11 @@ public sealed class AppSettings
         if (SettingsVersion < 2)
         {
             CostumePlayInPlace = true;
+        }
+        // v3: the smooth camera became on by default (earlier files saved it off before it was offered).
+        if (SettingsVersion < 3)
+        {
+            SmoothCamera = true;
         }
 
         SettingsVersion = CurrentSettingsVersion;
