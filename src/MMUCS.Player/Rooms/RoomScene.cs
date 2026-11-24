@@ -14,7 +14,7 @@ public sealed record SceneObject(RoomObject Object, SKImage Image, int X, int Y)
 /// size, cut by z-plane <paramref name="ZPlane"/> (0: none). Actors are drawn in order of
 /// <paramref name="Depth"/> (y before elevation), then <paramref name="Actor"/>.
 /// </summary>
-public sealed record SceneActor(SKImage Image, int X, int Y, float Scale = 1, int ZPlane = 0, int Depth = 0, int Actor = 0);
+public sealed record SceneActor(SKImage Image, float X, float Y, float Scale = 1, int ZPlane = 0, int Depth = 0, int Actor = 0);
 
 /// <summary>
 /// A room as the engine draws it, ready to draw on any thread: the background, the objects shown in the

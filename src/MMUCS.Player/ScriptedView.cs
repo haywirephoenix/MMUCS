@@ -84,7 +84,8 @@ public sealed class ScriptedView
             Blasts = BlastFrames(),
             Camera = game.Camera,
             TextShift = new(game.EngineCamera.X - game.Camera.X, game.EngineCamera.Y - game.Camera.Y),
-            Texts = ScreenTexts(),
+            Texts = ScreenTexts(overActor: false),
+            RoomTexts = ScreenTexts(overActor: true),
             Cursor = CursorFrame(),
         };
     }
@@ -185,7 +186,7 @@ public sealed class ScriptedView
     /// The texts the last frame drew, in the room's palette and <see cref="Text"/>'s fonts, each made once
     /// while it's shown (old ones are left to the finalizer: a frame may still be drawing one).
     /// </summary>
-    private List<SubtitleOverlay> ScreenTexts()
+    private List<SubtitleOverlay> ScreenTexts(bool overActor)
     {
         var texts = Game.Vm.ScreenTexts;
         if (texts.Count == 0 || Text == null) return [];
@@ -201,6 +202,7 @@ public sealed class ScriptedView
         var list = new List<SubtitleOverlay>(texts.Count);
         foreach (var t in texts)
         {
+            if (t.OverActor != overActor) continue;
             if (!_texts.TryGetValue(t, out var overlay))
             {
                 var flags = (t.Center ? Core.Smush.SmushTextFlags.Center : 0) | (t.Wrap ? Core.Smush.SmushTextFlags.Wrap : 0);
@@ -217,7 +219,7 @@ public sealed class ScriptedView
     private List<SceneActor> SceneActors(RoomScene scene, IReadOnlyList<ActorPicture> pictures)
     {
         if (_actorImages.Count > 512) _actorImages.Clear();
-        return RoomSceneBuilder.SceneActors(pictures, scene.ZMasks.Count, _actorImages);
+        return RoomSceneBuilder.SceneActors(pictures, scene.ZMasks.Count, _actorImages, Game.ActorSlide);
     }
 
     /// <summary>

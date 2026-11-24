@@ -124,7 +124,7 @@ public static class RoomSceneBuilder
     /// keeps it). <paramref name="cache"/> keeps rendered frames by <see cref="ActorPicture.Key"/>.
     /// </summary>
     public static List<SceneActor> SceneActors(IReadOnlyList<ActorPicture> pictures, int planes,
-        Dictionary<string, (SKImage Image, int OriginX, int OriginY)?> cache = null)
+        Dictionary<string, (SKImage Image, int OriginX, int OriginY)?> cache = null, double slide = 1)
     {
         var list = new List<SceneActor>(pictures.Count);
         for (int i = 0; i < pictures.Count; i++)
@@ -146,9 +146,25 @@ public static class RoomSceneBuilder
             }
             if (image is not var (img, originX, originY)) continue;
             int plane = p.FromBox ? Math.Min(p.ZPlane, planes) : p.ZPlane;
-            list.Add(new SceneActor(img, p.X - originX, p.Y - originY, 1, plane, i, p.Actor));
+            var (x, y) = Slid(p, slide);
+            list.Add(new SceneActor(img, x - originX, y - originY, 1, plane, i, p.Actor));
         }
         return list;
+    }
+
+    /// <summary>The most an actor moves in a frame and still slides there; further is a jump, drawn where it lands.</summary>
+    public const int MaxSlide = 32;
+
+    /// <summary>
+    /// Where to draw an actor <paramref name="slide"/> of the way (0–1) from the last frame's place to this
+    /// one's; a jump of more than <see cref="MaxSlide"/> pixels isn't slid.
+    /// </summary>
+    public static (float X, float Y) Slid(ActorPicture p, double slide)
+    {
+        int dx = p.X - p.FromX, dy = p.Y - p.FromY;
+        if (slide >= 1 || Math.Abs(dx) > MaxSlide || Math.Abs(dy) > MaxSlide) return (p.X, p.Y);
+        double t = Math.Max(0, slide);
+        return ((float)(p.FromX + dx * t), (float)(p.FromY + dy * t));
     }
 
     /// <summary>The room's actors as its scripts place them (<see cref="RoomActors.Analyze"/>), drawn as the engine draws them.</summary>
