@@ -9,6 +9,8 @@ public enum SaveLoadRequest
     None,
     Save,
     Load,
+    /// <summary>A save slot's load (<c>save-game-read</c>, kernel set 27), which the host carries out from its saves.</summary>
+    LoadSlot,
 }
 
 /// <summary>
@@ -27,6 +29,25 @@ public sealed partial class ScriptVm
     /// <summary>The temporary save (<c>room save-game</c>'s), or null before there is one.</summary>
     [field: NonSerialized]
     public ScriptVm TemporaryState { get; private set; }
+
+    /// <summary>The slot <see cref="SaveLoadRequest.LoadSlot"/> loads.</summary>
+    [field: NonSerialized]
+    public int PendingLoadSlot { get; private set; }
+
+    /// <summary>The host's saves: a slot's name, or null when the slot is empty (kernel set 25, <c>save-game-read-name</c>).</summary>
+    public Func<int, string> SaveGameName { get; set; }
+
+    /// <summary>
+    /// The host writes <see cref="TemporaryState"/> (the F1 menu's snapshot, not the menu) to a slot with a name
+    /// (kernel set 26, <c>save-game-write</c>). Returns whether it was written.
+    /// </summary>
+    public Func<int, string, bool> SaveGameWrite { get; set; }
+
+    /// <summary>The game's registry settings (<c>read-registry-value</c>): the value kept, or null when there's none yet.</summary>
+    public Func<string, int?> ReadRegistry { get; set; }
+
+    /// <summary>Keeps a registry setting (kernel set 32, <c>write-registry-value</c>): the menu's page, the volumes, the text speed…</summary>
+    public Action<string, int> WriteRegistry { get; set; }
 
     /// <summary>A script asked the game to quit (<c>quit</c>, or <c>query-quit</c> from the F1 menu): the host stops it.</summary>
     public event Action QuitRequested;
@@ -59,6 +80,7 @@ public sealed partial class ScriptVm
         if (request == SaveLoadRequest.None) return request;
         PendingSaveLoad = SaveLoadRequest.None;
         State[EngineVars.GameLoaded] = 0;
+        if (request == SaveLoadRequest.LoadSlot) return request; // the frame loop has the host load it
         if (request == SaveLoadRequest.Save)
         {
             TemporaryState = SaveState();
@@ -88,6 +110,32 @@ public sealed partial class ScriptVm
                 return true;
         }
         return false;
+    }
+
+    /// <summary>Kernel set 25: a slot's name into string array <paramref name="array"/>; an empty slot leaves it as it is.</summary>
+    private void SaveGameReadName(int slot, int array)
+    {
+        if (SaveGameName?.Invoke(slot) is not { } name) return;
+        var bytes = System.Text.Encoding.Latin1.GetBytes(name);
+        var text = new ScriptArray(ArrayType.String, 0, bytes.Length + 1);
+        bytes.CopyTo(text.Bytes);
+        State.ReplaceArray(array, text);
+    }
+
+    /// <summary>Kernel set 26: the F1 menu's snapshot saved to a slot under the name in string array <paramref name="array"/>.</summary>
+    private void SaveGameWriteSlot(int slot, int array)
+    {
+        string name = State.ArrayById(array)?.Text ?? "";
+        if (TemporaryState == null) Warned?.Invoke($"save-game-write {slot}: no snapshot to save");
+        else if (SaveGameWrite == null) Warned?.Invoke($"save-game-write {slot} \"{name}\": the host keeps no saves");
+        else if (!SaveGameWrite(slot, name)) Warned?.Invoke($"save-game-write {slot} \"{name}\" failed");
+    }
+
+    /// <summary>Kernel set 27: the slot is loaded at the frame loop's turn, before the temporary load 449 asks for (ScummVM's <c>_saveLoadFlag</c> 2).</summary>
+    private void SaveGameReadSlot(int slot)
+    {
+        PendingLoadSlot = slot;
+        PendingSaveLoad = SaveLoadRequest.LoadSlot;
     }
 
     /// <summary><c>system-ops</c>: quit (0x29). Restart (0x28) isn't carried out yet.</summary>

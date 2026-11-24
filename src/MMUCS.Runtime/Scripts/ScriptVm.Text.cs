@@ -153,24 +153,26 @@ public sealed partial class ScriptVm
     /// </summary>
     private (int Width, int Height) LipSync() => Speech?.LipSync(State[EngineVars.Sync] + 50) ?? (0, 0);
 
-    /// <summary>The game's registry settings by name, as ScummVM answers them from its own settings.</summary>
+    /// <summary>
+    /// The game's registry settings by name: what the host kept (<see cref="ReadRegistry"/>), or else the
+    /// defaults ScummVM answers (text on, full volumes, object names) and −1 for the rest, as for a setting the
+    /// game never wrote. The F1 menu's page is one of the rest: −1 starts it on page 0, the first.
+    /// </summary>
     private int RegistryValue(int stringArray)
     {
-        string name = "";
-        if (State.ArrayById(stringArray) is { Type: ArrayType.String } array)
-        {
-            var bytes = array.Bytes;
-            int n = bytes.IndexOf((byte)0);
-            name = Encoding.Latin1.GetString(n < 0 ? bytes : bytes[..n]);
-        }
+        string name = StringOf(stringArray);
+        if (ReadRegistry?.Invoke(name) is int kept) return kept;
         return name switch
         {
             "SFX Volume" or "Voice Volume" or "Music Volume" => 127,
             "Text Status" or "Object Names" => 1,
-            "Saveload Page" => 14,
             _ => -1,
         };
     }
+
+    /// <summary>A string array's text, by the array's id ("" when there's none).</summary>
+    private string StringOf(int stringArray) =>
+        State.ArrayById(stringArray) is { Type: ArrayType.String } array ? array.Text : "";
 
     /// <summary>ScummVM <c>o6_talkActor</c>: the line in the default talk style.</summary>
     private void TalkActor(ScriptSlot s, ScriptInstruction ins, int actor)

@@ -139,7 +139,7 @@ public sealed class FrameLoop(ScriptVm vm)
             Vm.CheckAndRunSentenceScript();
             // A load asked for this frame happens at once and the scripts run again from it, so the room left
             // isn't drawn (ScummVM's goto load_game); the loaded game starts with no click.
-            if (Vm.PendingSaveLoad != SaveLoadRequest.Load) break;
+            if (Vm.PendingSaveLoad is not (SaveLoadRequest.Load or SaveLoadRequest.LoadSlot)) break;
             input = 0;
         }
         if (Vm.CurrentRoom != 0)
@@ -175,11 +175,31 @@ public sealed class FrameLoop(ScriptVm vm)
         _key = 0;
     }
 
+    /// <summary>
+    /// The host loads a save slot into the engine (with its sounds); false when it can't, and then the F1 menu's
+    /// snapshot is loaded instead, so the menu's Load still goes back to the game.
+    /// </summary>
+    public Func<int, bool> LoadSlot { get; set; }
+
     private void HandleSaveLoad()
     {
         switch (Vm.HandleSaveLoad())
         {
             case SaveLoadRequest.Save: StateSaved?.Invoke(); break;
+            case SaveLoadRequest.LoadSlot:
+                _leftClicked = _rightClicked = false;
+                _key = 0;
+                if (LoadSlot?.Invoke(Vm.PendingLoadSlot) == true)
+                {
+                    Vm.State[EngineVars.GameLoaded] = 1; // the save is the F1 snapshot, where the key script waits for it
+                    break;
+                }
+                Vm.Warn($"save-game-read {Vm.PendingLoadSlot}: couldn't load it, so back to the game as it was");
+                if (Vm.TemporaryState == null) break;
+                Vm.LoadState(Vm.TemporaryState);
+                Vm.State[EngineVars.GameLoaded] = 1;
+                StateLoaded?.Invoke();
+                break;
             case SaveLoadRequest.Load:
                 _leftClicked = _rightClicked = false; // ScummVM clearClickedStatus
                 _key = 0;

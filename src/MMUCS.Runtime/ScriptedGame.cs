@@ -280,7 +280,16 @@ public sealed class ScriptedGame : IDisposable
             musicOutput?.Update();
             music?.Refresh();
         };
-        FollowSaves(Loop, effects, voice, music);
+        var sounds = FollowSaves(Loop, effects, voice, music);
+        Saves = GameFile == null ? null : new GameSaves(GameSaves.FolderFor(GameFile));
+        Saves?.Attach(Loop, sounds, effects, voice, music);
+        if (Loop.LoadSlot is { } loadSlot)
+            Loop.LoadSlot = slot =>
+            {
+                bool loaded = loadSlot(slot);
+                if (loaded) _viewRoom = -1; // the camera shown goes straight to the loaded one
+                return loaded;
+            };
         Loop.StateLoaded += () => _viewRoom = -1; // the camera shown goes straight to the loaded one
         // Quitting waits for the engine's step to end (it's in the middle of a script).
         Vm.QuitRequested += () => _quitRequested = true;
@@ -306,28 +315,38 @@ public sealed class ScriptedGame : IDisposable
         return effects.Command(list) || music?.Command(list) == true;
     };
 
+    /// <summary>The sounds as the scripts' temporary save (the F1 menu's) found them, for a save slot to keep with it.</summary>
+    public sealed class SavedSounds
+    {
+        public ComiMusic.Saved Music { get; internal set; }
+        public SpeechPlace? Speech { get; internal set; }
+        public System.Collections.Generic.List<SoundEffects.Saved> Effects { get; internal set; }
+    }
+
     /// <summary>
     /// The scripts' temporary save (the F1 menu's) for the sounds, which live outside the engine. As ScummVM's
     /// iMUSE keeps its tracks in a save, a save keeps the music (its state and the track playing, and where)
     /// and the line's speech (and where); a load stops the effects and puts the music and the speech back
-    /// where they were, so the menu's silence in between is a pause.
+    /// where they were, so the menu's silence in between is a pause. The effects playing are kept too, for a
+    /// save slot written from the menu (<see cref="GameSaves"/>).
     /// </summary>
-    public static void FollowSaves(FrameLoop loop, SoundEffects effects, VoicePlayer voice, ComiMusic music)
+    public static SavedSounds FollowSaves(FrameLoop loop, SoundEffects effects, VoicePlayer voice, ComiMusic music)
     {
-        ComiMusic.Saved savedMusic = null;
-        SpeechPlace? savedSpeech = null;
+        var saved = new SavedSounds();
         loop.StateSaved += () =>
         {
-            savedMusic = music?.Save();
-            savedSpeech = voice?.Place;
+            saved.Music = music?.Save();
+            saved.Speech = voice?.Place;
+            saved.Effects = effects?.Save();
         };
         loop.StateLoaded += () =>
         {
             effects?.StopAll();
             voice?.Stop();
-            if (savedSpeech is { } speech) voice?.Resume(speech);
-            if (savedMusic != null) music?.Restore(savedMusic);
+            if (saved.Speech is { } speech) voice?.Resume(speech);
+            if (saved.Music != null) music?.Restore(saved.Music);
         };
+        return saved;
     }
 
     /// <summary>The scripts quit the game (the F1 menu's Quit): it has stopped, and Play boots it afresh.</summary>
@@ -452,8 +471,11 @@ public sealed class ScriptedGame : IDisposable
     /// The quick save's file (F6 and F4): in the saves folder under the app's data, one folder per game, so it
     /// outlasts the app.
     /// </summary>
-    public string QuickSavePath => Path.Combine(CorePaths.Root, "saves",
-        GameFile == null ? "unnamed" : Path.GetFileNameWithoutExtension(GameFile).ToLowerInvariant(), "quick.mmucs-save");
+    public string QuickSavePath => Path.Combine(GameFile == null ? Path.Combine(CorePaths.Root, "saves", "unnamed") : GameSaves.FolderFor(GameFile),
+        "quick.mmucs-save");
+
+    /// <summary>The game's save slots and registry settings (the F1 menu's), or null without a game file.</summary>
+    public GameSaves Saves { get; private set; }
 
     /// <summary>Whether there's a quick save to load.</summary>
     public bool HasQuickSave => File.Exists(QuickSavePath);
@@ -478,7 +500,7 @@ public sealed class ScriptedGame : IDisposable
                 try
                 {
                     using var file = File.Create(temp);
-                    summary = WriteSave(file, Vm, Music, Voice, Effects);
+                    summary = WriteSave(file, Vm, Music, Voice, Effects, "Quick save");
                 }
                 catch (Exception ex) { failed = ex; } // a failed save leaves the game running
             });
@@ -540,8 +562,47 @@ public sealed class ScriptedGame : IDisposable
     }
 
     /// <summary>A save as a file: the engine, the music's state and track, the line's speech and the effects playing, and where they were.</summary>
-    public static StateFile.Summary WriteSave(Stream stream, ScriptVm vm, ComiMusic music, VoicePlayer voice, SoundEffects effects) =>
-        StateFile.Write(stream, new object[] { vm, music?.Save(), voice?.Place, effects?.Save() });
+    public static StateFile.Summary WriteSave(Stream stream, ScriptVm vm, ComiMusic music, VoicePlayer voice, SoundEffects effects, string name = null) =>
+        WriteSave(stream, vm, music?.Save(), voice?.Place, effects?.Save(), name);
+
+    private const string SaveMagic = "MMUCS-SAVE";
+
+    /// <summary>
+    /// A save as a file, from the sounds as they were saved: a header (the name, when, the room) that a slot
+    /// list reads without the rest, then the state.
+    /// </summary>
+    public static StateFile.Summary WriteSave(Stream stream, ScriptVm vm, ComiMusic.Saved music, SpeechPlace? speech,
+        System.Collections.Generic.List<SoundEffects.Saved> effects, string name)
+    {
+        using (var header = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            header.Write(SaveMagic);
+            header.Write(1);
+            header.Write(name ?? "");
+            header.Write(DateTime.UtcNow.Ticks);
+            header.Write(vm.CurrentRoom);
+        }
+        return StateFile.Write(stream, new object[] { vm, music, speech, effects });
+    }
+
+    /// <summary>A save file's name, or null when it isn't one (a quick save from before saves had names reads as "").</summary>
+    public static string ReadSaveName(string path)
+    {
+        try
+        {
+            using var file = File.OpenRead(path);
+            using var r = new BinaryReader(file);
+            string magic = r.ReadString();
+            if (magic == "MMUCS-STATE") return "";
+            if (magic != SaveMagic) return null;
+            r.ReadInt32();
+            return r.ReadString();
+        }
+        catch (Exception ex) when (ex is IOException or EndOfStreamException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// Loads a save written by <see cref="WriteSave"/> into the loop's engine: the music, speech and effects carry on
@@ -550,6 +611,18 @@ public sealed class ScriptedGame : IDisposable
     public static void ReadSave(Stream stream, FrameLoop loop, SoundEffects effects, VoicePlayer voice, ComiMusic music,
         System.Collections.Generic.List<string> missing = null)
     {
+        long start = stream.Position;
+        using (var header = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            if (header.ReadString() == SaveMagic)
+            {
+                header.ReadInt32();
+                header.ReadString();
+                header.ReadInt64();
+                header.ReadInt32();
+            }
+            else stream.Position = start; // a quick save from before the header
+        }
         if (StateFile.Read(stream, loop.Vm, missing) is not object[] { Length: >= 3 } parts || parts[0] is not ScriptVm saved)
             throw new InvalidDataException("not a game save");
         loop.LoadState(saved);

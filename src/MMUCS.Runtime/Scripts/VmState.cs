@@ -144,6 +144,12 @@ public sealed class VmState
         return array;
     }
 
+    /// <summary>Puts <paramref name="array"/> in place of the one with id <paramref name="id"/> (ScummVM nukes and makes a string resource so).</summary>
+    public void ReplaceArray(int id, ScriptArray array)
+    {
+        if (id > 0 && id < _arrays.Length) _arrays[id] = array;
+    }
+
     /// <summary>Drops the array <paramref name="variable"/> points at and sets the variable to 0.</summary>
     public void NukeArray(int variable)
     {

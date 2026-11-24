@@ -988,6 +988,20 @@ public sealed partial class ScriptVm
                 return;
             case 33: // paletteSetIntensity: ScummVM only logs it
                 return;
+            case 25 when args.Length >= 3: // saveGameReadName: slot, string
+                SaveGameReadName(args[1], args[2]);
+                return;
+            case 26 when args.Length >= 3: // saveGameWrite: slot, name
+                SaveGameWriteSlot(args[1], args[2]);
+                return;
+            case 27 when args.Length >= 2: // saveGameRead: slot
+                SaveGameReadSlot(args[1]);
+                return;
+            case 28: // saveGameStampScreenshot: slot, x, y, width, height, brightness (no thumbnails yet)
+                return;
+            case 32 when args.Length >= 3: // writeRegistryValue: name, value
+                WriteRegistry?.Invoke(StringOf(args[1]), args[2]);
+                return;
             case 34: // queryQuit
                 QueryQuit();
                 return;
