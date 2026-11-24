@@ -41,6 +41,9 @@ public sealed partial class ScriptVm
     }
 
     private readonly StringSlot[] _strings = [new(), new(), new(), new(), new()];
+    /// <summary><c>cursorCommand charset</c> (v8): the charset talk lines start from.</summary>
+    private void SetTalkCharset(int charset) => _stringDefaults[0].Charset = charset;
+
     private readonly StringSlot[] _stringDefaults =
     [
         new() { X = 2, Y = 5 }, new() { X = 2, Y = 5 }, new() { X = 2, Y = 5 }, new() { X = 2, Y = 5 }, new() { X = 2, Y = 5 },
@@ -217,7 +220,8 @@ public sealed partial class ScriptVm
     /// </summary>
     private void ActorTalk(byte[] message)
     {
-        _charsetBuffer = ConvertMessage(message, out string tag);
+        _charsetBuffer = ConvertMessage(message, out _);
+        string tag = _lastStringTag; // the last string converted decides: "/M1GT001/%v" speaks as the verb's name's tag
         if (State[EngineVars.HaveMessage] != 0) StopTalk();
         if (tag.Length > 0 && Speech is { } speech)
         {
@@ -332,6 +336,13 @@ public sealed partial class ScriptVm
     }
 
     /// <summary>
+    /// The tag of the last string converted (ScummVM <c>_lastStringTag</c>, set by translateText on every
+    /// conversion): a verb, object or string variable inside a message is converted after the message's own
+    /// tag is read, so its tag (or its lack of one) is what's left.
+    /// </summary>
+    private string _lastStringTag = "";
+
+    /// <summary>
     /// ScummVM <c>convertMessageToString</c> for v8, with <c>translateText</c>'s tag: "/BCCB301/Hello" says
     /// "Hello" with speech BCCB301. Escapes (0xFF, a code, a 32-bit operand): 1 a new line, 4 a variable's
     /// number, 6 the name of the object or actor a variable holds, 7 a string variable (converted in turn); the rest (keep text,
@@ -350,6 +361,7 @@ public sealed partial class ScriptVm
                 i = end + 2;
             }
         }
+        _lastStringTag = tag;
         var text = new StringBuilder();
         while (i < message.Length && message[i] != 0)
         {
@@ -370,6 +382,7 @@ public sealed partial class ScriptVm
             switch (code)
             {
                 case 4: text.Append(State.Read(val)); break;
+                case 5: if (VerbName(State.Read(val)) is { } verbName) text.Append(ConvertMessage(verbName, out _)); break;
                 case 6: if (State.Read(val) is int named and not 0 && NameOf(named) is { } name) text.Append(ConvertMessage(name, out _)); break;
                 case 7:
                     // The string goes through the conversion too (ScummVM convertStringMessage), so a verb

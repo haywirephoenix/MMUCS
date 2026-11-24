@@ -609,6 +609,9 @@ public sealed partial class ScriptVm
             case 0x9d: StartScene(Pop()); return;
             case 0x9e: ComeOutDoor(ins); return;
             case 0x9c: if (CursorCommand(ins)) return; break;
+            case 0xae: if (VerbOps(s, ins)) return; break;
+            case 0xb4: if (SaveRestoreVerbs(ins)) return; break;
+            case 0xdd: { int y = Pop(), x = Pop(); Push(VerbIdOf(FindVerbAt(x, y))); return; }
             case 0xba: KernelSet(s, ins); return;
             case 0xdc: { int y = Pop(), x = Pop(); Push(FindObject(x, y)); return; }
             case 0xb9: StartVideo(s, ins); return;
@@ -927,6 +930,8 @@ public sealed partial class ScriptVm
             case 0xE4: { int image = Pop(), obj = Pop(); CursorImage = (obj, State.Objects.IsObject(obj) ? State.Objects.Room(obj) : 0, image); break; }
             case 0xE5: { int y = Pop(), x = Pop(); CursorHotspot = (x, y); break; }
             case 0xE6: CursorTransparent = Pop(); break;
+            case 0xE7: SetTalkCharset(Pop()); break; // charset: the talk slot's default charset (ScummVM _string[0]._default.charset)
+            case 0xE8: State.PopList(16); break;      // charset colours: does nothing in v8 (ScummVM, confirmed with the disassembly)
             case 0xE9: { int y = Pop(), x = Pop(); MouseWarped?.Invoke(x, y); break; }
             default: return false;
         }

@@ -145,6 +145,7 @@ public sealed class FrameLoop
         }
         Vm.UpdateObjectStates();
         Vm.Charset();
+        if (Vm.CurrentRoom != 0) Vm.RedrawVerbs(Mouse.X, Mouse.Y); // v7+ redraws the verbs every frame
         Vm.EndFrameTexts();
         if (Vm.CurrentRoom != 0) Vm.ProcessActors();
         Frames++;
@@ -194,12 +195,19 @@ public sealed class FrameLoop
 
     /// <summary>
     /// ScummVM <c>checkExecVerbs</c>, after the scripts: while userput is on, a key or a click starts the verb
-    /// script. Clicks on verbs aren't told apart yet (there are no verbs): every click is a scene click.
+    /// script: a verb's key or a click on a verb with that verb, otherwise as a key or a scene click.
     /// </summary>
     private void CheckExecVerbs(int input)
     {
         if (Vm.UserPutLevel <= 0 || input == 0) return;
-        if (input < MaxKey) Vm.RunInputScript(ScriptVm.KeyClickArea, input, 1);
-        else Vm.RunInputScript(ScriptVm.SceneClickArea, 0, (input & LeftClick) != 0 ? 1 : 2);
+        if (input < MaxKey)
+        {
+            if (Vm.VerbWithKey(input) is int keyed and not 0) Vm.RunInputScript(ScriptVm.VerbClickArea, keyed, 1);
+            else Vm.RunInputScript(ScriptVm.KeyClickArea, input, 1);
+            return;
+        }
+        int code = (input & LeftClick) != 0 ? 1 : 2;
+        if (Vm.FindVerbAt(Mouse.X, Mouse.Y) is int over and not 0) Vm.RunInputScript(ScriptVm.VerbClickArea, Vm.VerbIdOf(over), code);
+        else Vm.RunInputScript(ScriptVm.SceneClickArea, 0, code);
     }
 }

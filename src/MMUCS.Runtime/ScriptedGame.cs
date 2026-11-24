@@ -63,6 +63,13 @@ public sealed class ScriptedGame : IDisposable
     /// <c>get-string-width</c> in these fonts (charset N is fontN.nut): the widest line's pen advance, the
     /// text's ^ codes skipped; 0 for a charset there's no font for.
     /// </summary>
+    /// <summary>The scripts measure text in these fonts: string widths, and the line heights verbs are hit by.</summary>
+    public static void UseFonts(ScriptVm vm, MMUCS.Core.Fonts.GlyphFont[] fonts)
+    {
+        vm.StringWidth = MeasureWith(fonts);
+        vm.FontHeight = charset => charset >= 0 && charset < fonts.Length && fonts[charset] is { } font ? (int)font.LineHeight : 0;
+    }
+
     public static Func<int, string, int> MeasureWith(MMUCS.Core.Fonts.GlyphFont[] fonts) => (charset, text) =>
     {
         var font = charset >= 0 && charset < fonts.Length ? fonts[charset] : null;
@@ -238,7 +245,7 @@ public sealed class ScriptedGame : IDisposable
         // The game's fonts, for get-string-width (the scripts centre and fit text with it).
         var fonts = gameFile == null ? [] : MMUCS.Core.Fonts.NutFont.LoadAll(gameFile);
         Fonts = fonts;
-        Vm.StringWidth = MeasureWith(fonts);
+        UseFonts(Vm, fonts);
         Vm.Said += (text, tag, actor) => Log.Info($"Game: {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" ({tag})" : "")}: {text}");
         if (MusicTable.Load(gameFile) is { } table)
         {
