@@ -180,7 +180,8 @@ public class ScriptedViewTests
         await view.Building;
 
         var frame = view.Capture();
-        var text = Assert.Single(frame.Texts, t => t is { IsEmpty: false });
+        var text = Assert.Single(frame.RoomTexts, t => t is { IsEmpty: false }); // over the talking actor, so it moves with the room
+        Assert.DoesNotContain(frame.Texts, t => t is { IsEmpty: false });
         Assert.NotNull(frame.Room);
         using var picture = Draw(frame, "scripted-cannon-talk");
         Assert.Equal(0, game.Faults);

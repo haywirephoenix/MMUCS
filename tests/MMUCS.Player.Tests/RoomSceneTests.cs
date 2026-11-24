@@ -132,4 +132,16 @@ public class RoomSceneTests
         }
         return bitmap;
     }
+
+    [Fact]
+    public void With_the_smooth_camera_actors_slide_from_the_last_frame_s_place_and_jumps_land_at_once()
+    {
+        static Runtime.Scripts.ActorPicture At(int fromX, int fromY, int x, int y) =>
+            new(1, new Runtime.Scripts.Costume(2, null, null), new AkosFrame(), false, 255, x, y, 0, false, fromX, fromY);
+
+        Assert.Equal((100f, 50f), RoomSceneBuilder.Slid(At(100, 50, 108, 52), 0));
+        Assert.Equal((104f, 51f), RoomSceneBuilder.Slid(At(100, 50, 108, 52), 0.5));
+        Assert.Equal((108f, 52f), RoomSceneBuilder.Slid(At(100, 50, 108, 52), 1)); // without it: where the engine has it
+        Assert.Equal((300f, 50f), RoomSceneBuilder.Slid(At(100, 50, 300, 50), 0.5)); // a put-actor across the room
+    }
 }

@@ -54,6 +54,7 @@ public class TextTests
         Assert.Equal(["CNGT001 by 3"], speech.Started);
         var line = Assert.Single(vm.Subtitles);
         Assert.Equal(("Hello there", 7), (line.Text, line.Color));
+        Assert.False(line.OverActor); // the scripts didn't ask for talk lines overhead: it's placed on the screen
         Assert.Equal((3, 1), (vm.State[EngineVars.TalkActor], vm.State[EngineVars.HaveMessage]));
         Assert.Equal(60 + 11 * 4, vm.TalkDelay); // 60 + 4 per letter
         // The talk-start animation through the talk script: from actorTalk and again as the line goes up (the
