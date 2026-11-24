@@ -149,6 +149,12 @@ static class BootCommand
                                   $" layer {act.Layer}{(act.Visible ? "" : " hidden")}{(act.Moving != 0 ? $" moving {act.Moving}" : "")}  {drawn}  limbs {limbs}");
             }
         }
+        if (vm.ScreenTexts.Count > 0)
+        {
+            Console.WriteLine("texts on the screen (as the last frame drew them):");
+            foreach (var t in vm.ScreenTexts)
+                Console.WriteLine($"  {t.X,4},{t.Y,-4} charset {t.Charset} color {t.Color,-3}{(t.Center ? " centred" : "")}{(t.Wrap ? " wrapped" : "")}  {t.Text.Replace('\n', '|')}");
+        }
         Console.WriteLine("running:");
         foreach (var slot in state.Slots.Where(x => x.IsAlive))
         {
@@ -175,7 +181,7 @@ static class BootCommand
 
         Console.WriteLine();
         Console.WriteLine($"{faults} faults, {warnings} warnings");
-        if (png != null) SaveRoom(vm, png);
+        if (png != null) SaveRoom(vm, png, gameFile);
         return faults > 0 ? 1 : 0;
     }
 
@@ -183,7 +189,7 @@ static class BootCommand
     /// The current room as the game window draws it: the objects the engine draws in their states, and the
     /// actors as the last frame drew them, at the room's full size.
     /// </summary>
-    private static void SaveRoom(ScriptVm vm, string file)
+    private static void SaveRoom(ScriptVm vm, string file, string gameFile)
     {
         if (vm.CurrentRoom == 0 || vm.Scripts.RoomBlock(vm.CurrentRoom) is not { } lflf || !RoomModel.TryCreate(lflf, out var model))
         {
@@ -199,10 +205,28 @@ static class BootCommand
         using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(Math.Max(1, scene.Width), Math.Max(1, scene.Height)));
         surface.Canvas.Clear(SkiaSharp.SKColors.Black);
         scene.Draw(surface.Canvas, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Nearest));
+        // The texts on the page, in the game fonts and the room's palette, as the game window draws them.
+        int drawnTexts = 0;
+        if (gameFile != null && vm.ScreenTexts.Count > 0)
+        {
+            var text = MMUCS.Player.Text.SubtitleRenderer.Create(MMUCS.Core.Fonts.NutFont.LoadAll(gameFile), MMUCS.Player.Text.SubtitleFontKind.Game, null, true);
+            var palette = ObimCache.ExtractPaletteContext(model.Room, 0).rawBytes;
+            surface.Canvas.Save();
+            surface.Canvas.Translate((vm.State[EngineVars.CameraPosX] - 320), (vm.State[EngineVars.CameraPosY] - 240));
+            foreach (var t in vm.ScreenTexts)
+            {
+                var flags = (t.Center ? MMUCS.Core.Smush.SmushTextFlags.Center : 0) | (t.Wrap ? MMUCS.Core.Smush.SmushTextFlags.Wrap : 0);
+                using var overlay = text.BuildText(new MMUCS.Core.Smush.SmushText { X = t.X, Y = t.Y, Flags = flags, Font = t.Charset, Color = t.Color, Text = t.Text }, palette, 640, 480);
+                if (overlay == null) continue;
+                overlay.Draw(surface.Canvas, smooth: false);
+                drawnTexts++;
+            }
+            surface.Canvas.Restore();
+        }
         using var data = surface.Snapshot().Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
         if (Path.GetDirectoryName(Path.GetFullPath(file)) is { } dir) Directory.CreateDirectory(dir);
         File.WriteAllBytes(file, data.ToArray());
-        Console.WriteLine($"saved room {vm.CurrentRoom} with {scene.Objects.Count} objects and {scene.Actors.Count} actors to {Path.GetFullPath(file)}");
+        Console.WriteLine($"saved room {vm.CurrentRoom} with {scene.Objects.Count} objects, {scene.Actors.Count} actors and {drawnTexts} texts to {Path.GetFullPath(file)}");
     }
 
     /// <summary>"WHAT@SECONDS" (seconds after boot, default 1) as a jiffy.</summary>
