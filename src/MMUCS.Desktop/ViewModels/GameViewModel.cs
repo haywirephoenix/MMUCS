@@ -240,6 +240,9 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
     /// <summary>A short note in the canvas's top right (the quick save's and load's), or null; it goes after a moment.</summary>
     [ObservableProperty] public partial string Toast { get; private set; }
 
+    /// <summary>A system message waiting for a key (the F1 menu's "overwrite this game? (Y/N)"), shown in the middle of the canvas, or null.</summary>
+    [ObservableProperty] public partial string SystemMessage { get; private set; }
+
     private DispatcherTimer _toastTimer;
 
     private void ShowToast(string text)
@@ -296,6 +299,7 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         IsStarted = RunScripts && Scripted.IsStarted;
         Status = RunScripts ? Scripted.Status : Game.Status;
         Frame = RunScripts ? ScriptedView.Capture() : View.Capture();
+        SystemMessage = RunScripts ? Scripted.SystemMessage : null;
         if (IsVideoPlaying != _wasVideo)
         {
             _wasVideo = IsVideoPlaying;

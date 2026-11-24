@@ -135,16 +135,20 @@ public partial class GameWindow : Window
             _vm.SkipVideo();
             e.Handled = true;
         }
-        else if (_vm is { IsPlaying: true } && (e.KeyModifiers & ~KeyModifiers.Shift) == KeyModifiers.None && _vm.PressKey(KeyCode(e.Key)))
+        else if (_vm is { IsPlaying: true } && (e.KeyModifiers & ~KeyModifiers.Shift) == KeyModifiers.None && _vm.PressKey(KeyCode(e.Key, (e.KeyModifiers & KeyModifiers.Shift) != 0)))
         {
             e.Handled = true;
         }
     }
 
-    /// <summary>A key as the engine numbers it: letters (lower case), digits, space, Enter, Tab, Backspace, Esc, F1–F9 (315–323); 0 for others.</summary>
-    private static int KeyCode(Key key) => key switch
+    /// <summary>
+    /// A key as the engine numbers it: letters (capitals with Shift), digits, space, Enter, Tab, Backspace, Esc,
+    /// F1–F9 (315–323), and the editing keys as the DOS scan code plus 256 (Home 327, Left 331, Right 333, End 335,
+    /// Delete 339: the F1 menu's name editing); 0 for others.
+    /// </summary>
+    private static int KeyCode(Key key, bool shift) => key switch
     {
-        >= Key.A and <= Key.Z => 'a' + (key - Key.A),
+        >= Key.A and <= Key.Z => (shift ? 'A' : 'a') + (key - Key.A),
         >= Key.D0 and <= Key.D9 => '0' + (key - Key.D0),
         >= Key.NumPad0 and <= Key.NumPad9 => '0' + (key - Key.NumPad0),
         >= Key.F1 and <= Key.F9 => 315 + (key - Key.F1),
@@ -154,6 +158,13 @@ public partial class GameWindow : Window
         Key.Back => 8,
         Key.Escape => 27,
         Key.OemPeriod => '.',
+        Key.OemComma => ',',
+        Key.OemMinus => shift ? '_' : '-',
+        Key.Home => 327,
+        Key.Left => 331,
+        Key.Right => 333,
+        Key.End => 335,
+        Key.Delete => 339,
         _ => 0,
     };
 
