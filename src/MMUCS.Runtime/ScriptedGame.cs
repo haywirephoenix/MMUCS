@@ -26,7 +26,7 @@ namespace MMUCS.Runtime;
 /// </summary>
 public sealed class ScriptedGame : IDisposable
 {
-    private readonly EngineThread _engine = new();
+    private EngineThread _engine = new();
     private string _requestedVideo;
     private Task<(SmushVideo Video, SmushAudioTrack Sound)> _videoLoad;
     private MediaClock _videoClock;
@@ -91,7 +91,7 @@ public sealed class ScriptedGame : IDisposable
     /// <summary>The music the scripts ask for (null without the game's program, which holds COMI's music tables).</summary>
     public ComiMusic Music { get; private set; }
     public MixerMusic MusicOutput { get; private set; }
-    private bool _mouseInside, _booted;
+    private bool _mouseInside, _booted, _quitRequested;
 
     /// <summary>Something that's shown changed.</summary>
     public event Action Changed;
@@ -221,7 +221,27 @@ public sealed class ScriptedGame : IDisposable
         Root = root ?? throw new ArgumentNullException(nameof(root));
         GameFile = gameFile;
         Scripts = new ScriptStore(root);
-        Vm = new ScriptVm(Scripts, new VmState(GameLimits.Read(root) ?? GameLimits.Comi));
+        Music = null;
+        MusicOutput = null;
+        Effects = new SoundEffects(SoundEffects.FromResources(Scripts, root)) { Mixer = _mixer };
+        Voice = new VoicePlayer(VoicePlayer.FromBundles(gameFile)) { Mixer = _mixer };
+        // The game's fonts, for get-string-width (the scripts centre and fit text with it).
+        Fonts = gameFile == null ? [] : MMUCS.Core.Fonts.NutFont.LoadAll(gameFile);
+        if (MusicTable.Load(gameFile) is { } table)
+        {
+            MusicOutput = new MixerMusic(MixerMusic.FromBundles(gameFile)) { Mixer = _mixer };
+            Music = new ComiMusic(table, MusicOutput);
+            Music.Changed += what => Log.Info($"Game music: {what}");
+        }
+        else if (gameFile != null) Log.Warn("Game: no comi.exe beside the game, so no music (its tables are in the program)");
+        NewEngine();
+        Changed?.Invoke();
+    }
+
+    /// <summary>A fresh engine on the loaded game's scripts and sounds, not booted yet.</summary>
+    private void NewEngine()
+    {
+        Vm = new ScriptVm(Scripts, new VmState(GameLimits.Read(Root) ?? GameLimits.Comi));
         Vm.Faulted += f =>
         {
             Faults++;
@@ -236,25 +256,15 @@ public sealed class ScriptedGame : IDisposable
         };
         Loop = new FrameLoop(Vm);
         _booted = false;
-        Music = null;
-        MusicOutput = null;
-        var effects = Effects = new SoundEffects(SoundEffects.FromResources(Scripts, root)) { Mixer = _mixer };
+        _quitRequested = false;
+        _viewRoom = -1;
+        var effects = Effects;
         Vm.Effects = effects;
-        var voice = Voice = new VoicePlayer(VoicePlayer.FromBundles(gameFile)) { Mixer = _mixer };
+        var voice = Voice;
         Vm.Speech = voice;
-        // The game's fonts, for get-string-width (the scripts centre and fit text with it).
-        var fonts = gameFile == null ? [] : MMUCS.Core.Fonts.NutFont.LoadAll(gameFile);
-        Fonts = fonts;
-        UseFonts(Vm, fonts);
+        UseFonts(Vm, Fonts);
         Vm.ViewWidth = (int)Math.Ceiling(GameState.CanvasWidth); // the camera keeps the whole canvas in the room
         Vm.Said += (text, tag, actor) => Log.Info($"Game: {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" ({tag})" : "")}: {text}");
-        if (MusicTable.Load(gameFile) is { } table)
-        {
-            MusicOutput = new MixerMusic(MixerMusic.FromBundles(gameFile)) { Mixer = _mixer };
-            Music = new ComiMusic(table, MusicOutput);
-            Music.Changed += what => Log.Info($"Game music: {what}");
-        }
-        else if (gameFile != null) Log.Warn("Game: no comi.exe beside the game, so no music (its tables are in the program)");
         var music = Music;
         var musicOutput = MusicOutput;
         // sound-kludge: the effects' commands, then the music's; stop-all stops the music too, as iMUSE does.
@@ -271,13 +281,67 @@ public sealed class ScriptedGame : IDisposable
             musicOutput?.Update();
             music?.Refresh();
         };
+        // The F1 menu's temporary save: the music is the host's to keep; a load stops the sounds playing and
+        // brings the saved music back, and the camera shown goes straight to the loaded one.
+        ComiMusic.Saved savedMusic = null;
+        Loop.StateSaved += () => savedMusic = music?.Save();
+        Loop.StateLoaded += () =>
+        {
+            effects.StopAll();
+            voice.Stop();
+            if (savedMusic != null) music?.Restore(savedMusic);
+            _viewRoom = -1;
+        };
+        // Quitting waits for the engine's step to end (it's in the middle of a script).
+        Vm.QuitRequested += () => _quitRequested = true;
         // The camera shown decides where the page's top left is in the room, for the virtual mouse.
         Loop.BeforeScripts += _ =>
         {
             Loop.ScreenOrigin = ((int)Math.Round(Camera.X) - 320, (int)Math.Round(Camera.Y) - 240);
             Loop.MouseRangeX = MouseRange();
         };
+    }
+
+    /// <summary>The scripts quit the game (the F1 menu's Quit): it has stopped, and Play boots it afresh.</summary>
+    public event Action Quit;
+
+    /// <summary>
+    /// Stops the game and throws its state away: the video and sounds stop, and a fresh engine waits for
+    /// <see cref="Play"/> to boot it.
+    /// </summary>
+    public void Reset()
+    {
+        if (Vm == null) return;
+        Stop();
+        _videoVoice?.Stop();
+        _videoVoice = null;
+        _videoClock = null;
+        _videoLoad = null;
+        _requestedVideo = null;
+        Video = null;
+        VideoName = null;
+        Effects?.StopAll();
+        Voice?.Stop();
+        MusicOutput?.FadeOut(0);
+        if (_engine.IsParked)
+        {
+            // A step parked in start-video can't be carried on with a new engine: give it a thread of its own.
+            _engine.Dispose();
+            _engine = new EngineThread();
+        }
+        Faults = 0;
+        LastFault = null;
+        NewEngine();
         Changed?.Invoke();
+    }
+
+    /// <summary>After a step: a quit the scripts asked for stops and clears the game.</summary>
+    private void QuitIfAsked()
+    {
+        if (!_quitRequested) return;
+        Log.Info("Game: the scripts quit");
+        Reset();
+        Quit?.Invoke();
     }
 
     /// <summary>
@@ -367,6 +431,11 @@ public sealed class ScriptedGame : IDisposable
         }
         bool ran = false;
         Step(() => ran = Loop.Tick());
+        if (_quitRequested)
+        {
+            QuitIfAsked();
+            return;
+        }
         var before = Camera;
         EaseCamera();
         if (ran || IsVideoPlaying || Camera != before || (SmoothCamera && ActorsSliding())) Changed?.Invoke();
@@ -463,6 +532,7 @@ public sealed class ScriptedGame : IDisposable
             LastFault = ex.Message;
             IsPlaying = false;
         }
+        QuitIfAsked();
         Changed?.Invoke();
     }
 

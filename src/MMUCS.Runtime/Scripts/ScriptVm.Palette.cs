@@ -63,6 +63,7 @@ public sealed partial class ScriptVm
                 return true;
             }
             case 0x5C: SetRoomPalette(Pop()); return true;
+            case 0x5D or 0x5E: return SaveLoadOps(ins);
             case 0x5F: e = Pop(); d = Pop(); c = Pop(); b = Pop(); a = Pop(); Palette.Desaturate(a, b, c, d, e); return true;
         }
         return false;

@@ -147,6 +147,33 @@ public sealed class ComiMusic
         if (_curSeq != 0) SetSequence(0);
     }
 
+    /// <summary>The music's part of a save: the state and sequence in force, the one waiting, and the attributes (the hooks taken).</summary>
+    public sealed record Saved(int State, int Sequence, int NextSequence, bool StopSequence, int[] Attributes);
+
+    public Saved Save() => new(_curState, _curSeq, _nextSeq, _stopSequence, (int[])_attributes.Clone());
+
+    /// <summary>
+    /// Puts the music back as <paramref name="saved"/> had it (ScummVM's iMUSE restores its tracks on a load):
+    /// the sequence's track, else the state's, crossfades in from its start unless it's what plays already.
+    /// </summary>
+    public void Restore(Saved saved)
+    {
+        ArgumentNullException.ThrowIfNull(saved);
+        (_curState, _curSeq, _nextSeq, _stopSequence) = (saved.State, saved.Sequence, saved.NextSequence, saved.StopSequence);
+        Array.Copy(saved.Attributes, _attributes, Math.Min(saved.Attributes.Length, _attributes.Length));
+        var cue = _curSeq != 0 ? Table.Sequences[_curSeq] : _curState != 0 ? Table.States[_curState] : null;
+        if (cue == null || cue.File.Length == 0 || cue.SoundId == 0)
+        {
+            if (_output.Playing != 0) _output.FadeOut(1000);
+            Changed?.Invoke("loaded: silence");
+            return;
+        }
+        if (_output.Playing == cue.SoundId) return;
+        if (_output.Playing == 0) _output.Start(cue, 0);
+        else _output.Switch(cue, 1000, samePlace: false, 0);
+        Changed?.Invoke($"loaded: {cue.Name}: {cue.File}");
+    }
+
     private static int IndexOf(System.Collections.Generic.IReadOnlyList<MusicCue> rows, int soundId)
     {
         for (int i = 0; i < rows.Count; i++)

@@ -46,7 +46,7 @@ public sealed partial class ScriptVm
     private readonly Random _random;
     private readonly List<Nest> _nest = [];
     private readonly ConditionalWeakTable<ScriptCode, Dictionary<int, ScriptInstruction>> _decoded = [];
-    private readonly Dictionary<string, int> _unhandledCounts = [];
+    [NonSerialized] private readonly Dictionary<string, int> _unhandledCounts = [];
 
     private sealed class Nest
     {
@@ -613,6 +613,7 @@ public sealed partial class ScriptVm
             case 0x9e: ComeOutDoor(ins); return;
             case 0x9c: if (CursorCommand(ins)) return; break;
             case 0xab: if (RoomOps(ins)) return; break;
+            case 0xb3: if (SystemOps(ins)) return; break;
             case 0xae: if (VerbOps(s, ins)) return; break;
             case 0xb4: if (SaveRestoreVerbs(ins)) return; break;
             case 0xdd: { int y = Pop(), x = Pop(); Push(VerbIdOf(FindVerbAt(x, y))); return; }
@@ -985,6 +986,9 @@ public sealed partial class ScriptVm
                 Palette.SetShadow(0, args[1], args[2], args[3], args[4], args[5]);
                 return;
             case 33: // paletteSetIntensity: ScummVM only logs it
+                return;
+            case 34: // queryQuit
+                QueryQuit();
                 return;
             case 30:
                 foreach (var other in State.Slots)

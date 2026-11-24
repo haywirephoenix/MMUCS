@@ -133,11 +133,20 @@ public sealed class FrameLoop
         Vm.UpdateCameraVars();
         BeforeScripts?.Invoke(step);
 
-        int clears = Vm.ClickClears;
-        Vm.RunAllScripts();
-        if (Vm.ClickClears != clears) input = 0; // stop-sentence dropped the click
-        CheckExecVerbs(input);
-        Vm.CheckAndRunSentenceScript();
+        state[EngineVars.GameLoaded] = 0;
+        while (true)
+        {
+            HandleSaveLoad();
+            int clears = Vm.ClickClears;
+            Vm.RunAllScripts();
+            if (Vm.ClickClears != clears) input = 0; // stop-sentence dropped the click
+            CheckExecVerbs(input);
+            Vm.CheckAndRunSentenceScript();
+            // A load asked for this frame happens at once and the scripts run again from it, so the room left
+            // isn't drawn (ScummVM's goto load_game); the loaded game starts with no click.
+            if (Vm.PendingSaveLoad != SaveLoadRequest.Load) break;
+            input = 0;
+        }
         if (Vm.CurrentRoom != 0)
         {
             Vm.WalkActors();
@@ -151,6 +160,25 @@ public sealed class FrameLoop
         Vm.EndFramePalette();
         Frames++;
         AfterScripts?.Invoke(step);
+    }
+
+    /// <summary>The scripts' save went into <see cref="ScriptVm.TemporaryState"/> (the host saves what it keeps itself, such as the music).</summary>
+    public event Action StateSaved;
+
+    /// <summary>The engine was put back as a save had it; the host follows (its sounds, the camera it shows).</summary>
+    public event Action StateLoaded;
+
+    private void HandleSaveLoad()
+    {
+        switch (Vm.HandleSaveLoad())
+        {
+            case SaveLoadRequest.Save: StateSaved?.Invoke(); break;
+            case SaveLoadRequest.Load:
+                _leftClicked = _rightClicked = false; // ScummVM clearClickedStatus
+                _key = 0;
+                StateLoaded?.Invoke();
+                break;
+        }
     }
 
     /// <summary>ScummVM <c>processInput</c>: the mouse and button variables, then the key. Returns the click or key for the verb script.</summary>
