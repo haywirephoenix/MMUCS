@@ -202,7 +202,7 @@ public sealed partial class ScriptVm
             case 0x6A: a.WalkFrame = A0(); break;
             case 0x6B: a.StandFrame = A0(); break;
             case 0x6C: a.AnimSpeed = A0(); a.AnimProgress = 0; break;
-            case 0x6D: a.Init(0); break;
+            case 0x6D: Actors.Init(a, 0); break;
             case 0x6E:
                 if (a.Elevation != A0()) { a.Elevation = A0(); a.NeedRedraw = true; }
                 break;
@@ -234,7 +234,7 @@ public sealed partial class ScriptVm
                 break;
             case 0x7C: a.IgnoreTurns = true; break;
             case 0x7D: a.IgnoreTurns = false; break;
-            case 0x7E: a.Init(2); break;
+            case 0x7E: Actors.Init(a, 2); break;
             case 0x7F: a.Layer = A0(); break;
             case 0x80:
                 Actors.StopMoving(a);

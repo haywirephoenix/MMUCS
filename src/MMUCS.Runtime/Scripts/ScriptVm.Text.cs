@@ -333,7 +333,7 @@ public sealed partial class ScriptVm
     /// <summary>
     /// ScummVM <c>convertMessageToString</c> for v8, with <c>translateText</c>'s tag: "/BCCB301/Hello" says
     /// "Hello" with speech BCCB301. Escapes (0xFF, a code, a 32-bit operand): 1 a new line, 4 a variable's
-    /// number, 6 the name of the object or actor a variable holds, 7 a string variable; the rest (keep text,
+    /// number, 6 the name of the object or actor a variable holds, 7 a string variable (converted in turn); the rest (keep text,
     /// wait, verb names, sounds, colours) show nothing.
     /// </summary>
     public string ConvertMessage(ReadOnlySpan<byte> message, out string tag)
@@ -371,11 +371,13 @@ public sealed partial class ScriptVm
                 case 4: text.Append(State.Read(val)); break;
                 case 6: if (State.Read(val) is int named and not 0 && NameOf(named) is { } name) text.Append(ConvertMessage(name, out _)); break;
                 case 7:
+                    // The string goes through the conversion too (ScummVM convertStringMessage), so a verb
+                    // name such as "/PU_M018/examine" loses its tag.
                     if (State.ArrayById(State.Read(val)) is { Type: ArrayType.String } array)
                     {
                         var bytes = array.Bytes;
                         int n = bytes.IndexOf((byte)0);
-                        text.Append(Encoding.Latin1.GetString(n < 0 ? bytes : bytes[..n]));
+                        text.Append(ConvertMessage(n < 0 ? bytes : bytes[..n], out _));
                     }
                     break;
             }

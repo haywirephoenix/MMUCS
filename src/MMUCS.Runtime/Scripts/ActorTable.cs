@@ -46,6 +46,24 @@ public sealed class ActorTable
         _vm = vm;
         _random = random;
         for (int i = 0; i < Count; i++) _actors[i] = new Actor(i);
+        for (int i = 1; i < Count; i++) TakeObjectZeroClasses(_actors[i]);
+    }
+
+    /// <summary>
+    /// ScummVM <c>Actor::initActor</c> (v7+), the engine's part: the actor's fields from <see cref="Actor.Init"/>,
+    /// then its classes become object 0's as they are now, so scripts that make object 0 untouchable before
+    /// setting up an actor (<c>actor N default</c>) make that actor untouchable (room 9's cannon overlay).
+    /// </summary>
+    public void Init(Actor a, int mode)
+    {
+        a.Init(mode);
+        TakeObjectZeroClasses(a);
+    }
+
+    private void TakeObjectZeroClasses(Actor a)
+    {
+        var objects = _vm.State.Objects;
+        if (a.Number < objects.Count) objects.SetClasses(a.Number, objects.Classes(0));
     }
 
     /// <summary>Actor <paramref name="number"/> (ScummVM <c>derefActor</c>: 0 counts, past the table is an error).</summary>
