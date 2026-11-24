@@ -183,7 +183,7 @@ public class WalkTests
     }
 
     [Fact]
-    public void The_camera_shown_stays_inside_the_room_when_the_scripts_let_the_engine_s_go_past_it()
+    public void The_camera_keeps_the_whole_view_inside_the_room_even_when_the_scripts_widen_its_limits()
     {
         if (Game == null) return;
         var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
@@ -199,10 +199,11 @@ public class WalkTests
             vm.State[EngineVars.CameraMinX] = -1000;
             vm.CameraAt(4000, 240); // as camera-at does: no longer following Guybrush
             for (int i = 0; i < 300; i++) game.Tick();
-            Assert.Equal((4000, 2096 - GameState.CanvasWidth / 2), ((int)game.EngineCamera.X, game.Camera.X)); // the town's right edge less half the canvas
+            // The engine's camera, too, keeps the whole canvas in the town (the scripts see what's drawn).
+            Assert.Equal((1669, 1669), ((int)game.EngineCamera.X, (int)game.Camera.X)); // the town's right edge less half the canvas
             vm.CameraAt(-500, 240);
             for (int i = 0; i < 300; i++) game.Tick();
-            Assert.Equal((-500, GameState.CanvasWidth / 2), ((int)game.EngineCamera.X, game.Camera.X));
+            Assert.Equal((427, 427), ((int)game.EngineCamera.X, (int)game.Camera.X));
         }
     }
 
@@ -216,8 +217,8 @@ public class WalkTests
         game.Play();
         for (int i = 0; i < 150; i++) game.Tick();
         var vm = game.Vm;
-        vm.CameraAt(1776, 240); // as far right as the engine goes in the town
-        Assert.Equal(2096 - GameState.CanvasWidth / 2, game.Camera.X); // the view stops short, so the end is beside the screen
+        vm.CameraAt(1776, 240); // as far right as ScummVM's camera goes in the town
+        Assert.Equal(2096 - 427, game.Camera.X); // the view stops short, so the end is beside the screen
 
         int exit = vm.Scripts.ObjectId("town-plndrmap-door-1"); // at room x 2024–2104
         game.Loop.Mouse = (719, 300);

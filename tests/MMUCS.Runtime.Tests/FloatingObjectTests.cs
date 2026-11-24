@@ -7,8 +7,9 @@ namespace MMUCS.Runtime.Tests;
 /// <summary>
 /// Floating and blast objects as ScummVM's engine has them: load-object brings an object from its home room
 /// into the current room's slots, super-blast-object draws one over the room for a frame, kernel-get 216 finds
-/// the blasted object under a point, and locked floating objects stay through a room change. The game tests
-/// (MMUCS_GAME) open COMI's inventory and verb coin.
+/// the blasted object under a point, locked floating objects stay through a room change, and a floating
+/// object's code comes from its home room. The game tests (MMUCS_GAME) open COMI's inventory and verb coin,
+/// and pick up an item as the cursor.
 /// </summary>
 public class FloatingObjectTests
 {
@@ -138,6 +139,54 @@ public class FloatingObjectTests
         Assert.Equal(1, game.Vm.Actors[50].Costume);
         Assert.DoesNotContain(game.Vm.Actors.Pictures, p => p.Actor == 50);
         game.Release(MouseButton.Left);
+        Assert.Equal(0, game.Faults);
+    }
+
+    [Fact]
+    public void A_floating_object_s_code_comes_with_it_from_its_home_room()
+    {
+        // Object 120's code is in room 1 (its verb 93 marks var300); it's loaded into room 5 and its verb run there.
+        var limits = GameLimits.Comi with { IndexObjects = [.. Enumerable.Range(0, 200).Select(i => ((byte)0, (byte)(i == 120 ? 1 : 0), 0u))] };
+        var store = ScriptStore.Of(
+            [new Asm().Push(120).Sub(0xaa, 0x3E).Push(0).Push(120).Push(93).List().Op(0x7f).End().Global(10)],
+            [Asm.Object(120, 1, (93, new Asm().Push(1).Write(300).End()))],
+            new Dictionary<int, (int, int)> { [5] = (640, 480) },
+            new Dictionary<int, IReadOnlyList<ObjectPlace>> { [1] = [new ObjectPlace(1, 120, 0, 0, 30, 40, 80, 56)] });
+        var vm = new ScriptVm(store, new VmState(limits));
+        vm.Faulted += f => throw new Xunit.Sdk.XunitException(f.ToString());
+        var warnings = new List<string>();
+        vm.Warned += warnings.Add;
+        vm.StartScene(5);
+        vm.RunScript(10);
+        Assert.Equal(1, vm.State[300]);
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public void An_inventory_item_clicked_becomes_the_cursor_through_closing_the_inventory_until_a_right_click()
+    {
+        if (Game == null) return;
+        using var game = ToTheCannon();
+        void Click(MouseButton button, double x, double y)
+        {
+            game.MoveCursor(GameState.PageToGame(new GamePoint(x, y)));
+            game.Press(button);
+            for (int i = 0; i < 6; i++) game.Tick();
+            game.Release(button);
+            for (int i = 0; i < 30; i++) game.Tick();
+        }
+        Click(MouseButton.Right, 320, 300); // the inventory
+        var balloons = Assert.Single(game.Vm.BlastObjects, b => b.Object == 120);
+        Click(MouseButton.Left, balloons.X + balloons.Width / 2, balloons.Y + balloons.Height / 2);
+        Assert.Equal(120, game.Vm.CursorImage.Object); // the item's own code (from its home room) made it the cursor
+
+        game.MoveCursor(GameState.PageToGame(new GamePoint(320, 20))); // off the inventory: it closes
+        for (int i = 0; i < 60; i++) game.Tick();
+        Assert.DoesNotContain(game.Vm.BlastObjects, b => b.Object == 114);
+        Assert.Equal(120, game.Vm.CursorImage.Object); // still holding the balloons
+
+        Click(MouseButton.Right, 320, 200);
+        Assert.Equal(105, game.Vm.CursorImage.Object); // back to the system cursor
         Assert.Equal(0, game.Faults);
     }
 
