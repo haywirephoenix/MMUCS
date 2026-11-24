@@ -136,7 +136,8 @@ static class BootCommand
 
         Console.WriteLine();
         Console.WriteLine($"after {loop.Jiffies} jiffies, {loop.Frames} frames: room {vm.CurrentRoom} {store.RoomName(vm.CurrentRoom)}, stack {state.Stack.Count}, " +
-                          $"userput {vm.UserPutLevel}, cursor {vm.CursorLevel} (object {vm.CursorImage.Object} image {vm.CursorImage.Image})");
+                          $"userput {vm.UserPutLevel}, cursor {vm.CursorLevel} (object {vm.CursorImage.Object} image {vm.CursorImage.Image}), " +
+                          $"camera {vm.CameraX},{vm.CameraY}{(vm.CameraFollows != 0 ? $" following actor {vm.CameraFollows}" : "")}{(vm.CameraFrozen ? " (paused)" : "")}");
         if (vm.RoomObjects.Count > 0)
         {
             Console.WriteLine("room objects (what --click OBJECT aims at):");
@@ -221,7 +222,7 @@ static class BootCommand
         surface.Canvas.Clear(SkiaSharp.SKColors.Black);
         scene.Draw(surface.Canvas, new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Nearest));
         // The blasted objects on the page, then the texts, as the game window draws them.
-        var page = new SkiaSharp.SKPoint(vm.State[EngineVars.CameraPosX] - 320, vm.State[EngineVars.CameraPosY] - 240);
+        var page = new SkiaSharp.SKPoint(vm.CameraX - 320, vm.CameraY - 240);
         foreach (var b in vm.BlastObjects)
         {
             if (MMUCS.Player.ScriptedView.BlastImage(vm, b) is not { } rgba) continue;
@@ -240,7 +241,7 @@ static class BootCommand
             var text = MMUCS.Player.Text.SubtitleRenderer.Create(MMUCS.Core.Fonts.NutFont.LoadAll(gameFile), MMUCS.Player.Text.SubtitleFontKind.Game, null, true);
             var palette = ObimCache.ExtractPaletteContext(model.Room, 0).rawBytes;
             surface.Canvas.Save();
-            surface.Canvas.Translate((vm.State[EngineVars.CameraPosX] - 320), (vm.State[EngineVars.CameraPosY] - 240));
+            surface.Canvas.Translate(vm.CameraX - 320, vm.CameraY - 240);
             foreach (var t in vm.ScreenTexts)
             {
                 var flags = (t.Center ? MMUCS.Core.Smush.SmushTextFlags.Center : 0) | (t.Wrap ? MMUCS.Core.Smush.SmushTextFlags.Wrap : 0);
