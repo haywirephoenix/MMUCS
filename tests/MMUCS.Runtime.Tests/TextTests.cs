@@ -111,6 +111,29 @@ public class TextTests
     }
 
     [Fact]
+    public void Labels_are_placed_from_the_room_objects_images()
+    {
+        // The F1 menu puts each label by its button's image: image-x/y/width/height of the room's slot.
+        var code = new Asm()
+            .Push(1386).Op(0xf0).Write(300).Push(1386).Op(0xf1).Write(301)
+            .Push(1386).Op(0xf2).Write(302).Push(1386).Op(0xf3).Write(303).End().Global(10);
+        var store = ScriptStore.Of([code], [], new Dictionary<int, (int, int)> { [92] = (640, 480) },
+            new Dictionary<int, IReadOnlyList<ObjectPlace>> { [92] = [new ObjectPlace(1, 1386, 0, 0, 400, 140, 144, 32)] });
+        var vm = new ScriptVm(store, new VmState(GameLimits.Comi));
+        var faults = new List<ScriptFault>();
+        vm.Faulted += faults.Add;
+        vm.StartScene(92);
+        vm.RunScript(10);
+        Assert.Empty(faults);
+        Assert.Equal((400, 140, 144, 32), (vm.State[300], vm.State[301], vm.State[302], vm.State[303]));
+
+        // One that isn't in the room stops the script, as the engine stops.
+        vm.StartScene(0);
+        vm.RunScript(10);
+        Assert.Contains("not in room", Assert.Single(faults).Message);
+    }
+
+    [Fact]
     public void String_width_measures_in_the_charset_given()
     {
         var code = new Asm().Push(2).Op(0xf6).Text("abcd").Write(300).End().Global(10);
