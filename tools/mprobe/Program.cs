@@ -57,7 +57,7 @@ usage: mprobe [--game FILE] COMMAND ...
                        mapping every frame to the picture it shows. NAME picks videos (opening, finale…).
 
   boot [--seconds N] [--click WHAT@S …] [--right-click WHAT@S …] [--key KEY@S …] [--calls] [--every-frame]
-       [--vars V,V…] [--boot N]
+       [--vars V,V…] [--boot N] [--limbs A,A…]
                        Run the game's scripts headless with MMUCS.Runtime's interpreter: the boot script,
                        then N seconds of frames (default 10). Prints each script starting (▸) and ending (◂),
                        indented by nesting, rooms entered, faults and warnings; then the scripts still running,
@@ -67,6 +67,8 @@ usage: mprobe [--game FILE] COMMAND ...
                        S seconds after boot (default 1) on WHAT, an object of the current room (number or name,
                        at its middle) or X,Y on the screen, and lets go 6 jiffies later; --right-click the same
                        with the right; --key presses a key (a character, esc, enter, space, f1…f9 or a code).
+                       --limbs prints those actors' animation and limbs (position in the sequence, s if
+                       stopped) each time they change, with the speech's lip sync while the actor talks.
                        The room's objects are listed at the end. Exits 1 if a script faulted.
 
 The game is the first resource file (COMI.LA0); the others beside it are loaded too. It comes from

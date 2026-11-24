@@ -14,6 +14,8 @@ static class BootCommand
         int bootParam = int.TryParse(takeOption(a, "--boot") ?? takeOption(a, "--param"), out var p) ? p : 0;
         string vars = takeOption(a, "--vars");
         string png = takeOption(a, "--png");
+        var watchLimbs = (takeOption(a, "--limbs") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray();
+        var lastLimbs = new Dictionary<int, string>();
         bool calls = a.Contains("--calls"), everyFrame = a.Contains("--every-frame");
         var inputs = new List<(int Jiffy, string What, string Spec)>();
         for (string c; (c = takeOption(a, "--click")) != null;) inputs.Add(Timed(c, "click"));
@@ -125,6 +127,18 @@ static class BootCommand
             if (i == releaseLeft) loop.Release(MouseButton.Left);
             if (i == releaseRight) loop.Release(MouseButton.Right);
             loop.Tick();
+            foreach (int n in watchLimbs)
+            {
+                // Each change of the actor's limbs (frame, position in the sequence), with the speech's mouth.
+                if (vm.Actors.Find(n) is not { } act) continue;
+                string now = $"anim {act.Frame}  " + string.Join(" ", Enumerable.Range(0, Actor.Limbs).Where(l => act.Active[l] != 0)
+                    .Select(l => $"{l}:{act.CurPos[l]}{((act.Stopped >> l & 1) != 0 ? "s" : "")}"));
+                if (lastLimbs.GetValueOrDefault(n) == now) continue;
+                lastLimbs[n] = now;
+                var (w, h) = voice.LipSync(state[EngineVars.Sync] + 50);
+                string talk = state[EngineVars.TalkActor] == n ? $"  talking, mouth {w}×{h}{(voice.Playing is { } tag ? $" in {tag}" : "")}" : "";
+                Console.WriteLine($"{loop.Jiffies / 60.0,7:0.000} s  f{loop.Frames,-4} LIMBS actor {n} {now}{talk}");
+            }
         }
         if (seen.Count == 0) Console.WriteLine("  nothing started, ended, entered or faulted (the running scripts just went on)");
         var repeats = seen.Where(kv => kv.Value > 1).OrderByDescending(kv => kv.Value).ToList();
