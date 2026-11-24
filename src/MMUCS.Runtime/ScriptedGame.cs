@@ -55,7 +55,11 @@ public sealed class ScriptedGame : IDisposable
         _mixer = mixer;
         _output = output;
         if (MusicOutput != null) MusicOutput.Mixer = mixer;
+        if (Effects != null) Effects.Mixer = mixer;
     }
+
+    /// <summary>The sound effects the scripts start.</summary>
+    public SoundEffects Effects { get; private set; }
 
     /// <summary>The music the scripts ask for (null without the game's program, which holds COMI's music tables).</summary>
     public ComiMusic Music { get; private set; }
@@ -132,21 +136,30 @@ public sealed class ScriptedGame : IDisposable
         _booted = false;
         Music = null;
         MusicOutput = null;
+        var effects = Effects = new SoundEffects(SoundEffects.FromResources(Scripts, root)) { Mixer = _mixer };
+        Vm.Effects = effects;
         if (MusicTable.Load(gameFile) is { } table)
         {
             MusicOutput = new MixerMusic(MixerMusic.FromBundles(gameFile)) { Mixer = _mixer };
             Music = new ComiMusic(table, MusicOutput);
             Music.Changed += what => Log.Info($"Game music: {what}");
-            var music = Music;
-            Vm.SoundKludge = list => music.Command(list);
-            // iMUSE's refresh, once a frame after everything else (ScummVM scummLoop_handleSound).
-            Loop.AfterScripts += _ =>
-            {
-                MusicOutput.Update();
-                Music.Refresh();
-            };
         }
         else if (gameFile != null) Log.Warn("Game: no comi.exe beside the game, so no music (its tables are in the program)");
+        var music = Music;
+        var musicOutput = MusicOutput;
+        // sound-kludge: the effects' commands, then the music's; stop-all stops the music too, as iMUSE does.
+        Vm.SoundKludge = list =>
+        {
+            if (list is [SoundEffects.StopAllCommand, ..]) musicOutput?.FadeOut(0);
+            return effects.Command(list) || music?.Command(list) == true;
+        };
+        // iMUSE's refresh, once a frame after everything else (ScummVM scummLoop_handleSound).
+        Loop.AfterScripts += jiffies =>
+        {
+            effects.Update(jiffies);
+            musicOutput?.Update();
+            music?.Refresh();
+        };
         // The camera decides where the page's top left is in the room, for the virtual mouse.
         Loop.BeforeScripts += _ => Loop.ScreenOrigin = (Vm.State[EngineVars.CameraPosX] - 320, Vm.State[EngineVars.CameraPosY] - 240);
         Changed?.Invoke();
@@ -168,6 +181,7 @@ public sealed class ScriptedGame : IDisposable
             if (_videoVoice != null) _videoVoice.Paused = false;
         }
         if (MusicOutput != null) MusicOutput.Paused = false;
+        if (Effects != null) Effects.Paused = false;
         Changed?.Invoke();
     }
 
@@ -178,6 +192,7 @@ public sealed class ScriptedGame : IDisposable
         _videoClock?.Pause();
         if (_videoVoice != null) _videoVoice.Paused = true;
         if (MusicOutput != null) MusicOutput.Paused = true;
+        if (Effects != null) Effects.Paused = true;
         SetMouseCaptured(false);
         Changed?.Invoke();
     }
@@ -330,6 +345,7 @@ public sealed class ScriptedGame : IDisposable
     {
         _videoVoice?.Stop();
         MusicOutput?.FadeOut(0);
+        Effects?.StopAll();
         _engine.Dispose();
     }
 

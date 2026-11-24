@@ -138,6 +138,9 @@ public sealed partial class ScriptVm
     /// </summary>
     public Func<int[], bool> SoundKludge { get; set; }
 
+    /// <summary>Plays start-sound's effects; without, start-sound, stop-sound and sound-running count as not carried out.</summary>
+    public Sound.SoundEffects Effects { get; set; }
+
     /// <summary>A script started a video (its file name, e.g. <c>opening.san</c>), played or not.</summary>
     public event Action<string> VideoStarted;
 
@@ -578,6 +581,12 @@ public sealed partial class ScriptVm
             case 0x80: StopObjectScript(Pop()); return;
             case 0x87: Pop(); return; // debug
             case 0xb2: SoundKludgeOp(s, ins); return;
+            case 0xaf when Effects != null: Effects.Start(Pop()); return;
+            case 0xb1 when Effects != null: Effects.Stop(Pop()); return;
+            case 0xd5 when Effects != null: a = Pop(); Push(a != 0 && Effects.IsRunning(a)); return;
+            // resourceRoutines: loading, locking and freeing resources mean nothing here, as everything is in
+            // memory; loading an object (0x3E) brings in a floating object, which isn't here yet.
+            case 0xaa when ins.SubOp != 0x3E: Pop(); return;
 
             // ── Rooms ──
             case 0x9d: StartScene(Pop()); return;
