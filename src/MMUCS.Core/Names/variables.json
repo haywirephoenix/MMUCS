@@ -853,8 +853,8 @@
       "Note": "Room 25 (banjo duel). How many frames Guybrush has to play the tune back: 75 when bit65 is set, else 60 (global/script_0216.scumm:7-12). rooms/025_banjo/local_2013.scumm:4-8 counts frames up to it, then starts script 213."
     },
     "689": {
-      "Name": "",
-      "Note": "Unconfirmed: room 25 (banjo duel). Set to 5 before the opponent plays (global/script_0216.scumm:14, global/script_0217.scumm:12) and to 1 once Guybrush's turn starts (global/script_0216.scumm:24). Its only read is global/script_0217.scumm:4-8, which re-enters room 25 in a cut-scene unless it is 5, so it may mean 'already in the duel view'. I couldn't tell why the values are 1 and 5."
+      "Name": "banjo-duel-half",
+      "Note": "Which half of room 25 the banjo duel shows: 5 while the tune is played to Guybrush (global/script_0216.scumm:14, global/script_0217.scumm:12, camera-at 320,240 in palette 0), 1 for Guybrush's answer (global/script_0216.scumm:22-24, room palette 1 and camera-at 960,240). Local 2009 animates the right half's actor 43 when it's 1, else the left half's actor 21 (rooms/025_banjo/local_2009.scumm:5-8); global 217 re-enters room 25 in a cut-scene unless it's 5 (global/script_0217.scumm:4-8), which puts palette 0 back. Why the values are 5 and 1 is unknown."
     },
     "691": {
       "Name": "waterline-guybrush-facing",
@@ -890,6 +890,14 @@
     }
   },
   "Bits": {
+    "19": {
+      "Name": "cursor-highlighted",
+      "Note": "Whether the cursor shows its highlighted frame: set to 1 with 'cursor image cursor-image frame 2' when the pointer is on something live, and 0 with frame 1 otherwise, so frame 2 is set only once (global/script_0014.scumm:17-25, the dialogue arrows; rooms/025_banjo/local_2024.scumm:54-61, the banjo's strings; rooms/092_saveload/local_2006.scumm:61-67). Cleared whenever the cursor goes back to the system cursor 105 (rooms/025_banjo/local_2002.scumm:3-10)."
+    },
+    "65": {
+      "Name": "easy-mode",
+      "Note": "1 on the easier difficulty, 0 on Mega-Monkey: the easy button (rooms/087_easyhard/local_2005.scumm:9-10, object 1365 easyhard-easy-button-object, start-script 2004(2)) runs global 446, which sets it (global/script_0446.scumm:31); the hard button's global 445 clears it (global/script_0445.scumm:31). The banjo duel goes easier with it: 75 frames to answer and tunes of at most 4 notes instead of 60 and 5 (global/script_0216.scumm:7-13), and each string's number shown as the pointer is on it (rooms/025_banjo/local_2024.scumm:10-15). The debug jumps set it too (global/script_0071.scumm:50, 1943)."
+    },
     "67": {
       "Name": "got-hangover-cure",
       "Note": "Set when Goodsoup hands over the hangover cure (rooms/061_hotelbar/local_2002.scumm:166-167, pick-up-object hotel-bar-hangover-cure); from then on he's at 429,253 in costume 309 instead of hungover at the bar (rooms/061_hotelbar/local_2012.scumm:4). The debug room jumps set it too (global/script_0071.scumm:3164)."
@@ -905,6 +913,10 @@
     "149": {
       "Name": "took-pot-of-cheese",
       "Note": "Set when Guybrush takes the pot of melted cheese away (global/script_0342.scumm:64): the hotel's pot object goes (state 0, untouchable) and the shipwreck's pot-o-cheese becomes usable (global/script_0342.scumm:65-67). hotel-ex then stops showing it (rooms/060_hotel-ex/local_2001.scumm:12, rooms/060_hotel-ex/local_2002.scumm:16)."
+    },
+    "524": {
+      "Name": "banjo-click-on-string",
+      "Note": "Set by room 25's local 2019 when the point it's given is in one of the banjo's string boxes 1-5 (kernel-get 116, isPointInBox; rooms/025_banjo/local_2019.scumm:4-18). The verb script 2007 asks 2019 about the clicked point and plays the string only when it's set, else ends (rooms/025_banjo/local_2007.scumm:12-35)."
     }
   }
 }
