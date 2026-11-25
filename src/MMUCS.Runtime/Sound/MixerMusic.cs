@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MMUCS.Core;
@@ -139,7 +140,8 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
     /// <summary>Once a frame, before the music's refresh: a loaded track starts, an "exit" marker switches.</summary>
     public void Update()
     {
-        if (_exitReached)
+        // A track with no "exit" marker (a mod's) can't say when: it switches as soon as it's playing.
+        if (_exitReached || (_atExit != null && _current?.Player is { } p && !p.Sound.Markers.Exists(m => m.Text == "exit")))
         {
             _exitReached = false;
             if (_atExit is var (cue, fade, hook)) Switch(cue, fade, samePlace: false, hook);
@@ -212,6 +214,37 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
             var sound = ImusSound.Parse(BundleCodec.Decompress(bundle.Read(bundle.Entries[at.Entry])));
             lock (cache) cache[number] = sound;
             return sound;
+        };
+    }
+
+    /// <summary>
+    /// A loader that plays the music mods beside <paramref name="gameFile"/> (<see cref="MusicMods"/>) in place of
+    /// the tracks they map, and <paramref name="fallback"/>'s for the rest (or when a mod's track won't load).
+    /// </summary>
+    public static Func<MusicCue, ImusSound> WithMods(string gameFile, Func<MusicCue, ImusSound> fallback)
+    {
+        var mods = MusicMods.Load(gameFile);
+        foreach (var problem in mods.Problems) Log.Warn($"Music mods: {problem}");
+        if (mods.Tracks.Count == 0) return fallback;
+        Log.Info($"Music mods: {mods.Tracks.Count} tracks from {string.Join(", ", mods.Tracks.Values.Select(t => t.Mod).Distinct())}");
+        var cache = new Dictionary<int, ImusSound>();
+        return cue =>
+        {
+            int number = cue.FileNumber;
+            if (!mods.Tracks.TryGetValue(number, out var track)) return fallback(cue);
+            lock (cache)
+                if (cache.TryGetValue(number, out var cached)) return cached;
+            try
+            {
+                var sound = MusicMods.Build(track);
+                lock (cache) cache[number] = sound;
+                return sound;
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException)
+            {
+                Log.Warn($"Music mods: {cue.File}: {Path.GetFileName(track.File)}: {ex.Message}; playing the game's");
+                return fallback(cue);
+            }
         };
     }
 

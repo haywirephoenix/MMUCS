@@ -338,7 +338,7 @@ public sealed class ScriptedGame : IDisposable
         Fonts = gameFile == null ? [] : MMUCS.Core.Fonts.NutFont.LoadAll(gameFile);
         if (MusicTable.Load(gameFile) is { } table)
         {
-            MusicOutput = new MixerMusic(MixerMusic.FromBundles(gameFile)) { Mixer = _mixer };
+            MusicOutput = new MixerMusic(MixerMusic.WithMods(gameFile, MixerMusic.FromBundles(gameFile))) { Mixer = _mixer };
             Music = new ComiMusic(table, MusicOutput);
             Music.Changed += what => Log.Info($"Game music: {what}");
         }
