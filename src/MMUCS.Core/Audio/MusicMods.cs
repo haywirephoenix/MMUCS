@@ -21,16 +21,20 @@ namespace MMUCS.Core.Audio;
 /// }
 /// </code>
 /// Times are seconds or "m:ss.s" in the file: the track plays from start to end (the whole file by default) and,
-/// unless loop is false, jumps from loopEnd (the end) back to loopStart (the start), crossfading over fadeMs
-/// into the audio after loopEnd. Its "_end" marker (where a sequence gives way to the state's music) is at loopEnd.
+/// when it loops, jumps from loopEnd (the end) back to loopStart (the start), crossfading over fadeMs into the
+/// audio after loopEnd. Without "loop" it loops when the game's track does: an interlude that ends by running
+/// out (2105-Interlude1) has to end here too, or the scripts' music after it never comes. Its "_end" marker (where a sequence gives way to the state's music) is at loopEnd.
 /// A blank value is a track still to be mapped, and a key without a track number (music baked into a cutscene,
 /// "opening.san title") is kept for later; both are skipped. A mod.json with "enabled": false is skipped too;
 /// where two mods map one track, the folder first by name wins.
 /// </summary>
 public sealed class MusicMods
 {
-    /// <summary>One replacement: the mod, its audio file and the stretch of it that plays and loops (seconds).</summary>
-    public sealed record Track(string Mod, string File, double Start, double? End, double? LoopStart, double? LoopEnd, bool Loop, int FadeMs);
+    /// <summary>
+    /// One replacement: the mod, its audio file and the stretch of it that plays and loops (seconds). Loop null
+    /// does what the game's track does (see <see cref="Build"/>).
+    /// </summary>
+    public sealed record Track(string Mod, string File, double Start, double? End, double? LoopStart, double? LoopEnd, bool? Loop, int FadeMs);
 
     private readonly Dictionary<int, Track> _tracks = [];
 
@@ -84,10 +88,10 @@ public sealed class MusicMods
             // A blank entry is a track still to be mapped.
             if (v.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(v.GetString())) continue;
             Track track = v.ValueKind == JsonValueKind.String
-                ? new Track(mod, Path.Combine(dir, v.GetString()), 0, null, null, null, true, 500)
+                ? new Track(mod, Path.Combine(dir, v.GetString()), 0, null, null, null, null, 500)
                 : new Track(mod, Path.Combine(dir, v.GetProperty("file").GetString()),
                     Time(v, "start") ?? 0, Time(v, "end"), Time(v, "loopStart"), Time(v, "loopEnd"),
-                    !(v.TryGetProperty("loop", out var loop) && loop.ValueKind == JsonValueKind.False),
+                    v.TryGetProperty("loop", out var loop) && loop.ValueKind is JsonValueKind.True or JsonValueKind.False ? loop.GetBoolean() : null,
                     v.TryGetProperty("fadeMs", out var fade) && fade.TryGetInt32(out int ms) ? ms : 500);
             if (!File.Exists(track.File))
             {
@@ -114,7 +118,8 @@ public sealed class MusicMods
     /// start to end, a region up to the loop, the loop and the tail, a jump from the loop's end to its start
     /// (unless it doesn't loop) and the "_end" marker there.
     /// </summary>
-    public static ImusSound Build(Track track)
+    /// <paramref name="gameLoops"/> is whether the game's own track loops, for a track whose loop isn't given.
+    public static ImusSound Build(Track track, bool gameLoops = true)
     {
         var flac = Flac.Open(track.File);
         int rate = flac.SampleRate;
@@ -131,11 +136,11 @@ public sealed class MusicMods
         if (loopStart > 0) regions.Add(new(0, loopStart));
         regions.Add(new(loopStart, loopEnd - loopStart));
         if (loopEnd < length) regions.Add(new(loopEnd, length - loopEnd));
-        var jumps = track.Loop ? new[] { new ImusSound.Jump(loopEnd, loopStart, 0, track.FadeMs) } : [];
+        var jumps = track.Loop ?? gameLoops ? new[] { new ImusSound.Jump(loopEnd, loopStart, 0, track.FadeMs) } : [];
         var markers = new[] { new ImusSound.Marker(0, Path.GetFileNameWithoutExtension(track.File)), new ImusSound.Marker(loopEnd, "_end") };
         // The game's music is 16-bit; a 24-bit soundtrack is shortened to it.
         if (flac.Channels > 2) throw new InvalidDataException($"{Path.GetFileName(track.File)}: {flac.Channels} channels (mono or stereo only)");
         return ImusSound.Build(rate, flac.Channels, length, regions, jumps, markers, length,
-            (bytes, at) => flac.Decode16(first, length, bytes, at));
+            (bytes, at) => flac.Decode16(first, length, bytes, at), track.File);
     }
 }

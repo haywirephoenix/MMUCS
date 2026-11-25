@@ -50,6 +50,9 @@ public sealed class ImusSound
     public List<Event> Events { get; } = [];
 
     public byte[] Bytes { get; }
+
+    /// <summary>The file a built sound was made from (a music mod's FLAC), null for the game's own.</summary>
+    public string Source { get; private set; }
     public ReadOnlySpan<byte> Samples => Bytes.AsSpan(DataOffset, DataLength);
     public int BytesPerFrame => Math.Max(1, Channels * Bits / 8);
     public long FrameCount => DataLength / BytesPerFrame;
@@ -96,10 +99,11 @@ public sealed class ImusSound
     /// A 16-bit iMUS sound made from PCM (a music mod's track): <paramref name="regions"/>,
     /// <paramref name="jumps"/> and <paramref name="markers"/> are in sample frames from the start of the audio
     /// and go in the map by position, with a stop at <paramref name="stop"/> when given. <paramref name="fill"/>
-    /// writes the <paramref name="frames"/> frames of samples into the buffer from the offset it's given.
+    /// writes the <paramref name="frames"/> frames of samples into the buffer from the offset it's given;
+    /// <paramref name="source"/> names the file they came from.
     /// </summary>
     public static ImusSound Build(int sampleRate, int channels, long frames, IEnumerable<Region> regions, IEnumerable<Jump> jumps,
-        IEnumerable<Marker> markers, long? stop, Action<byte[], int> fill)
+        IEnumerable<Marker> markers, long? stop, Action<byte[], int> fill, string source = null)
     {
         int bpf = channels * 2;
         var map = new MemoryStream();
@@ -134,7 +138,9 @@ public sealed class ImusSound
         BinaryPrimitives.WriteUInt32BigEndian(span[(dataOffset - 8)..], DATA);
         BinaryPrimitives.WriteUInt32BigEndian(span[(dataOffset - 4)..], (uint)dataLength);
         fill(bytes, dataOffset);
-        return Parse(bytes);
+        var sound = Parse(bytes);
+        sound.Source = source;
+        return sound;
     }
 
     private static void Write(MemoryStream map, uint tag, uint[] fields, string text)
