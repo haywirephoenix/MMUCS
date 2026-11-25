@@ -34,6 +34,9 @@ usage: mprobe [--game FILE] COMMAND ...
                        The game's fonts (charset N is fontN.nut): glyphs, line height, the ink and dark-edge
                        values and whether the edge is an outline all round or a drop shadow, every pixel
                        value with its count; --char draws a glyph (# ink, o edge, . transparent).
+  mods [--check]       The music mods (_mods/music/<mod>/mod.json beside the game): the tracks each replaces,
+                       problems reading the maps, the game's tracks none replaces; --check decodes every
+                       FLAC in them against its MD5.
 
   audio OUT [music|voice] [--check]
                        Decode the Digital iMUSE bundles (.bun) into OUT/music/NNNN.wav and OUT/voice/CODE.wav,
@@ -121,6 +124,7 @@ try
         "listen" => Listen(argv),
         "boot" => BootCommand.Run(root, argv, TakeOption, game),
         "fonts" => FontsCommand.Run(argv, TakeOption, game),
+        "mods" => ModsCommand.Run(argv, game),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }
