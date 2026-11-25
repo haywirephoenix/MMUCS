@@ -156,11 +156,32 @@ public sealed partial class ActorTable
     public int BoxMask(int box) => box >= 0 && box != Actor.InvalidBox && box < _boxes.Count ? (int)(_boxes[box].Mask & 0xFF) : 0;
 
     /// <summary>Whether the actor stands in box <paramref name="box"/> (ScummVM <c>checkXYInBoxBounds</c>).</summary>
-    public bool IsInBox(Actor a, int box)
+    public bool IsInBox(Actor a, int box) => IsInBox(box, a.X, a.Y);
+
+    /// <summary>
+    /// Whether the room point x,y is in box <paramref name="box"/> (ScummVM <c>checkXYInBoxBounds</c>, kernel-get
+    /// 116: the banjo's strings are boxes 1–5 of room 25).
+    /// </summary>
+    public bool IsInBox(int box, int x, int y)
     {
-        if (box < 0 || box >= _boxes.Count) return false;
+        if (box < 0 || box == Actor.InvalidBox || box >= _boxes.Count) return false;
         var b = _boxes[box];
-        return RoomActors.InBox([b.UpperLeft, b.UpperRight, b.LowerRight, b.LowerLeft], a.X, a.Y);
+        return RoomActors.InBox([b.UpperLeft, b.UpperRight, b.LowerRight, b.LowerLeft], x, y);
+    }
+
+    /// <summary>
+    /// ScummVM <c>getSpecialBox</c> (kernel-get 115): the last box holding x,y, searched down to box 0; −1 for
+    /// none, or once a visible player-only box is met first.
+    /// </summary>
+    public int BoxAt(int x, int y)
+    {
+        for (int i = _boxes.Count - 1; i >= 0; i--)
+        {
+            uint flags = BoxFlags(i);
+            if ((flags & 0x80) == 0 && (flags & 0x20) != 0) return -1;
+            if (IsInBox(i, x, y)) return i;
+        }
+        return -1;
     }
 
     // ── Placing ──

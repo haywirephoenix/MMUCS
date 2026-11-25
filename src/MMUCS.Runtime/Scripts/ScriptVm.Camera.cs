@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using MMUCS.Core.Scumm;
 
 namespace MMUCS.Runtime.Scripts;
@@ -36,11 +37,21 @@ public sealed partial class ScriptVm
     /// </summary>
     public int ViewWidth { get; set; } = ScreenWidth;
 
+    /// <summary>
+    /// Rooms seen only through the 640 screen, whatever <see cref="ViewWidth"/> is: room 25, the banjo duel, is
+    /// two screens side by side, each drawn in its own palette (the left in 0, the right in 1, which script 216
+    /// switches to with <c>camera-at 960,240</c>), so a wider view would show the other half in the wrong colours.
+    /// </summary>
+    public static readonly IReadOnlySet<int> PageOnlyRooms = new HashSet<int> { 25 };
+
+    /// <summary>Whether the room in play is one of <see cref="PageOnlyRooms"/>.</summary>
+    public bool IsPageOnly => PageOnlyRooms.Contains(CurrentRoom);
+
     private int ClampCameraX(int x)
     {
         x = Math.Clamp(x, State[EngineVars.CameraMinX], Math.Max(State[EngineVars.CameraMinX], State[EngineVars.CameraMaxX]));
         int width = State[EngineVars.RoomWidth];
-        if (ViewWidth <= ScreenWidth || width <= 0 || CurrentRoom == 0) return x;
+        if (ViewWidth <= ScreenWidth || width <= 0 || CurrentRoom == 0 || IsPageOnly) return x;
         int half = ViewWidth / 2;
         return Math.Clamp(x, Math.Min(half, width / 2), Math.Max(width - half, width / 2));
     }

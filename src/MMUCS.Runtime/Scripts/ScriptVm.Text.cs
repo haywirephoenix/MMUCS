@@ -133,8 +133,8 @@ public sealed partial class ScriptVm
 
     /// <summary>
     /// ScummVM <c>o8_kernelGetFunctions</c>, the parts COMI asks for so far: an actor's talk animation, the
-    /// registry's settings (text on, full volumes, object names), the volumes, the speech's lip sync and actor hits.
-    /// Others count as not carried out.
+    /// registry's settings (text on, full volumes, object names), the volumes, the speech's lip sync, actor hits and
+    /// the walkboxes at a point. Others count as not carried out.
     /// </summary>
     private bool KernelGet(ScriptSlot s, ScriptInstruction ins)
     {
@@ -147,6 +147,8 @@ public sealed partial class ScriptVm
             0xDC => Actors[a1].TalkStartFrame,
             0xD8 => FindBlastObject(a1, args.Length > 2 ? args[2] : 0),
             0xD9 => ActorHit(a1, args.Length > 2 ? args[2] : 0, args.Length > 3 ? args[3] : 0),
+            0x73 => Actors.BoxAt(a1, args.Length > 2 ? args[2] : 0), // getWalkBoxAt
+            0x74 or 0xD7 => Actors.IsInBox(args.Length > 3 ? args[3] : -1, a1, args.Length > 2 ? args[2] : 0) ? 1 : 0, // isPointInBox, getBox: x, y, box
             0xDD or 0xDE or 0xDF => 127, // the effects', voices' and music's volume (255 / 2)
             0xD3 => KeyState?.Invoke(a1) == true ? 1 : 0, // getKeyState: the cannon's and the ship's Tab, the ship's arrows
             0xE0 => RegistryValue(a1),

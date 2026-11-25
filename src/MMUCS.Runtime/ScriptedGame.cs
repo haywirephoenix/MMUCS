@@ -242,11 +242,19 @@ public sealed class ScriptedGame : IDisposable
     {
         if (CurrentRoom == 0) return at;
         int width = Vm.State[EngineVars.RoomWidth], height = Vm.State[EngineVars.RoomHeight];
-        return new(Within(at.X, width, GameState.CanvasWidth), Within(at.Y, height, GameState.CanvasHeight));
+        double view = IsPageOnly ? GameState.PageSize.Width : GameState.CanvasWidth;
+        return new(Within(at.X, width, view), Within(at.Y, height, GameState.CanvasHeight));
 
         static double Within(double centre, int room, double view) =>
             room <= view ? room / 2.0 : Math.Clamp(centre, view / 2, room - view / 2);
     }
+
+    /// <summary>
+    /// Whether the room in play is seen only through the 640 page (<see cref="ScriptVm.PageOnlyRooms"/>: the
+    /// banjo duel's two halves): the camera shown keeps just the page in the room, the picture is cut to the page
+    /// and the mouse stays on it.
+    /// </summary>
+    public bool IsPageOnly => Vm != null && Vm.IsPageOnly;
 
     /// <summary>Where the engine's camera is (ScummVM's stepping, what the scripts see).</summary>
     public GamePoint EngineCamera => Vm == null ? new(320, 240) : new(Vm.CameraX, Vm.CameraY);
@@ -1092,12 +1100,12 @@ public sealed class ScriptedGame : IDisposable
     /// <summary>
     /// Where the mouse may go across the screen: the screen itself, and beside it as far as the canvas shows the
     /// room (the camera shown keeps a wide room's ends on the canvas, past the 640 screen), so the exits at a
-    /// room's ends can be pointed at; a 640 room keeps 0–639.
+    /// room's ends can be pointed at; a 640 room keeps 0–639, as does a room seen only through the page.
     /// </summary>
     private (int Min, int Max) MouseRange()
     {
         int side = (int)Math.Ceiling(GameState.PageOrigin.X); // the canvas shows part of a pixel more on each side
-        if (CurrentRoom == 0) return (0, 639);
+        if (CurrentRoom == 0 || IsPageOnly) return (0, 639);
         int left = Loop.ScreenOrigin.X, width = Vm.State[EngineVars.RoomWidth];
         return (Math.Min(0, Math.Max(-side, -left)), Math.Max(639, Math.Min(639 + side, width - 1 - left)));
     }
