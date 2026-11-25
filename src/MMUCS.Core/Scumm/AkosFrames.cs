@@ -536,6 +536,13 @@ public static class AkosFrames
     }
 
     /// <summary>
+    /// The scale the engine draws a costume at for an actor's <paramref name="scale"/>: only codec 1 (byle RLE)
+    /// scales; codecs 5 and 16 always draw full size (ScummVM's <c>codec5</c> sets the BOMP scale to 255,
+    /// <c>codec16</c> has none). The alligator Guybrush pulls the tongue of in room 30 (costume 171) is one.
+    /// </summary>
+    public static int DrawnScale(AkosData d, int scale) => d.Header.Codec == AkosCodec.ByleRLE ? scale : 255;
+
+    /// <summary>
     /// Renders a frame at an actor's scale (255 is full size) the way the engine draws it: each cel scaled
     /// on its own with SCUMM's scale table (<see cref="ScaledColumns"/>), so the result is drawn unscaled.
     /// At 255 this is <see cref="Render"/>.
@@ -543,6 +550,7 @@ public static class AkosFrames
     public static RgbaImage RenderScaled(AkosData d, AkosFrame frame, int scale, out int originX, out int originY, bool mirror = false, CancellationToken token = default,
         byte[] screen = null, int[] remap = null, AkosShadow shadow = null)
     {
+        scale = DrawnScale(d, scale);
         if (scale >= 255) return Render(d, frame, out originX, out originY, mirror, token, screen, remap, shadow);
         originX = originY = 0;
         shadow?.Reset();
@@ -601,6 +609,7 @@ public static class AkosFrames
     public static bool HitTest(AkosData d, AkosFrame frame, int scale, bool mirror, int x, int y)
     {
         if (frame == null || frame.IsEmpty) return false;
+        scale = DrawnScale(d, scale);
         bool scaled = scale < 255;
         scale = Math.Max(scale, 1);
         byte transparent = d.TransparentIndex;
