@@ -108,6 +108,102 @@ public sealed class ScriptedGame : IDisposable
     public FrameLoop Loop { get; private set; }
 
     public bool IsLoaded => Vm != null;
+
+    /// <summary>
+    /// Where the inputs that reach the engine are written (the game window's <c>--record</c>), or null. Set it
+    /// before the game boots, so its jiffies count from boot as mprobe's do.
+    /// </summary>
+    public InputRecording Recorder { get; set; }
+
+    /// <summary>Logs more as it happens (the game window's <c>--verbose</c>): rooms, videos, sounds, temporary saves, inputs, each with the game's time.</summary>
+    public bool Verbose { get; set; }
+
+    private System.Collections.Generic.List<InputRecording.Event> _replay;
+    private System.Collections.Generic.Queue<InputRecording.Event> _answers;
+    private int _replayAt;
+
+    /// <summary>
+    /// Whether a recording is playing (<see cref="StartReplay"/>): its inputs drive the game and the host's are
+    /// ignored until it ends.
+    /// </summary>
+    public bool IsReplaying => _replay != null;
+
+    /// <summary>The replay reached its end (or the game was reset); the host has the game again.</summary>
+    public event Action ReplayEnded;
+
+    /// <summary>
+    /// Plays a recording's inputs (<see cref="InputRecording.Read"/>) into the game at the jiffies they were
+    /// recorded at, as mprobe boot's <c>--replay</c> does: the pointer, buttons, keys, answers to system messages,
+    /// skipped videos and loaded saves. Start it before the game boots, so the jiffies count from boot.
+    /// </summary>
+    public void StartReplay(System.Collections.Generic.IEnumerable<InputRecording.Event> events)
+    {
+        var all = events.ToList();
+        _answers = new(all.Where(e => e.Kind == "answer"));
+        _replay = all.Where(e => e.Kind != "answer").ToList();
+        _replayAt = 0;
+    }
+
+    private void EndReplay(string why)
+    {
+        if (_replay == null) return;
+        int left = _replay.Count - _replayAt;
+        Log.Info($"Game: replay {why} at {When.Trim()}" +
+                 (left > 1 || _answers.Count > 0 ? $", with {left} inputs and {_answers.Count} answers not played (it went its own way)" : "") +
+                 ": the game is yours");
+        _replay = null;
+        _answers = null;
+        ReplayEnded?.Invoke();
+        Changed?.Invoke();
+    }
+
+    /// <summary>The replay's inputs due by now, before the jiffy's frame (mprobe's order).</summary>
+    private void PlayReplay()
+    {
+        for (; _replay != null && _replayAt < _replay.Count && _replay[_replayAt].Jiffy <= Loop.Jiffies; _replayAt++)
+        {
+            var e = _replay[_replayAt];
+            switch (e.Kind)
+            {
+                case "move":
+                    Loop.Mouse = (e.X, e.Y);
+                    var page = GameState.PageOrigin;
+                    CursorPosition = new GamePoint(page.X + e.X + 0.5, page.Y + e.Y + 0.5);
+                    _mouseInside = e.X >= 0 && e.X < GameState.PageSize.Width;
+                    break;
+                case "press":
+                    Trace($"REPLAY press {(e.Button == MouseButton.Left ? "left" : "right")} {Loop.Mouse.X},{Loop.Mouse.Y}");
+                    Loop.Press(e.Button);
+                    break;
+                case "release":
+                    Loop.Release(e.Button);
+                    break;
+                case "key":
+                    Trace($"REPLAY key {e.X}");
+                    Loop.PressKey(e.X);
+                    break;
+                case "skip-video":
+                    Log.Warn($"Game: replay: a video was skipped at {e.Jiffy / 60.0:0.000} s, but none is playing");
+                    break;
+                case "load":
+                    if (!LoadFile(e.File)) Log.Warn($"Game: replay: couldn't load {e.File}");
+                    break;
+                case "end":
+                    _replayAt++;
+                    EndReplay("finished");
+                    return;
+            }
+        }
+        if (_replay != null && _replayAt >= _replay.Count) EndReplay("finished (no end mark: the recording was cut short)");
+    }
+
+    /// <summary>The game's time and frame, as mprobe boot shows them.</summary>
+    public string When => Loop == null ? "" : $"{Loop.Jiffies / 60.0,7:0.000} s f{Loop.Frames,-4}";
+
+    private void Trace(string text)
+    {
+        if (Verbose) Log.Info($"{When} {text}");
+    }
     public bool IsPlaying { get; private set; }
 
     /// <summary>Whether the game has booted (playing or paused) since it was loaded or last reset.</summary>
@@ -233,6 +329,7 @@ public sealed class ScriptedGame : IDisposable
         Music = null;
         MusicOutput = null;
         Effects = new SoundEffects(SoundEffects.FromResources(Scripts, root)) { Mixer = _mixer };
+        Effects.Started += id => Trace($"SOUND {id} starts");
         Voice = new VoicePlayer(VoicePlayer.FromBundles(gameFile)) { Mixer = _mixer };
         // The game's fonts, for get-string-width (the scripts centre and fit text with it).
         Fonts = gameFile == null ? [] : MMUCS.Core.Fonts.NutFont.LoadAll(gameFile);
@@ -281,6 +378,11 @@ public sealed class ScriptedGame : IDisposable
         Vm.Speech = voice;
         UseFonts(Vm, Fonts);
         Vm.ViewWidth = (int)Math.Ceiling(GameState.CanvasWidth); // the camera keeps the whole canvas in the room
+        Vm.RoomEntered += room => Trace(room == 0 ? "ROOM 0 (no room)" : $"ROOM {room} {Scripts.RoomName(room)}");
+        Vm.VideoStarted += name => Trace($"VIDEO {name}");
+        Vm.Warned += w => Trace($"warning: {w}");
+        Loop.StateSaved += () => Trace("SAVE temporary");
+        Loop.StateLoaded += () => Trace($"LOAD temporary: room {Vm.CurrentRoom}");
         Vm.Said += (text, tag, actor) => Log.Info($"Game: {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" ({tag})" : "")}: {text}");
         var music = Music;
         var musicOutput = MusicOutput;
@@ -412,6 +514,15 @@ public sealed class ScriptedGame : IDisposable
         }
         Faults = 0;
         LastFault = null;
+        EndReplay("stopped (the game was reset)");
+        if (Recorder != null && Loop != null)
+        {
+            // The recording counts jiffies from one boot; the next boot starts a new run.
+            Recorder.Comment("the game was reset here: the replay ends");
+            Recorder.End(Loop.Jiffies);
+            Log.Info($"Game: recording ended (the game was reset): {Recorder.Path}");
+            Recorder = null;
+        }
         NewEngine();
         Changed?.Invoke();
     }
@@ -472,8 +583,8 @@ public sealed class ScriptedGame : IDisposable
         IsMouseCaptured = captured;
         if (!captured)
         {
-            Loop?.Release(MouseButton.Left);
-            Loop?.Release(MouseButton.Right);
+            Release(MouseButton.Left);
+            Release(MouseButton.Right);
         }
         Changed?.Invoke();
     }
@@ -481,6 +592,7 @@ public sealed class ScriptedGame : IDisposable
     /// <summary>Moves the cursor (clamped to the canvas); the scripts see it on the page.</summary>
     public void MoveCursor(GamePoint position)
     {
+        if (IsReplaying) return; // the replay has the pointer
         CursorPosition = new GamePoint(Math.Clamp(position.X, 0, GameState.CanvasWidth), Math.Clamp(position.Y, 0, GameState.CanvasHeight));
         var page = GameState.PageOrigin;
         _mouseInside = CursorPosition.X >= page.X && CursorPosition.X < page.X + GameState.PageSize.Width;
@@ -490,19 +602,32 @@ public sealed class ScriptedGame : IDisposable
 
     public void Press(MouseButton button)
     {
-        if (!IsMouseCaptured) return;
+        if (!IsMouseCaptured || IsReplaying) return;
         if (SystemMessage != null) Answer(0);
-        else Loop?.Press(button);
+        else if (Loop != null)
+        {
+            Recorder?.Press(Loop.Jiffies, Loop.Mouse, button);
+            Loop.Press(button);
+        }
     }
 
-    public void Release(MouseButton button) => Loop?.Release(button);
+    public void Release(MouseButton button)
+    {
+        if (Loop == null || IsReplaying) return;
+        Recorder?.Release(Loop.Jiffies, Loop.Mouse, button);
+        Loop.Release(button);
+    }
 
     /// <summary>A key, as the engine numbers it (ASCII; F1–F9 are 315–323).</summary>
     public void PressKey(int code)
     {
-        if (!IsPlaying) return;
+        if (!IsPlaying || IsReplaying) return;
         if (SystemMessage != null) Answer(code);
-        else Loop?.PressKey(code);
+        else if (Loop != null)
+        {
+            Recorder?.Key(Loop.Jiffies, code);
+            Loop.PressKey(code);
+        }
     }
 
     /// <summary>
@@ -590,6 +715,7 @@ public sealed class ScriptedGame : IDisposable
             _booted = true; // after a Stop, the save goes on in the fresh engine rather than a new boot
             _viewRoom = -1; // the camera shown goes straight to the loaded one
             Log.Info($"Game: loaded {path} into room {CurrentRoom}");
+            Recorder?.Load(Loop.Jiffies, path);
             Changed?.Invoke();
             return true;
         }
@@ -701,13 +827,28 @@ public sealed class ScriptedGame : IDisposable
     /// <summary>One jiffy (1/60 s) while playing: the video plays on, or a frame runs every timer-next jiffies.</summary>
     public void Tick()
     {
-        if (!IsPlaying || Loop == null || SystemMessage != null) return; // a system message stops the game until it's answered
+        if (!IsPlaying || Loop == null) return;
+        if (SystemMessage != null)
+        {
+            // A system message stops the game until it's answered: the replay answers as it was answered.
+            if (_answers != null && _answers.TryDequeue(out var answer)) Answer(answer.X);
+            return;
+        }
         if (IsVideoPlaying)
         {
+            if (_replay != null && _replayAt < _replay.Count && _replay[_replayAt] is { Kind: "skip-video" } skip && skip.Jiffy <= Loop.Jiffies)
+            {
+                _replayAt++;
+                Trace($"REPLAY skip-video {VideoName}");
+                EndVideo(skipped: true);
+                return;
+            }
             AdvanceVideo();
             return;
         }
+        if (_replay != null) PlayReplay();
         bool ran = false;
+        Recorder?.Move(Loop.Jiffies, Loop.Mouse);
         Step(() => ran = Loop.Tick());
         if (_quitRequested)
         {
@@ -722,7 +863,10 @@ public sealed class ScriptedGame : IDisposable
     /// <summary>Ends the video now; the cutscene it was in is skipped on the next frame.</summary>
     public void SkipVideo()
     {
-        if (IsVideoPlaying) EndVideo(skipped: true);
+        if (!IsVideoPlaying || IsReplaying) return;
+        Recorder?.SkipVideo(Loop.Jiffies);
+        Trace($"VIDEO {VideoName} skipped");
+        EndVideo(skipped: true);
     }
 
     /// <summary>Runs a step on the engine thread; one that parks has started a video.</summary>
@@ -760,6 +904,7 @@ public sealed class ScriptedGame : IDisposable
     {
         SystemMessage = null;
         _messageAnswer = key;
+        if (Loop != null) Recorder?.Answer(Loop.Jiffies, key);
         try
         {
             if (!_engine.Resume()) Parked();

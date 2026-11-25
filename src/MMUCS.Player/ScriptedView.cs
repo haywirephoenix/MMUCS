@@ -352,7 +352,7 @@ public sealed class ScriptedView(ScriptedGame game)
     {
         var game = Game;
         var vm = game.Vm;
-        if (!game.IsMouseCaptured || vm.CursorLevel <= 0) return null;
+        if (!(game.IsMouseCaptured || game.IsReplaying) || vm.CursorLevel <= 0) return null;
         var (obj, room, image) = vm.CursorImage;
         if (obj <= 0 || ObjectImage(obj, room, image) is not { } rgba) return null;
         var hotspot = vm.CursorHotspot is { X: 0, Y: 0 } ? new GamePoint(rgba.Width / 2.0, rgba.Height / 2.0) : new GamePoint(vm.CursorHotspot.X, vm.CursorHotspot.Y);

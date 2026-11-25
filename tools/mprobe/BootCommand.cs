@@ -10,8 +10,18 @@ static class BootCommand
 {
     public static int Run(ScummBlock root, List<string> a, Func<List<string>, string, string> takeOption, string gameFile = null)
     {
-        double seconds = double.TryParse(takeOption(a, "--seconds"), System.Globalization.CultureInfo.InvariantCulture, out var s) ? s : 10;
-        int bootParam = int.TryParse(takeOption(a, "--boot") ?? takeOption(a, "--param"), out var p) ? p : 0;
+        // --replay with no path (last, or before another option): the latest recording the game window's --record made.
+        int replayFlag = a.IndexOf("--replay");
+        string replayFile = replayFlag >= 0 && (replayFlag + 1 >= a.Count || a[replayFlag + 1].StartsWith("--"))
+            ? (a.Remove("--replay") ? MMUCS.Runtime.InputRecording.Latest() ?? throw new FileNotFoundException($"--replay: no recordings in {MMUCS.Runtime.InputRecording.DefaultFolder}") : null)
+            : takeOption(a, "--replay");
+        var (replayBoot, replay) = replayFile != null ? MMUCS.Runtime.InputRecording.Read(replayFile) : (0, []);
+        // A replay runs to its end (or a second past its last input, if the window didn't close cleanly) unless --seconds says otherwise.
+        double replaySeconds = replay.Count == 0 ? 10 : replay.Find(x => x.Kind == "end") is { Kind: not null } end ? end.Jiffy / 60.0 : replay[^1].Jiffy / 60.0 + 1;
+        double seconds = double.TryParse(takeOption(a, "--seconds"), System.Globalization.CultureInfo.InvariantCulture, out var s) ? s : replaySeconds;
+        int bootParam = int.TryParse(takeOption(a, "--boot") ?? takeOption(a, "--param"), out var p) ? p : replayBoot;
+        var answers = new Queue<MMUCS.Runtime.InputRecording.Event>(replay.Where(x => x.Kind == "answer"));
+        var replayInputs = replay.Where(x => x.Kind is not ("answer" or "end")).ToList();
         string vars = takeOption(a, "--vars");
         string png = takeOption(a, "--png");
         var watchLimbs = (takeOption(a, "--limbs") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray();
@@ -72,6 +82,11 @@ static class BootCommand
         int jiffyNow = 0;
         vm.AskSystem = text =>
         {
+            if (answers.TryDequeue(out var answer))
+            {
+                Line($"  answered with {(answer.X == 0 ? "a click" : $"KEY {answer.X}")} (recorded at {answer.Jiffy / 60.0:0.000} s)", vm.Depth);
+                return answer.X;
+            }
             var next = inputs.Where(x => x.What == "key" && x.Jiffy >= jiffyNow).OrderBy(x => x.Jiffy).FirstOrDefault();
             if (next.Spec == null)
             {
@@ -132,18 +147,22 @@ static class BootCommand
         vm.Warned += w => { warnings++; Line($"warning: {w}", vm.Depth); };
         if (calls) vm.Unhandled += c => Line($"· {c.Instruction.Name}({string.Join(", ", c.Args.Select(x => x.Length == 1 ? x[0].ToString() : $"[{string.Join(", ", x)}]"))}){(c.Instruction.Text is { } t ? " " + t : "")}", vm.Depth);
 
-        vm.Boot(bootParam);
-        booting = false;
-        if (loadFile != null)
+        // A save file loaded over the booted game, as the game window's F4 does.
+        void LoadSave(string path)
         {
-            // A save file loaded over the booted game, as the game window's F4 does.
             var missing = new List<string>();
             var clock = System.Diagnostics.Stopwatch.StartNew();
-            using (var file = File.OpenRead(loadFile))
+            using (var file = File.OpenRead(path))
                 MMUCS.Runtime.ScriptedGame.ReadSave(file, loop, effects, voice, music, missing);
-            Line($"LOAD {loadFile}: room {vm.CurrentRoom}, {state.Slots.Count(x => x.IsAlive)} scripts running ({clock.ElapsedMilliseconds} ms)");
+            Line($"LOAD {path}: room {vm.CurrentRoom}, {state.Slots.Count(x => x.IsAlive)} scripts running ({clock.ElapsedMilliseconds} ms)");
             foreach (var what in missing.Distinct()) Line($"  missing: {what}");
         }
+
+        vm.Boot(bootParam);
+        booting = false;
+        if (loadFile != null) LoadSave(loadFile);
+        if (replayFile != null)
+            Console.WriteLine($"replaying {replayFile}: {replayInputs.Count} inputs and {answers.Count} answers to system messages over {replaySeconds:0.##} s, boot param {replayBoot}");
 
         Console.WriteLine();
         int next = state[EngineVars.TimerNext];
@@ -153,10 +172,40 @@ static class BootCommand
         int jiffies = (int)Math.Round(seconds * 60);
         Console.WriteLine();
         Console.WriteLine($"{seconds:0.##} s of frames ({jiffies} jiffies){(everyFrame ? "" : ", each line shown the first time")}:");
-        int releaseLeft = -1, releaseRight = -1;
+        int releaseLeft = -1, releaseRight = -1, replayAt = 0;
         for (int i = 0; i < jiffies; i++)
         {
             jiffyNow = i;
+            // The recording's inputs, at the jiffies they reached the game window's engine.
+            for (; replayAt < replayInputs.Count && replayInputs[replayAt].Jiffy <= i; replayAt++)
+            {
+                var e = replayInputs[replayAt];
+                switch (e.Kind)
+                {
+                    case "move":
+                        loop.Mouse = (e.X, e.Y);
+                        break;
+                    case "press":
+                        int under = vm.FindObject(loop.Mouse.X + loop.ScreenOrigin.X, loop.Mouse.Y + loop.ScreenOrigin.Y);
+                        Line($"PRESS {(e.Button == MouseButton.Left ? "left" : "right")} {loop.Mouse.X},{loop.Mouse.Y} on {(under == 0 ? "nothing" : $"object {under} {RoomScripts.ObjectName(root, under)}")}");
+                        loop.Press(e.Button);
+                        break;
+                    case "release":
+                        loop.Release(e.Button);
+                        break;
+                    case "key":
+                        Line($"KEY {e.X}");
+                        loop.PressKey(e.X);
+                        break;
+                    case "skip-video":
+                        Line("VIDEO skipped");
+                        loop.VideoSkipped();
+                        break;
+                    case "load":
+                        LoadSave(e.File);
+                        break;
+                }
+            }
             foreach (var input in inputs.Where(x => x.Jiffy == i))
             {
                 if (input.What == "save")
@@ -212,6 +261,7 @@ static class BootCommand
                 Console.WriteLine($"{loop.Jiffies / 60.0,7:0.000} s  f{loop.Frames,-4} LIMBS actor {n} {now}{talk}");
             }
         }
+        if (answers.Count > 0) Console.WriteLine($"  {answers.Count} recorded answers to system messages weren't asked for: the replay went its own way");
         if (seen.Count == 0) Console.WriteLine("  nothing started, ended, entered or faulted (the running scripts just went on)");
         var repeats = seen.Where(kv => kv.Value > 1).OrderByDescending(kv => kv.Value).ToList();
         if (repeats.Count > 0)

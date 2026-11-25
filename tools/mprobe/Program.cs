@@ -58,6 +58,7 @@ usage: mprobe [--game FILE] COMMAND ...
 
   boot [--seconds N] [--click WHAT@S …] [--right-click WHAT@S …] [--key KEY@S …] [--calls] [--every-frame]
        [--vars V,V…] [--boot N] [--limbs A,A…] [--save FILE@S …] [--load FILE] [--saves DIR]
+       [--replay [FILE]]
                        Run the game's scripts headless with MMUCS.Runtime's interpreter: the boot script,
                        then N seconds of frames (default 10). Prints each script starting (▸) and ending (◂),
                        indented by nesting, rooms entered, faults and warnings; then the scripts still running,
@@ -76,11 +77,20 @@ usage: mprobe [--game FILE] COMMAND ...
                        The room's objects are listed at the end. Exits 1 if a script faulted.
 
 The game is the first resource file (COMI.LA0); the others beside it are loaded too. It comes from
---game, else the MMUCS_GAME environment variable.
+--game, else the MMUCS_GAME environment variable, else the last game either gave (kept in the app data's
+mprobe-game.txt).
 """;
 
 var argv = args.ToList();
+// The game: --game, else MMUCS_GAME, else the last one either gave, which is kept for next time.
+string lastGameFile = Path.Combine(MMUCS.Core.CorePaths.Root, "mprobe-game.txt");
 string game = TakeOption(argv, "--game") ?? Environment.GetEnvironmentVariable("MMUCS_GAME");
+if (string.IsNullOrEmpty(game) && File.Exists(lastGameFile)) game = File.ReadAllText(lastGameFile).Trim();
+else if (!string.IsNullOrEmpty(game) && File.Exists(game))
+{
+    Directory.CreateDirectory(Path.GetDirectoryName(lastGameFile));
+    File.WriteAllText(lastGameFile, Path.GetFullPath(game));
+}
 if (argv.Count == 0 || argv[0] is "-h" or "--help")
 {
     Console.WriteLine(Usage);
@@ -88,7 +98,7 @@ if (argv.Count == 0 || argv[0] is "-h" or "--help")
 }
 if (string.IsNullOrEmpty(game) || !File.Exists(game))
 {
-    Console.Error.WriteLine("mprobe: give the game's COMI.LA0 with --game FILE or the MMUCS_GAME variable.");
+    Console.Error.WriteLine($"mprobe: give the game's COMI.LA0 with --game FILE or the MMUCS_GAME variable{(string.IsNullOrEmpty(game) ? "" : $" ({game} not found)")}.");
     return 2;
 }
 
