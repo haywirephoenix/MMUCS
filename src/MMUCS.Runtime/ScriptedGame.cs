@@ -309,7 +309,7 @@ public sealed class ScriptedGame : IDisposable
         // : !IsPlaying ? "Press Play to boot the game."
         : $"room {CurrentRoom} {Scripts.RoomName(CurrentRoom)} · {Loop.Frames} frames · {Running} scripts" +
           (IsVideoPlaying ? $" · video {VideoName}{(Video == null ? " (loading)" : $" {VideoTime:m\\:ss} / {Video.Duration:m\\:ss}")}" : "") +
-          (MusicOutput?.Current is { } track ? $" · music {track.File}" : "") +
+          (MusicOutput?.Current is { } track ? $" · music {track.File}{(MusicOutput.Replacement is { } mod ? $" ({System.IO.Path.GetFileName(mod)})" : "")}" : "") +
           (BootParam != 0 ? $" · booted with param {BootParam}" : "") +
           (Faults > 0 ? $" · {Faults} faults (last: {LastFault})" : "");
 

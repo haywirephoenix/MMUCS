@@ -1,5 +1,6 @@
 using MMUCS.Core.Audio;
 using MMUCS.Core.Media;
+using MMUCS.Runtime.Sound;
 using Xunit;
 
 namespace MMUCS.Runtime.Tests;
@@ -30,6 +31,40 @@ public class MusicModTests
         int[] heard = [.. buffer.Select(s => (int)Math.Round(s * 128))];
         Assert.Equal([0, 1, 2, 3, 4, 5, 6, 7, 2, 3, 4, 5, 6, 7, 2, 3], heard);
         Assert.Equal(["title", "_end", "_end"], markers);
+    }
+
+    [Fact]
+    public void MusicSaysWhichFileStandsInForTheGamesTrack()
+    {
+        var sound = ImusSound.Build(100, 1, 4, [new(0, 4)], [], [], 4, (_, _) => { }, "/mods/music/Album/01 - Theme.flac");
+        var music = new MixerMusic(_ => sound);
+        music.Start(new MusicCue(2, 1099, "stateMenu", 0, 0, 0, "1099-Menu"), 0);
+        Assert.Null(music.Replacement); // still loading
+        SpinWait.SpinUntil(() => { music.Update(); return music.IsLoaded; }, 5000);
+        Assert.Equal("/mods/music/Album/01 - Theme.flac", music.Replacement);
+
+        var own = ImusSound.Build(100, 1, 4, [new(0, 4)], [], [], 4, (_, _) => { });
+        var game = new MixerMusic(_ => own);
+        game.Start(new MusicCue(2, 1099, "stateMenu", 0, 0, 0, "1099-Menu"), 0);
+        SpinWait.SpinUntil(() => { game.Update(); return game.IsLoaded; }, 5000);
+        Assert.Null(game.Replacement);
+    }
+
+    [Fact]
+    public void ModTrackLoopsOnlyWhereTheGamesOwnDoes()
+    {
+        if (Game == null || MusicTable.Load(Game) is not { } table) return;
+        var mods = MusicMods.Load(Game);
+        var load = MixerMusic.WithMods(Game, MixerMusic.FromBundles(Game));
+        // 2105-Interlude1 ends by running out, and the scripts' room music waits for that; 1100-Hold1 loops.
+        foreach (var (number, loops) in new[] { (2105, false), (1100, true) })
+        {
+            if (!mods.Tracks.TryGetValue(number, out var track) || track.Loop != null) continue;
+            var cue = table.States.Concat(table.Sequences).First(c => c.FileNumber == number);
+            var sound = load(cue);
+            Assert.NotNull(sound.Source);
+            Assert.Equal(loops, sound.Jumps.Count > 0);
+        }
     }
 
     [Fact]

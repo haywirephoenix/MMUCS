@@ -53,6 +53,9 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
     /// <summary>The track playing (or loading) and its hook, for a status line.</summary>
     public MusicCue Current => _current?.Cue;
 
+    /// <summary>The file playing in place of the game's track (a music mod's), null while it's the game's own or loading.</summary>
+    public string Replacement => _current?.Player?.Sound.Source;
+
     public int Playing
     {
         get
@@ -236,7 +239,7 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
                 if (cache.TryGetValue(number, out var cached)) return cached;
             try
             {
-                var sound = MusicMods.Build(track);
+                var sound = MusicMods.Build(track, track.Loop != null || GameLoops(cue, fallback));
                 lock (cache) cache[number] = sound;
                 return sound;
             }
@@ -246,6 +249,17 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
                 return fallback(cue);
             }
         };
+    }
+
+    /// <summary>
+    /// Whether the game's own track for <paramref name="cue"/> loops (has a jump); when it won't load, a state's
+    /// music does (1000s) and a sequence's doesn't.
+    /// </summary>
+    private static bool GameLoops(MusicCue cue, Func<MusicCue, ImusSound> load)
+    {
+        try { if (load(cue) is { } own) return own.Jumps.Count > 0; }
+        catch (Exception ex) when (ex is IOException or InvalidDataException) { }
+        return cue.SoundId < 2000;
     }
 
     private static Dictionary<int, (string, int)> IndexBundles(string gameFile)
