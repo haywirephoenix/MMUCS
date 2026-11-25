@@ -254,9 +254,10 @@ static class BootCommand
             if (quit) break;
             foreach (int n in watchLimbs)
             {
-                // Each change of the actor's limbs (frame, position in the sequence), with the speech's mouth.
+                // Each change of the actor's limbs (frame, position in the sequence) or of where it stands and how
+                // it's drawn (costume, scale, the box it's in), with the speech's mouth.
                 if (vm.Actors.Find(n) is not { } act) continue;
-                string now = $"anim {act.Frame}  " + string.Join(" ", Enumerable.Range(0, Actor.Limbs).Where(l => act.Active[l] != 0)
+                string now = $"costume {act.Costume} at {act.X},{act.Y} box {act.Walkbox} scale {act.ScaleX}  anim {act.Frame}  " + string.Join(" ", Enumerable.Range(0, Actor.Limbs).Where(l => act.Active[l] != 0)
                     .Select(l => $"{l}:{act.CurPos[l]}{((act.Stopped >> l & 1) != 0 ? "s" : "")}"));
                 if (lastLimbs.GetValueOrDefault(n) == now) continue;
                 lastLimbs[n] = now;
