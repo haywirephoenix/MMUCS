@@ -128,7 +128,8 @@ public sealed class ScriptedView(ScriptedGame game)
             {
                 int index = _wantedFrame;
                 bool havePicture = _cutscene != null;
-                var text = Text;
+                // Voice mode 0 (speech only) shows no subtitles over the videos either (ScummVM's SMUSH channel flag 0).
+                var text = Game.Vm?.State[EngineVars.VoiceMode] == 0 ? null : Text;
                 // Null when the picture didn't change (held shots, frames that only play sound).
                 var picture = await Task.Run(() =>
                 {
