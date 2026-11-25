@@ -10,7 +10,7 @@ namespace MMUCS.Runtime.Scripts;
 /// animates): its costume's frame, which way round and how big, where (room pixels; <see cref="Y"/> already
 /// lifted by the elevation), and the z-plane it's cut by (<see cref="FromBox"/>: the walk box's, which the
 /// engine keeps within the room's planes). <see cref="FromX"/>, <see cref="FromY"/>: where the frame before
-/// drew it (its own place when it wasn't drawn), for a view that slides actors between frames.
+/// drew it (its own place when it wasn't drawn or wore another costume), for a view that slides actors between frames.
 /// <see cref="Remap"/> is the actor's own colours for the costume's (<c>actor N palette</c>, <c>remap-costume</c>):
 /// a screen colour for each costume colour, 0xFF for the costume's own (AKPL); null when there are none.
 /// The colours are the screen's (<see cref="ScreenPalette"/>) when it's drawn.
@@ -550,14 +550,17 @@ public sealed partial class ActorTable
         if (frame.IsEmpty) return null;
 
         bool mirrored = AkosFrames.IsMirrored(costume.Data, a.Facing) ^ a.Flip;
-        int scale = Math.Clamp(a.ScaleX, 1, 255), y = a.Y - a.Elevation;
+        int scale = AkosFrames.DrawnScale(costume.Data, Math.Clamp(a.ScaleX, 1, 255)), y = a.Y - a.Elevation;
         var (l, t, r, b) = frame.Bounds;
         if (mirrored) (l, r) = (-r, -l);
         a.Drawn = (a.X + l * scale / 255, y + t * scale / 255, a.X + r * scale / 255, y + b * scale / 255);
 
         bool fromBox = a.ForceClip == Actor.BoxClip;
-        var (X, Y) = a.LastPicturePlace ?? (a.X, y);
-        a.LastPicturePlace = (a.X, y);
+        // A view slides the actor from the last frame's place, but not into another costume: that's a new
+        // picture, placed where the scripts put it (room 30's alligator, costume 171, is put 7 px below
+        // Guybrush's feet, its own Guybrush drawn to line up with his).
+        var (X, Y) = a.LastPicturePlace is var (lx, ly, lc) && lc == a.Costume ? (lx, ly) : (a.X, y);
+        a.LastPicturePlace = (a.X, y, a.Costume);
         return new ActorPicture(a.Number, costume, frame, mirrored, scale, a.X, y, fromBox ? BoxMask(a.Walkbox) : a.ForceClip, fromBox, X, Y,
             ActorPicture.RemapOf(a.Palette, costume.Data.Palette.Length), a.ShadowMode);
     }
