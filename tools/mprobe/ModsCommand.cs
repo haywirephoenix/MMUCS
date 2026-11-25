@@ -24,7 +24,8 @@ internal static class ModsCommand
         foreach (var (number, t) in mods.Tracks.OrderBy(kv => kv.Key))
         {
             string span = $"{t.Start:0.##}–{(t.End is { } e ? $"{e:0.##}" : "end")}";
-            string loop = t.Loop ? $", loops {(t.LoopStart ?? t.Start):0.##}–{(t.LoopEnd is { } le ? $"{le:0.##}" : "end")}" : ", once";
+            string range = $"{(t.LoopStart ?? t.Start):0.##}–{(t.LoopEnd is { } le ? $"{le:0.##}" : "end")}";
+            string loop = t.Loop switch { true => $", loops {range}", false => ", once", null => $", loops {range} if the game's does" };
             Console.WriteLine($"  {(names.TryGetValue(number, out var n) ? n : $"{number} (no such game track)"),-22} {t.Mod}/{Path.GetFileName(t.File)} {span}{loop}");
         }
         var unmapped = names.Keys.Where(k => !mods.Tracks.ContainsKey(k)).Order().Select(k => names[k]).ToList();
