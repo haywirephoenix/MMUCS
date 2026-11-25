@@ -20,8 +20,8 @@ namespace MMUCS.Desktop;
 /// player. It loads FILE (or the game opened last), without the main window, the hierarchy's costume pass or
 /// the single-instance hand-off, opens the game window and presses Play once it's ready. Closing it quits.
 /// <c>--boot N</c> gives the boot script parameter N (ScummVM's <c>-b</c>), which COMI uses to start in a room.
-/// <c>--load SAVE</c> loads a save once the game has booted: 0 is the quick save (F6's), anything else a save
-/// file's path.
+/// <c>--load SAVE</c> loads a save once the game has booted: a slot's number (the F1 menu's), <c>quick</c> (or 0)
+/// for the quick save (F6's), or a save file's path.
 /// <c>--record [OUT]</c> writes every input that reaches the engine to OUT (an <see cref="InputRecording"/>; by default
 /// a dated file in the app data's recordings folder), and on quitting prints the mprobe command that replays it
 /// headless. <c>--replay [REC]</c> (by default the latest recording in that folder) plays a recording back in the window instead: its inputs drive the game at the
@@ -71,13 +71,14 @@ internal static class GameOnly
         if (loadAt >= 0)
         {
             load = loadAt + 1 < args.Length && !args[loadAt + 1].StartsWith("--") ? args[loadAt + 1] : null;
-            if (load == null || (load != "0" && !File.Exists(load)))
+            bool named = load == "quick" || int.TryParse(load, out int n) && n >= 0;
+            if (load == null || (!named && !File.Exists(load)))
             {
-                Log.Error($"{LoadFlag}: give 0 for the quick save or a save file's path{(load == null ? "" : $" ({load} not found)")}");
+                Log.Error($"{LoadFlag}: give a slot's number, quick for the quick save, or a save file's path{(load == null ? "" : $" ({load} not found)")}");
                 desktop.Shutdown(1);
                 return;
             }
-            if (load != "0") load = Path.GetFullPath(load);
+            if (!named) load = Path.GetFullPath(load);
         }
         string record = null;
         int recordAt = Array.IndexOf(args, RecordFlag);
@@ -129,8 +130,9 @@ internal static class GameOnly
             if (vm.PlayCommand.CanExecute(null)) vm.PlayCommand.Execute(null);
             if (load != null)
             {
-                string path = load == "0" ? vm.Scripted.QuickSavePath : load;
-                if (!File.Exists(path)) Log.Error($"{LoadFlag} 0: no quick save yet ({path})");
+                string path = load is "quick" or "0" ? vm.Scripted.QuickSavePath
+                    : int.TryParse(load, out int slot) ? vm.Scripted.Saves?.SlotPath(slot) : load;
+                if (path == null || !File.Exists(path)) Log.Error($"{LoadFlag} {load}: no such save{(path == null ? "" : $" ({path})")}");
                 else if (!vm.LoadSave(path)) Log.Error($"{LoadFlag}: couldn't load {path} (a video was playing, or see above)");
             }
         }
