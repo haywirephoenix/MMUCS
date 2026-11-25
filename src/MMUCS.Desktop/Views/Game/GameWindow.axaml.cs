@@ -76,7 +76,7 @@ public partial class GameWindow : Window
     /// <summary>A script put the mouse somewhere (the cannon keeps it in the middle, as it reads how far it moved): the system pointer goes there too.</summary>
     private void OnMouseWarped()
     {
-        if (_vm is { IsMouseCaptured: true }) _confinement.Warp(Canvas.PointToScreen(Canvas.ToControl(_vm.CursorPosition)));
+        WarpToCursor();
     }
 
     private void OnVmPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -115,6 +115,17 @@ public partial class GameWindow : Window
         _vm.IsMouseCaptured = true;
         Log.Info($"Game window: mouse captured ({(_vm.IsMouseCaptured ? "the game has it" : "the game didn't take it")})");
         Confine();
+        // Under XWayland a warp only takes while the pointer is over the window, and the first one with the cursor
+        // hidden makes XWayland lock the pointer (true confinement). Warping right away, before the pointer can
+        // stray, starts that lock now rather than at the first warp that lands. Posted so the hidden cursor
+        // (on Avalonia's own X connection) is in place first, and the press has moved the game cursor.
+        Dispatcher.UIThread.Post(WarpToCursor, DispatcherPriority.Background);
+    }
+
+    /// <summary>Puts the system pointer where the game cursor is, while the mouse is captured.</summary>
+    private void WarpToCursor()
+    {
+        if (_vm is { IsMouseCaptured: true }) _ = _confinement.Warp(Canvas.PointToScreen(Canvas.ToControl(_vm.CursorPosition)));
     }
 
     private void OnCanvasMoved(object sender, PointerEventArgs e)
@@ -142,7 +153,7 @@ public partial class GameWindow : Window
     /// <summary>A pointer that got out between two moves goes back to where the game cursor is.</summary>
     private void OnCanvasExited(object sender, PointerEventArgs e)
     {
-        if (_vm is { IsMouseCaptured: true }) _confinement.Warp(Canvas.PointToScreen(Canvas.ToControl(_vm.CursorPosition)));
+        WarpToCursor();
     }
 
     /// <summary>
@@ -175,7 +186,6 @@ public partial class GameWindow : Window
             if (_recaptureOnResume && _vm.IsPlaying)
             {
                 Capture();
-                _confinement.Warp(Canvas.PointToScreen(Canvas.ToControl(_vm.CursorPosition)));
             }
             _recaptureOnResume = false;
             e.Handled = true;
