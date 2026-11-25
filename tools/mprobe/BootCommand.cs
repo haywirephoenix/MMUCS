@@ -197,6 +197,9 @@ static class BootCommand
                         Line($"KEY {e.X}");
                         loop.PressKey(e.X);
                         break;
+                    case "key-up":
+                        loop.ReleaseKey(e.X);
+                        break;
                     case "skip-video":
                         Line("VIDEO skipped");
                         loop.VideoSkipped();
@@ -224,6 +227,7 @@ static class BootCommand
                     int code = Key(input.Spec);
                     Line($"KEY {input.Spec} ({code})");
                     loop.PressKey(code);
+                    loop.ReleaseKey(code); // a tap: held for the next frame only
                     continue;
                 }
                 if (Point(input.Spec, vm, root) is not { } point)
