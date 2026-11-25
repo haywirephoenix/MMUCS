@@ -200,7 +200,8 @@ public sealed class FrameLoop
         Vm.UpdateCameraVars();
         BeforeScripts?.Invoke(step);
 
-        state[EngineVars.GameLoaded] = 0;
+        state[EngineVars.GameLoaded] = _loadedBetweenFrames ? 1 : 0;
+        _loadedBetweenFrames = false;
         while (true)
         {
             HandleSaveLoad();
@@ -250,7 +251,15 @@ public sealed class FrameLoop
         _leftClicked = _rightClicked = false;
         _key = 0;
         ReleaseKeys();
+        _loadedBetweenFrames = true;
     }
+
+    /// <summary>
+    /// A host's load happened between frames: the next frame starts with <c>game-loaded</c> 1, as after a load
+    /// in the frame. A save slot is the F1 snapshot, where the key script waits to see it (or it opens the menu
+    /// again); the only other script reading it (global 8) waits the same way, so a quick save loses nothing.
+    /// </summary>
+    private bool _loadedBetweenFrames;
 
     /// <summary>
     /// The host loads a save slot into the engine (with its sounds); false when it can't, and then the F1 menu's
@@ -268,6 +277,7 @@ public sealed class FrameLoop
                 _key = 0;
                 if (LoadSlot?.Invoke(Vm.PendingLoadSlot) == true)
                 {
+                    _loadedBetweenFrames = false; // loaded in the frame: game-loaded is set now
                     Vm.State[EngineVars.GameLoaded] = 1; // the save is the F1 snapshot, where the key script waits for it
                     break;
                 }
