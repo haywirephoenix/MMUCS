@@ -287,7 +287,7 @@ public sealed partial class ScriptVm
 
     /// <summary>
     /// ScummVM <c>o8_wait</c>: while what it waits for goes on, the script tries again next frame (those with
-    /// an actor jump back to push it again). The camera doesn't move yet, so it's never waited for.
+    /// an actor jump back to push it again). The camera is waited for until it reaches its destination.
     /// </summary>
     private void Wait(ScriptSlot s, ScriptInstruction ins)
     {

@@ -63,8 +63,10 @@ public static class EngineVars
     /// <summary>
     /// What the engine sets before the boot script runs (ScummVM <c>resetScummVars</c> for v8): a 640×480
     /// screen, disk 1 (boot goes to room 87, the difficulty choice, on disk 1, and to the options room otherwise), English,
-    /// no debug mode, 4 jiffies a character and 60 a line by default. The music and voice bundle flags stay
-    /// 0, as ScummVM leaves them.
+    /// no debug mode, 4 jiffies a character and 60 a line by default, and the v7+ camera ScummVM's
+    /// <c>resetScumm</c> sets up (no script sets it): thresholds of 100 and 70, accel 100 a frame, without which
+    /// a <c>pan-camera-to</c> never moves and its <c>wait-for-camera</c> never ends. The music and voice bundle
+    /// flags stay 0, as ScummVM leaves them.
     /// </summary>
     public static void Reset(VmState state, int language = 0)
     {
@@ -76,5 +78,18 @@ public static class EngineVars
         state[DefaultTalkDelay] = 60;
         state[CurrentDisk] = 1;
         state[Language] = language;
+        ResetCamera(state);
+    }
+
+    /// <summary>
+    /// The camera's thresholds and accel as ScummVM's <c>resetScumm</c> sets them (v7+). A save from before the
+    /// engine set them has them all 0 and gets them on load, as ScummVM upgrades its own old saves.
+    /// </summary>
+    public static void ResetCamera(VmState state)
+    {
+        state[CameraThresholdX] = 100;
+        state[CameraThresholdY] = 70;
+        state[CameraAccelX] = 100;
+        state[CameraAccelY] = 100;
     }
 }

@@ -71,6 +71,9 @@ public sealed partial class ScriptVm
     {
         ArgumentNullException.ThrowIfNull(saved);
         StateGraph.Restore(saved, this);
+        if (State[EngineVars.CameraThresholdX] == 0 && State[EngineVars.CameraThresholdY] == 0
+            && State[EngineVars.CameraAccelX] == 0 && State[EngineVars.CameraAccelY] == 0)
+            EngineVars.ResetCamera(State);
         _blastObjects.Clear();
         BlastObjects = [];
         Guarded("drawing the loaded actors", Actors.Redraw);
