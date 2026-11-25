@@ -562,6 +562,23 @@ public sealed partial class ActorTable
             ActorPicture.RemapOf(a.Palette, costume.Data.Palette.Length), a.ShadowMode);
     }
 
+    /// <summary>
+    /// ScummVM <c>Actor::actorHitTest</c>: whether the actor, drawn as it stands now, has a costume pixel at
+    /// room point (<paramref name="x"/>, <paramref name="y"/>). Ship combat asks it of each ship for every
+    /// cannonball in flight (kernel-get 217).
+    /// </summary>
+    public bool HitTest(Actor a, int x, int y)
+    {
+        if (a.Costume == 0 || _vm.Scripts.Costume(a.Costume) is not { } costume) return false;
+        SetupScale(a);
+        var positions = new List<int>();
+        for (int i = 0; i < Actor.Limbs; i++)
+            if (a.Active[i] != 0 && (a.Stopped & (1 << i)) == 0) positions.Add(a.CurPos[i]);
+        var frame = AkosFrames.ComposeAt(costume.Data, positions);
+        bool mirrored = AkosFrames.IsMirrored(costume.Data, a.Facing) ^ a.Flip;
+        return AkosFrames.HitTest(costume.Data, frame, Math.Clamp(a.ScaleX, 1, 255), mirrored, x - a.X, y - (a.Y - a.Elevation));
+    }
+
     /// <summary>ScummVM <c>animateCostume</c>: every <i>animation speed</i> frames, each active limb steps on.</summary>
     private void AnimateCostume(Actor a)
     {

@@ -133,7 +133,7 @@ public sealed partial class ScriptVm
 
     /// <summary>
     /// ScummVM <c>o8_kernelGetFunctions</c>, the parts COMI asks for so far: an actor's talk animation, the
-    /// registry's settings (text on, full volumes, object names), the volumes and the speech's lip sync.
+    /// registry's settings (text on, full volumes, object names), the volumes, the speech's lip sync and actor hits.
     /// Others count as not carried out.
     /// </summary>
     private bool KernelGet(ScriptSlot s, ScriptInstruction ins)
@@ -146,6 +146,7 @@ public sealed partial class ScriptVm
             0xDB => LipSync().Height,
             0xDC => Actors[a1].TalkStartFrame,
             0xD8 => FindBlastObject(a1, args.Length > 2 ? args[2] : 0),
+            0xD9 => ActorHit(a1, args.Length > 2 ? args[2] : 0, args.Length > 3 ? args[3] : 0),
             0xDD or 0xDE or 0xDF => 127, // the effects', voices' and music's volume (255 / 2)
             0xD3 => KeyState?.Invoke(a1) == true ? 1 : 0, // getKeyState: the cannon's and the ship's Tab, the ship's arrows
             0xE0 => RegistryValue(a1),
@@ -161,6 +162,17 @@ public sealed partial class ScriptVm
         Push(0);
         Unhandled?.Invoke(new UnhandledCall(s.ToString(), ins, [args]));
         return true;
+    }
+
+    /// <summary>
+    /// kernel-get 217 (ScummVM <c>actorHit</c>): 1 when the actor has a costume pixel at the screen point.
+    /// Ship combat's cannonballs (global 282) ask it of the ship they fly at, every frame.
+    /// </summary>
+    private int ActorHit(int actor, int x, int y)
+    {
+        if (Actors.Find(actor) is not { } a) return 0;
+        int left = CameraX - ScreenWidth / 2, top = CameraY - ScreenHeight / 2;
+        return Actors.HitTest(a, x + left, y + top) ? 1 : 0;
     }
 
     /// <summary>
