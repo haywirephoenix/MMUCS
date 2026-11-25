@@ -27,7 +27,7 @@ namespace MMUCS.Player;
 /// While a script's video plays, its frames are decoded in the background and shown on the page instead,
 /// with their text in <see cref="Text"/>.
 /// </summary>
-public sealed class ScriptedView
+public sealed class ScriptedView(ScriptedGame game)
 {
     private readonly Dictionary<int, RoomModel> _rooms = [];
     private readonly Dictionary<(int Object, int Image), RgbaImage> _cursors = [];
@@ -51,9 +51,7 @@ public sealed class ScriptedView
     /// <summary>What a video's text (subtitles, credits) is drawn with; none without.</summary>
     public SubtitleRenderer Text { get; set; }
 
-    public ScriptedView(ScriptedGame game) => Game = game;
-
-    public ScriptedGame Game { get; }
+    public ScriptedGame Game { get; } = game;
 
     /// <summary>A room scene or cursor image finished loading: capture again.</summary>
     public event Action Changed;

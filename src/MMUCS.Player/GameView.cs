@@ -11,16 +11,14 @@ namespace MMUCS.Player;
 /// thread that drives the game), which any host draws onto a Skia canvas of any size. The host passes its input
 /// to the game in game units, using <see cref="ToGame"/> for where its pointer is.
 /// </summary>
-public sealed class GameView
+public sealed class GameView(GameState game)
 {
     private string _labelFor;
     private SubtitleRenderer _labelRenderer;
     private byte[] _labelPalette;
     private SubtitleOverlay _label;
 
-    public GameView(GameState game) => Game = game;
-
-    public GameState Game { get; }
+    public GameState Game { get; } = game;
 
     /// <summary>The room to show under the game's overlays, and where the camera looks in it (room pixels, its centre).</summary>
     public Rooms.RoomScene Room { get; set; }

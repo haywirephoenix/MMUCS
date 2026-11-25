@@ -63,7 +63,7 @@ public sealed class SubtitleOverlay : IDisposable
     public void Dispose()
     {
         foreach (var (image, _, _) in Images) image.Dispose();
-        foreach (var r in Runs) r.Blob.Dispose();
+        foreach (var (Blob, Fill, Outline, Stroke, AllRound, Shadow) in Runs) Blob.Dispose();
         Images.Clear();
         Runs.Clear();
     }

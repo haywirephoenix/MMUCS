@@ -144,8 +144,8 @@ public static class RoomSceneBuilder
     /// it; without, in the costume's room's palette. With <paramref name="shadow"/> its shadow colours draw
     /// as that says (in mode 3, into its layer).
     /// </summary>
-    public static (RgbaImage Image, int OriginX, int OriginY)? CostumeFrame(AkosData data, ScummBlock akos, AkosFrame frame, int scale, bool mirrored, CancellationToken token = default,
-        byte[] screen = null, int[] remap = null, AkosShadow shadow = null)
+    public static (RgbaImage Image, int OriginX, int OriginY)? CostumeFrame(AkosData data, ScummBlock akos, AkosFrame frame, int scale, bool mirrored,
+        byte[] screen = null, int[] remap = null, AkosShadow shadow = null, CancellationToken token = default)
     {
         if (frame is not { IsEmpty: false }) return null;
         lock (data)
@@ -178,14 +178,14 @@ public static class RoomSceneBuilder
             {
                 try
                 {
-                    image = CostumeFrame(p.Costume.Data, p.Costume.Block, p.Frame, p.Scale, p.Mirrored, default, screen, screen == null ? null : p.Remap, shadow) is var (rgba, ox, oy)
+                    image = CostumeFrame(p.Costume.Data, p.Costume.Block, p.Frame, p.Scale, p.Mirrored, screen, screen == null ? null : p.Remap, shadow, default) is var (rgba, ox, oy)
                         ? new ActorImage(SkiaImages.Of(rgba), shadow?.Image is { } layer ? SkiaImages.Of(layer) : null, ox, oy) : null;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     MMUCS.Core.Diagnostics.Log.Warn($"Game actor {p.Actor} costume {p.Costume.Number}: {ex.Message}");
                 }
-                if (cache != null) cache[key] = image;
+                cache?[key] = image;
             }
             if (image == null) continue;
             int plane = p.FromBox ? Math.Min(p.ZPlane, planes) : p.ZPlane;
