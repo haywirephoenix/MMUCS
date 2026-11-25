@@ -217,4 +217,21 @@ public class CutsceneAudioTests
         Assert.Equal(5, src.Read(buf));
         Assert.True(src.Ended);
     }
+
+    [Fact]
+    public void A_resampler_plays_faster_at_a_higher_speed()
+    {
+        // 1000 mono frames at the output's own rate: as recorded they pass through; at 1.5 (iMUSE's pitch
+        // shift 384) the same input lasts two thirds as long.
+        var pcm = new byte[2000];
+        for (int i = 0; i < 1000; i++) BitConverter.TryWriteBytes(pcm.AsSpan(i * 2), (short)(i * 30));
+        var plain = new Resampler(new PcmSource(pcm, 22050, 1), 22050);
+        var buf = new float[4000];
+        Assert.Equal(1000, plain.Read(buf));
+
+        var fast = new Resampler(new PcmSource(pcm, 22050, 1), 22050) { Speed = 1.5 };
+        int got = fast.Read(buf);
+        Assert.InRange(got, 665, 668);
+        Assert.Equal(3 * 30 / 32768f, buf[4], 4); // frame 2 out is frame 3 in
+    }
 }

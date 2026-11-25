@@ -36,6 +36,8 @@ public sealed class MixerVoice
     public float Volume { get => _volume; set => _volume = Math.Max(0f, value); }
     /// <summary>−1 (left) … 1 (right).</summary>
     public float Pan { get; set; }
+    /// <summary>How fast its source plays: 1 as recorded, above 1 faster and higher (see <see cref="Resampler.Speed"/>).</summary>
+    public double Speed { get => Resampler.Speed; set => Resampler.Speed = value; }
     /// <summary>True once it has ended or been stopped and the mixer has dropped it.</summary>
     public bool Finished { get; internal set; }
     /// <summary>While paused the mixer skips it: its source isn't read, so it resumes where it was.</summary>

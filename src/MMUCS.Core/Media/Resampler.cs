@@ -11,8 +11,9 @@ public sealed class Resampler(IAudioSource source, int outputRate)
 {
     private readonly IAudioSource _source = source;
     private readonly int _channels = Math.Max(1, source.Channels);
-    private readonly double _step = (double)source.SampleRate / outputRate;
-    private readonly bool _passThrough = source.SampleRate == outputRate;
+    private readonly double _baseStep = (double)source.SampleRate / outputRate;
+    private double _step = (double)source.SampleRate / outputRate;
+    private bool _passThrough = source.SampleRate == outputRate;
     private float[] _in = [];
     private int _inFrames, _inPos;
     // The frame before the current input block, so interpolation runs across block edges.
@@ -21,6 +22,21 @@ public sealed class Resampler(IAudioSource source, int outputRate)
     private bool _primed, _ended;
 
     public IAudioSource Source => _source;
+
+    /// <summary>
+    /// How fast the source plays: 1 as recorded, 2 twice as fast (and an octave up), as iMUSE plays a track
+    /// at its sample rate times its pitch shift. Read from the next frame mixed.
+    /// </summary>
+    public double Speed
+    {
+        get => _step / _baseStep;
+        set
+        {
+            double speed = Math.Max(0, value);
+            _step = _baseStep * speed;
+            _passThrough = speed == 1 && _baseStep == 1;
+        }
+    }
     /// <summary>True once the source has ended and every frame of it has been read.</summary>
     public bool Ended => _ended;
 
@@ -34,6 +50,7 @@ public sealed class Resampler(IAudioSource source, int outputRate)
             if (_passThrough)
             {
                 if (!NextFrame(out float l, out float r)) break;
+                _primed = false; // interpolating again starts from the frames after this one
                 stereo[written * 2] = l;
                 stereo[written * 2 + 1] = r;
                 written++;
