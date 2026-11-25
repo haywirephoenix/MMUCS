@@ -163,6 +163,7 @@ public sealed class FrameLoop(ScriptVm vm)
         Vm.EndFrameTexts();
         if (Vm.CurrentRoom != 0) Vm.ProcessActors();
         Vm.EndFramePalette();
+        Vm.ProcessSpeech();
         Frames++;
         AfterScripts?.Invoke(step);
     }

@@ -18,7 +18,8 @@ public class TextTests
     {
         public readonly List<string> Started = [];
         public bool IsPlaying { get; set; }
-        public void Start(string tag, int actor) { Started.Add($"{tag} by {actor}"); IsPlaying = true; }
+        public int Frequency { get; set; } = 256;
+        public void Start(string tag, int actor) { Started.Add($"{tag} by {actor}"); IsPlaying = true; Frequency = 256; }
         public void Stop() => IsPlaying = false;
         public int AskedAhead = -1;
         public (int, int) LipSync(int aheadMs) { AskedAhead = aheadMs; return IsPlaying ? (0x40, 0x27) : (0, 0); }
@@ -54,6 +55,30 @@ public class TextTests
         Assert.False(speech.IsPlaying);
         Assert.Empty(vm.Subtitles);
         Assert.Equal((0, 0, 0), (vm.State[EngineVars.TalkActor], vm.State[EngineVars.HaveMessage], vm.TalkDelay));
+    }
+
+    [Fact]
+    public void A_line_s_speech_plays_at_its_actor_s_frequency_and_follows_it_as_it_changes()
+    {
+        // The helium balloon (global scripts 89 and 90): actor 1 frequency 426, then a line, then the
+        // frequency coming down a step a frame while the line plays.
+        var code = new Asm()
+            .Push(3).Push(100).Push(300).Push(5).Op(0xa1)
+            .Push(3).Sub(0xac, 0x7a).Push(426).Sub(0xac, 0x88)
+            .Push(3).Op(0x91).Text("/lggt002/That's made my voice sound funny.")
+            .End().Global(10);
+        var (vm, loop, speech) = Machine(code);
+        vm.RunScript(10);
+        Assert.Equal(426, speech.Frequency);
+
+        vm.Actors.Find(3).TalkFrequency = 300;
+        loop.RunFrame(5);
+        Assert.Equal(300, speech.Frequency);
+
+        speech.IsPlaying = false; // once the speech is over it's no longer followed
+        vm.Actors.Find(3).TalkFrequency = 256;
+        loop.RunFrame(5);
+        Assert.Equal(300, speech.Frequency);
     }
 
     [Fact]

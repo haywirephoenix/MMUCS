@@ -25,6 +25,8 @@ public sealed class VoicePlayer(Func<string, ImusSound> load) : ISpeech
     private MixerVoice _voice;
     private float[] _scratch = [];
     private bool _paused;
+    private int _frequency = 256;
+    private double _readAhead; // without a mixer, the part of a frame read too few so far
 
     public Mixer Mixer { get; set; }
 
@@ -42,6 +44,22 @@ public sealed class VoicePlayer(Func<string, ImusSound> load) : ISpeech
 
     public void Start(string tag, int actor) => Play(tag, 0);
 
+    /// <summary>
+    /// The talking actor's <c>frequency</c>: how fast the line plays, 256 as recorded (iMUSE's pitch shift
+    /// for COMI: the track plays at its sample rate × this / 256, so higher is faster and higher pitched).
+    /// Outside 0…4095 iMUSE refuses it and the line keeps the one it had. A new line starts at 256.
+    /// </summary>
+    public int Frequency
+    {
+        get => _frequency;
+        set
+        {
+            if (value is < 0 or > 4095 || value == _frequency) return;
+            _frequency = value;
+            _voice?.Speed = value / 256.0;
+        }
+    }
+
     private void Play(string tag, long frame)
     {
         Stop();
@@ -54,6 +72,8 @@ public sealed class VoicePlayer(Func<string, ImusSound> load) : ISpeech
         }
         if (sound == null) return;
         _tag = tag;
+        _frequency = 256;
+        _readAhead = 0;
         _player = new ImusPlayer(sound);
         if (frame > 0) _player.Seek(frame);
         if (Mixer != null)
@@ -97,7 +117,10 @@ public sealed class VoicePlayer(Func<string, ImusSound> load) : ISpeech
     public void Update(int jiffies)
     {
         if (Mixer != null || _paused || _player == null) return;
-        int need = _player.SampleRate * jiffies / 60 * _player.Channels;
+        _readAhead += (double)_player.SampleRate * jiffies / 60 * _frequency / 256;
+        int frames = (int)_readAhead;
+        _readAhead -= frames;
+        int need = frames * _player.Channels;
         if (_scratch.Length < need) _scratch = new float[need];
         _player.Read(_scratch.AsSpan(0, need));
     }

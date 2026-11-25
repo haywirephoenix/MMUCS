@@ -15,6 +15,8 @@ public interface ISpeech
     void Start(string tag, int actor);
     void Stop();
     bool IsPlaying { get; }
+    /// <summary>The talking actor's <c>frequency</c>, which the line plays at: 256 as recorded, higher faster and higher pitched.</summary>
+    int Frequency { get; set; }
     /// <summary>The mouth's width and height in the speech <paramref name="aheadMs"/> past where it plays now, (0, 0) when none plays.</summary>
     (int Width, int Height) LipSync(int aheadMs);
 }
@@ -252,6 +254,7 @@ public sealed partial class ScriptVm
         {
             speech.Stop();
             speech.Start(tag, _actorToPrintFor);
+            if (_actorToPrintFor != 0xFF && Actors.Find(_actorToPrintFor) is { } talker) speech.Frequency = talker.TalkFrequency;
         }
 
         if (_actorToPrintFor == 0xFF)
@@ -323,6 +326,18 @@ public sealed partial class ScriptVm
         ScreenTexts = [.. _blastTexts, .. _subtitles];
         _blastTexts.Clear();
         EndFrameBlasts();
+    }
+
+    /// <summary>
+    /// ScummVM <c>processSfxQueues</c>, once a frame: while a line's speech plays it follows its actor's
+    /// <c>frequency</c>, so a script changing it frame by frame (the helium balloon's squeaky voice coming
+    /// down) bends the line as it plays.
+    /// </summary>
+    public void ProcessSpeech()
+    {
+        int act = TalkingActor;
+        if (act is > 0 and < 0x80 && Speech is { IsPlaying: true } speech && Actors.Find(act) is { } a)
+            speech.Frequency = a.TalkFrequency;
     }
 
     /// <summary>ScummVM <c>stopTalk</c> (v8): the speech stops, the actor stops talking, the lines go.</summary>
