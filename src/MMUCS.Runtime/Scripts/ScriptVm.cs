@@ -75,6 +75,9 @@ public sealed partial class ScriptVm
     public ScriptStore Scripts { get; }
     public VmState State { get; }
 
+    /// <summary>The wall clock <c>get-date-time</c> reads (the local time unless a host pins it).</summary>
+    public Func<DateTime> Clock { get; set; } = () => DateTime.Now;
+
     /// <summary>The room whose local scripts a number from <see cref="ScriptStore.FirstLocal"/> means.</summary>
     public int CurrentRoom { get; set; }
 
@@ -645,9 +648,25 @@ public sealed partial class ScriptVm
             case 0xcf: { int max = Pop(), min = Pop(); int span = max - min + 1; if (span == 0) throw new ScriptException($"random-between({min}, {max})"); Push(min + _random.Next(0x8000) % span); return; }
             case 0xd3: Push(IsScriptRunning(Pop())); return;
             case 0xd6: Push(Math.Abs(Pop())); return;
+            case 0xb6: GetDateTime(); return;
         }
         if (ExecActor(s, ins) || ExecText(s, ins)) return;
         NotHandled(s, ins);
+    }
+
+    /// <summary>
+    /// <c>get-date-time</c> (ScummVM <c>o6_getDateTime</c>): the clock into the <c>timedate-*</c> vars as C's
+    /// <c>tm</c> has them, years since 1900 and months from 0 (the town clock in script 204 reads the hour and minute).
+    /// </summary>
+    private void GetDateTime()
+    {
+        var now = Clock();
+        State[EngineVars.TimedateYear] = now.Year - 1900;
+        State[EngineVars.TimedateMonth] = now.Month - 1;
+        State[EngineVars.TimedateDay] = now.Day;
+        State[EngineVars.TimedateHour] = now.Hour;
+        State[EngineVars.TimedateMinute] = now.Minute;
+        State[EngineVars.TimedateSecond] = now.Second;
     }
 
     /// <summary>

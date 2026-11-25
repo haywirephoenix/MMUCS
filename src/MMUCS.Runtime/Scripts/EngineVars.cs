@@ -16,6 +16,8 @@ public static class EngineVars
     public const int LeftButtonDown = 16, RightButtonDown = 17, LeftButtonHold = 18, RightButtonHold = 19;
     /// <summary>1 after <c>begin-override</c>'s cutscene was skipped, 0 otherwise.</summary>
     public const int Override = 30;
+    /// <summary>The clock as <c>get-date-time</c> last read it: years since 1900, months from 0, then day, hour, minute, second.</summary>
+    public const int TimedateYear = 24, TimedateMonth = 25, TimedateDay = 26, TimedateHour = 27, TimedateMinute = 28, TimedateSecond = 29;
     public const int Room = 31, NewRoom = 32;
     /// <summary>The object a room was entered through (<c>come-out-door</c>), while its entry code runs.</summary>
     public const int WalkToObject = 33;
