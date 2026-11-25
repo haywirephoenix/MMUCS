@@ -93,6 +93,7 @@ public sealed class ScriptedView(ScriptedGame game)
                 : null,
             Blasts = [.. BlastFrames(), .. StampFrames()],
             Camera = game.Camera,
+            PageOnly = game.IsPageOnly,
             TextShift = new(game.EngineCamera.X - game.Camera.X, game.EngineCamera.Y - game.Camera.Y),
             Texts = ScreenTexts(overActor: false),
             RoomTexts = ScreenTexts(overActor: true),

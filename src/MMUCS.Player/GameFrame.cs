@@ -41,6 +41,9 @@ public sealed class GameFrame
     /// </summary>
     public GamePoint Camera { get; init; } = new(320, 240);
 
+    /// <summary>Whether the room and its actors are cut to the 640×480 page, the canvas's sides black (the banjo duel's halves).</summary>
+    public bool PageOnly { get; init; }
+
     /// <summary>Whether the game is playing (the picture is dimmed and the hotspot hidden when it isn't).</summary>
     public bool IsRunning { get; init; }
 
@@ -128,6 +131,7 @@ public sealed class GameFrame
         else if (Room != null)
         {
             canvas.Save();
+            if (PageOnly) canvas.ClipRect(PageRect);
             canvas.Translate((float)(GameState.CanvasWidth / 2 - Camera.X), (float)(GameState.CanvasHeight / 2 - Camera.Y));
             Room.Draw(canvas, sampling);
             canvas.Restore();
@@ -152,6 +156,7 @@ public sealed class GameFrame
         if (UpperActors != null && Room != null && Cutscene == null)
         {
             canvas.Save();
+            if (PageOnly) canvas.ClipRect(PageRect);
             canvas.Translate((float)(GameState.CanvasWidth / 2 - Camera.X), (float)(GameState.CanvasHeight / 2 - Camera.Y));
             UpperActors.Draw(canvas, sampling);
             canvas.Restore();
@@ -180,6 +185,8 @@ public sealed class GameFrame
         if (cursor && Cursor is { } pointer) canvas.DrawImage(pointer.Image, Rect(pointer.Bounds), sampling);
         canvas.Restore();
     }
+
+    private static SKRect PageRect => SKRect.Create((float)GameState.PageOrigin.X, (float)GameState.PageOrigin.Y, (float)GameState.PageSize.Width, (float)GameState.PageSize.Height);
 
     private static SKRect Rect(GameRect r) => new((float)r.X, (float)r.Y, (float)r.Right, (float)r.Bottom);
 }
