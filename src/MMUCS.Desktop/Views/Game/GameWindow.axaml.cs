@@ -16,7 +16,9 @@ namespace MMUCS.Desktop.Views.Game;
 /// The game window (Window ▸ Game, a testing ground). While playing, a click on the canvas captures the
 /// mouse: the system cursor hides and is kept inside the picture, and the game draws its own. Ctrl+Alt,
 /// Pause, Stop, or leaving the window lets it go; Esc goes to the game (it skips videos and cutscenes). With Scripts on, buttons and keys go to the game's scripts; with it off,
-/// holding the button on a hotspot opens the verb coin until it's let go, and I toggles the inventory.
+/// holding the button on a hotspot opens the verb coin until it's let go, and I toggles the inventory. Space pauses
+/// and carries on (where the game allows it), Ctrl+T goes through the voice modes, and a script moving the mouse
+/// (the cannon's <c>cursor put</c>) moves the system pointer with it.
 /// </summary>
 public partial class GameWindow : Window
 {
@@ -27,6 +29,7 @@ public partial class GameWindow : Window
     private readonly System.Diagnostics.Stopwatch _clock = new();
     private long _jiffies;
     private GameViewModel _vm;
+    private bool _recaptureOnResume;
 
     public GameWindow()
     {
@@ -41,10 +44,15 @@ public partial class GameWindow : Window
         Canvas.SizeChanged += (_, _) => Confine();
         PositionChanged += (_, _) => Confine();
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
-        AddHandler(KeyUpEvent, (_, e) => _chord.Up(e.Key), RoutingStrategies.Tunnel);
+        AddHandler(KeyUpEvent, (_, e) =>
+        {
+            _chord.Up(e.Key);
+            _vm?.ReleaseKey(KeyCode(e.Key, (e.KeyModifiers & KeyModifiers.Shift) != 0));
+        }, RoutingStrategies.Tunnel);
         Deactivated += (_, _) =>
         {
             _chord.Reset();
+            _vm?.ReleaseKeys();
             ReleaseMouse("the window lost focus");
         };
     }
@@ -52,9 +60,23 @@ public partial class GameWindow : Window
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        _vm?.PropertyChanged -= OnVmPropertyChanged;
+        if (_vm != null)
+        {
+            _vm.PropertyChanged -= OnVmPropertyChanged;
+            _vm.MouseWarped -= OnMouseWarped;
+        }
         _vm = DataContext as GameViewModel;
-        _vm?.PropertyChanged += OnVmPropertyChanged;
+        if (_vm != null)
+        {
+            _vm.PropertyChanged += OnVmPropertyChanged;
+            _vm.MouseWarped += OnMouseWarped;
+        }
+    }
+
+    /// <summary>A script put the mouse somewhere (the cannon keeps it in the middle, as it reads how far it moved): the system pointer goes there too.</summary>
+    private void OnMouseWarped()
+    {
+        if (_vm is { IsMouseCaptured: true }) _confinement.Warp(Canvas.PointToScreen(Canvas.ToControl(_vm.CursorPosition)));
     }
 
     private void OnVmPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -81,14 +103,18 @@ public partial class GameWindow : Window
             return;
         }
         // Anywhere on the canvas captures, the bars beside the picture too (the cursor is kept to the picture).
-        var at = e.GetPosition(Canvas);
+        Capture();
+        _vm.MoveCursor(Canvas.ToGame(e.GetPosition(Canvas)));
+        e.Handled = true;
+    }
+
+    private void Capture()
+    {
         Canvas.Focus();
         Canvas.Cursor = Hidden;
         _vm.IsMouseCaptured = true;
         Log.Info($"Game window: mouse captured ({(_vm.IsMouseCaptured ? "the game has it" : "the game didn't take it")})");
         Confine();
-        _vm.MoveCursor(Canvas.ToGame(at));
-        e.Handled = true;
     }
 
     private void OnCanvasMoved(object sender, PointerEventArgs e)
@@ -121,13 +147,37 @@ public partial class GameWindow : Window
 
     /// <summary>
     /// Ctrl+Alt lets the mouse go (pressed together, in either order). Esc skips a playing video, otherwise it
-    /// goes to the scripts like any other key, where it skips the cutscene on (the THX screen, the intro).
+    /// goes to the scripts like any other key, where it skips the cutscene on (the THX screen, the intro). Ctrl+T
+    /// goes through the voice modes; the game's pause key (space) pauses it, keeping no hold on the mouse, and space
+    /// carries on, taking the mouse back if the pause let it go.
     /// </summary>
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
         if (ReleaseChord.IsPart(e.Key))
         {
             if (_chord.Down(e.Key)) ReleaseMouse("Ctrl+Alt");
+            e.Handled = true;
+        }
+        else if (e.Key == Key.T && e.KeyModifiers == KeyModifiers.Control && _vm is { IsStarted: true })
+        {
+            _vm.CycleSubtitles();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.None && _vm != null && _vm.IsPauseKey(' '))
+        {
+            _recaptureOnResume = _vm.IsMouseCaptured;
+            _vm.PauseCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.None && _vm is { IsPlaying: false, IsStarted: true })
+        {
+            _vm.PlayCommand.Execute(null);
+            if (_recaptureOnResume && _vm.IsPlaying)
+            {
+                Capture();
+                _confinement.Warp(Canvas.PointToScreen(Canvas.ToControl(_vm.CursorPosition)));
+            }
+            _recaptureOnResume = false;
             e.Handled = true;
         }
         else if (e.Key == Key.Escape && _vm is { IsVideoPlaying: true })
@@ -143,8 +193,9 @@ public partial class GameWindow : Window
 
     /// <summary>
     /// A key as the engine numbers it: letters (capitals with Shift), digits, space, Enter, Tab, Backspace, Esc,
-    /// F1–F9 (315–323), and the editing keys as the DOS scan code plus 256 (Home 327, Left 331, Right 333, End 335,
-    /// Delete 339: the F1 menu's name editing); 0 for others.
+    /// F1–F9 (315–323), and the arrows and editing keys as the DOS scan code plus 256 (Home 327, Up 328, Page Up 329,
+    /// Left 331, Right 333, End 335, Down 336, Page Down 337, Delete 339: the F1 menu's name editing, the ship's
+    /// steering); 0 for others.
     /// </summary>
     private static int KeyCode(Key key, bool shift) => key switch
     {
@@ -161,9 +212,13 @@ public partial class GameWindow : Window
         Key.OemComma => ',',
         Key.OemMinus => shift ? '_' : '-',
         Key.Home => 327,
+        Key.Up => 328,
+        Key.PageUp => 329,
         Key.Left => 331,
         Key.Right => 333,
         Key.End => 335,
+        Key.Down => 336,
+        Key.PageDown => 337,
         Key.Delete => 339,
         _ => 0,
     };
@@ -191,6 +246,7 @@ public partial class GameWindow : Window
         ReleaseMouse("the window closed");
         _confinement.Dispose();
         _vm?.PropertyChanged -= OnVmPropertyChanged;
+        _vm?.MouseWarped -= OnMouseWarped;
         _vm?.Dispose();
         base.OnClosed(e);
     }

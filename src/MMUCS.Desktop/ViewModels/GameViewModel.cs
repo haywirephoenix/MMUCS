@@ -44,6 +44,7 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         Fonts.Changed += () => { ApplyFont(); Refresh(); };
         Game.Changed += Refresh;
         Scripted.Changed += Refresh;
+        Scripted.MouseWarped += () => MouseWarped?.Invoke();
         ScriptedView.Changed += Refresh;
         Refresh();
         Loading = Task.WhenAll(Game.LoadAsync(root), LoadFontsAsync(), LoadScriptsAsync(root), StartSoundAsync());
@@ -171,7 +172,7 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         : new(Game.CursorPosition.X, Game.CursorPosition.Y);
 
     /// <summary>The line drawn over the canvas: what to do next.</summary>
-    public string Hint => !IsPlaying ? (!RunScripts ? "Press Play to start." : IsStarted ? "Paused: Play carries on, Stop ends the game." : "Press Play to boot the game.")
+    public string Hint => !IsPlaying ? (!RunScripts ? "Press Play to start." : IsStarted ? "Paused: Space or Play carries on, Stop ends the game." : "Press Play to boot the game.")
         // : IsVideoPlaying ? "Esc skips the video."
         : IsMouseCaptured ? null
         // : RunScripts ? "Click to capture the mouse (Ctrl+Alt to release)"
@@ -193,6 +194,20 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         else Game.Stop();
     }
     private bool CanPause() => IsPlaying;
+
+    /// <summary>Whether <paramref name="code"/> pauses the scripts' game now (space, unless the scripts turned it off: under water, the F1 menu).</summary>
+    public bool IsPauseKey(int code) => RunScripts && IsPlaying && Scripted.IsPauseKey(code);
+
+    /// <summary>A script moved the mouse (<c>cursor put</c>): the window puts the system pointer on <see cref="CursorPosition"/>.</summary>
+    public event Action MouseWarped;
+
+    /// <summary>Ctrl+T: the next voice mode (speech only, speech and subtitles, subtitles only), said in the toast.</summary>
+    public void CycleSubtitles()
+    {
+        if (!RunScripts) return;
+        int mode = Scripted.CycleVoiceMode();
+        if (mode >= 0) ShowToast(mode switch { 0 => "Speech only", 1 => "Speech and subtitles", _ => "Subtitles only" });
+    }
 
     /// <summary>Ends the game, as its own Quit does: its state is cleared and Play boots it afresh. The stand-ins just stop.</summary>
     [RelayCommand(CanExecute = nameof(CanStop))]
@@ -285,6 +300,15 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         Game.ToggleInventory();
         return true;
     }
+
+    /// <summary>A key came up; the scripts ask whether keys are held (the cannon's and the ship's Tab and arrows).</summary>
+    public void ReleaseKey(int code)
+    {
+        if (RunScripts && code > 0) Scripted.ReleaseKey(code);
+    }
+
+    /// <summary>Every key lets go (the window lost the keyboard).</summary>
+    public void ReleaseKeys() => Scripted.ReleaseKeys();
 
     /// <summary>One jiffy (1/60 s) of game time.</summary>
     public void Tick()
