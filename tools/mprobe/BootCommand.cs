@@ -76,7 +76,7 @@ static class BootCommand
         var voice = new MMUCS.Runtime.Sound.VoicePlayer(MMUCS.Runtime.Sound.VoicePlayer.FromBundles(gameFile));
         vm.Speech = voice;
         if (gameFile != null) MMUCS.Runtime.ScriptedGame.UseFonts(vm, MMUCS.Core.Fonts.NutFont.LoadAll(gameFile));
-        vm.Said += (text, tag, actor) => Line($"SAY {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" {tag}" : "")}: {text.Replace('\n', ' ')}", vm.Depth);
+        vm.Said += (text, tag, actor) => Line($"SAY {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" {tag}" : "")}{(voice.IsPlaying && voice.Frequency != 256 ? $" (frequency {voice.Frequency})" : "")}: {text.Replace('\n', ' ')}", vm.Depth);
         vm.SystemMessage += text => Line($"SYSTEM {text}", vm.Depth);
         // A system message waits for a key: the next --key given answers it (and isn't pressed again), or none (0).
         int jiffyNow = 0;
