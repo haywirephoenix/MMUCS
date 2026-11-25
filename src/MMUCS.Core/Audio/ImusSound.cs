@@ -92,6 +92,62 @@ public sealed class ImusSound
 
     private ImusSound(byte[] bytes) => Bytes = bytes;
 
+    /// <summary>
+    /// A 16-bit iMUS sound made from PCM (a music mod's track): <paramref name="regions"/>,
+    /// <paramref name="jumps"/> and <paramref name="markers"/> are in sample frames from the start of the audio
+    /// and go in the map by position, with a stop at <paramref name="stop"/> when given. <paramref name="fill"/>
+    /// writes the <paramref name="frames"/> frames of samples into the buffer from the offset it's given.
+    /// </summary>
+    public static ImusSound Build(int sampleRate, int channels, long frames, IEnumerable<Region> regions, IEnumerable<Jump> jumps,
+        IEnumerable<Marker> markers, long? stop, Action<byte[], int> fill)
+    {
+        int bpf = channels * 2;
+        var map = new MemoryStream();
+        void Chunk(uint tag, params uint[] fields) => Write(map, tag, fields, null);
+        Chunk(FRMT, 0, 0, 16, (uint)sampleRate, (uint)channels);
+        var regionList = new List<Region>(regions);
+        var jumpList = new List<Jump>(jumps);
+        var markerList = new List<Marker>(markers);
+        // Positions are bytes into the whole file; the header before DATA is fixed by the map's size.
+        int mapSize = (int)map.Length + regionList.Count * 16 + jumpList.Count * 24 + (stop != null ? 12 : 0);
+        foreach (var m in markerList) mapSize += 8 + 4 + Encoding.Latin1.GetByteCount(m.Text) + 1;
+        int dataOffset = 8 + 8 + mapSize + 8;
+        uint At(long frame) => (uint)(dataOffset + frame * bpf);
+        // In position order; where several share one, markers, then jumps, then the region that plays on, then the stop.
+        var events = new List<(long Frame, int Rank, Action Write)>();
+        foreach (var m in markerList) events.Add((m.Offset, 0, () => Write(map, TEXT, [At(m.Offset)], m.Text)));
+        foreach (var j in jumpList) events.Add((j.Offset, 1, () => Chunk(JUMP, At(j.Offset), At(j.Destination), (uint)j.Hook, (uint)j.FadeMs)));
+        foreach (var r in regionList) events.Add((r.Offset, 2, () => Chunk(REGN, At(r.Offset), (uint)(r.Length * bpf))));
+        if (stop is { } s) events.Add((s, 3, () => Chunk(STOP, At(s))));
+        events.Sort((a, b) => a.Frame != b.Frame ? a.Frame.CompareTo(b.Frame) : a.Rank.CompareTo(b.Rank));
+        foreach (var e in events) e.Write();
+
+        long dataLength = frames * bpf;
+        if (dataOffset + dataLength > Array.MaxLength) throw new InvalidDataException("track too long for one iMUS sound");
+        var bytes = new byte[dataOffset + dataLength];
+        var span = bytes.AsSpan();
+        BinaryPrimitives.WriteUInt32BigEndian(span, IMUS);
+        BinaryPrimitives.WriteUInt32BigEndian(span[4..], (uint)(bytes.Length - 8));
+        BinaryPrimitives.WriteUInt32BigEndian(span[8..], MAP);
+        BinaryPrimitives.WriteUInt32BigEndian(span[12..], (uint)map.Length);
+        map.ToArray().CopyTo(span[16..]);
+        BinaryPrimitives.WriteUInt32BigEndian(span[(dataOffset - 8)..], DATA);
+        BinaryPrimitives.WriteUInt32BigEndian(span[(dataOffset - 4)..], (uint)dataLength);
+        fill(bytes, dataOffset);
+        return Parse(bytes);
+    }
+
+    private static void Write(MemoryStream map, uint tag, uint[] fields, string text)
+    {
+        var textBytes = text == null ? [] : Encoding.Latin1.GetBytes(text + "\0");
+        var word = new byte[4];
+        void Word(uint v) { BinaryPrimitives.WriteUInt32BigEndian(word, v); map.Write(word); }
+        Word(tag);
+        Word((uint)(fields.Length * 4 + textBytes.Length));
+        foreach (var f in fields) Word(f);
+        map.Write(textBytes);
+    }
+
     public static ImusSound Parse(byte[] bytes)
     {
         var s = new ImusSound(bytes);
