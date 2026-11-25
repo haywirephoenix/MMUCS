@@ -25,6 +25,8 @@ public static class EngineVars
     public const int CameraFollowedActor = 13;
     /// <summary>The jiffies the last frame took.</summary>
     public const int Timer = 34;
+    /// <summary>How lines are given: 0 speech only, 1 speech and subtitles, 2 subtitles only (the F1 menu's and Ctrl+T's).</summary>
+    public const int VoiceMode = 39;
     public const int GameLoaded = 40, Language = 41, CurrentDisk = 42;
     /// <summary>The script run whenever the camera moves.</summary>
     public const int ScrollScript = 50;
@@ -37,6 +39,8 @@ public static class EngineVars
     public const int CutsceneStartScript = 58, CutsceneEndScript = 59;
     /// <summary>When not 0, Esc skips cutscenes.</summary>
     public const int CutsceneExitKey = 62;
+    /// <summary>The key that pauses the game (COMI: space, 32; 0 where it mustn't, as under water) and the one that ends the line up ('.', 46).</summary>
+    public const int PauseKey = 64, TalkStopKey = 67;
     /// <summary>How many jiffies the next frame waits (4 when 0 or less is never used: the engine waits at least 1).</summary>
     public const int TimerNext = 112;
     public const int Tmr1 = 113, Tmr2 = 114, Tmr3 = 115;

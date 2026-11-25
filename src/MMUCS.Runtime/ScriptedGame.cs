@@ -182,6 +182,9 @@ public sealed class ScriptedGame : IDisposable
                     Trace($"REPLAY key {e.X}");
                     Loop.PressKey(e.X);
                     break;
+                case "key-up":
+                    Loop.ReleaseKey(e.X);
+                    break;
                 case "skip-video":
                     Log.Warn($"Game: replay: a video was skipped at {e.Jiffy / 60.0:0.000} s, but none is playing");
                     break;
@@ -409,6 +412,14 @@ public sealed class ScriptedGame : IDisposable
         Loop.StateLoaded += () => _viewRoom = -1; // the camera shown goes straight to the loaded one
         // Quitting waits for the engine's step to end (it's in the middle of a script).
         Vm.QuitRequested += () => _quitRequested = true;
+        // cursor put: the frame loop has moved the engine's mouse; the cursor follows, and the host's pointer after the step.
+        Vm.MouseWarped += (_, _) =>
+        {
+            var page = GameState.PageOrigin;
+            CursorPosition = new GamePoint(page.X + Loop.Mouse.X + 0.5, page.Y + Loop.Mouse.Y + 0.5);
+            _mouseInside = true;
+            _warped = true;
+        };
         // The camera shown decides where the page's top left is in the room, for the virtual mouse.
         Loop.BeforeScripts += _ =>
         {
@@ -618,7 +629,7 @@ public sealed class ScriptedGame : IDisposable
         Loop.Release(button);
     }
 
-    /// <summary>A key, as the engine numbers it (ASCII; F1–F9 are 315–323).</summary>
+    /// <summary>A key went down, as the engine numbers it (ASCII; F1–F9 are 315–323); it's held until <see cref="ReleaseKey"/>.</summary>
     public void PressKey(int code)
     {
         if (!IsPlaying || IsReplaying) return;
@@ -629,6 +640,42 @@ public sealed class ScriptedGame : IDisposable
             Loop.PressKey(code);
         }
     }
+
+    /// <summary>A key came up (the scripts ask whether one is held: the cannon's and the ship's Tab and arrows).</summary>
+    public void ReleaseKey(int code)
+    {
+        if (Loop == null || IsReplaying) return;
+        Recorder?.KeyUp(Loop.Jiffies, code);
+        Loop.ReleaseKey(code);
+    }
+
+    /// <summary>Every key lets go (the window lost the keyboard).</summary>
+    public void ReleaseKeys()
+    {
+        if (Loop == null || IsReplaying) return;
+        Loop.ReleaseKeys();
+    }
+
+    /// <summary>Whether <paramref name="code"/> is the game's pause key now (space, but not where the scripts turned it off, as under water).</summary>
+    public bool IsPauseKey(int code) => Vm != null && code > 0 && code == Vm.State[EngineVars.PauseKey];
+
+    /// <summary>
+    /// The next voice mode (ScummVM's Ctrl+T): speech only, speech and subtitles, subtitles only, round again. Kept in
+    /// the registry as the F1 menu keeps it. Returns the new mode, or -1 before the game is running.
+    /// </summary>
+    public int CycleVoiceMode()
+    {
+        if (Vm == null || !_booted) return -1;
+        int mode = (Math.Clamp(Vm.State[EngineVars.VoiceMode], 0, 2) + 1) % 3;
+        Vm.State[EngineVars.VoiceMode] = mode;
+        Vm.WriteRegistry?.Invoke("Text Status", mode);
+        Changed?.Invoke();
+        return mode;
+    }
+
+    /// <summary>A script moved the mouse (<c>cursor put</c>; the cannon keeps it in the middle): the host puts the system pointer at <see cref="CursorPosition"/>.</summary>
+    public event Action MouseWarped;
+    private bool _warped;
 
     /// <summary>
     /// The quick save's file (F6 and F4): in the saves folder under the app's data, one folder per game, so it
@@ -854,6 +901,11 @@ public sealed class ScriptedGame : IDisposable
         {
             QuitIfAsked();
             return;
+        }
+        if (_warped)
+        {
+            _warped = false;
+            if (IsMouseCaptured && !IsReplaying) MouseWarped?.Invoke();
         }
         var before = Camera;
         EaseCamera();

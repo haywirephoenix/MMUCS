@@ -24,7 +24,7 @@ public sealed class VoicePlayer(Func<string, ImusSound> load) : ISpeech
     private ImusPlayer _player;
     private MixerVoice _voice;
     private float[] _scratch = [];
-    private bool _paused;
+    private bool _paused, _muted;
     private int _frequency = 256;
     private double _readAhead; // without a mixer, the part of a frame read too few so far
 
@@ -80,6 +80,7 @@ public sealed class VoicePlayer(Func<string, ImusSound> load) : ISpeech
         {
             _voice = Mixer.Play(_player, MixGroup.Voice);
             _voice.Paused = _paused;
+            _voice.Volume = _muted ? 0 : 1;
         }
     }
 
@@ -101,6 +102,16 @@ public sealed class VoicePlayer(Func<string, ImusSound> load) : ISpeech
         _voice = null;
         _player = null;
         _tag = null;
+    }
+
+    public bool Muted
+    {
+        get => _muted;
+        set
+        {
+            _muted = value;
+            _voice?.Volume = value ? 0 : 1;
+        }
     }
 
     public bool Paused

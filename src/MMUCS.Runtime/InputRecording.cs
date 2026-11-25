@@ -11,7 +11,7 @@ namespace MMUCS.Runtime;
 /// An input recording (the game window's <c>--record</c>, mprobe boot's <c>--replay</c>): every input that reached
 /// the engine, by the frame loop's jiffy, so a headless run can feed the same inputs at the same moments. A text
 /// file, one line each: <c>boot N</c> first, then <c>JIFFY move X,Y</c> (the page's mouse, once a jiffy when it
-/// changed), <c>JIFFY press left|right</c>, <c>JIFFY release left|right</c>, <c>JIFFY key CODE</c>,
+/// changed), <c>JIFFY press left|right</c>, <c>JIFFY release left|right</c>, <c>JIFFY key CODE</c>, <c>JIFFY key-up CODE</c> (a key let go),
 /// <c>JIFFY answer CODE</c> (a system message's answer: 0 for a click), <c>JIFFY skip-video</c>,
 /// <c>JIFFY load FILE</c> (a save loaded: a copy beside the recording, so a later F6 doesn't change it) and
 /// <c>JIFFY end</c>. <c>#</c> starts a comment. Jiffies count from boot, as both <see cref="FrameLoop.Jiffies"/>
@@ -83,7 +83,19 @@ public sealed class InputRecording : IDisposable
         Write(jiffy, $"release {Name(button)}");
     }
 
-    public void Key(long jiffy, int code) => Write(jiffy, $"key {code}");
+    private readonly HashSet<int> _keys = [];
+
+    public void Key(long jiffy, int code)
+    {
+        _keys.Add(code);
+        Write(jiffy, $"key {code}");
+    }
+
+    /// <summary>A key let go; only one that went down in the recording is written.</summary>
+    public void KeyUp(long jiffy, int code)
+    {
+        if (_keys.Remove(code)) Write(jiffy, $"key-up {code}", quiet: true);
+    }
 
     public void Answer(long jiffy, int code) => Write(jiffy, $"answer {code}");
 
@@ -139,7 +151,7 @@ public sealed class InputRecording : IDisposable
             {
                 "move" when arg.Split(',') is [var x, var y] => new Event(jiffy, "move", Int(x), Int(y)),
                 "press" or "release" => new Event(jiffy, parts[1], arg switch { "left" => 0, "right" => 1, _ => throw Bad() }),
-                "key" or "answer" => new Event(jiffy, parts[1], Int(arg)),
+                "key" or "key-up" or "answer" => new Event(jiffy, parts[1], Int(arg)),
                 "skip-video" or "end" => new Event(jiffy, parts[1]),
                 "load" when arg.Length > 0 => new Event(jiffy, "load", File: System.IO.Path.Combine(folder, arg)),
                 _ => throw Bad(),

@@ -25,8 +25,16 @@ public enum MouseButton
 /// actors, drawing) hook in through <see cref="BeforeScripts"/> and <see cref="AfterScripts"/>.
 /// </para>
 /// </summary>
-public sealed class FrameLoop(ScriptVm vm)
+public sealed class FrameLoop
 {
+    public FrameLoop(ScriptVm vm)
+    {
+        Vm = vm ?? throw new ArgumentNullException(nameof(vm));
+        Vm.KeyState = KeyState;
+        // cursor put: the engine's mouse is where the script put it from now on (the host moves the system pointer to match).
+        Vm.MouseWarped += (x, y) => Mouse = (x, y);
+    }
+
     /// <summary>The most a frame counts paused scripts down by, however long it took (ScummVM caps delta at 15).</summary>
     public const int MaxDelayStep = 15;
 
@@ -50,7 +58,7 @@ public sealed class FrameLoop(ScriptVm vm)
     /// <summary>The key codes the engine knows besides ASCII: Esc, and F1–F9 as 315–323.</summary>
     public const int EscapeKey = 27, F1Key = 315;
 
-    public ScriptVm Vm { get; } = vm ?? throw new ArgumentNullException(nameof(vm));
+    public ScriptVm Vm { get; }
 
     /// <summary>Jiffies ticked so far.</summary>
     public long Jiffies { get; private set; }
@@ -97,8 +105,62 @@ public sealed class FrameLoop(ScriptVm vm)
     /// </summary>
     public void VideoSkipped() => _videoSkipped = true;
 
-    /// <summary>A key was pressed (ASCII, or <see cref="F1Key"/>…): the next frame handles the last one pressed.</summary>
-    public void PressKey(int code) => _key = code;
+    /// <summary>
+    /// A key went down (ASCII, or <see cref="F1Key"/>…): the next frame handles the last one pressed, and it counts
+    /// as held (kernel-get 211) until <see cref="ReleaseKey"/>.
+    /// </summary>
+    public void PressKey(int code)
+    {
+        _key = code;
+        if (code <= 0) return;
+        _held.Add(code);
+        _fresh.Add(code);
+        _letGo.Remove(code);
+    }
+
+    /// <summary>
+    /// A key came up. One that went down since the last frame stays held through the next one, so the scripts
+    /// still see a quick tap held (the cannon's and the ship's Tab fire on it). A letter lets go of both cases, as
+    /// Shift may have changed in between.
+    /// </summary>
+    public void ReleaseKey(int code)
+    {
+        foreach (int k in code is >= 'a' and <= 'z' or >= 'A' and <= 'Z' ? [code | 0x20, code & ~0x20] : (int[])[code])
+        {
+            if (_fresh.Contains(k)) _letGo.Add(k);
+            else _held.Remove(k);
+        }
+    }
+
+    /// <summary>Every key lets go at once (the host lost the keyboard).</summary>
+    public void ReleaseKeys()
+    {
+        _held.Clear();
+        _fresh.Clear();
+        _letGo.Clear();
+    }
+
+    private readonly System.Collections.Generic.HashSet<int> _held = [], _fresh = [], _letGo = [];
+
+    /// <summary>The DOS scan code plus 256 of the keypad's arrows and page keys, as the scripts ask for them.</summary>
+    public const int HomeKey = 327, UpKey = 328, PageUpKey = 329, LeftKey = 331, RightKey = 333, EndKey = 335, DownKey = 336, PageDownKey = 337;
+
+    /// <summary>
+    /// kernel-get 211 (ScummVM <c>getKeyState</c>): whether a key is held. The keypad's keys count as theirs with the
+    /// keypad's digit too (Num Lock on), so 331 is Left or 4; any other key is asked for by its own code (9 is Tab).
+    /// </summary>
+    public bool KeyState(int key) => _held.Contains(key) || key switch
+    {
+        HomeKey => _held.Contains('7'),
+        UpKey => _held.Contains('8'),
+        PageUpKey => _held.Contains('9'),
+        LeftKey => _held.Contains('4'),
+        RightKey => _held.Contains('6'),
+        EndKey => _held.Contains('1'),
+        DownKey => _held.Contains('2'),
+        PageDownKey => _held.Contains('3'),
+        _ => false,
+    };
 
     /// <summary>Where the screen's top left is in the room; the virtual mouse is the mouse plus this (the camera moves it).</summary>
     public (int X, int Y) ScreenOrigin { get; set; }
@@ -166,6 +228,9 @@ public sealed class FrameLoop(ScriptVm vm)
         Vm.ProcessSpeech();
         Frames++;
         AfterScripts?.Invoke(step);
+        // The quick taps the frame saw held are let go now.
+        foreach (int k in _letGo) _held.Remove(k);
+        _letGo.Clear();
     }
 
     /// <summary>The scripts' save went into <see cref="ScriptVm.TemporaryState"/> (the host saves what it keeps itself, such as the music).</summary>
@@ -184,6 +249,7 @@ public sealed class FrameLoop(ScriptVm vm)
         Vm.LoadState(saved);
         _leftClicked = _rightClicked = false;
         _key = 0;
+        ReleaseKeys();
     }
 
     /// <summary>
@@ -232,6 +298,7 @@ public sealed class FrameLoop(ScriptVm vm)
 
         int input = 0, key = _key;
         _key = 0;
+        _fresh.Clear();
         if (_leftClicked && _rightClicked) key = EscapeKey; // both buttons skip a cutscene (v4+)
         else if (_leftClicked) input = LeftClick;
         else if (_rightClicked) input = RightClick;
@@ -261,6 +328,12 @@ public sealed class FrameLoop(ScriptVm vm)
             return input;
         }
         if (key == EscapeKey && state[EngineVars.CutsceneExitKey] != 0) Vm.AbortCutscene();
+        // The talk-stop key (COMI sets it to '.', and to 0 in the F1 menu) ends the line up now instead of reaching the scripts.
+        else if (key == state[EngineVars.TalkStopKey])
+        {
+            Vm.SkipLine();
+            return input;
+        }
         return key;
     }
 

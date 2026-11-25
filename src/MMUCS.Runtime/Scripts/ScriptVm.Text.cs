@@ -17,6 +17,8 @@ public interface ISpeech
     bool IsPlaying { get; }
     /// <summary>The talking actor's <c>frequency</c>, which the line plays at: 256 as recorded, higher faster and higher pitched.</summary>
     int Frequency { get; set; }
+    /// <summary>Plays on unheard (voice mode 2, subtitles only), so the line still lasts as long as its speech.</summary>
+    bool Muted { get; set; }
     /// <summary>The mouth's width and height in the speech <paramref name="aheadMs"/> past where it plays now, (0, 0) when none plays.</summary>
     (int Width, int Height) LipSync(int aheadMs);
 }
@@ -56,6 +58,11 @@ public sealed partial class ScriptVm
     private readonly List<ScreenText> _blastTexts = [];
     private int _actorToPrintFor, _haveMsg, _talkDelay, _charsetColor, _charsetBufPos;
     private bool _keepText;
+    /// <summary>Whether the line up has speech playing (ScummVM's <c>!_haveActorSpeechMsg</c>): voice mode 0 doesn't show its text.</summary>
+    private bool _lineSpoken;
+
+    /// <summary>Whether a key is held, by the engine's code (kernel-get 211); the frame loop answers it.</summary>
+    public Func<int, bool> KeyState { get; set; }
     private string _charsetBuffer = "";
 
     /// <summary>The talk lines up now (the subtitle queue).</summary>
@@ -140,6 +147,7 @@ public sealed partial class ScriptVm
             0xDC => Actors[a1].TalkStartFrame,
             0xD8 => FindBlastObject(a1, args.Length > 2 ? args[2] : 0),
             0xDD or 0xDE or 0xDF => 127, // the effects', voices' and music's volume (255 / 2)
+            0xD3 => KeyState?.Invoke(a1) == true ? 1 : 0, // getKeyState: the cannon's and the ship's Tab, the ship's arrows
             0xE0 => RegistryValue(a1),
             _ => null,
         };
@@ -254,8 +262,10 @@ public sealed partial class ScriptVm
         {
             speech.Stop();
             speech.Start(tag, _actorToPrintFor);
+            speech.Muted = State[EngineVars.VoiceMode] == 2;
             if (_actorToPrintFor != 0xFF && Actors.Find(_actorToPrintFor) is { } talker) speech.Frequency = talker.TalkFrequency;
         }
+        _lineSpoken = Speech is { IsPlaying: true };
 
         if (_actorToPrintFor == 0xFF)
         {
@@ -320,10 +330,14 @@ public sealed partial class ScriptVm
         str.CopyFrom(saved);
     }
 
-    /// <summary>The frame is drawn: its blasted objects and texts and the talk lines; the blasts are gone next frame.</summary>
+    /// <summary>
+    /// The frame is drawn: its blasted objects and texts and the talk lines; the blasts are gone next frame. With voice
+    /// mode 0 a spoken line's text isn't shown (ScummVM <c>processSubtitleQueue</c>), so Ctrl+T shows or hides the line up.
+    /// </summary>
     public void EndFrameTexts()
     {
-        ScreenTexts = [.. _blastTexts, .. _subtitles];
+        bool hide = _lineSpoken && State[EngineVars.VoiceMode] == 0;
+        ScreenTexts = hide ? [.. _blastTexts] : [.. _blastTexts, .. _subtitles];
         _blastTexts.Clear();
         EndFrameBlasts();
     }
@@ -336,8 +350,19 @@ public sealed partial class ScriptVm
     public void ProcessSpeech()
     {
         int act = TalkingActor;
-        if (act is > 0 and < 0x80 && Speech is { IsPlaying: true } speech && Actors.Find(act) is { } a)
-            speech.Frequency = a.TalkFrequency;
+        if (Speech is not { IsPlaying: true } speech) return;
+        speech.Muted = State[EngineVars.VoiceMode] == 2; // subtitles only: the speech plays on unheard, so the line lasts as long
+        if (act is > 0 and < 0x80 && Actors.Find(act) is { } a) speech.Frequency = a.TalkFrequency;
+    }
+
+    /// <summary>
+    /// The talk-stop key (ScummVM <c>processKeyboard</c>): the line's delay is over, and a line with speech stops now; one
+    /// without goes at the next frame's <see cref="Charset"/>.
+    /// </summary>
+    public void SkipLine()
+    {
+        _talkDelay = 0;
+        if (Speech is { IsPlaying: true }) StopTalk();
     }
 
     /// <summary>ScummVM <c>stopTalk</c> (v8): the speech stops, the actor stops talking, the lines go.</summary>

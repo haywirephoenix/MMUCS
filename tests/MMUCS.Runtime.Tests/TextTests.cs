@@ -19,6 +19,7 @@ public class TextTests
         public readonly List<string> Started = [];
         public bool IsPlaying { get; set; }
         public int Frequency { get; set; } = 256;
+        public bool Muted { get; set; }
         public void Start(string tag, int actor) { Started.Add($"{tag} by {actor}"); IsPlaying = true; Frequency = 256; }
         public void Stop() => IsPlaying = false;
         public int AskedAhead = -1;
