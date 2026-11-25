@@ -49,6 +49,8 @@ public sealed class GameSaves(string folder)
         return _registry.TryGetValue(name, out int value) ? value : null;
     }
 
+    private readonly JsonSerializerOptions _jsonSerializerOptions = new() { WriteIndented = true };
+
     public void SetRegistry(string name, int value)
     {
         _registry ??= LoadRegistry();
@@ -57,7 +59,7 @@ public sealed class GameSaves(string folder)
         try
         {
             Directory.CreateDirectory(Folder);
-            File.WriteAllText(RegistryPath, JsonSerializer.Serialize(_registry, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(RegistryPath, JsonSerializer.Serialize(_registry, _jsonSerializerOptions));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

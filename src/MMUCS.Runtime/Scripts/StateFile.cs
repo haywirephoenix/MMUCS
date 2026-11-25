@@ -343,7 +343,7 @@ public static class StateFile
                         var bytes = input.ReadBytes(Buffer.ByteLength(a));
                         Buffer.BlockCopy(bytes, 0, a, 0, bytes.Length);
                     }
-                    else for (int i = 0; i < a.Length; i++) Set(() => a.SetValue(Value(), i));
+                    else for (int i = 0; i < a.Length; i++) Set(() => a.SetValue(Value(), i), () => $"an element of a saved {element.Name}[]");
                     return;
                 }
                 case Kind.Dictionary:
@@ -371,9 +371,10 @@ public static class StateFile
             foreach (var (field, known) in _fields[typeId])
             {
                 var value = Value();
-                if (known) Set(() => field.SetValue(target, value));
+                if (known && !Set(() => field.SetValue(target, value), () => $"the saved {Describe(field)}, a {Describe(value?.GetType())} where it's now a {Describe(field.FieldType)},"))
+                    Set(() => field.SetValue(target, Fresh(field)), () => $"a fresh {Describe(field)}");
             }
-            foreach (var field in _absent[typeId]) Set(() => field.SetValue(target, Fresh(field)));
+            foreach (var field in _absent[typeId]) Set(() => field.SetValue(target, Fresh(field)), () => $"a fresh {Describe(field)}");
         }
 
         /// <summary>
@@ -400,11 +401,34 @@ public static class StateFile
 
         private readonly Dictionary<Type, object> _fresh = [];
 
-        /// <summary>A value that no longer fits where it goes (the field's type changed) is left out.</summary>
-        private void Set(Action set)
+        /// <summary>
+        /// A value that no longer fits where it goes (the field's type changed since the file was written) is left
+        /// out, and <paramref name="what"/> goes in the missing list; false when it was.
+        /// </summary>
+        private bool Set(Action set, Func<string> what)
         {
-            try { set(); }
-            catch (ArgumentException ex) { missing.Add(ex.Message); }
+            try { set(); return true; }
+            catch (ArgumentException) { missing.Add(what()); return false; }
+        }
+
+        /// <summary>A field as the code names it: <c>Actor.LastPicturePlace</c>, not its compiler-made backing field.</summary>
+        private static string Describe(FieldInfo field)
+        {
+            string name = field.Name;
+            if (name.StartsWith('<') && name.IndexOf('>') is int end and > 1) name = name[1..end];
+            return $"{field.DeclaringType?.Name}.{name}";
+        }
+
+        /// <summary>A type as C# writes it: <c>(int, int, int)?</c>, <c>List&lt;Actor&gt;</c>.</summary>
+        private static string Describe(Type t)
+        {
+            if (t == null) return "null";
+            var inner = Nullable.GetUnderlyingType(t);
+            if (inner != null) return Describe(inner) + "?";
+            if (t.IsGenericType && t.FullName?.StartsWith("System.ValueTuple`") == true)
+                return $"({string.Join(", ", t.GetGenericArguments().Select(Describe))})";
+            if (t.IsGenericType) return $"{t.Name[..t.Name.IndexOf('`')]}<{string.Join(", ", t.GetGenericArguments().Select(Describe))}>";
+            return t == typeof(int) ? "int" : t.Name;
         }
 
         private object Value()
