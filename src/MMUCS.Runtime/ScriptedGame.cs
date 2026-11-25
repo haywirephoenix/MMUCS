@@ -252,19 +252,30 @@ public sealed class ScriptedGame : IDisposable
     public GamePoint EngineCamera => Vm == null ? new(320, 240) : new(Vm.CameraX, Vm.CameraY);
 
     /// <summary>
-    /// A smooth camera instead of the engine's steps: what's shown eases towards <see cref="CameraTarget"/> every
-    /// jiffy (half the way in <see cref="SmoothCameraHalfLife"/> jiffies), snapping on a room change or a jump
-    /// of more than <see cref="SmoothCameraSnap"/> pixels in a jiffy. Only the picture and the mouse follow it;
-    /// the scripts still see the engine's camera.
+    /// A smooth camera instead of the engine's steps. The engine's camera (<see cref="CameraTarget"/>) slides
+    /// from where the frame before last had it to where the last frame did, through the wait for the next frame,
+    /// and what's shown eases towards that (half the way in <see cref="SmoothCameraHalfLife"/> jiffies), which
+    /// softens its starts and stops. Both are worked out for the moment the picture is drawn
+    /// (<see cref="Present"/>), between ticks too, so a picture drawn off the 60 Hz of the jiffies still moves
+    /// evenly. It snaps on a room change or a jump of more than <see cref="SmoothCameraSnap"/> pixels in a frame.
+    /// Only the picture and the mouse follow it; the scripts still see the engine's camera.
     /// </summary>
     public bool SmoothCamera { get; set; }
 
     /// <summary>
-    /// How far to slide actors from where the last frame drew them to where this one does: with the smooth
-    /// camera, the way through the wait for the next frame (so walking glides with the camera instead of
-    /// stepping against it); otherwise 1, where the engine has them.
+    /// With the smooth camera, walking actors glide between frames all the time, not only while the camera
+    /// moves (their feet slide a little, as the walk only changes cels each frame). Without the smooth camera
+    /// they step either way, as gliding over a stepping camera would wobble against the room.
     /// </summary>
-    public double ActorSlide => SmoothCamera && Loop != null ? Loop.Progress : 1;
+    public bool SmoothWalk { get; set; }
+
+    /// <summary>
+    /// How far to slide actors from where the last frame drew them to where this one does: with the smooth
+    /// camera while the camera moves (or all the time with <see cref="SmoothWalk"/>), the way through the wait
+    /// for the next frame, so walking glides with the camera instead of stepping against it; otherwise 1, where
+    /// the engine has them, so feet stay planted while the room holds still.
+    /// </summary>
+    public double ActorSlide => SmoothCamera && _slideActors && Loop != null ? Loop.ProgressAt(_sinceTick) : 1;
 
     /// <summary>Whether an actor drawn last frame moved, so the picture changes as it slides.</summary>
     private bool ActorsSliding()
@@ -277,29 +288,53 @@ public sealed class ScriptedGame : IDisposable
     }
 
     public const double SmoothCameraHalfLife = 4;
+    /// <summary>How far (room pixels) the camera shown may be from where it slides from and still count as still.</summary>
+    public const double SlideThreshold = 0.5;
     public const int SmoothCameraSnap = 100;
 
     private double _viewX = 320, _viewY = 240;
     private int _viewRoom = -1;
-    private GamePoint _lastEngineCamera = new(320, 240);
+    /// <summary>The engine's camera (kept in the room) after the frame before last and after the last frame: what slides.</summary>
+    private GamePoint _slideFrom = new(320, 240), _slideTo = new(320, 240);
+    /// <summary>Whether the actors slide through this frame: <see cref="SmoothWalk"/>, or the camera shown was moving when it ran.</summary>
+    private bool _slideActors;
+    /// <summary>How far into the jiffy after the last tick the picture is drawn, and the game time it was last drawn at.</summary>
+    private double _sinceTick, _presentedAt;
 
-    /// <summary>A jiffy of the smooth camera easing towards the engine's.</summary>
-    private void EaseCamera()
+    /// <summary>After a tick: a frame that ran moves on what slides; a room change, a jump or no smoothing snaps.</summary>
+    private void SlideCamera(bool frameRan)
     {
-        var engine = EngineCamera;
-        bool jumped = Math.Abs(engine.X - _lastEngineCamera.X) > SmoothCameraSnap || Math.Abs(engine.Y - _lastEngineCamera.Y) > SmoothCameraSnap;
-        _lastEngineCamera = engine;
         var target = CameraTarget;
-        if (!SmoothCamera || jumped || _viewRoom != CurrentRoom)
-        {
-            (_viewX, _viewY, _viewRoom) = (target.X, target.Y, CurrentRoom);
-            return;
-        }
-        double f = 1 - Math.Pow(0.5, 1 / SmoothCameraHalfLife);
-        _viewX += (target.X - _viewX) * f;
-        _viewY += (target.Y - _viewY) * f;
-        if (Math.Abs(target.X - _viewX) < 0.25) _viewX = target.X;
-        if (Math.Abs(target.Y - _viewY) < 0.25) _viewY = target.Y;
+        bool snap = !SmoothCamera || _viewRoom != CurrentRoom;
+        if (!frameRan && !snap) return;
+        snap |= Math.Abs(target.X - _slideTo.X) > SmoothCameraSnap || Math.Abs(target.Y - _slideTo.Y) > SmoothCameraSnap;
+        _slideFrom = snap ? target : _slideTo;
+        _slideTo = target;
+        _slideActors = !snap && (SmoothWalk || _slideFrom != _slideTo || Math.Abs(_viewX - _slideFrom.X) > SlideThreshold || Math.Abs(_viewY - _slideFrom.Y) > SlideThreshold);
+        _sinceTick = 0;
+        if (snap) (_viewX, _viewY, _viewRoom) = (target.X, target.Y, CurrentRoom);
+    }
+
+    /// <summary>
+    /// The host is about to draw, <paramref name="sinceTick"/> of a jiffy after the last tick: the camera shown
+    /// eases on to that moment. True when the picture moves (the camera, or sliding actors), so it's worth drawing.
+    /// </summary>
+    public bool Present(double sinceTick)
+    {
+        if (Vm == null || Loop == null) return false;
+        _sinceTick = Math.Clamp(sinceTick, 0, 1);
+        double now = Loop.Jiffies + _sinceTick, dt = Math.Clamp(now - _presentedAt, 0, 6);
+        _presentedAt = now;
+        if (!SmoothCamera) return false;
+        double t = Loop.ProgressAt(_sinceTick);
+        double x = _slideFrom.X + (_slideTo.X - _slideFrom.X) * t, y = _slideFrom.Y + (_slideTo.Y - _slideFrom.Y) * t;
+        double oldX = _viewX, oldY = _viewY;
+        double f = 1 - Math.Pow(0.5, dt / SmoothCameraHalfLife);
+        _viewX += (x - _viewX) * f;
+        _viewY += (y - _viewY) * f;
+        if (Math.Abs(x - _viewX) < 0.05) _viewX = x;
+        if (Math.Abs(y - _viewY) < 0.05) _viewY = y;
+        return _viewX != oldX || _viewY != oldY || (_slideActors && ActorsSliding());
     }
 
     public int CurrentRoom => Vm?.CurrentRoom ?? 0;
@@ -907,9 +942,9 @@ public sealed class ScriptedGame : IDisposable
             _warped = false;
             if (IsMouseCaptured && !IsReplaying) MouseWarped?.Invoke();
         }
-        var before = Camera;
-        EaseCamera();
-        if (ran || IsVideoPlaying || Camera != before || (SmoothCamera && ActorsSliding())) Changed?.Invoke();
+        SlideCamera(ran);
+        Present(0); // at the tick; a host drawing between ticks presents again
+        if (ran || IsVideoPlaying) Changed?.Invoke();
     }
 
     /// <summary>Ends the video now; the cutscene it was in is skipped on the next frame.</summary>

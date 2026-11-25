@@ -75,6 +75,16 @@ public sealed class FrameLoop
     /// <summary>How far through the wait for the next frame the jiffies are, from 0 (a frame just ran) towards 1.</summary>
     public double Progress => Wait > 0 ? (double)_elapsed / Wait : 0;
 
+    /// <summary>
+    /// <see cref="Progress"/> <paramref name="sinceTick"/> of a jiffy after the last tick (0–1), for a picture drawn
+    /// between ticks: it reaches 1 as the next frame is due, where that frame's slide starts.
+    /// </summary>
+    public double ProgressAt(double sinceTick)
+    {
+        int wait = Wait > 0 ? Wait : Math.Max(1, Vm.State[EngineVars.TimerNext]);
+        return Math.Clamp((_elapsed + sinceTick) / wait, 0, 1);
+    }
+
     /// <summary>The mouse on the 640×480 screen, written to the mouse variables each frame (kept within <see cref="MouseRangeX"/> and the screen's height).</summary>
     public (int X, int Y) Mouse { get; set; }
 
