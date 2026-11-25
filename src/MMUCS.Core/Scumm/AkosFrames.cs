@@ -593,6 +593,36 @@ public static class AkosFrames
         return new RgbaImage(w, h, rgba);
     }
 
+    /// <summary>
+    /// ScummVM <c>actorHitTest</c> (codec 1's <c>_actorHitMode</c>): whether the frame, drawn at
+    /// <paramref name="scale"/> as <see cref="RenderScaled"/> draws it, puts a costume pixel at
+    /// (<paramref name="x"/>, <paramref name="y"/>) relative to the actor's origin. Shadow pixels count.
+    /// </summary>
+    public static bool HitTest(AkosData d, AkosFrame frame, int scale, bool mirror, int x, int y)
+    {
+        if (frame == null || frame.IsEmpty) return false;
+        bool scaled = scale < 255;
+        scale = Math.Max(scale, 1);
+        byte transparent = d.TransparentIndex;
+        foreach (var c in frame.Cels)
+        {
+            var cel = GetCel(d, c.Cel);
+            if (cel == null) continue;
+            int[] cols = scaled ? ScaledColumns(c.X, cel.Width, scale, mirror) : null;
+            int[] rows = scaled ? ScaledRows(c.Y, cel.Height, scale) : null;
+            for (int cy = 0; cy < cel.Height; cy++)
+            {
+                if ((scaled ? rows[cy] : c.Y + cy) != y) continue;
+                for (int cx = 0; cx < cel.Width; cx++)
+                {
+                    int rx = scaled ? cols[cx] : mirror ? -(c.X + cx) - 1 : c.X + cx;
+                    if (rx == x && cel.Pixels[cy * cel.Pitch + cx] != transparent) return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /// <summary>Union of a chore's frame bounds over <paramref name="steps"/> steps (relative to the actor origin).</summary>
     public static (int Left, int Top, int Right, int Bottom) CycleBounds(AkosData d, int chore, int steps)
     {
