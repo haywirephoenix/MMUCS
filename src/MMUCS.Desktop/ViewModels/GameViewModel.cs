@@ -41,11 +41,12 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         Fonts = new FontChooser(settings);
         _settings = settings;
         Scripted.SmoothCamera = SmoothCamera = settings?.SmoothCamera ?? true;
+        Scripted.SmoothWalk = SmoothWalk = settings?.SmoothWalk ?? true;
         Fonts.Changed += () => { ApplyFont(); Refresh(); };
-        Game.Changed += Refresh;
-        Scripted.Changed += Refresh;
+        Game.Changed += OnChanged;
+        Scripted.Changed += OnChanged;
         Scripted.MouseWarped += () => MouseWarped?.Invoke();
-        ScriptedView.Changed += Refresh;
+        ScriptedView.Changed += OnChanged;
         Refresh();
         Loading = Task.WhenAll(Game.LoadAsync(root), LoadFontsAsync(), LoadScriptsAsync(root), StartSoundAsync());
     }
@@ -95,12 +96,27 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool SmoothCamera { get; set; }
 
+    /// <summary>Walking actors glide between frames instead of stepping as SCUMM's do, with the smooth camera (kept in the settings).</summary>
+    [ObservableProperty]
+    public partial bool SmoothWalk { get; set; }
+
     partial void OnSmoothCameraChanged(bool value)
     {
         Scripted.SmoothCamera = value;
         if (_settings != null && _settings.SmoothCamera != value)
         {
             _settings.SmoothCamera = value;
+            _settings.Save();
+        }
+        Refresh();
+    }
+
+    partial void OnSmoothWalkChanged(bool value)
+    {
+        Scripted.SmoothWalk = value;
+        if (_settings != null && _settings.SmoothWalk != value)
+        {
+            _settings.SmoothWalk = value;
             _settings.Save();
         }
         Refresh();
@@ -315,6 +331,39 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
     {
         if (RunScripts) Scripted.Tick();
         else Game.Tick();
+    }
+
+    /// <summary>
+    /// Runs <paramref name="jiffies"/> jiffies and shows the picture as it is <paramref name="sinceTick"/> of a
+    /// jiffy after the last of them: one picture however many ran, and one between ticks while the smooth camera
+    /// or sliding actors move it.
+    /// </summary>
+    public void Advance(int jiffies, double sinceTick)
+    {
+        _advancing = true;
+        try
+        {
+            for (int i = 0; i < jiffies; i++) Tick();
+        }
+        finally
+        {
+            _advancing = false;
+        }
+        bool moving = RunScripts && Scripted.Present(sinceTick);
+        if (_changed || moving)
+        {
+            _changed = false;
+            Refresh();
+        }
+    }
+
+    private bool _advancing, _changed;
+
+    /// <summary>The game changed: shown now, or once the jiffies being run are done.</summary>
+    private void OnChanged()
+    {
+        if (_advancing) _changed = true;
+        else Refresh();
     }
 
     private void Refresh()

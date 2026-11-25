@@ -38,9 +38,14 @@ public partial class GameWindow : Window
         Canvas.PointerMoved += OnCanvasMoved;
         Canvas.PointerExited += OnCanvasExited;
         Canvas.PointerReleased += OnCanvasReleased;
-        // Game time runs in jiffies (1/60 s), counted from a clock so a late timer doesn't slow the game down.
-        _timer = new DispatcherTimer(TimeSpan.FromSeconds(1 / 60.0), DispatcherPriority.Render, (_, _) => Advance());
-        Opened += (_, _) => { _clock.Restart(); _timer.Start(); };
+        // Game time runs in jiffies (1/60 s), counted from a clock so a late timer doesn't slow the game down. The
+        // window's animation frames run it and draw, so each picture shows the game at the moment it's drawn; the
+        // timer keeps it going when there are none (a hidden window).
+        _timer = new DispatcherTimer(TimeSpan.FromSeconds(1 / 60.0), DispatcherPriority.Render, (_, _) =>
+        {
+            if (_clock.Elapsed.TotalSeconds - _lastAnimationFrame > 0.1) Advance();
+        });
+        Opened += (_, _) => { _clock.Restart(); _timer.Start(); RequestAnimationFrame(OnAnimationFrame); };
         Canvas.SizeChanged += (_, _) => Confine();
         PositionChanged += (_, _) => Confine();
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
@@ -136,12 +141,29 @@ public partial class GameWindow : Window
         _vm.MoveCursor(Canvas.ToGame(at));
     }
 
-    /// <summary>Runs the game for the jiffies that have passed since the last time (a few at most after a stall).</summary>
+    private double _lastAnimationFrame = double.NegativeInfinity;
+    private bool _closed;
+
+    private void OnAnimationFrame(TimeSpan frameTime)
+    {
+        if (_closed) return;
+        _lastAnimationFrame = _clock.Elapsed.TotalSeconds;
+        Advance();
+        RequestAnimationFrame(OnAnimationFrame);
+    }
+
+    /// <summary>
+    /// Runs the game for the jiffies that have passed since the last time (a few at most after a stall) and
+    /// shows it as it is now, part way into the next jiffy.
+    /// </summary>
     private void Advance()
     {
-        long now = _clock.ElapsedTicks * 60 / System.Diagnostics.Stopwatch.Frequency;
-        for (int i = 0; i < 6 && _jiffies < now; i++, _jiffies++) _vm?.Tick();
-        _jiffies = Math.Max(_jiffies, now - 6);
+        double now = _clock.Elapsed.TotalSeconds * 60;
+        long whole = (long)now;
+        int run = 0;
+        for (; run < 6 && _jiffies < whole; run++) _jiffies++;
+        _jiffies = Math.Max(_jiffies, whole - 6);
+        _vm?.Advance(run, _jiffies == whole ? now - whole : 0);
     }
 
     private void OnCanvasReleased(object sender, PointerReleasedEventArgs e)
@@ -252,6 +274,7 @@ public partial class GameWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _closed = true;
         _timer.Stop();
         ReleaseMouse("the window closed");
         _confinement.Dispose();

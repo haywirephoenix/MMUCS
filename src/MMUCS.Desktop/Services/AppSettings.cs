@@ -21,6 +21,8 @@ public sealed class AppSettings
     public bool ReopenLastFileOnStartup { get; set; } = true;
     /// <summary>The game window eases its camera instead of SCUMM's steps (on by default; the window's Smooth camera button).</summary>
     public bool SmoothCamera { get; set; } = true;
+    /// <summary>Walking actors glide between frames, with the smooth camera (on by default; the window's Smooth walk button).</summary>
+    public bool SmoothWalk { get; set; } = true;
     public bool ShowRoomNames { get; set; } = true;
     public bool ShowObjectNames { get; set; } = true;
     public bool ColorizeTags { get; set; } = true;
