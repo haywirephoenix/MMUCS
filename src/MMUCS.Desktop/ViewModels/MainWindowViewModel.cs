@@ -394,6 +394,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
             _rootBlock = root;
             GameFile = files.Count > 0 ? Path.GetFullPath(files[0]) : null;
+            Room.ObjectMods = ObjectImageMods.Load(GameFile);
             _selectionKey = files.Count > 0 ? Path.GetFullPath(files[0]).ToLowerInvariant() : null;
             OnPropertyChanged(nameof(HasProject));
             SelectedNode = null;

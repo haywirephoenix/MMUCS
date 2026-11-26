@@ -21,7 +21,13 @@ public sealed record LiveCostume(RoomObject Target, SKImage Image, int X, int Y,
 /// <param name="CostumeActor">The actor number, which breaks ties in that order.</param>
 /// <param name="CostumeScale">The actor's scale as a factor; <see cref="CostumeX"/>/<see cref="CostumeY"/> are the scaled image's corner.</param>
 public sealed record RoomObjectLayer(RoomObject Object, SKImage Image, SKImage CostumeImage = null, int CostumeX = 0, int CostumeY = 0,
-    bool IsActorOnly = false, int CostumeDepth = 0, int CostumeActor = 0, float CostumeScale = 1, int CostumeZPlane = 0);
+    bool IsActorOnly = false, int CostumeDepth = 0, int CostumeActor = 0, float CostumeScale = 1, int CostumeZPlane = 0,
+    int? ImageX = null, int? ImageY = null)
+{
+    /// <summary>Where the image goes in the room: the object's place, unless a mod's image says otherwise.</summary>
+    public int X => ImageX ?? Object.X;
+    public int Y => ImageY ?? Object.Y;
+}
 
 /// <summary>
 /// Room viewer: background, object images, object bounds (hotspots), walkbox polygons and room bounds.
@@ -227,8 +233,8 @@ public sealed class RoomCanvas : SkiaViewport
                     continue;
                 }
 
-                w = Math.Max(w, l.Object.X + l.Image.Width);
-                h = Math.Max(h, l.Object.Y + l.Image.Height);
+                w = Math.Max(w, l.X + l.Image.Width);
+                h = Math.Max(h, l.Y + l.Image.Height);
             }
             return w > 0 && h > 0 ? new Size(w, h) : default;
         }
@@ -402,7 +408,7 @@ public sealed class RoomCanvas : SkiaViewport
                     continue; // not drawn
                 }
 
-                if (Opaque(l.Image, p.X - l.Object.X, p.Y - l.Object.Y))
+                if (Opaque(l.Image, p.X - l.X, p.Y - l.Y))
                 {
                     Add(l.Object);
                 }
@@ -506,7 +512,7 @@ public sealed class RoomCanvas : SkiaViewport
                     // Other full-screen (640px) object images would cover the background (in the wrong
                     // palette), so they're drawn only when asked for; the Background spinbox switches to them.
                     if (layer.Image.Width >= 640 && !_fullScreenObjects && _toggled?.Contains(layer.Object) != true) continue;
-                    objects.Add(new SceneObject(layer.Object, layer.Image, layer.Object.X, layer.Object.Y));
+                    objects.Add(new SceneObject(layer.Object, layer.Image, layer.X, layer.Y));
                 }
 
                 bool liveDrawn = false;

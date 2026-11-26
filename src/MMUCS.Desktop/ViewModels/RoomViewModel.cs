@@ -334,17 +334,17 @@ public sealed partial class RoomViewModel : ObservableObject
         if (state > 0 && obj.ImageCount > 0 && ObimDecoders.TryGetObimInfo(obj.Block, out var info))
         {
             int frame = RoomObjectStates.FrameFor(state, info.TotalFrames > 0 ? info.TotalFrames : 1);
-            var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(obj), bakeImage: true, CancellationToken.None);
+            var loaded = await ObjectImageAsync(Room, obj, frame, CancellationToken.None);
             if (Room?.Objects.Contains(obj) != true)
             {
                 return; // another room opened meanwhile
             }
 
             var set = new ImageSet();
-            var image = set.Add(result.ExecutedImage?.ToSkImage());
+            var image = set.Add(loaded.Image?.ToSkImage());
             if (ObjectLayers != null)
             {
-                ObjectLayers = [.. ObjectLayers.Select(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly ? l with { Image = image } : l)];
+                ObjectLayers = [.. ObjectLayers.Select(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly ? l with { Image = image, ImageX = loaded.X, ImageY = loaded.Y } : l)];
                 // The image this one replaces goes with its set when it came from an earlier state change.
                 _stateImages.Remove(obj, out var old);
                 _stateImages[obj] = set;
@@ -444,20 +444,22 @@ public sealed partial class RoomViewModel : ObservableObject
         }
 
         _loadingLibraryImages = true;
-        var loaded = new List<(RoomObject Object, ImageSet Set, SKImage Image)>();
+        var loaded = new List<(RoomObject Object, ImageSet Set, SKImage Image, int? X, int? Y)>();
         try
         {
             foreach (var obj in missing)
             {
                 SKImage image = null;
+                int? x = null, y = null;
                 var set = new ImageSet();
                 if (ObimDecoders.TryGetObimInfo(obj.Block, out var info))
                 {
                     int frame = RoomObjectStates.FrameFor(StateOf(obj), info.TotalFrames > 0 ? info.TotalFrames : 1);
-                    var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(obj), bakeImage: true, CancellationToken.None);
-                    image = set.Add(result.ExecutedImage?.ToSkImage());
+                    var result = await ObjectImageAsync(room, obj, frame, CancellationToken.None);
+                    image = set.Add(result.Image?.ToSkImage());
+                    (x, y) = (result.X, result.Y);
                 }
-                loaded.Add((obj, set, image));
+                loaded.Add((obj, set, image, x, y));
                 if (!ReferenceEquals(Room, room))
                 {
                     break; // another room opened meanwhile
@@ -471,7 +473,7 @@ public sealed partial class RoomViewModel : ObservableObject
             }
 
             var byObject = loaded.ToDictionary(l => l.Object);
-            ObjectLayers = [.. ObjectLayers.Select(l => !l.IsActorOnly && byObject.TryGetValue(l.Object, out var x) ? l with { Image = x.Image } : l)];
+            ObjectLayers = [.. ObjectLayers.Select(l => !l.IsActorOnly && byObject.TryGetValue(l.Object, out var x) ? l with { Image = x.Image, ImageX = x.X, ImageY = x.Y } : l)];
             // Owned like a state change's image: kept until the room reloads (an image that failed stays
             // recorded, so it isn't tried again on every visibility change).
             foreach (var l in loaded) _stateImages[l.Object] = l.Set;
@@ -822,6 +824,29 @@ public sealed partial class RoomViewModel : ObservableObject
     /// palette 1), else the room's own palette 0 (<see cref="RoomPalettes"/>).
     /// </summary>
     public int PaletteOf(RoomObject obj) => RoomSceneBuilder.PaletteOf(Room, obj);
+
+    /// <summary>
+    /// The mods beside the game (set when a game is opened): an object image a mod has (<see cref="ObjectImageMods"/>)
+    /// is shown in place of the game's, where the mod puts it, as the game window shows it.
+    /// </summary>
+    public ObjectImageMods ObjectMods { get; set; }
+
+    /// <summary>Image <paramref name="frame"/> of an object: a mod's, with where it goes, or the game's (no place: the object's).</summary>
+    private async Task<(RgbaImage Image, int? X, int? Y)> ObjectImageAsync(RoomModel room, RoomObject obj, int frame, CancellationToken token)
+    {
+        int palette = RoomSceneBuilder.PaletteOf(room, obj);
+        if (ObjectMods is { } mods && await Task.Run(() => mods.Rgba(room, obj, frame, palette), token) is var (image, x, y))
+        {
+            lock (mods.Problems)
+            {
+                foreach (var problem in mods.Problems) Log.Warn($"Object mods: {problem}");
+                mods.Problems.Clear();
+            }
+            return (image, x, y);
+        }
+        var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, palette, bakeImage: true, token);
+        return (result.ExecutedImage, null, null);
+    }
 
     /// <summary>The costume and palette the frames played in place are resolved in.</summary>
     private (AkosData, int) _livePalette;
@@ -1187,6 +1212,7 @@ public sealed partial class RoomViewModel : ObservableObject
             {
                 SKImage image = null;
                 RgbaImage rgba = null;
+                int? imageX = null, imageY = null;
                 // An image library loads only what's shown; the rest load when shown (LoadShownLibraryImages).
                 bool skip = IsImageLibrary(room) && shownNow?.Contains(obj) != true;
                 if (skip)
@@ -1199,17 +1225,19 @@ public sealed partial class RoomViewModel : ObservableObject
                     // switches the room's palette from scripts before it shows one (RoomPalettes).
                     // The image for its state on entry (state N shows image N); the first when it starts hidden.
                     int frame = RoomObjectStates.FrameFor(StateOf(obj), info.TotalFrames > 0 ? info.TotalFrames : 1);
-                    var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(obj), bakeImage: true, token);
+                    var result = await ObjectImageAsync(room, obj, frame, token);
                     if (token.IsCancellationRequested)
                     {
                         return;
                     }
 
-                    rgba = result.ExecutedImage;
+                    rgba = result.Image;
+                    (imageX, imageY) = (result.X, result.Y);
                     image = images.Add(rgba?.ToSkImage());
                 }
                 costumes.TryGetValue(obj, out var costume);
-                layers.Add(new RoomObjectLayer(obj, image, costume.Image, costume.X, costume.Y, CostumeDepth: costume.Depth, CostumeActor: costume.Actor, CostumeScale: costume.Scale == 0 ? 1 : costume.Scale, CostumeZPlane: costume.ZPlane));
+                layers.Add(new RoomObjectLayer(obj, image, costume.Image, costume.X, costume.Y, CostumeDepth: costume.Depth, CostumeActor: costume.Actor, CostumeScale: costume.Scale == 0 ? 1 : costume.Scale, CostumeZPlane: costume.ZPlane,
+                    ImageX: imageX, ImageY: imageY));
                 if (!skip)
                 {
                     hasImage[obj] = rgba != null && !IsFullyTransparent(rgba);
