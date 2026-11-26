@@ -38,7 +38,8 @@ public sealed class CostumeCelMods
         var mods = new CostumeCelMods();
         foreach (var mod in GameMods.Load(gameFile, mods.Problems))
         {
-            if (!mod.Enabled || !Directory.Exists(Path.Combine(mod.Folder, "rooms"))) continue;
+            // A hi-res mod's images are drawn at their scale in full colour (HiResMods), not taken into the palette.
+            if (!mod.Enabled || mod.Scale > 1 || !Directory.Exists(Path.Combine(mod.Folder, "rooms"))) continue;
             mods._mods.Add(mod);
             mods.Mods.Add(mod.Name);
         }

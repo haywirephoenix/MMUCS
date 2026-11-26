@@ -21,7 +21,16 @@ namespace MMUCS.Core;
 public static class GameMods
 {
     /// <summary>A mod: its folder's name, the folder, and its mod.json (null when it couldn't be read).</summary>
-    public sealed record Mod(string Name, string Folder, bool Enabled, JsonDocument Json);
+    /// <remarks>
+    /// <c>Scale</c> is mod.json's "scale": how many of the mod's pixels make a game pixel. A mod with a scale over 1
+    /// is a hi-res mod: its room backgrounds and object images are drawn at that resolution in full colour
+    /// (<see cref="Scumm.HiResMods"/>), and the palette mods (object images, costume cels) leave it alone.
+    /// </remarks>
+    public sealed record Mod(string Name, string Folder, bool Enabled, JsonDocument Json)
+    {
+        public int Scale => Json.RootElement.ValueKind == JsonValueKind.Object && Json.RootElement.TryGetProperty("scale", out var s) &&
+                            s.TryGetInt32(out int n) && n > 1 ? n : 1;
+    }
 
     /// <summary>The mods folder for <paramref name="gameFile"/>: "_mods" beside it, or null without a game file.</summary>
     public static string Folder(string gameFile) =>
