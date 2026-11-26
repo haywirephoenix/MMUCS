@@ -169,13 +169,7 @@ internal static class ModsCommand
     /// <summary>Adds <paramref name="placed"/> to a costume folder's meta.json "cels", keeping what it has.</summary>
     private static void WriteOffsets(string meta, Dictionary<string, (int X, int Y)> placed)
     {
-        var root = File.Exists(meta) ? System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(meta), documentOptions: new System.Text.Json.JsonDocumentOptions
-            { CommentHandling = System.Text.Json.JsonCommentHandling.Skip, AllowTrailingCommas = true }) as System.Text.Json.Nodes.JsonObject : null;
-        root ??= [];
-        if (root["cels"] is not System.Text.Json.Nodes.JsonObject cels) root["cels"] = cels = [];
-        foreach (var (name, at) in placed.OrderBy(kv => kv.Key, StringComparer.Ordinal))
-            cels[name] = new System.Text.Json.Nodes.JsonObject { ["x"] = at.X, ["y"] = at.Y };
-        File.WriteAllText(meta, root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + "\n");
+        CostumeCelMods.SaveOffsets(Path.GetDirectoryName(meta), placed);
         Console.WriteLine($"    wrote {placed.Count} offsets to {meta}");
     }
 }
