@@ -248,6 +248,21 @@ public static class AkosFrames
         frame.Cels.Add(new AkosPlacedCel(cel, x, y, ci.Width, ci.Height));
     }
 
+    /// <summary>
+    /// <paramref name="frame"/>, composed from the game's cels, as <paramref name="modded"/> (the costume with its
+    /// mods' cels, <see cref="AkosData.ModCels"/>) composes it: each cel a mod replaces moved by its offset and at its size.
+    /// </summary>
+    public static AkosFrame WithModCels(AkosData modded, AkosFrame frame)
+    {
+        if (frame == null || modded?.ModCels is not { Count: > 0 } mods) return frame;
+        var moved = new AkosFrame();
+        foreach (var c in frame.Cels)
+            moved.Cels.Add(mods.TryGetValue(c.Cel, out var m)
+                ? new AkosPlacedCel(c.Cel, c.X + m.OffsetX, c.Y + m.OffsetY, m.Surface.Width, m.Surface.Height)
+                : c);
+        return moved;
+    }
+
     /// <summary>Composes a chore's frame with each limb at step <paramref name="step"/> (wrapping per limb).</summary>
     public static AkosFrame Compose(AkosData d, int chore, int step = 0)
     {

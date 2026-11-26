@@ -32,6 +32,13 @@ public static class AkosCelCache
         bool cacheDisabled,
         CancellationToken token)
     {
+        // A mod's cel (AkosData.ModCels) in place of the game's.
+        if (akos.ModCels != null && akos.ModCels.TryGetValue(index, out var mod))
+        {
+            var (modData, modFinal) = ResolveCelImages(mod.Surface, akos, bakeImages);
+            return new CelResult(mod.Surface, modData, modFinal);
+        }
+
         long key = BuildCelCacheKey(akos, index);
 
         if (!cacheDisabled && akos.DecodedCels.TryGetValue(key, out var cachedSurface))
