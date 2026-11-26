@@ -45,6 +45,13 @@ usage: mprobe [--game FILE] COMMAND ...
                        cels that don't line up (where the game's cel is in the PNG) to meta.json; --place
                        CEL,… (44, cel_044, akos_02A4A050/cel_044) does just those, lined up or not.
                        --check decodes every FLAC against its MD5.
+  backgrounds DIR [--scale N] [--out MOD]
+                       The room each image in DIR (PNG/JPEG, upscaled by N, default 4) shows: matched
+                       against every background where it fits, to the pixel, with the runner-up. Images that
+                       match no background well, or repeat a better one, are matched against object images:
+                       the room's objects at their places, and any object frame. --out makes MOD a hi-res
+                       mod (mod.json "scale"): MOD/rooms/<room>/background.png (halves stitched), whole
+                       object images to MOD/rooms/<room>/objects/, anything else to MOD/_unplaced.
   match TRACK [FILE] [--in DIR] [--chunks]
   match all --out FILE [--in DIR] [--only T,T…]
                        Where game music track TRACK (1100, or a name: Hold1) is in a FLAC, to the sample: its
@@ -146,6 +153,7 @@ try
         "fonts" => FontsCommand.Run(argv, TakeOption, game),
         "costume" => CostumeCommand.Run(root, argv, TakeOption),
         "mods" => ModsCommand.Run(root, argv, game),
+        "backgrounds" => BackgroundsCommand.Run(root, argv, TakeOption),
         "match" => MatchCommand.Run(argv, TakeOption, FindSound, MusicNumbers, game),
         _ => Fail($"unknown command '{argv[0]}'"),
     };

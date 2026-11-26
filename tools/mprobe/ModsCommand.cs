@@ -39,6 +39,7 @@ internal static class ModsCommand
         var unmapped = names.Keys.Where(k => !mods.Tracks.ContainsKey(k)).Order().Select(k => names[k]).ToList();
         if (table != null) Console.WriteLine($"game tracks no mod replaces ({unmapped.Count} of {names.Count}): {string.Join(", ", unmapped)}");
         ObjectImages(root, gameFile);
+        HiRes(root, gameFile);
         // --place, or --place NAME,NAME…: only those cels, worked out again even when their offset fits.
         int placeAt = a.IndexOf("--place");
         List<string> only = placeAt >= 0 && placeAt + 1 < a.Count && !a[placeAt + 1].StartsWith("--")
@@ -67,6 +68,40 @@ internal static class ModsCommand
         }
         Console.WriteLine(bad == 0 ? "every file decodes to its MD5" : $"{bad} files failed");
         return bad == 0 ? 0 : 1;
+    }
+
+    /// <summary>The hi-res mods: per room the background and object images they draw, then PNGs that match no room or object.</summary>
+    private static void HiRes(ScummBlock root, string gameFile)
+    {
+        var mods = HiResMods.Load(gameFile);
+        Console.WriteLine($"hi-res: {(mods.Mods.Count == 0 ? "no enabled mod has a scale and rooms/" : string.Join(", ", mods.Mods))}");
+        if (mods.Mods.Count == 0) return;
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        int backgrounds = 0, objects = 0;
+        foreach (var lflf in root.FindChildrenRecursive(ScummTag.LFLF))
+        {
+            if (!RoomModel.TryCreate(lflf, out var room)) continue;
+            var parts = new List<string>();
+            if (mods.Background(room) is { } bg && used.Add(bg.File))
+            {
+                parts.Add($"background ×{bg.Scale}");
+                backgrounds++;
+            }
+            foreach (var obj in room.Objects)
+                for (int f = 0; f < Math.Max(1, obj.ImageCount); f++)
+                    if (mods.Object(room, obj, f) is { } o && used.Add(o.File))
+                    {
+                        parts.Add(ScummExporters.ObjectFrameFile(obj, f) + (o.X is int x ? $" at {x},{o.Y}" : ""));
+                        objects++;
+                    }
+            if (parts.Count > 0) Console.WriteLine($"  {ScummExporters.RoomFolderName(room),-20} {string.Join(", ", parts)}");
+        }
+        Console.WriteLine($"  {backgrounds} backgrounds, {objects} object images");
+        foreach (var mod in GameMods.Load(gameFile).Where(m => mods.Mods.Contains(m.Name)))
+            foreach (var png in Directory.EnumerateFiles(Path.Combine(mod.Folder, "rooms"), "*.png", SearchOption.AllDirectories).Order())
+                if (!used.Contains(png) && !png.Contains(Path.DirectorySeparatorChar + "costumes" + Path.DirectorySeparatorChar))
+                    Console.WriteLine($"  not drawn: {mod.Name}/{Path.GetRelativePath(mod.Folder, png)} (no such room or object, or another mod's comes first)");
+        foreach (var p in mods.Problems) Console.WriteLine($"  problem: {p}");
     }
 
     /// <summary>Each PNG under an enabled mod's rooms/: the object image it stands in for, or why it doesn't.</summary>

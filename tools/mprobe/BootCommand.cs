@@ -465,7 +465,15 @@ static class BootCommand
             if (vm.IsDrawn(o.Id)) drawn[o.Id] = vm.LocalState(o.Id);
         int StateOf(RoomObject o) => drawn.GetValueOrDefault(vm.Scripts.ObjectId(o.Name));
         var screen = vm.Palette.Snapshot();
-        var scene = MMUCS.Player.Rooms.RoomSceneBuilder.BuildIndexedAsync(model, StateOf).GetAwaiter().GetResult().Colour(screen);
+        // The mods beside the game, as the game window draws them.
+        var hiRes = HiResMods.Load(gameFile);
+        var indexed = MMUCS.Player.Rooms.RoomSceneBuilder.BuildIndexedAsync(model, StateOf, mods: ObjectImageMods.Load(gameFile),
+            shadowTables: [.. vm.Palette.ShadowFactors], hiRes: hiRes).GetAwaiter().GetResult();
+        var scene = indexed.Colour(screen);
+        if (scene.HiResBackground is { } hb)
+            Console.WriteLine($"hi-res background from {hiRes.Background(model).Mod} ({hb.Image.Width}×{hb.Image.Height}), {(hb.Tinted == null ? "in the colours it was made in" : "tinted: the screen's colours differ from the room's")}");
+        foreach (var o in scene.Objects.Where(o => o.HiRes != null))
+            Console.WriteLine($"hi-res object {ScummExporters.ObjectFrameFile(o.Object, 0)[..^7]} ({o.HiRes.Image.Width}×{o.HiRes.Image.Height}){(o.HiRes.Tinted == null ? "" : ", tinted")}");
         scene = scene.WithActors(MMUCS.Player.Rooms.RoomSceneBuilder.SceneActors(vm.Actors.Pictures, scene.ZMasks.Count, screen: screen, shadowFactors: vm.Palette.ShadowFactors));
         using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(Math.Max(1, scene.Width), Math.Max(1, scene.Height)));
         surface.Canvas.Clear(SkiaSharp.SKColors.Black);
