@@ -177,6 +177,10 @@ public class ScriptStoreTests(ITestOutputHelper output)
             Assert.Equal(-552, AkosFrames.ComposeAt(game, [472]).Bounds.Left);
             // A frame composed from the game's cels, as the viewers keep them, moved onto the mod's; the cel panel's cache gives the mod's cel.
             Assert.Equal(-565, AkosFrames.WithModCels(data, AkosFrames.ComposeAt(game, [472])).Bounds.Left);
+            // A cel alone is where the first step drawing it puts it: cel 48 at the throw's -552,-185, moved by the mod's offset.
+            var alone = Assert.Single(AkosFrames.CelInPlace(data, 48).Cels);
+            Assert.Equal((-565, -185, w), (alone.X, alone.Y, alone.Width));
+            Assert.Equal((-552, -185), (Assert.Single(AkosFrames.CelInPlace(game, 48).Cels).X, AkosFrames.CelInPlace(game, 48).Cels[0].Y));
             Assert.Same(surface, AkosCelCache.GetCachedCelAsync(data, 48, bakeImages: false, cacheDisabled: true, default).GetAwaiter().GetResult().Surface);
         }
         finally { Directory.Delete(dir, true); }
