@@ -28,19 +28,50 @@
     </ControlTheme>
   </UserControl.Resources>
 
-  <!-- Rows: Metadata header, Metadata rows, viewer header, viewer (sized in code: the open sections share the height). -->
-  <Grid x:Name="Sections" RowDefinitions="Auto,Auto,Auto,*">
+  <!-- Rows: Metadata header, Metadata rows, Position header, Position, viewer header, viewer (sized in code: the open sections share the height). -->
+  <Grid x:Name="Sections" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*">
     <ToggleButton Grid.Row="0" Theme="{StaticResource SectionHeader}" Content="Metadata"
                   IsChecked="{Binding IsMetadataExpanded}" ToolTip.Tip="Show or hide the selected block's metadata" />
     <Panel Grid.Row="1" x:Name="MetadataSection" IsVisible="{Binding IsMetadataExpanded}">
       <panels:MetadataView x:Name="MetadataRows" />
     </Panel>
 
-    <ToggleButton Grid.Row="2" Theme="{StaticResource SectionHeader}" Content="{Binding ContentTitle}"
+    <!-- Where the selection is drawn: the game's (shown), or a mod's (changed here and saved to its meta.json). -->
+    <ToggleButton Grid.Row="2" Theme="{StaticResource SectionHeader}" Content="Position"
+                  IsChecked="{Binding Position.IsExpanded}" IsVisible="{Binding Position.IsAvailable}"
+                  ToolTip.Tip="Show or hide where the selected object image or cel is drawn" />
+    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="8,4,8,6"
+          DataContext="{Binding Position}">
+      <Grid.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.And}">
+          <Binding Path="IsExpanded" />
+          <Binding Path="IsAvailable" />
+        </MultiBinding>
+      </Grid.IsVisible>
+      <TextBlock Grid.Row="0" Grid.ColumnSpan="4" Text="{Binding Subject}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,4" />
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+      <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding X}" IsEnabled="{Binding IsModded}"
+                     Increment="1" FormatString="0" Minimum="-4096" Maximum="4096" Margin="0,0,10,0"
+                     ToolTip.Tip="A mod image's left edge in the room, or a mod cel's offset from the game cel's" />
+      <TextBlock Grid.Row="1" Grid.Column="2" Text="Y" VerticalAlignment="Center" Margin="0,0,6,0" />
+      <NumericUpDown Grid.Row="1" Grid.Column="3" Value="{Binding Y}" IsEnabled="{Binding IsModded}"
+                     Increment="1" FormatString="0" Minimum="-4096" Maximum="4096"
+                     ToolTip.Tip="A mod image's top edge in the room, or a mod cel's offset from the game cel's" />
+      <DockPanel Grid.Row="2" Grid.ColumnSpan="4" Margin="0,6,0,0" LastChildFill="True">
+        <Button DockPanel.Dock="Right" Content="Save" Command="{Binding SaveCommand}" Margin="6,0,0,0"
+                ToolTip.Tip="Write this position to the mod's meta.json" />
+        <Button DockPanel.Dock="Right" Content="Revert" Command="{Binding RevertCommand}"
+                ToolTip.Tip="Go back to the saved position" />
+        <TextBlock Text="{Binding Source}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"
+                   Foreground="{DynamicResource SubtleTextBrush}" />
+      </DockPanel>
+    </Grid>
+
+    <ToggleButton Grid.Row="4" Theme="{StaticResource SectionHeader}" Content="{Binding ContentTitle}"
                   IsChecked="{Binding IsViewerExpanded}" IsVisible="{Binding !IsEmpty}" />
     <!-- The picked viewer's docking area (ViewerViewTemplate builds it, sharing one view per viewer). -->
-    <ContentControl Grid.Row="3" Content="{Binding Content}" IsVisible="{Binding IsViewerExpanded}" />
-    <!-- <TextBlock Grid.Row="3" Text="{Binding Hint}" IsVisible="{Binding IsEmpty}" -->
+    <ContentControl Grid.Row="5" Content="{Binding Content}" IsVisible="{Binding IsViewerExpanded}" />
+    <!-- <TextBlock Grid.Row="5" Text="{Binding Hint}" IsVisible="{Binding IsEmpty}" -->
     <!--            HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="16" -->
     <!--            Foreground="{DynamicResource SubtleTextBrush}" /> -->
   </Grid>

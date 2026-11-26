@@ -18,6 +18,9 @@ public sealed partial class InspectorViewModel : ObservableObject
         Metadata.CollectionChanged += (_, _) => OnPropertyChanged(nameof(Hint));
     }
 
+    /// <summary>Where the selection is drawn, and for a mod's image or cel, where to move it.</summary>
+    public PositionViewModel Position { get; } = new();
+
     /// <summary>The selected block's metadata (shared with the Metadata panel).</summary>
     public ObservableCollection<MetadataRow> Metadata { get; }
 

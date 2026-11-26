@@ -117,6 +117,23 @@ public sealed partial class MainWindowViewModel : ObservableObject
             Settings.InspectorViewerExpanded = Inspector.IsViewerExpanded;
             Settings.Save();
         };
+        Inspector.Position.IsExpanded = Settings.InspectorPositionExpanded;
+        Inspector.Position.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(PositionViewModel.IsExpanded) || Settings.InspectorPositionExpanded == Inspector.Position.IsExpanded) return;
+            Settings.InspectorPositionExpanded = Inspector.Position.IsExpanded;
+            Settings.Save();
+        };
+        // The Position section follows what the Inspector shows: the selected object's image or costume cel.
+        Inspector.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(InspectorViewModel.Content)) UpdatePosition(); };
+        Room.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(RoomViewModel.SelectedObject) or nameof(RoomViewModel.ShowModImages) or nameof(RoomViewModel.Room)) UpdatePosition();
+        };
+        Costume.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(AkosViewModel.SelectedCel) or nameof(AkosViewModel.Akos)) UpdatePosition();
+        };
         DockFactory = new MmucsDockFactory(this);
         var saved = DockLayoutStore.Read();
         SavedMainWindow = saved?.MainWindow;
@@ -723,6 +740,58 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
         _selectionSave.Stop();
         _selectionSave.Start();
+    }
+
+    /// <summary>
+    /// The Inspector's Position for what it shows: the selected cel's offset in the Costume viewer, the selected
+    /// object's image place in the Object viewer; a mod's can be moved and saved, the game's are only shown. A change
+    /// not saved is put back first, so the viewers don't keep a place the file doesn't have.
+    /// </summary>
+    private void UpdatePosition()
+    {
+        var position = Inspector.Position;
+        if (position.IsDirty) position.RevertCommand.Execute(null);
+
+        if (ReferenceEquals(Inspector.Content, Costume.ViewerLayout) && Costume.Akos != null && Costume.SelectedCel is { } cel)
+        {
+            int number = cel.Index;
+            var costume = Costume.Akos; // a change put back after another costume loaded leaves that one alone
+            if (Costume.SelectedModCel is { } mod)
+            {
+                string folder = Path.GetDirectoryName(mod.File);
+                position.Show($"Cel {number}: {Path.GetFileName(mod.File)} from the mods",
+                    $"Its top-left from the game cel's; saved to {Path.GetFileName(folder)}/meta.json",
+                    true, mod.OffsetX, mod.OffsetY,
+                    (x, y) => { if (ReferenceEquals(Costume.Akos, costume)) Costume.PreviewCelOffset(number, x, y); },
+                    (x, y) =>
+                    {
+                        CostumeCelMods.SaveOffsets(folder, new Dictionary<string, (int, int)> { [Path.GetFileName(mod.File)] = (x, y) });
+                        Room.ReloadModImages(); // the room's placed costumes read the mods again
+                    });
+            }
+            else position.Show($"Cel {number}", "The game's cel (no mod has one, or Mod images is off): drawn at its own corner", false, 0, 0);
+            return;
+        }
+
+        if (ReferenceEquals(Inspector.Content, ObjectImage.ViewerLayout) && Room.SelectedObject is { ImageCount: > 0 } obj)
+        {
+            if (Room.ModImageOf(obj) is { } image)
+            {
+                position.Show($"Object {obj.Name}: {Path.GetFileName(image.File)} from {image.Mod}",
+                    $"Its top-left in the room; saved to {Path.GetFileNameWithoutExtension(image.File)}.meta.json",
+                    true, image.X ?? obj.X, image.Y ?? obj.Y,
+                    (x, y) => Room.PreviewObjectPlace(obj, x, y),
+                    (x, y) =>
+                    {
+                        ObjectImageMods.SavePlace(image, x, y);
+                        Room.ReloadModImages(); // shadows blend over what's under the new place
+                    });
+            }
+            else position.Show($"Object {obj.Name}", "The game's image (no mod has one, or Mod images is off): its top-left in the room", false, obj.X, obj.Y);
+            return;
+        }
+
+        position.Clear();
     }
 
     /// <summary>

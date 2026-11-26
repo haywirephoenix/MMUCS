@@ -45,7 +45,7 @@ public partial class InspectorView : UserControl
         bool viewerOpen = !_vm.IsEmpty && _vm.IsViewerExpanded;
         bool metadataFills = _vm.IsMetadataExpanded && !viewerOpen;
         Sections.RowDefinitions[1].Height = metadataFills ? GridLength.Star : GridLength.Auto;
-        Sections.RowDefinitions[3].Height = metadataFills ? GridLength.Auto : GridLength.Star;
+        Sections.RowDefinitions[5].Height = metadataFills ? GridLength.Auto : GridLength.Star;
         MetadataSection.MaxHeight = viewerOpen ? MetadataHeightOverViewer : double.PositiveInfinity;
     }
 }

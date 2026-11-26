@@ -89,6 +89,32 @@ public sealed partial class AkosViewModel : ObservableObject
         LiveFrameChanged?.Invoke(Block, AkosFrames.ComposeAfterInit(Akos, _frameChore, step), PaletteIndex);
     }
 
+    /// <summary>The selected cel's mod cel, while the costume shows the mods' cels; else null.</summary>
+    public AkosModCel SelectedModCel => SelectedCel is { } cel ? Akos?.ModCels?.GetValueOrDefault(cel.Index) : null;
+
+    /// <summary>
+    /// Moves cel <paramref name="cel"/>'s mod cel to offset <paramref name="x"/>,<paramref name="y"/> in this costume
+    /// (unsaved: loading the costume again reads meta.json), and shows what's shown again with it, here and in place.
+    /// </summary>
+    public void PreviewCelOffset(int cel, int x, int y)
+    {
+        if (Akos?.ModCels?.GetValueOrDefault(cel) is not { } mod) return;
+        var cels = new Dictionary<int, AkosModCel>(Akos.ModCels) { [cel] = mod with { OffsetX = x, OffsetY = y } };
+        Akos.ModCels = cels;
+        if (_frameChore >= 0) ShowChoreFrame(_playPos);
+        else if (_shownStep >= 0)
+        {
+            var frame = StepFrame(_shownStep);
+            ShowFrame(frame, null, $"Step 0x{_shownStep:X4}");
+            SendLiveFrame(frame);
+        }
+        else
+        {
+            _ = RefreshCelAsync();
+            if (SelectedCel is { } selected && PlayInPlace) SendLiveFrame(AkosFrames.CelInPlace(Akos, selected.Index, _lastChore));
+        }
+    }
+
     /// <summary>Sends a frame shown here (a step, a cel) to be shown in place, when that's on.</summary>
     private void SendLiveFrame(AkosFrame frame)
     {

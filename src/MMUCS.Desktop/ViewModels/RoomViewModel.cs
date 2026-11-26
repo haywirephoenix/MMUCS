@@ -847,6 +847,29 @@ public sealed partial class RoomViewModel : ObservableObject
         ReloadForModImages();
     }
 
+    /// <summary>The mod image shown for <paramref name="obj"/> (the image its state shows), while mod images are shown; else null.</summary>
+    public ObjectImageMods.Image ModImageOf(RoomObject obj)
+    {
+        if (!ShowModImages || ObjectMods is not { } mods || Room is not { } room || obj == null || obj.ImageCount <= 0) return null;
+        if (!ObimDecoders.TryGetObimInfo(obj.Block, out var info)) return null;
+        int state = StateOf(obj);
+        return state == 0 ? null : mods.Find(room, obj, RoomObjectStates.FrameFor(state, info.TotalFrames > 0 ? info.TotalFrames : 1));
+    }
+
+    /// <summary>Shows <paramref name="obj"/>'s image with its top-left at <paramref name="x"/>,<paramref name="y"/> (unsaved: the next reload puts it back).</summary>
+    public void PreviewObjectPlace(RoomObject obj, int x, int y)
+    {
+        if (ObjectLayers == null || obj == null) return;
+        ObjectLayers = [.. ObjectLayers.Select(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly ? l with { ImageX = x, ImageY = y } : l)];
+    }
+
+    /// <summary>Reads the mods again and reloads the room's images (after a mod's place is saved).</summary>
+    public void ReloadModImages()
+    {
+        lock (_moddedCostumes) _moddedCostumes.Clear();
+        ReloadForModImages();
+    }
+
     /// <summary>Each placed costume with the mods' cels, a parse of its own (the room's analysis keeps the game's), or null without any.</summary>
     private readonly Dictionary<ScummBlock, AkosData> _moddedCostumes = [];
 
