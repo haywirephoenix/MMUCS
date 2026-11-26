@@ -478,6 +478,129 @@ public static partial class RoomActors
             });
     }
 
+    /// <summary>A global script's number (its SCRP's title), or null for a room's own script.</summary>
+    private static int? GlobalNumber(ScummBlock script)
+    {
+        if (script.Tag != ScummTag.SCRP) return null;
+        var title = RoomScripts.For(script)?.Title;
+        return title != null && title.StartsWith("Global script ") && int.TryParse(title[14..], out int no) ? no : null;
+    }
+
+    /// <summary>Whether a script gives <paramref name="actor"/> an elevation or a default (which clears it) before <paramref name="before"/>.</summary>
+    private static bool SetsElevationOrDefault(ReadOnlySpan<byte> s, int actor, int before)
+    {
+        int cur = 0;
+        int end = before < 0 ? s.Length : Math.Min(before, s.Length);
+        for (int p = 5; p + 1 < end; p++)
+        {
+            if (s[p] != OpActorOps) continue;
+            if (s[p + 1] == SubSetCurActor) cur = ActorArg(s, p, out int a) ? a : 0;
+            else if (cur == actor && s[p + 1] is SubElevation or SubDefault) return true;
+        }
+        return false;
+    }
+
+    private sealed record ScriptLinks(Dictionary<int, List<ScummBlock>> Starters, Dictionary<int, List<ScummBlock>> Entering);
+
+    private static readonly ConditionalWeakTable<ScummBlock, ScriptLinks> ScriptLinkTables = [];
+
+    /// <summary>
+    /// For each global script, the rooms (LFLFs) whose scripts start or chain it; for each room number, the global
+    /// scripts (SCRPs) that enter it (current-room N).
+    /// </summary>
+    private static ScriptLinks LinksFor(ScummBlock any)
+    {
+        lock (Sync)
+            return ScriptLinkTables.GetValue(Root(any), root =>
+            {
+                var starters = new Dictionary<int, List<ScummBlock>>();
+                var entering = new Dictionary<int, List<ScummBlock>>();
+                foreach (var lflf in root.FindChildrenRecursive(ScummTag.LFLF))
+                    foreach (var b in Walk(lflf, 4).Where(b => IsScriptTag(b.Tag)))
+                    {
+                        foreach (int n in StartedScripts(b.DataSpan))
+                        {
+                            if (!starters.TryGetValue(n, out var rooms)) starters[n] = rooms = [];
+                            if (!rooms.Contains(lflf)) rooms.Add(lflf);
+                        }
+                        if (b.Tag != ScummTag.SCRP) continue;
+                        foreach (int r in RoomsEntered(b.DataSpan).Select(e => e.Room).Distinct())
+                        {
+                            if (!entering.TryGetValue(r, out var globals)) entering[r] = globals = [];
+                            globals.Add(b);
+                        }
+                    }
+                return new ScriptLinks(starters, entering);
+            });
+    }
+
+    private const byte OpLoadRoom = 0x9D;
+
+    /// <summary>The rooms a script enters (current-room N, N a constant), with where.</summary>
+    private static List<(int Pos, int Room)> RoomsEntered(ReadOnlySpan<byte> s)
+    {
+        var rooms = new List<(int, int)>();
+        for (int p = 5; p < s.Length; p++)
+            if (s[p] == OpLoadRoom && Const(s, p, out int room) && room > 0) rooms.Add((p, room));
+        return rooms;
+    }
+
+    /// <summary>The scripts a script starts or chains to, where the number is a constant.</summary>
+    private static HashSet<int> StartedScripts(ReadOnlySpan<byte> s)
+    {
+        var started = new HashSet<int>();
+        for (int p = 10; p < s.Length; p++)
+        {
+            if (s[p] is not (OpStartScript or OpStartScriptQuick or OpChainScript)) continue;
+            // Pushed: [flags,] script, the arguments, their count; read back to front.
+            if (!Const(s, p, out int count, out int end) || count is < 0 or > 16) continue;
+            bool ok = true;
+            for (int i = count - 1; i >= 0 && ok; i--)
+                ok = Const(s, end, out _, out int start) ? (end = start) >= 0 : ActorArg(s, end, out _, out end);
+            if (ok && Const(s, end, out int script) && script > 0) started.Add(script);
+        }
+        return started;
+    }
+
+    [ThreadStatic] private static HashSet<ScummBlock> _carrying;
+
+    /// <summary>
+    /// The elevation <paramref name="actor"/> already has when it's placed in room <paramref name="roomNo"/> by a script
+    /// that leaves it alone: the one the rooms it comes from give it as they open, when they agree; null when they
+    /// don't, or give none. It comes from the rooms that start <paramref name="global"/> (the placing script, when it's
+    /// a global one), and from those that start a global script entering this room without an elevation or default
+    /// for the actor first.
+    /// </summary>
+    private static int? CarriedElevation(ScummBlock lflf, int roomNo, int? global, int actor)
+    {
+        var links = LinksFor(lflf);
+        var from = new List<ScummBlock>();
+        if (global is int g && links.Starters.GetValueOrDefault(g) is { } direct) from.AddRange(direct);
+        foreach (var enter in links.Entering.GetValueOrDefault(roomNo) ?? [])
+        {
+            var code = enter.DataSpan;
+            int at = RoomsEntered(code).First(e => e.Room == roomNo).Pos;
+            if (SetsElevationOrDefault(code, actor, at) || GlobalNumber(enter) is not int n) continue;
+            from.AddRange(links.Starters.GetValueOrDefault(n) ?? []);
+        }
+        if (from.Count == 0) return null;
+
+        _carrying ??= [];
+        if (!_carrying.Add(lflf)) return null; // rooms that lead into each other
+        try
+        {
+            var found = new HashSet<int>();
+            foreach (var starter in from.Distinct())
+            {
+                if (ReferenceEquals(starter, lflf) || _carrying.Contains(starter) || !RoomModel.TryCreate(starter, out var room)) continue;
+                foreach (var a in Analyze(room).Where(a => a.Actor == actor && a.HasPosition && a.When is PlacementTime.OnEntry or PlacementTime.OnEntryIf))
+                    found.Add(a.Elevation);
+            }
+            return found.Count == 1 && found.First() != 0 ? found.First() : null;
+        }
+        finally { _carrying.Remove(lflf); }
+    }
+
     private static CostumeDirectory DirectoryFor(ScummBlock b)
     {
         lock (Sync) return Directories.GetValue(Root(b), r => new CostumeDirectory(r));
@@ -674,9 +797,19 @@ public static partial class RoomActors
                 f = others.Distinct().Select(o => Animated(d, o, dir)).FirstOrDefault(x => x != null);
                 borrowed = f != null;
             }
+            // A script that dresses and puts an actor without giving it an elevation or a default draws it at the
+            // elevation it already has: the engine keeps it on the actor. Where the actor comes from another room
+            // through a global script (this one, or one that enters this room), that's what that room leaves on it:
+            // the barber shop's Haggis at -30, still there at the caber toss (global 197 enters room 22, whose
+            // local 2001 puts him there).
+            int lift = elevation;
+            if (lift == 0 && actor > 0
+                && !SetsElevationOrDefault(scripts[si].DataSpan, actor, scans[si].FirstOrDefault(e => e.Actor == actor && e.Costume == costume).PlacePos)
+                && CarriedElevation(lflf, room.RoomNo, GlobalNumber(scripts[si]), actor) is int carried)
+                lift = carried;
             var entry = new RoomActor
             {
-                Actor = Math.Max(0, actor), Costume = costume, Akos = akos, X = x, Y = y, Elevation = elevation, HasPosition = true,
+                Actor = Math.Max(0, actor), Costume = costume, Akos = akos, X = x, Y = y, Elevation = lift, HasPosition = true,
                 // An actor in a box is drawn at the box's scale, whatever its script set: the engine
                 // works it out again at every draw (setupActorScale). Only ignoring the boxes keeps it.
                 Data = d, Frame = f, Mirrored = AkosFrames.IsMirrored(d, dir), IsPlayer = actor == player, DressedBy = via, SortY = y,
