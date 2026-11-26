@@ -237,6 +237,12 @@ public static class AkosFrames
     private static void AddCel(AkosData d, int cel, int x, int y, AkosFrame frame)
     {
         if (cel < 0 || cel >= d.CelInfos.Length) return;
+        if (d.ModCels != null && d.ModCels.TryGetValue(cel, out var mod))
+        {
+            // A mod's cel: its size, its top-left moved by its offset from the game cel's.
+            frame.Cels.Add(new AkosPlacedCel(cel, x + mod.OffsetX, y + mod.OffsetY, mod.Surface.Width, mod.Surface.Height));
+            return;
+        }
         var ci = d.CelInfos[cel];
         if (ci.Width == 0 || ci.Height == 0) return;
         frame.Cels.Add(new AkosPlacedCel(cel, x, y, ci.Width, ci.Height));
@@ -683,10 +689,11 @@ public static class AkosFrames
         return new IndexedSurface { Width = w, Height = h, Pitch = w, Pixels = pixels, TransparentIndex = transparent };
     }
 
-    /// <summary>Decodes a cel, sharing the costume's decoded-cel cache.</summary>
+    /// <summary>Decodes a cel, sharing the costume's decoded-cel cache; a mod's cel (<see cref="AkosData.ModCels"/>) in place of the game's.</summary>
     public static IndexedSurface GetCel(AkosData d, int cel, CancellationToken token = default)
     {
         if (cel < 0 || cel >= d.CelOffsets.Length) return null;
+        if (d.ModCels != null && d.ModCels.TryGetValue(cel, out var mod)) return mod.Surface;
         long key = AkosCelCache.BuildCelCacheKey(d, cel);
         lock (d.DecodedCels)
             if (d.DecodedCels.TryGetValue(key, out var cached)) return cached;

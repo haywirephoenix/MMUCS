@@ -451,7 +451,7 @@ public class ScummExporters
             return (0, 1);
         }
 
-        return await ExportCelsAsync(akos, config, Path.Combine(folder, $"akos_{akosBlock.Offset:X8}"), token);
+        return await ExportCelsAsync(akos, config, Path.Combine(folder, CostumeFolderName(akosBlock)), token);
     }
 
     /// <summary>Exports every cel of one costume with the given shading options.</summary>
@@ -466,7 +466,7 @@ public class ScummExporters
                 var cel = await AkosCelCache.GetCachedCelAsync(akos, i, bakeImages: true, cacheDisabled: true, token);
                 var image = IndexedRenderer.RenderWithConfig(cel.ShaderDataImage, akos.ResolvedColors, config);
                 if (image == null) continue; // empty (0×0) cels are normal
-                image.SavePng(Path.Combine(targetDir, $"cel_{i:D3}.png"));
+                image.SavePng(Path.Combine(targetDir, CelFile(i)));
                 written++;
             }
             catch (OperationCanceledException) { throw; }
@@ -494,9 +494,18 @@ public class ScummExporters
     }
 
     /// <summary>A room's folder under rooms/ ("022_clring-a"), without the suffix a room in more than one file gets.</summary>
-    public static string RoomFolderName(RoomModel room) => room.RoomNo > 0
-        ? $"{room.RoomNo:D3}{(string.IsNullOrEmpty(room.Name) ? "" : "_" + Sanitize(room.Name))}"
-        : $"room_{room.Room.Offset:X8}";
+    public static string RoomFolderName(RoomModel room) => RoomFolderName(room.RoomNo, room.Name, room.Room.Offset);
+
+    /// <summary>A room's folder under rooms/ by its number and name (RNAM), or its ROOM block's offset when it has no number.</summary>
+    public static string RoomFolderName(int roomNo, string name, long roomOffset) => roomNo > 0
+        ? $"{roomNo:D3}{(string.IsNullOrEmpty(name) ? "" : "_" + Sanitize(name))}"
+        : $"room_{roomOffset:X8}";
+
+    /// <summary>A costume's folder under its room's costumes/ ("akos_02A4A050": the AKOS block's offset in its file).</summary>
+    public static string CostumeFolderName(ScummBlock akos) => $"akos_{akos.Offset:X8}";
+
+    /// <summary>A cel's file in its costume's folder ("cel_048.png").</summary>
+    public static string CelFile(int cel) => $"cel_{cel:D3}.png";
 
     /// <summary>An object's image files' name before the frame: its index in the room and its name ("041_clring-a-haggis-caber").</summary>
     public static string ObjectFileStem(RoomObject obj) => $"{obj.Index:D3}_{Sanitize(obj.ToString())}";

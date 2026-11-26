@@ -45,6 +45,12 @@ public class AkosData
     // public readonly Dictionary<int, RgbaImage> DecodedCels = new();
     public readonly Dictionary<long, IndexedSurface> DecodedCels = [];
 
+    /// <summary>
+    /// Cels a mod replaces (<see cref="CostumeCelMods"/>), by cel: drawn in place of the costume's, in its own
+    /// indices, with their top-left moved by the mod's offset. Null without any.
+    /// </summary>
+    public IReadOnlyDictionary<int, AkosModCel> ModCels;
+
     // ── Calculated Properties ────────────────────────────────────────────────
     public int DirectionCount => (Header.CostumeFlags & 2) != 0 ? 8 : 4;
     
@@ -101,3 +107,6 @@ public struct CelExportConfig
     public bool UseLinearFilter { get; set; } = false;
     public CelExportConfig() {}
 }
+
+/// <summary>A mod's cel: its pixels in the costume's own indices, where its top-left is from the game cel's, and its file.</summary>
+public sealed record AkosModCel(IndexedSurface Surface, int OffsetX, int OffsetY, string File);
