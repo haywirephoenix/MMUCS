@@ -142,6 +142,7 @@ public class RoomSceneTests
                     rgba[o + 1] = palette[c * 3 + 1];
                     rgba[o + 2] = (byte)Math.Max(0, palette[c * 3 + 2] - (c == 41 ? 1 : 0));
                     rgba[o + 3] = (byte)(y == 0 ? 0 : 255);
+                    if (y == 1) (rgba[o], rgba[o + 1], rgba[o + 2], rgba[o + 3]) = (0, 0, 0, 102); // a shadow: 40% black
                 }
             using (var f = File.Create(Path.Combine(objects, "041_clring-a-haggis-caber_f0.png"))) PngWriter.Write(f, w, h, rgba);
             File.WriteAllText(Path.Combine(objects, "041_clring-a-haggis-caber_f0.meta.json"), """{ "x": 236, "y": 416 }""");
@@ -154,6 +155,15 @@ public class RoomSceneTests
             Assert.Equal((236, 416, 240, 40), (modded.X, modded.Y, modded.Surface.Width, modded.Surface.Height));
             byte At(int x, int y) => modded.Surface.Pixels[y * modded.Surface.Pitch + x];
             Assert.Equal(modded.Transparent, At(10, 0));
+            // The shadow row is the room's background under it darkened to 60%, in the nearest palette colour.
+            var bg = scene.Background;
+            for (int x = 0; x < w; x += 37)
+            {
+                int under = bg.Pixels[417 * bg.Pitch + 236 + x], got = At(x, 1);
+                Assert.NotEqual(modded.Transparent, got);
+                for (int k = 0; k < 3; k++)
+                    Assert.InRange(palette[got * 3 + k], palette[under * 3 + k] * 0.6 - 24, palette[under * 3 + k] * 0.6 + 24);
+            }
             Assert.Equal(40, PaletteMatch(palette, At(10, 5), 40));
             Assert.Equal(41, PaletteMatch(palette, At(200, 5), 41));
             // Guybrush's caber has no PNG in the mod: the game's image at its place.
