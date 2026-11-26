@@ -103,6 +103,20 @@ public sealed class ObjectImageMods
         return surface;
     }
 
+    /// <summary>
+    /// The mods' image for image <paramref name="frame"/> of <paramref name="obj"/> in the colours of the room's
+    /// palette <paramref name="paletteIndex"/>, as the game shows it, with where it goes in the room; null without one.
+    /// </summary>
+    public (RgbaImage Image, int X, int Y)? Rgba(RoomModel room, RoomObject obj, int frame, int paletteIndex)
+    {
+        if (Find(room, obj, frame) is not { } image) return null;
+        var palette = ObimCache.ExtractPaletteContext(room.Room, paletteIndex).rawBytes;
+        int transparent = ObimCache.GetTransparentIndex(room.Room, obj.Block, frame);
+        if (Indexed(image, palette, transparent) is not { } surface) return null;
+        var rgba = ScummImageUtils.CreateImage(surface.Pixels, surface.Width, surface.Height, surface.Pitch, palette, (byte)transparent);
+        return rgba == null ? null : (rgba, image.X ?? obj.X, image.Y ?? obj.Y);
+    }
+
     /// <summary>ARGB pixels as palette indices: the index with the pixel's colour, else the nearest; less than half opaque is <paramref name="transparent"/>.</summary>
     internal static IndexedSurface Quantize(uint[] argb, int width, int height, byte[] palette, int transparent)
     {
