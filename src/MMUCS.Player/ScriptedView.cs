@@ -200,7 +200,8 @@ public sealed class ScriptedView(ScriptedGame game)
         try
         {
             _objectMods ??= ObjectImageMods.Load(Game.GameFile);
-            var scene = await RoomSceneBuilder.BuildIndexedAsync(model, stateOf, mods: _objectMods);
+            // A mod image's shadow is darkened by the game's shadow tables as they are now, as the costumes' are.
+            var scene = await RoomSceneBuilder.BuildIndexedAsync(model, stateOf, mods: _objectMods, shadowTables: [.. Game.Vm.Palette.ShadowFactors]);
             lock (_objectMods.Problems)
             {
                 foreach (var problem in _objectMods.Problems) Log.Warn($"Object mods: {problem}");

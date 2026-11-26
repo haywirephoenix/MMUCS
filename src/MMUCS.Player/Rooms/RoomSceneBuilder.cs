@@ -58,10 +58,11 @@ public static class RoomSceneBuilder
     /// <summary>
     /// The room with each object in <paramref name="stateOf"/>'s state, in palette indices, to be coloured with
     /// the screen's palette (<see cref="IndexedRoom.Colour"/>), as the game shows it. An image <paramref name="mods"/>
-    /// has for an object is drawn in place of the game's, where the mod puts it.
+    /// has for an object is drawn in place of the game's, where the mod puts it, its shadow darkened by
+    /// <paramref name="shadowTables"/> (the game's, <c>ScreenPalette.ShadowFactors</c>; null: COMI's usual ones).
     /// </summary>
     public static async Task<IndexedRoom> BuildIndexedAsync(RoomModel room, Func<RoomObject, int> stateOf,
-        Func<RoomObject, bool> include = null, CancellationToken token = default, ObjectImageMods mods = null)
+        Func<RoomObject, bool> include = null, CancellationToken token = default, ObjectImageMods mods = null, byte[] shadowTables = null)
     {
         ArgumentNullException.ThrowIfNull(room);
         IndexedSurface background = null;
@@ -80,7 +81,7 @@ public static class RoomSceneBuilder
             int transparent = ObimCache.GetTransparentIndex(room.Room, obj.Block, frame);
             if (mods?.Find(room, obj, frame) is { } modded &&
                 mods.Indexed(modded, ObimCache.ExtractPaletteContext(room.Room, PaletteOf(room, obj)).rawBytes, transparent,
-                    background, modded.X ?? obj.X, modded.Y ?? obj.Y) is { } surface)
+                    background, modded.X ?? obj.X, modded.Y ?? obj.Y, shadowTables) is { } surface)
                 objects.Add(new IndexedObject(obj, surface, transparent, modded.X ?? obj.X, modded.Y ?? obj.Y));
             else
                 objects.Add(new IndexedObject(obj, result.Surface, transparent, obj.X, obj.Y));
