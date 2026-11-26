@@ -51,6 +51,32 @@ public class MusicModTests
     }
 
     [Fact]
+    public void SwitchingModsOffReloadsThePlayingTrackAsTheGamesAndAReloadOfTheSameSoundCarriesOn()
+    {
+        var mod = ImusSound.Build(100, 1, 400, [new(0, 400)], [], [], 400, (_, _) => { }, "/mods/music/Album/01 - Theme.flac");
+        var own = ImusSound.Build(100, 1, 400, [new(0, 400)], [], [], 400, (_, _) => { });
+        bool mods = true;
+        var music = new MixerMusic(_ => mods ? mod : own); // no mixer: the track doesn't move on by itself
+        var cue = new MusicCue(2, 1099, "stateMenu", 0, 0, 0, "1099-Menu");
+        music.Resume(new MusicPlace(cue, 0, 44));
+        SpinWait.SpinUntil(() => { music.Update(); return music.IsLoaded; }, 5000);
+        Assert.Equal(44, music.Place?.Frame);
+
+        // The loader gives the same sound: the track carries on where it was.
+        music.Reload();
+        SpinWait.SpinUntil(() => { music.Update(); return music.IsLoaded && music.Place?.Frame == 44; }, 5000);
+        Assert.Equal("/mods/music/Album/01 - Theme.flac", music.Replacement);
+        Assert.Equal(44, music.Place?.Frame);
+
+        // Mods off: the game's own track takes over, from its start.
+        mods = false;
+        music.Reload();
+        SpinWait.SpinUntil(() => { music.Update(); return music.IsLoaded && music.Replacement == null; }, 5000);
+        Assert.Null(music.Replacement);
+        Assert.Equal(new MusicPlace(cue, 0, 0), music.Place);
+    }
+
+    [Fact]
     public void ModTrackLoopsOnlyWhereTheGamesOwnDoes()
     {
         if (Game == null || MusicTable.Load(Game) is not { } table) return;
