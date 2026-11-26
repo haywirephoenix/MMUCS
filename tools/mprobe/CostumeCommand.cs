@@ -24,6 +24,15 @@ internal static class CostumeCommand
             : dirNames.ToList().IndexOf(dirOption.ToUpperInvariant()) is >= 0 and var di ? di
             : throw new UsageException($"--dir {dirOption}: a direction number or one of {string.Join(" ", dirNames)}");
 
+        // The shadow colours its cels draw with (1–7: a shadow table, set by build-palette-shadow), and how often.
+        var shadows = new Dictionary<int, int>();
+        for (int cel = 0; cel < d.CelOffsets.Length; cel++)
+            if (AkosFrames.GetCel(d, cel) is { } surface)
+                foreach (byte v in surface.Pixels)
+                    if (v != d.TransparentIndex && AkosFrames.Global(v, d.Palette.Span, d.IsPassthroughPalette) is int g and > 0 and < 8)
+                        shadows[g] = shadows.GetValueOrDefault(g) + 1;
+        Console.WriteLine($"shadow colours: {(shadows.Count == 0 ? "none" : string.Join(", ", shadows.OrderBy(kv => kv.Key).Select(kv => $"table {kv.Key} ({kv.Value} pixels)")))}");
+
         int chores = AkosFrames.ChoreCount(d);
         Console.WriteLine($"costume {number}: {chores} chores, {d.DirectionCount} directions ({string.Join(" ", dirNames)}), " +
                           $"{d.CelInfos.Length} cels, AKSQ {d.Sequence.Length} bytes");

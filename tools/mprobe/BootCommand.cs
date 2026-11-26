@@ -424,6 +424,12 @@ static class BootCommand
         foreach (var (from, to, scales) in runs.Take(24))
             Console.WriteLine($"  {(from == to ? $"{from}" : $"{from}–{to}"),-8} {Scale(scales)}");
         if (runs.Count > 24) Console.WriteLine($"  … {runs.Count - 24} more runs");
+        // The shadow tables (build-palette-shadow): what a costume's shadow colour N multiplies the screen by.
+        var factors = vm.Palette.ShadowFactors;
+        var set = Enumerable.Range(1, MMUCS.Runtime.Scripts.ScreenPalette.ShadowSlots - 1)
+            .Where(t => factors[t * 3] + factors[t * 3 + 1] + factors[t * 3 + 2] > 0)
+            .Select(t => $"{t}: {factors[t * 3]},{factors[t * 3 + 1]},{factors[t * 3 + 2]} of 255").ToList();
+        Console.WriteLine($"shadow tables: {(set.Count == 0 ? "none set" : string.Join(";  ", set))}");
     }
 
     /// <summary>The screen colours an actor's costume draws in (its AKPL through the actor's own), as ranges, shadow colours (1–7) left out.</summary>
