@@ -455,6 +455,7 @@ public sealed class ScriptedGame : IDisposable
         var musicOutput = MusicOutput;
         var groups = Groups = new SoundGroups { Mixer = _mixer };
         Vm.SoundKludge = SoundKludge(effects, voice, music, musicOutput, groups);
+        Vm.MusicRunning = id => musicOutput != null && musicOutput.Playing == id;
         Vm.GroupVolume = groups.Get;
         // iMUSE's refresh, once a frame after everything else (ScummVM scummLoop_handleSound).
         Loop.AfterScripts += jiffies =>

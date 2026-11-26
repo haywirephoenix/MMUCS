@@ -141,6 +141,9 @@ public sealed partial class ScriptVm
     /// </summary>
     public Func<int[], bool> SoundKludge { get; set; }
 
+    /// <summary>Whether music track <c>soundId</c> is playing (ScummVM's <c>isSoundRunning</c> for iMUSE's music), for the scripts' workarounds.</summary>
+    public Func<int, bool> MusicRunning { get; set; }
+
     /// <summary>Plays start-sound's effects; without, start-sound, stop-sound and sound-running count as not carried out.</summary>
     public Sound.SoundEffects Effects { get; set; }
 
@@ -819,6 +822,13 @@ public sealed partial class ScriptVm
     /// <summary>Records where to resume when the cutscene is skipped, and steps over the jump that follows.</summary>
     private void BeginOverride(ScriptSlot s)
     {
+        // WORKAROUND (a bug in the original; ScummVM o6_beginOverride): Esc before "Any last words, Threepwood?"
+        // on the Sea Cucumber skips the seqAttack (2277) that sends the monkeys' music (2275) to its end, so
+        // it plays on for ever and the plank's music never comes. When the plank's cutscene (global 251 in
+        // room 37) begins its override with 2275 still playing, seqAttack is played as the dialogue would have.
+        // ScummVM's offset (0x1A) counts the script's 8-byte header.
+        if (s.Kind == ScriptKind.Global && s.Number == 251 && CurrentRoom == 37 && s.Pc == 0x12 && MusicRunning?.Invoke(2275) == true)
+            SoundKludge?.Invoke([0x1001, 2277]);
         ref var level = ref Cutscenes[CutsceneDepth];
         level.OverridePc = s.Pc;
         level.OverrideSlot = s;
