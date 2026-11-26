@@ -1,3 +1,4 @@
+using MMUCS.Core.Imaging;
 using MMUCS.Core.Scumm;
 using MMUCS.Player.Rooms;
 using MMUCS.Runtime;
@@ -113,43 +114,64 @@ public class RoomSceneTests
     }
 
     [Fact]
-    public async Task Haggis_caber_is_widened_with_the_part_left_of_the_640_screen_from_his_throw_s_last_frame()
+    public async Task A_mod_s_png_where_the_export_writes_an_object_image_is_drawn_in_its_place_in_the_room_s_colours()
     {
         if (Game == null) return;
         var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
         var room = Room(root, 22);
         var caber = room.Objects.Single(o => o.Name == "clring-a-haggis-caber");
         var guybrush = room.Objects.Single(o => o.Name == "clring-a-guybrush-caber");
-        Assert.Equal((432, 392, 32, 64), (caber.X, caber.Y, caber.Width, caber.Height)); // the end at the screen's edge
+        Assert.Equal("022_clring-a", ScummExporters.RoomFolderName(room));
+        Assert.Equal("041_clring-a-haggis-caber_f0.png", ScummExporters.ObjectFrameFile(caber, 0));
 
-        var scene = await RoomSceneBuilder.BuildIndexedAsync(room, o => o == caber || o == guybrush ? 1 : 0);
-        var widened = scene.Objects.Single(o => o.Object == caber);
-        var surface = widened.Surface;
-        // Costume 140's cel 48 at Haggis' 788,411 starts at 236,226; the image runs to the object's right edge.
-        Assert.Equal((236, 226), (widened.X, widened.Y));
-        Assert.Equal((464, 456), (widened.X + surface.Width, widened.Y + surface.Height));
-        byte At(int x, int y) => surface.Pixels[(y - widened.Y) * surface.Pitch + x - widened.X];
-        // The caber lies across 236–432 at about y 400–420, and nothing of Haggis (from x 627) comes along.
-        int caberPixels = 0;
-        for (int y = 392; y < 456; y++)
-            for (int x = 236; x < 432; x++)
-                if (At(x, y) != widened.Transparent) caberPixels++;
-        Assert.True(caberPixels > 2000, $"{caberPixels} caber pixels left of the screen");
-        for (int y = 226; y < 392; y++)
-            for (int x = 236; x < 432; x++)
-                Assert.Equal(widened.Transparent, At(x, y));
+        var palette = ObimCache.ExtractPaletteContext(room.Room, RoomSceneBuilder.PaletteOf(room, caber)).rawBytes;
+        string dir = Path.Combine(Path.GetTempPath(), "mmucs-mods-" + Guid.NewGuid().ToString("N"));
+        string objects = Path.Combine(dir, "_mods", "Wide", "rooms", "022_clring-a", "objects");
+        Directory.CreateDirectory(objects);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "_mods", "Wide", "mod.json"), """{ "enabled": true }""");
+            // 240×40: colour 40's exact RGB on the left half, a colour near 41's on the right, the top row see-through.
+            int w = 240, h = 40;
+            var rgba = new byte[w * h * 4];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int c = x < w / 2 ? 40 : 41, o = (y * w + x) * 4;
+                    rgba[o] = palette[c * 3];
+                    rgba[o + 1] = palette[c * 3 + 1];
+                    rgba[o + 2] = (byte)Math.Max(0, palette[c * 3 + 2] - (c == 41 ? 1 : 0));
+                    rgba[o + 3] = (byte)(y == 0 ? 0 : 255);
+                }
+            using (var f = File.Create(Path.Combine(objects, "041_clring-a-haggis-caber_f0.png"))) PngWriter.Write(f, w, h, rgba);
+            File.WriteAllText(Path.Combine(objects, "041_clring-a-haggis-caber_f0.meta.json"), """{ "x": 236, "y": 416 }""");
 
-        // The object's own image is unchanged where it is, and Guybrush's caber isn't widened.
-        var original = (await ObimCache.GetCachedObimAsync(caber.Block, 0, RoomSceneBuilder.PaletteOf(room, caber), bakeImage: false, default)).Surface;
-        for (int y = 0; y < original.Height; y++)
-            for (int x = 0; x < original.Width; x++)
-            {
-                byte v = original.Pixels[y * original.Pitch + x];
-                if (v != widened.Transparent) Assert.Equal(v, At(caber.X + x, caber.Y + y));
-            }
-        var other = scene.Objects.Single(o => o.Object == guybrush);
-        Assert.Equal((guybrush.X, guybrush.Y, guybrush.Width), (other.X, other.Y, other.Surface.Width));
+            var mods = ObjectImageMods.Load(Path.Combine(dir, "COMI.LA0"));
+            Assert.Equal(["Wide"], mods.Mods);
+            var scene = await RoomSceneBuilder.BuildIndexedAsync(room, o => o == caber || o == guybrush ? 1 : 0, mods: mods);
+            Assert.Empty(mods.Problems);
+            var modded = scene.Objects.Single(o => o.Object == caber);
+            Assert.Equal((236, 416, 240, 40), (modded.X, modded.Y, modded.Surface.Width, modded.Surface.Height));
+            byte At(int x, int y) => modded.Surface.Pixels[y * modded.Surface.Pitch + x];
+            Assert.Equal(modded.Transparent, At(10, 0));
+            Assert.Equal(40, PaletteMatch(palette, At(10, 5), 40));
+            Assert.Equal(41, PaletteMatch(palette, At(200, 5), 41));
+            // Guybrush's caber has no PNG in the mod: the game's image at its place.
+            var other = scene.Objects.Single(o => o.Object == guybrush);
+            Assert.Equal((guybrush.X, guybrush.Y, guybrush.Width), (other.X, other.Y, other.Surface.Width));
+
+            // Without the .meta.json it goes at the object's place; a mod that's off has none.
+            File.Delete(Path.Combine(objects, "041_clring-a-haggis-caber_f0.meta.json"));
+            Assert.Equal((null, null), (mods.Find(room, caber, 0).X, mods.Find(room, caber, 0).Y));
+            File.WriteAllText(Path.Combine(dir, "_mods", "Wide", "mod.json"), """{ "enabled": false }""");
+            Assert.Null(ObjectImageMods.Load(Path.Combine(dir, "COMI.LA0")).Find(room, caber, 0));
+        }
+        finally { Directory.Delete(dir, true); }
     }
+
+    /// <summary><paramref name="expected"/> when <paramref name="index"/> has its colour (a palette can hold one colour twice), else the index.</summary>
+    private static int PaletteMatch(byte[] palette, int index, int expected) =>
+        palette.AsSpan(index * 3, 3).SequenceEqual(palette.AsSpan(expected * 3, 3)) ? expected : index;
 
     private static RoomModel Room(ScummBlock root, int number)
     {

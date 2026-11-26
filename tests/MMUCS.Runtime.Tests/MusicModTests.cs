@@ -107,14 +107,14 @@ public class MusicModTests
     }
 
     [Fact]
-    public void BlankEntriesAreLeftToTheGameAndOtherFieldsAreIgnored()
+    public void BlankEntriesAreLeftToTheGameOtherFieldsAreIgnoredAndFilesAreFoundUnderMusic()
     {
         string dir = Path.Combine(Path.GetTempPath(), "mmucs-mods-" + Guid.NewGuid().ToString("N"));
-        string mod = Path.Combine(dir, "_mods", "music", "Album");
-        Directory.CreateDirectory(mod);
+        string mod = Path.Combine(dir, "_mods", "Album");
+        Directory.CreateDirectory(Path.Combine(mod, "music", "Disc 1"));
         try
         {
-            File.WriteAllBytes(Path.Combine(mod, "01 - Theme.flac"), []);
+            File.WriteAllBytes(Path.Combine(mod, "music", "Disc 1", "01 - Theme.flac"), []);
             File.WriteAllText(Path.Combine(mod, "mod.json"), """
                 { "tracks": {
                     "1099-Menu": { "file": "01 - Theme.flac", "start": "0:01.5", "score": 0.97, "notes": ["a note"] },
@@ -123,10 +123,16 @@ public class MusicModTests
                     "opening.san start": "01 - Theme.flac"
                 } }
                 """);
+            // A mod with no tracks (object images only) isn't a music mod.
+            Directory.CreateDirectory(Path.Combine(dir, "_mods", "Wide"));
+            File.WriteAllText(Path.Combine(dir, "_mods", "Wide", "mod.json"), """{ "enabled": true }""");
             var mods = MusicMods.Load(Path.Combine(dir, "COMI.LA0"));
             Assert.Empty(mods.Problems);
+            Assert.Equal(["Album"], mods.Mods);
             Assert.Equal([1099], mods.Tracks.Keys);
             Assert.Equal(1.5, mods.Tracks[1099].Start);
+            // The file is found by its name in a folder under music/.
+            Assert.Equal(Path.Combine(mod, "music", "Disc 1", "01 - Theme.flac"), mods.Tracks[1099].File);
         }
         finally { Directory.Delete(dir, true); }
     }
