@@ -266,7 +266,13 @@ public sealed class ScriptStore
         return null;
     }
 
-    /// <summary>Costume <paramref name="number"/> (its AKOS, through DCOS), or null without one or a game file.</summary>
+    /// <summary>
+    /// The mods' costume cels (<see cref="CostumeCelMods"/>), drawn in place of the game's in the costumes this
+    /// gives out from then on; null for none.
+    /// </summary>
+    public CostumeCelMods CostumeMods { get; set; }
+
+    /// <summary>Costume <paramref name="number"/> (its AKOS, through DCOS, with the mods' cels), or null without one or a game file.</summary>
     public Costume Costume(int number)
     {
         if (_root == null || number <= 0) return null;
@@ -276,7 +282,20 @@ public sealed class ScriptStore
             Costume costume = null;
             if (RoomActors.CostumeBlock(_root, number) is { } akos)
             {
-                try { costume = new Costume(number, akos, AkosParser.Parse(akos)); }
+                try
+                {
+                    var data = AkosParser.Parse(akos);
+                    if (CostumeMods is { } mods)
+                    {
+                        mods.Apply(data, akos);
+                        lock (mods.Problems)
+                        {
+                            foreach (var problem in mods.Problems) MMUCS.Core.Diagnostics.Log.Warn($"Costume mods: {problem}");
+                            mods.Problems.Clear();
+                        }
+                    }
+                    costume = new Costume(number, akos, data);
+                }
                 catch (Exception ex) when (ex is IndexOutOfRangeException or ArgumentException or NullReferenceException) { }
             }
             return _costumes[number] = costume;

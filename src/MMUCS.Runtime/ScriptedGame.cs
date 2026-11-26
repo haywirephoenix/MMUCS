@@ -392,7 +392,7 @@ public sealed class ScriptedGame : IDisposable
     {
         Root = root ?? throw new ArgumentNullException(nameof(root));
         GameFile = gameFile;
-        Scripts = new ScriptStore(root);
+        Scripts = new ScriptStore(root) { CostumeMods = gameFile == null ? null : CostumeCelMods.Load(gameFile) };
         Music = null;
         MusicOutput = null;
         Effects = new SoundEffects(SoundEffects.FromResources(Scripts, root)) { Mixer = _mixer };
