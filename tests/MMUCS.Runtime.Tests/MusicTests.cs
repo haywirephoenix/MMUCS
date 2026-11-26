@@ -159,6 +159,23 @@ public class MusicTests
     }
 
     [Fact]
+    public void The_plank_s_cutscene_ends_the_monkeys_music_that_a_skipped_dialogue_left_playing()
+    {
+        // Global 251's override is at 0x12 in its code (ScummVM's 0x1A, counting the header): 17 bytes, then it.
+        static ScriptCode Plank() => new Asm().Push(0).Push(0).Op(0x0c).Push(0).Op(0x0c)
+            .Op(0x84).Jump(0x66, "skip").Op(0x85).Label("skip").End().Global(251);
+        foreach (var (room, playing, expected) in new[] { (37, 2275, true), (37, 1247, false), (36, 2275, false) })
+        {
+            var vm = new ScriptVm(ScriptStore.Of(Plank()), new VmState(GameLimits.Comi)) { CurrentRoom = room };
+            var sent = new List<string>();
+            vm.SoundKludge = list => { sent.Add(string.Join(",", list)); return true; };
+            vm.MusicRunning = id => id == playing;
+            vm.RunScript(251);
+            Assert.Equal(expected ? [$"{ComiMusic.SetSequenceCommand},2277"] : [], sent);
+        }
+    }
+
+    [Fact]
     public void COMI_s_tables_come_from_its_program()
     {
         if (Game == null || MusicTable.Load(Game) is not { } table) return;
