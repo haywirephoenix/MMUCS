@@ -120,4 +120,62 @@ public class ScriptStoreTests(ITestOutputHelper output)
         Assert.Null(none.EntryFor(4));
         Assert.Null(none.Script(4));
     }
+
+    [Fact]
+    public void A_mod_s_cel_PNG_replaces_the_costume_s_cel_in_its_own_colours_at_its_meta_offset()
+    {
+        if (Game == null) return;
+        var root = Root.Value;
+        var akos = RoomActors.CostumeBlock(root, 140);
+        var game = AkosParser.Parse(akos);
+        var cel = AkosDecoders.DecodeCel(game, 48, default);
+        Assert.Equal("rooms/022_clring-a/costumes/akos_02A4A050", CostumeCelMods.FolderOf(akos).Replace('\\', '/'));
+
+        // The game's cel 48 as the export draws it (shadow colours 40% black), 13 px wider on the left.
+        int w = cel.Width + 13, h = cel.Height;
+        var rgba = new byte[w * h * 4];
+        var akpl = game.Palette.Span;
+        for (int y = 0; y < cel.Height; y++)
+            for (int x = 0; x < cel.Width; x++)
+            {
+                byte local = cel.Pixels[y * cel.Pitch + x];
+                if (local == game.TransparentIndex) continue;
+                int global = AkosFrames.Global(local, akpl, game.IsPassthroughPalette), o = (y * w + x + 13) * 4;
+                if (global is > 0 and < 8) { rgba[o + 3] = 102; continue; }
+                var c = game.ResolvedColors[global];
+                (rgba[o], rgba[o + 1], rgba[o + 2], rgba[o + 3]) = ((byte)Math.Round(c.R * 255), (byte)Math.Round(c.G * 255), (byte)Math.Round(c.B * 255), 255);
+            }
+        string dir = Path.Combine(Path.GetTempPath(), "mmucs-mods-" + Guid.NewGuid().ToString("N"));
+        string folder = Path.Combine(dir, "_mods", "Wide", CostumeCelMods.FolderOf(akos));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "_mods", "Wide", "mod.json"), """{ "enabled": true }""");
+            using (var f = File.Create(Path.Combine(folder, "cel_048.png"))) MMUCS.Core.Imaging.PngWriter.Write(f, w, h, rgba);
+            File.WriteAllText(Path.Combine(folder, "meta.json"), """{ "cels": { "cel_048": { "x": -13, "y": 0 } } }""");
+
+            var mods = CostumeCelMods.Load(Path.Combine(dir, "COMI.LA0"));
+            var data = new ScriptStore(root) { CostumeMods = mods }.Costume(140).Data;
+            Assert.Empty(mods.Problems);
+            var modded = Assert.Single(data.ModCels);
+            Assert.Equal((48, -13, 0, w, h), (modded.Key, modded.Value.OffsetX, modded.Value.OffsetY, modded.Value.Surface.Width, modded.Value.Surface.Height));
+            // Every pixel comes back as the costume's own colour (a costume can have two indices for one colour), shadows as its shadow colour.
+            var surface = AkosFrames.GetCel(data, 48);
+            for (int y = 0; y < cel.Height; y++)
+                for (int x = 0; x < cel.Width; x++)
+                {
+                    byte want = cel.Pixels[y * cel.Pitch + x], got = surface.Pixels[y * surface.Pitch + x + 13];
+                    int gw = AkosFrames.Global(want, akpl, game.IsPassthroughPalette), gg = AkosFrames.Global(got, akpl, game.IsPassthroughPalette);
+                    if (want == game.TransparentIndex) Assert.Equal(game.TransparentIndex, got);
+                    else if (gw is > 0 and < 8) Assert.InRange(gg, 1, 7);
+                    else Assert.Equal(game.ResolvedColors[gw], game.ResolvedColors[gg]);
+                }
+            Assert.Equal((-13, 0), CostumeCelMods.Place(cel, surface, game.TransparentIndex) is { } at ? (at.X, at.Y) : (99, 99));
+
+            // The throw's last frame (AKSQ 472, cel 48 at -552,-185) reaches 13 px further left; the game's costume doesn't.
+            Assert.Equal(-565, AkosFrames.ComposeAt(data, [472]).Bounds.Left);
+            Assert.Equal(-552, AkosFrames.ComposeAt(game, [472]).Bounds.Left);
+        }
+        finally { Directory.Delete(dir, true); }
+    }
 }
