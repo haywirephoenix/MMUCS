@@ -332,6 +332,7 @@ public sealed partial class RoomViewModel : ObservableObject
         }
 
         _shownStates[obj] = state;
+        ObjectStateShown?.Invoke(obj);
         _objectPlanes.Remove(obj);
         _zMaskKey = null;
         if (state > 0 && obj.ImageCount > 0 && ObimDecoders.TryGetObimInfo(obj.Block, out var info))
@@ -849,14 +850,19 @@ public sealed partial class RoomViewModel : ObservableObject
         ReloadForModImages();
     }
 
-    /// <summary>The mod image shown for <paramref name="obj"/> (the image its state shows), while mod images are shown; else null.</summary>
+    /// <summary>
+    /// The mod image shown for <paramref name="obj"/>, while mod images are shown; else null. It's the image the
+    /// viewer draws for it: its state's, or the first for one hidden in state 0 (shown from the Objects list).
+    /// </summary>
     public ObjectImageMods.Image ModImageOf(RoomObject obj)
     {
         if (!ShowModImages || ObjectMods is not { } mods || Room is not { } room || obj == null || obj.ImageCount <= 0) return null;
         if (!ObimDecoders.TryGetObimInfo(obj.Block, out var info)) return null;
-        int state = StateOf(obj);
-        return state == 0 ? null : mods.Find(room, obj, RoomObjectStates.FrameFor(state, info.TotalFrames > 0 ? info.TotalFrames : 1));
+        return mods.Find(room, obj, RoomObjectStates.FrameFor(StateOf(obj), info.TotalFrames > 0 ? info.TotalFrames : 1));
     }
+
+    /// <summary>Raised when an object is shown in another state (the Object viewer's state list), so its image may be another.</summary>
+    public event Action<RoomObject> ObjectStateShown;
 
     /// <summary>Shows <paramref name="obj"/>'s image with its top-left at <paramref name="x"/>,<paramref name="y"/> (unsaved: the next reload puts it back).</summary>
     public void PreviewObjectPlace(RoomObject obj, int x, int y)

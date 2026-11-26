@@ -134,6 +134,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             if (e.PropertyName is nameof(AkosViewModel.SelectedCel) or nameof(AkosViewModel.Akos)) UpdatePosition();
         };
+        Room.ObjectStateShown += obj => { if (ReferenceEquals(obj, Room.SelectedObject)) UpdatePosition(); };
         DockFactory = new MmucsDockFactory(this);
         var saved = DockLayoutStore.Read();
         SavedMainWindow = saved?.MainWindow;
