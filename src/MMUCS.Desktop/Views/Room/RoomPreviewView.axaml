@@ -19,6 +19,9 @@
               <MenuItem Header="Unused" ToggleType="CheckBox" StaysOpenOnClick="True"
                         ToolTip.Tip="Include object images the game never shows (listed in unused-art.json) in what the Show mode shows"
                         IsChecked="{Binding ShowUnused, Mode=OneWay}" Command="{Binding ToggleUnusedCommand}" />
+              <MenuItem Header="Mod images" ToggleType="CheckBox" StaysOpenOnClick="True"
+                        ToolTip.Tip="Show the mods' object images (_mods/&lt;mod&gt;/rooms/…/objects) in place of the game's; changing it reloads the room's images"
+                        IsChecked="{Binding ShowModImages, Mode=OneWay}" Command="{Binding ToggleModImagesCommand}" />
               <MenuItem Header="Hotspots" ToggleType="CheckBox" StaysOpenOnClick="True"
                         IsChecked="{Binding ShowHotspots, Mode=OneWay}" Command="{Binding ToggleHotspotsCommand}" />
               <MenuItem Header="Walkboxes" ToggleType="CheckBox" StaysOpenOnClick="True"

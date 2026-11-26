@@ -173,4 +173,6 @@ public sealed class RoomViewOptions
     public int ShowMode { get; set; }
     /// <summary>Include the art the game never shows (unused-art.json).</summary>
     public bool ShowUnused { get; set; }
+    /// <summary>Show the mods' object images (_mods/&lt;mod&gt;/rooms/…) in place of the game's.</summary>
+    public bool ShowModImages { get; set; } = true;
 }

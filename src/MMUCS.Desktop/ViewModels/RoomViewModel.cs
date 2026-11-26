@@ -257,6 +257,7 @@ public sealed partial class RoomViewModel : ObservableObject
 
     public RoomViewModel()
     {
+        ShowModImages = true; // the saved choice is applied after
         ViewerLayout = new Docking.ViewerDock(new Docking.RoomDockFactory(this));
         ViewerLayout.LayoutReplaced += () => ViewerLayout.SetPanelShown(Docking.RoomDockFactory.ObjectsId, ShowObjectsPanel);
     }
@@ -831,18 +832,36 @@ public sealed partial class RoomViewModel : ObservableObject
     /// </summary>
     public ObjectImageMods ObjectMods { get; set; }
 
+    /// <summary>Whether the mods' object images are shown (<see cref="ObjectMods"/>); the game's when off. A change reloads the room's images.</summary>
+    [ObservableProperty] public partial bool ShowModImages { get; set; }
+
+    partial void OnShowModImagesChanged(bool value) => ReloadForModImages();
+
+    [RelayCommand] private void ToggleModImages() => ShowModImages = !ShowModImages;
+
+    private async void ReloadForModImages()
+    {
+        try { await ReloadImagesAsync(); }
+        catch (Exception ex) { Log.Warn($"Room images: {ex.Message}"); }
+    }
+
     /// <summary>Image <paramref name="frame"/> of an object: a mod's, with where it goes, or the game's (no place: the object's).</summary>
     private async Task<(RgbaImage Image, int? X, int? Y)> ObjectImageAsync(RoomModel room, RoomObject obj, int frame, CancellationToken token)
     {
         int palette = RoomSceneBuilder.PaletteOf(room, obj);
-        if (ObjectMods is { } mods && await Task.Run(() => mods.Rgba(room, obj, frame, palette), token) is var (image, x, y))
+        if (ShowModImages && ObjectMods is { } mods && mods.Find(room, obj, frame) != null)
         {
+            // A mod's see-through pixels (shadows) are blended over the room's background, as the game window does.
+            var background = room.Width > 0
+                ? (await ScummBackgroundCache.GetCachedBackgroundAsync(RoomSceneBuilder.BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, 0, token)).Surface
+                : null;
+            var modded = await Task.Run(() => mods.Rgba(room, obj, frame, palette, background), token);
             lock (mods.Problems)
             {
                 foreach (var problem in mods.Problems) Log.Warn($"Object mods: {problem}");
                 mods.Problems.Clear();
             }
-            return (image, x, y);
+            if (modded is var (image, x, y)) return (image, x, y);
         }
         var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, palette, bakeImage: true, token);
         return (result.ExecutedImage, null, null);
