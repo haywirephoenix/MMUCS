@@ -11,8 +11,8 @@ using MMUCS.Core.Scumm;
 /// mod replaces and with what, the problems reading its map, and the game's tracks no mod replaces. Object
 /// images: each PNG under a mod's rooms/ with the object image it replaces and where it goes, or why it
 /// replaces none. Costume cels: each costume folder under a mod's rooms/ with its cels, their sizes against the game's
-/// and their offsets from its meta.json; --place works out the offsets meta.json doesn't give (where the game's cel
-/// sits in the mod's) and writes them there. --check decodes every audio file in the mods and checks it against the
+/// and their offsets from its meta.json; --place works out the offsets that don't line up (where the game's cel
+/// sits in the mod's) and writes them there, and --place CEL,… just those cels, lined up or not. --check decodes every audio file in the mods and checks it against the
 /// MD5 its FLAC stream carries.
 /// </summary>
 internal static class ModsCommand
@@ -39,7 +39,11 @@ internal static class ModsCommand
         var unmapped = names.Keys.Where(k => !mods.Tracks.ContainsKey(k)).Order().Select(k => names[k]).ToList();
         if (table != null) Console.WriteLine($"game tracks no mod replaces ({unmapped.Count} of {names.Count}): {string.Join(", ", unmapped)}");
         ObjectImages(root, gameFile);
-        CostumeCels(root, gameFile, a.Contains("--place"));
+        // --place, or --place NAME,NAME…: only those cels, worked out again even when their offset fits.
+        int placeAt = a.IndexOf("--place");
+        List<string> only = placeAt >= 0 && placeAt + 1 < a.Count && !a[placeAt + 1].StartsWith("--")
+            ? [.. a[placeAt + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)] : null;
+        CostumeCels(root, gameFile, placeAt >= 0, only);
 
         if (!a.Contains("--check") || folder == null || !Directory.Exists(folder)) return 0;
         int bad = 0;
@@ -108,8 +112,12 @@ internal static class ModsCommand
         foreach (var p in images.Problems) Console.WriteLine($"  problem: {p}");
     }
 
-    /// <summary>Each costume folder under an enabled mod's rooms/: its costume, and each cel with its size and offset; --place fills in missing offsets.</summary>
-    private static void CostumeCels(ScummBlock root, string gameFile, bool place)
+    /// <summary>
+    /// Each costume folder under an enabled mod's rooms/: its costume, and each cel with its size and offset. With
+    /// <paramref name="place"/>, the offsets that don't fit are worked out and saved; with <paramref name="only"/>, just
+    /// those cels are, fitting or not.
+    /// </summary>
+    private static void CostumeCels(ScummBlock root, string gameFile, bool place, List<string> only = null)
     {
         var cels = CostumeCelMods.Load(gameFile);
         if (cels.Mods.Count == 0) return;
@@ -147,15 +155,22 @@ internal static class ModsCommand
                     // How well the game's cel fits where the offset puts it: under 90% it's the wrong offset (or a repaint).
                     double share = gameCel != null ? CostumeCelMods.Match(gameCel, m.Surface, d.TransparentIndex, cel.X ?? 0, cel.Y ?? 0) : 0;
                     if (gameCel != null) offset += $" ({share:P0} of the game's pixels match there)";
-                    if (place && gameCel != null && share < 0.9)
+                    bool named = only != null && Named(only, $"{mod.Name}/{rel}/{Path.GetFileNameWithoutExtension(cel.File)}", number);
+                    if (place && gameCel != null && (only == null ? share < 0.9 : named))
                     {
                         var at = CostumeCelMods.Place(gameCel, m.Surface, d.TransparentIndex);
                         if (at is { Share: >= 0.9 } good)
                         {
                             placed[Path.GetFileNameWithoutExtension(cel.File)] = (good.X, good.Y);
-                            offset = $"{(given ? $"moved from {cel.X ?? 0},{cel.Y ?? 0} to" : "placed at")} {good.X},{good.Y} ({good.Share:P0} of the game's pixels match)";
+                            offset = $"{Moved(given, cel.X ?? 0, cel.Y ?? 0, good.X, good.Y)} ({good.Share:P0} of the game's pixels match)";
                         }
-                        else if (at is { } near) offset += $"; the best fit, {near.X},{near.Y}, matches {near.Share:P0}, so it's left";
+                        else if (at is { } near && named && near.Share >= 0.5)
+                        {
+                            // Named: its best fit is taken unless it's hardly the game's cel at all.
+                            placed[Path.GetFileNameWithoutExtension(cel.File)] = (near.X, near.Y);
+                            offset = $"{Moved(given, cel.X ?? 0, cel.Y ?? 0, near.X, near.Y)}, its best fit ({near.Share:P0} of the game's pixels match: a repaint?)";
+                        }
+                        else if (at is { } near2) offset += $"; the best fit, {near2.X},{near2.Y}, matches {near2.Share:P0}, so it's left";
                         else offset += "; the game's cel is bigger, so it's left";
                     }
                     Console.WriteLine($"    {Path.GetFileName(cel.File)}: {size} (game's {game}), {offset}");
@@ -170,6 +185,26 @@ internal static class ModsCommand
     private static void WriteOffsets(string meta, Dictionary<string, (int X, int Y)> placed)
     {
         CostumeCelMods.SaveOffsets(Path.GetDirectoryName(meta), placed);
-        Console.WriteLine($"    wrote {placed.Count} offsets to {meta}");
+        Console.WriteLine($"    wrote {placed.Count} offset{(placed.Count == 1 ? "" : "s")} to {meta}");
+    }
+
+    /// <summary>What placing did to a cel's offset: placed (none before), moved, or kept where it was.</summary>
+    private static string Moved(bool given, int fromX, int fromY, int x, int y) =>
+        !given ? $"placed at {x},{y}" : (fromX, fromY) == (x, y) ? $"stays at {x},{y}" : $"moved from {fromX},{fromY} to {x},{y}";
+
+    /// <summary>
+    /// Whether a cel is among <paramref name="names"/>: by its number ("44"), its file ("cel_044", "cel_044.png"), or the
+    /// end of its path from the mods folder ("akos_02A4A050/cel_044", "WideScreenMod/rooms/022_clring-a/costumes/akos_02A4A050/cel_044").
+    /// </summary>
+    private static bool Named(List<string> names, string path, int number)
+    {
+        foreach (string raw in names)
+        {
+            string name = raw.Replace('\\', '/');
+            if (name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) name = name[..^4];
+            if (int.TryParse(name, out int n) && n == number) return true;
+            if (path.Equals(name, StringComparison.OrdinalIgnoreCase) || path.EndsWith("/" + name, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
     }
 }
