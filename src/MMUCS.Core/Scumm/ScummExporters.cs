@@ -363,9 +363,7 @@ public class ScummExporters
         {
             if (!RoomModel.TryCreate(lflf, out var room)) continue;
 
-            string baseName = room.RoomNo > 0
-                ? $"{room.RoomNo:D3}{(string.IsNullOrEmpty(room.Name) ? "" : "_" + Sanitize(room.Name))}"
-                : $"room_{room.Room.Offset:X8}";
+            string baseName = RoomFolderName(room);
             string name = baseName;
             if (!usedNames.Add(name))
             {
@@ -418,7 +416,7 @@ public class ScummExporters
         // BOMP objects have one block per frame; SMAP objects decode a single image.
         int frames = info.TotalFrames > 0 ? info.TotalFrames : 1;
         int written = 0, failed = 0;
-        string stem = $"{obj.Index:D3}_{Sanitize(obj.ToString())}";
+        string stem = ObjectFileStem(obj);
 
         for (int f = 0; f < frames; f++)
         {
@@ -426,7 +424,7 @@ public class ScummExporters
             {
                 var result = await ObimCache.GetCachedObimAsync(obj.Block, f, info.DefaultPaletteIndex, bakeImage: true, token);
                 if (result.ExecutedImage == null) { failed++; continue; }
-                result.ExecutedImage.SavePng(Path.Combine(folder, $"{stem}_f{f}.png"));
+                result.ExecutedImage.SavePng(Path.Combine(folder, ObjectFrameFile(obj, f)));
                 written++;
             }
             catch (OperationCanceledException) { throw; }
@@ -494,6 +492,17 @@ public class ScummExporters
         while (b.Parent != null && b.Parent.FileData != null) b = b.Parent;
         return b.TagName ?? "file";
     }
+
+    /// <summary>A room's folder under rooms/ ("022_clring-a"), without the suffix a room in more than one file gets.</summary>
+    public static string RoomFolderName(RoomModel room) => room.RoomNo > 0
+        ? $"{room.RoomNo:D3}{(string.IsNullOrEmpty(room.Name) ? "" : "_" + Sanitize(room.Name))}"
+        : $"room_{room.Room.Offset:X8}";
+
+    /// <summary>An object's image files' name before the frame: its index in the room and its name ("041_clring-a-haggis-caber").</summary>
+    public static string ObjectFileStem(RoomObject obj) => $"{obj.Index:D3}_{Sanitize(obj.ToString())}";
+
+    /// <summary>An object image's file under the room's objects/ ("041_clring-a-haggis-caber_f0.png"), by image from 0.</summary>
+    public static string ObjectFrameFile(RoomObject obj, int frame) => $"{ObjectFileStem(obj)}_f{frame}.png";
 
     private static string Sanitize(string s)
     {

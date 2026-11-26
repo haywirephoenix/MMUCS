@@ -8,10 +8,10 @@ using System.Text.Json;
 namespace MMUCS.Core.Audio;
 
 /// <summary>
-/// Music mods: replacement tracks the game plays in place of its own. They live in "_mods/music/&lt;mod&gt;/" beside
-/// the game (the export's layout, one folder per mod), each with a mod.json saying which of the game's tracks its
-/// audio files stand in for. A track is named by its file number, as the export names it ("music/1100"); the key
-/// may carry the name too ("1100-Hold1"). A value is the file, or an object:
+/// Music mods: replacement tracks the game plays in place of its own. A mod (<see cref="GameMods"/>, "_mods/&lt;mod&gt;/"
+/// beside the game) maps them in its mod.json's "tracks", and keeps its audio under its music/ folder (a file is
+/// found there by its path, or by its name in any folder under it). A track is named by its file number, as the
+/// export names it ("music/1100"); the key may carry the name too ("1100-Hold1"). A value is the file, or an object:
 /// <code>
 /// {
 ///   "tracks": {
@@ -26,8 +26,8 @@ namespace MMUCS.Core.Audio;
 /// out (2105-Interlude1) has to end here too, or the scripts' music after it never comes. Its "_end" marker (where a sequence gives way to the state's music) is at loopEnd.
 /// Other fields are ignored (mprobe match all leaves its "score" and "notes" there). A blank value, or an object
 /// whose "file" is blank, is a track still to be mapped, and a key without a track number (music baked into a cutscene,
-/// "opening.san title") is kept for later; both are skipped. A mod.json with "enabled": false is skipped too;
-/// where two mods map one track, the folder first by name wins.
+/// "opening.san title") is kept for later; both are skipped. A mod that's off ("enabled": false) is skipped too;
+/// where two mods map one track, the folder first by name wins. A mod without "tracks" has no music.
 /// </summary>
 public sealed class MusicMods
 {
@@ -42,43 +42,36 @@ public sealed class MusicMods
     /// <summary>The replacements by the game track's file number.</summary>
     public IReadOnlyDictionary<int, Track> Tracks => _tracks;
 
-    /// <summary>The mods found (folder names), whether or not they're enabled.</summary>
+    /// <summary>The mods found with music (folder names, those with "tracks"), whether or not they're enabled.</summary>
     public List<string> Mods { get; } = [];
 
     /// <summary>What couldn't be read: a broken mod.json, a missing file, a track number the game doesn't have.</summary>
     public List<string> Problems { get; } = [];
 
-    /// <summary>The music mods folder for <paramref name="gameFile"/>: "_mods/music" beside it.</summary>
-    public static string Folder(string gameFile) =>
-        string.IsNullOrEmpty(gameFile) || Path.GetDirectoryName(Path.GetFullPath(gameFile)) is not { } dir
-            ? null : Path.Combine(dir, "_mods", "music");
+    /// <summary>The mods folder for <paramref name="gameFile"/> (<see cref="GameMods.Folder"/>), where the mods' audio is.</summary>
+    public static string Folder(string gameFile) => GameMods.Folder(gameFile);
 
-    /// <summary>The music mods beside <paramref name="gameFile"/>; none when there's no folder.</summary>
+    /// <summary>The music mods beside <paramref name="gameFile"/>; none when there's no mods folder.</summary>
     public static MusicMods Load(string gameFile)
     {
         var mods = new MusicMods();
-        if (Folder(gameFile) is not { } folder || !Directory.Exists(folder)) return mods;
-        foreach (var dir in Directory.GetDirectories(folder).OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+        foreach (var mod in GameMods.Load(gameFile, mods.Problems))
         {
-            string map = Path.Combine(dir, "mod.json");
-            if (!File.Exists(map)) continue;
-            mods.Mods.Add(Path.GetFileName(dir));
-            try { mods.Read(dir, File.ReadAllText(map)); }
-            catch (Exception ex) when (ex is JsonException or IOException or FormatException or InvalidOperationException)
+            var root = mod.Json.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("tracks", out var tracks) || tracks.ValueKind != JsonValueKind.Object) continue;
+            mods.Mods.Add(mod.Name);
+            if (!mod.Enabled) continue;
+            try { mods.Read(mod, tracks); }
+            catch (Exception ex) when (ex is FormatException or InvalidOperationException)
             {
-                mods.Problems.Add($"{Path.GetFileName(dir)}/mod.json: {ex.Message}");
+                mods.Problems.Add($"{mod.Name}/mod.json: {ex.Message}");
             }
         }
         return mods;
     }
 
-    private void Read(string dir, string json)
+    private void Read(GameMods.Mod mod, JsonElement tracks)
     {
-        string mod = Path.GetFileName(dir);
-        using var doc = JsonDocument.Parse(json, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
-        var root = doc.RootElement;
-        if (root.TryGetProperty("enabled", out var enabled) && enabled.ValueKind == JsonValueKind.False) return;
-        if (!root.TryGetProperty("tracks", out var tracks) || tracks.ValueKind != JsonValueKind.Object) return;
         foreach (var p in tracks.EnumerateObject())
         {
             int digits = 0;
@@ -87,20 +80,20 @@ public sealed class MusicMods
             if (digits == 0 || !int.TryParse(p.Name.AsSpan(0, digits), out int number)) continue;
             var v = p.Value;
             // A blank entry, or one whose file is blank, is a track still to be mapped.
-            if (v.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(v.GetString())) continue;
-            if (v.ValueKind == JsonValueKind.Object &&
-                (!v.TryGetProperty("file", out var named) || named.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(named.GetString()))) continue;
+            string file = v.ValueKind == JsonValueKind.String ? v.GetString()
+                : v.ValueKind == JsonValueKind.Object && v.TryGetProperty("file", out var named) && named.ValueKind == JsonValueKind.String ? named.GetString() : null;
+            if (string.IsNullOrWhiteSpace(file)) continue;
+            if (GameMods.Find(mod, "music", file) is not { } path)
+            {
+                Problems.Add($"{mod.Name}: {p.Name}: {file} isn't under music/");
+                continue;
+            }
             Track track = v.ValueKind == JsonValueKind.String
-                ? new Track(mod, Path.Combine(dir, v.GetString()), 0, null, null, null, null, 500)
-                : new Track(mod, Path.Combine(dir, v.GetProperty("file").GetString()),
+                ? new Track(mod.Name, path, 0, null, null, null, null, 500)
+                : new Track(mod.Name, path,
                     Time(v, "start") ?? 0, Time(v, "end"), Time(v, "loopStart"), Time(v, "loopEnd"),
                     v.TryGetProperty("loop", out var loop) && loop.ValueKind is JsonValueKind.True or JsonValueKind.False ? loop.GetBoolean() : null,
                     v.TryGetProperty("fadeMs", out var fade) && fade.TryGetInt32(out int ms) ? ms : 500);
-            if (!File.Exists(track.File))
-            {
-                Problems.Add($"{mod}: {p.Name}: {Path.GetFileName(track.File)} isn't there");
-                continue;
-            }
             _tracks.TryAdd(number, track);
         }
     }
