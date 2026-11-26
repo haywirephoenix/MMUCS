@@ -193,6 +193,95 @@ public class RoomSceneTests
         finally { Directory.Delete(dir, true); }
     }
 
+    [Fact]
+    public async Task A_hi_res_mod_s_background_and_object_images_are_drawn_at_their_scale_and_tinted_as_the_colours_change()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        var room = Room(root, 22); // clring-a, 1072×480
+        var caber = room.Objects.Single(o => o.Name == "clring-a-haggis-caber");
+        string dir = Path.Combine(Path.GetTempPath(), "mmucs-hires-" + Guid.NewGuid().ToString("N"));
+        string folder = Path.Combine(dir, "_mods", "Upscaled", "rooms", "022_clring-a");
+        Directory.CreateDirectory(Path.Combine(folder, "objects"));
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "_mods", "Upscaled", "mod.json"), """{ "enabled": true, "scale": 2 }""");
+            void Png(string file, int w, int h, Func<int, int, (byte, byte, byte)> colour)
+            {
+                var rgba = new byte[w * h * 4];
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++)
+                    {
+                        var (r, g, b) = colour(x, y);
+                        int o = (y * w + x) * 4;
+                        (rgba[o], rgba[o + 1], rgba[o + 2], rgba[o + 3]) = (r, g, b, 255);
+                    }
+                using var f = File.Create(file);
+                PngWriter.Write(f, w, h, rgba);
+            }
+            // The room at 2×: white on the left half, green on the right; the caber's image blue, at 2× its size.
+            Png(Path.Combine(folder, "background.png"), 2144, 960, (x, _) => x < 1072 ? ((byte)255, (byte)255, (byte)255) : ((byte)0, (byte)255, (byte)0));
+            Png(Path.Combine(folder, "objects", "041_clring-a-haggis-caber_f0.png"), caber.Width * 2, caber.Height * 2, (_, _) => (0, 0, 255));
+
+            string game = Path.Combine(dir, "COMI.LA0");
+            // The palette mods leave a hi-res mod alone; the hi-res mods have it.
+            Assert.Empty(ObjectImageMods.Load(game).Mods);
+            Assert.Empty(CostumeCelMods.Load(game).Mods);
+            var hiRes = HiResMods.Load(game);
+            Assert.Equal(["Upscaled"], hiRes.Mods);
+            Assert.Equal(2, hiRes.Background(room).Scale);
+
+            var indexed = await RoomSceneBuilder.BuildIndexedAsync(room, o => o == caber ? 1 : 0, hiRes: hiRes);
+            Assert.NotNull(indexed.HiResBackground);
+            var basePalette = ObimCache.ExtractPaletteContext(room.Room, 0).rawBytes;
+
+            // In the room's own colours the pictures are drawn as they are, over the room and the object's place.
+            var scene = indexed.Colour(basePalette);
+            Assert.Null(scene.HiResBackground.Tinted);
+            Assert.Equal((0f, 0f, 1072f, 480f), (scene.HiResBackground.X, scene.HiResBackground.Y, scene.HiResBackground.Width, scene.HiResBackground.Height));
+            var obj = scene.Objects.Single(o => o.Object == caber);
+            Assert.Equal((caber.X, caber.Y, (float)caber.Width, (float)caber.Height), ((int)obj.HiRes.X, (int)obj.HiRes.Y, obj.HiRes.Width, obj.HiRes.Height));
+
+            // A spot of the background where the game's colour is bright and the same all round (no tint blending in).
+            var bg = indexed.Background;
+            (int X, int Y) spot = default;
+            for (int y = 10; y < 470 && spot == default; y += 3)
+                for (int x = 10; x < 500 && spot == default; x += 3)
+                {
+                    int i = bg.Pixels[y * bg.Pitch + x];
+                    if (basePalette[i * 3] > 120 && basePalette[i * 3 + 1] > 120 && basePalette[i * 3 + 2] > 120 &&
+                        Enumerable.Range(-1, 3).All(dy => Enumerable.Range(-1, 3).All(dx => bg.Pixels[(y + dy) * bg.Pitch + x + dx] == i)) &&
+                        !(x >= caber.X - 2 && x < caber.X + caber.Width + 2 && y >= caber.Y - 2 && y < caber.Y + caber.Height + 2))
+                        spot = (x, y);
+                }
+            Assert.NotEqual(default, spot);
+            using (var plain = Draw(scene))
+            {
+                Assert.Equal(new SKColor(255, 255, 255), plain.GetPixel(spot.X, spot.Y));
+                Assert.Equal(new SKColor(0, 255, 0), plain.GetPixel(900, 10));
+                Assert.Equal(new SKColor(0, 0, 255), plain.GetPixel(caber.X + caber.Width / 2, caber.Y + caber.Height / 2));
+            }
+
+            // The screen at half brightness (a fade): the picture darkens with the game's colours under it.
+            var half = basePalette.Select(b => (byte)(b / 2)).ToArray();
+            var dimmed = indexed.Colour(half);
+            Assert.NotNull(dimmed.HiResBackground.Tinted);
+            using var dark = Draw(dimmed);
+            int under = bg.Pixels[spot.Y * bg.Pitch + spot.X];
+            for (int k = 0; k < 3; k++)
+            {
+                double b = basePalette[under * 3 + k] / 255.0, expected = 255 * (half[under * 3 + k] / 255.0 + 0.02) / (b + 0.02);
+                byte got = k switch { 0 => dark.GetPixel(spot.X, spot.Y).Red, 1 => dark.GetPixel(spot.X, spot.Y).Green, _ => dark.GetPixel(spot.X, spot.Y).Blue };
+                Assert.InRange(got, expected - 4, expected + 4);
+            }
+
+            // A mod that's off has none.
+            File.WriteAllText(Path.Combine(dir, "_mods", "Upscaled", "mod.json"), """{ "enabled": false, "scale": 2 }""");
+            Assert.Null(HiResMods.Load(game).Background(room));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
     /// <summary><paramref name="expected"/> when <paramref name="index"/> has its colour (a palette can hold one colour twice), else the index.</summary>
     private static int PaletteMatch(byte[] palette, int index, int expected) =>
         palette.AsSpan(index * 3, 3).SequenceEqual(palette.AsSpan(expected * 3, 3)) ? expected : index;
