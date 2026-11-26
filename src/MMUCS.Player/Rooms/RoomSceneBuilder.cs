@@ -57,10 +57,11 @@ public static class RoomSceneBuilder
 
     /// <summary>
     /// The room with each object in <paramref name="stateOf"/>'s state, in palette indices, to be coloured with
-    /// the screen's palette (<see cref="IndexedRoom.Colour"/>), as the game shows it.
+    /// the screen's palette (<see cref="IndexedRoom.Colour"/>), as the game shows it. An image <paramref name="mods"/>
+    /// has for an object is drawn in place of the game's, where the mod puts it.
     /// </summary>
     public static async Task<IndexedRoom> BuildIndexedAsync(RoomModel room, Func<RoomObject, int> stateOf,
-        Func<RoomObject, bool> include = null, CancellationToken token = default)
+        Func<RoomObject, bool> include = null, CancellationToken token = default, ObjectImageMods mods = null)
     {
         ArgumentNullException.ThrowIfNull(room);
         IndexedSurface background = null;
@@ -76,10 +77,12 @@ public static class RoomSceneBuilder
             int frame = Math.Clamp(image, 0, Math.Max(0, (info.TotalFrames > 0 ? info.TotalFrames : 1) - 1));
             var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(room, obj), bakeImage: false, token);
             if (result.Surface == null) continue;
-            // The game window's view is wider than the 640 screen: objects cut at its edge are widened.
             int transparent = ObimCache.GetTransparentIndex(room.Room, obj.Block, frame);
-            var (surface, x, y) = WidescreenObjects.Widen(room, obj, frame, result.Surface, transparent, token);
-            objects.Add(new IndexedObject(obj, surface, transparent, x, y));
+            if (mods?.Find(room, obj, frame) is { } modded &&
+                mods.Indexed(modded, ObimCache.ExtractPaletteContext(room.Room, PaletteOf(room, obj)).rawBytes, transparent) is { } surface)
+                objects.Add(new IndexedObject(obj, surface, transparent, modded.X ?? obj.X, modded.Y ?? obj.Y));
+            else
+                objects.Add(new IndexedObject(obj, result.Surface, transparent, obj.X, obj.Y));
         }
 
         var planes = RoomScene.Planes(room, shown);

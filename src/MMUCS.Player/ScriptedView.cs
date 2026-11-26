@@ -41,6 +41,10 @@ public sealed class ScriptedView(ScriptedGame game)
     private RoomScene _scene;
     private IndexedRoom _sceneOf;
     private int _sceneRoom = -1;
+    private RoomScene _shownRoom, _shownUpper; // the last frame's room and actors over it, held while the next scene builds
+    private ObjectImageMods _objectMods;
+    private long _pendingSince; // when the scene being built was first wanted (Stopwatch ticks)
+    private const double HoldSeconds = 0.15; // the longest the last frame is held for a scene of the same room
     private byte[] _screen;
     private int _screenVersion = -1;
     private CutsceneFrame _cutscene;
@@ -83,14 +87,30 @@ public sealed class ScriptedView(ScriptedGame game)
         UpdateCutscene(null);
         UpdateScene();
         UpdateColours();
+        // Black (not the window's empty stage) in room 0 and while a new room's scene is still being built, as the engine shows it.
+        bool inRoom = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0;
+        RoomScene room = RoomScene.Blank, upper = null;
+        if (inRoom && _pendingKey != null && _shownRoom != null &&
+            System.Diagnostics.Stopwatch.GetElapsedTime(_pendingSince).TotalSeconds < HoldSeconds)
+        {
+            // An object of this room changed and its scene is building: the last frame stays up until it's ready,
+            // so actors that changed with the object (Haggis putting his caber down) don't show a frame without it.
+            room = _shownRoom;
+            upper = _shownUpper;
+        }
+        else if (inRoom)
+        {
+            room = _scene.WithActors(SceneActors(_scene, game.Vm.Actors.Pictures));
+            upper = game.Vm.Actors.UpperPictures.Count > 0
+                ? new RoomScene { Width = _scene.Width, Height = _scene.Height, ZMasks = _scene.ZMasks, Actors = SceneActors(_scene, game.Vm.Actors.UpperPictures) }
+                : null;
+        }
+        (_shownRoom, _shownUpper) = inRoom ? (room, upper) : (null, null);
         return new GameFrame
         {
             IsRunning = game.IsPlaying,
-            // Black (not the window's empty stage) in room 0 and while a new room's scene is still being built, as the engine shows it.
-            Room = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 ? _scene.WithActors(SceneActors(_scene, game.Vm.Actors.Pictures)) : RoomScene.Blank,
-            UpperActors = _sceneRoom == game.CurrentRoom && game.CurrentRoom != 0 && game.Vm.Actors.UpperPictures.Count > 0
-                ? new RoomScene { Width = _scene.Width, Height = _scene.Height, ZMasks = _scene.ZMasks, Actors = SceneActors(_scene, game.Vm.Actors.UpperPictures) }
-                : null,
+            Room = room,
+            UpperActors = upper,
             Blasts = [.. BlastFrames(), .. StampFrames()],
             Camera = game.Camera,
             PageOnly = game.IsPageOnly,
@@ -168,6 +188,7 @@ public sealed class ScriptedView(ScriptedGame game)
         if (key == _sceneKey || key == _pendingKey) return;
         if (RoomModelOf(room) is not { } model) return;
 
+        if (_pendingKey == null) _pendingSince = System.Diagnostics.Stopwatch.GetTimestamp();
         _pendingKey = key;
         var scripts = Game.Scripts;
         int StateOf(RoomObject o) => drawn.GetValueOrDefault(scripts.ObjectId(o.Name));
@@ -178,7 +199,13 @@ public sealed class ScriptedView(ScriptedGame game)
     {
         try
         {
-            var scene = await RoomSceneBuilder.BuildIndexedAsync(model, stateOf);
+            _objectMods ??= ObjectImageMods.Load(Game.GameFile);
+            var scene = await RoomSceneBuilder.BuildIndexedAsync(model, stateOf, mods: _objectMods);
+            lock (_objectMods.Problems)
+            {
+                foreach (var problem in _objectMods.Problems) Log.Warn($"Object mods: {problem}");
+                _objectMods.Problems.Clear();
+            }
             if (_pendingKey != key) return; // something newer is on its way
             _built = new Built(scene, room);
             _sceneKey = key;
