@@ -37,15 +37,16 @@ usage: mprobe [--game FILE] COMMAND ...
   costume N [ANIM …] [--dir D]
                        A costume's chores (AKCH) per animation and direction with their limbs; with ANIM each
                        limb's AKSQ steps: the cels a step draws (place and size from the actor) or the op.
-  mods [--check]       The music mods (_mods/music/<mod>/mod.json beside the game): the tracks each replaces,
-                       problems reading the maps, the game's tracks none replaces; --check decodes every
-                       FLAC in them against its MD5.
+  mods [--check]       The mods (_mods/<mod>/mod.json beside the game): the music tracks each replaces,
+                       problems reading the maps, the game's tracks none replaces, and each object image
+                       PNG under a mod's rooms/ with the object it replaces and where it goes; --check
+                       decodes every FLAC in them against its MD5.
   match TRACK [FILE] [--in DIR] [--chunks]
   match all --out FILE [--in DIR] [--only T,T…]
                        Where game music track TRACK (1100, or a name: Hold1) is in a FLAC, to the sample: its
                        4 s chunks found by cross-correlation, the runs of them at one offset, the game's jumps
                        in the file's time, and the mod.json entry (start, end, loopStart, loopEnd) they give.
-                       Without FILE, every FLAC in the music mods (or under DIR) is ranked and the best matched.
+                       Without FILE, every FLAC in the mods (or under DIR) is ranked and the best matched.
                        --chunks lists every chunk with its score and the next best place's. Each match is
                        made plainly and whitened, keeping the higher score. "all" matches every music track
                        and writes the mod.json to FILE (its cutscene keys and other fields kept), each entry
@@ -140,7 +141,7 @@ try
         "boot" => BootCommand.Run(root, argv, TakeOption, game),
         "fonts" => FontsCommand.Run(argv, TakeOption, game),
         "costume" => CostumeCommand.Run(root, argv, TakeOption),
-        "mods" => ModsCommand.Run(argv, game),
+        "mods" => ModsCommand.Run(root, argv, game),
         "match" => MatchCommand.Run(argv, TakeOption, FindSound, MusicNumbers, game),
         _ => Fail($"unknown command '{argv[0]}'"),
     };

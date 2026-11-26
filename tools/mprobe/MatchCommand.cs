@@ -21,7 +21,7 @@ using MMUCS.Core.Audio;
 /// and the one that scores higher is kept. Runs of chunks at one offset are printed as spans, the game's jumps are
 /// carried into the file's time, each matched by the 4 s after it (before it, for an end), and the mod.json entry
 /// they give is printed to paste.
-/// Without FILE, every FLAC under the music mods folder (or --in DIR) is tried with a few chunks of the track
+/// Without FILE, every FLAC under the mods folder (or --in DIR) is tried with a few chunks of the track
 /// (at a sixteenth of the game's rate) and ranked, and the best is matched in full.
 /// "all" does that for every music track in the bundles and writes the mod.json to FILE, each entry with its
 /// "score" (how much of the track was found, weighted by how well), "mode" and "notes"; a track not found gets a
@@ -89,7 +89,7 @@ internal static class MatchCommand
         else
         {
             string dir = searchDir ?? folder;
-            if (dir == null || !Directory.Exists(dir)) throw new UsageException($"no folder to search ({dir ?? "no music mods folder"}); give FILE or --in DIR");
+            if (dir == null || !Directory.Exists(dir)) throw new UsageException($"no folder to search ({dir ?? "no mods folder"}); give FILE or --in DIR");
             var library = Library(dir, rate);
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var ranked = Search(game, rate, library);
@@ -120,8 +120,7 @@ internal static class MatchCommand
         PrintSpans(sig.Chunks, rate);
         PrintJumps(sound, sig);
 
-        string key = Directory.GetParent(file) is { } parent && File.Exists(Path.Combine(parent.FullName, "mod.json"))
-            ? ModKeys(Path.Combine(parent.FullName, "mod.json"), number).Select(k => k.Key).FirstOrDefault() ?? name : name;
+        string key = ModJsonOver(file) is { } map ? ModKeys(map, number).Select(k => k.Key).FirstOrDefault() ?? name : name;
         Console.WriteLine("for mod.json:");
         Console.WriteLine($"  {Json(key)}: {{ {string.Join(", ", result.Fields)} }},");
         foreach (var note in result.Notes) Console.WriteLine($"  note: {note}");
@@ -238,7 +237,7 @@ internal static class MatchCommand
             var fields = new List<string>(r.Fields) { $"\"score\": {Num(r.Score)}", $"\"mode\": \"{(r.Whitened ? "whitened" : "plain")}\"" };
             fields[0] = $"\"file\": {Json(rel)}";
             if (r.Notes.Count > 0) fields.Add($"\"notes\": [{string.Join(", ", r.Notes.Select(Json))}]");
-            if (old.File != null && !Path.GetFullPath(Path.Combine(Path.GetDirectoryName(outFile), old.File)).Equals(r.File, StringComparison.Ordinal))
+            if (old.File != null && !(MMUCS.Core.GameMods.Find(Path.GetDirectoryName(outFile), "music", old.File) is { } before && Path.GetFullPath(before).Equals(r.File, StringComparison.Ordinal)))
                 fields.Add($"\"previously\": {Json(old.File)}");
             entries[number] = $"{{ {string.Join(", ", fields)} }}";
             string what = string.Join("  ", r.Fields.Skip(1).Where(f => !f.StartsWith("\"fadeMs")).Select(f => f.Replace("\"", "")));
@@ -392,8 +391,16 @@ internal static class MatchCommand
         var files = new HashSet<string>();
         foreach (var map in Directory.EnumerateFiles(dir, "mod.json", SearchOption.AllDirectories))
             foreach (var (_, value) in ModKeys(map, number))
-                if (value != null) files.Add(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(map), value)));
+                if (value != null && MMUCS.Core.GameMods.Find(Path.GetDirectoryName(map), "music", value) is { } found) files.Add(Path.GetFullPath(found));
         return files;
+    }
+
+    /// <summary>The mod.json of the mod a file is in: in its folder or a folder above it (a mod keeps its audio under music/).</summary>
+    private static string ModJsonOver(string file)
+    {
+        for (var dir = Directory.GetParent(Path.GetFullPath(file)); dir != null; dir = dir.Parent)
+            if (File.Exists(Path.Combine(dir.FullName, "mod.json"))) return Path.Combine(dir.FullName, "mod.json");
+        return null;
     }
 
     /// <summary>The keys of <paramref name="map"/>'s tracks for game track <paramref name="number"/>, with the file each names.</summary>
