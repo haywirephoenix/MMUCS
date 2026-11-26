@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using MMUCS.Core.Imaging;
 
@@ -246,6 +247,34 @@ public static class AkosFrames
         var ci = d.CelInfos[cel];
         if (ci.Width == 0 || ci.Height == 0) return;
         frame.Cels.Add(new AkosPlacedCel(cel, x, y, ci.Width, ci.Height));
+    }
+
+    /// <summary>
+    /// Cel <paramref name="cel"/> alone, where the first step that draws it places it (looking through
+    /// <paramref name="preferChore"/>'s limbs first, then every chore's), or at its own RelX/RelY when no step does.
+    /// </summary>
+    public static AkosFrame CelInPlace(AkosData d, int cel, int preferChore = -1)
+    {
+        if (d == null || cel < 0 || cel >= d.CelInfos.Length) return null;
+        var chores = Enumerable.Range(0, ChoreCount(d));
+        if (preferChore >= 0) chores = chores.Prepend(preferChore);
+        foreach (int chore in chores)
+            foreach (var limb in GetLimbs(d, chore))
+                foreach (int pos in GetFrameSteps(d, limb))
+                {
+                    var step = new AkosFrame();
+                    int xm = 0, ym = 0;
+                    AddStep(d, pos, step, ref xm, ref ym);
+                    if (step.Cels.FirstOrDefault(c => c.Cel == cel) is { Width: > 0 } placed)
+                    {
+                        var frame = new AkosFrame();
+                        frame.Cels.Add(placed);
+                        return frame;
+                    }
+                }
+        var own = new AkosFrame();
+        AddCel(d, cel, d.CelInfos[cel].RelX, d.CelInfos[cel].RelY, own);
+        return own;
     }
 
     /// <summary>

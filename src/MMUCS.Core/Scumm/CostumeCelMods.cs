@@ -227,4 +227,24 @@ public sealed class CostumeCelMods
             }
         return best is { } at ? (at.X, at.Y, bestScore / (double)opaque) : null;
     }
+
+    /// <summary>
+    /// The share of the game cel's pixels the mod's has where an offset of <paramref name="offsetX"/>,<paramref name="offsetY"/>
+    /// puts them (a game pixel outside the mod's counts as missing); 0 for a cel with no pixels.
+    /// </summary>
+    public static double Match(IndexedSurface game, IndexedSurface mod, byte transparent, int offsetX, int offsetY)
+    {
+        if (game == null || mod == null) return 0;
+        int opaque = 0, score = 0;
+        for (int i = 0; i < game.Height; i++)
+            for (int j = 0; j < game.Width; j++)
+            {
+                byte v = game.Pixels[i * game.Pitch + j];
+                if (v == transparent) continue;
+                opaque++;
+                int x = j - offsetX, y = i - offsetY;
+                if (x >= 0 && y >= 0 && x < mod.Width && y < mod.Height && mod.Pixels[y * mod.Pitch + x] == v) score++;
+            }
+        return opaque == 0 ? 0 : score / (double)opaque;
+    }
 }
