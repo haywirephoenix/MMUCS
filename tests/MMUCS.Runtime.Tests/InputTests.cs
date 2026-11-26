@@ -62,7 +62,12 @@ public class InputTests
         loop.Release(MouseButton.Right); // a click shorter than a frame still counts
         loop.Tick();
         Assert.Equal((ScriptVm.SceneClickArea, 0, 2, 2), (s[100], s[101], s[102], s[103]));
-        Assert.Equal((1, 0), (s[112], s[113]));
+        // ...and counts as held for the frame after it too, so the release watcher doesn't cut its verb script short.
+        Assert.Equal((1, 1), (s[112], s[113]));
+        loop.Tick();
+        Assert.Equal((0, 1), (s[112], s[113]));
+        loop.Tick();
+        Assert.Equal(0, s[113]);
 
         loop.PressKey('i');
         loop.Tick();
