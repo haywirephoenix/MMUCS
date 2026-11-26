@@ -79,7 +79,8 @@ public static class RoomSceneBuilder
             if (result.Surface == null) continue;
             int transparent = ObimCache.GetTransparentIndex(room.Room, obj.Block, frame);
             if (mods?.Find(room, obj, frame) is { } modded &&
-                mods.Indexed(modded, ObimCache.ExtractPaletteContext(room.Room, PaletteOf(room, obj)).rawBytes, transparent) is { } surface)
+                mods.Indexed(modded, ObimCache.ExtractPaletteContext(room.Room, PaletteOf(room, obj)).rawBytes, transparent,
+                    background, modded.X ?? obj.X, modded.Y ?? obj.Y) is { } surface)
                 objects.Add(new IndexedObject(obj, surface, transparent, modded.X ?? obj.X, modded.Y ?? obj.Y));
             else
                 objects.Add(new IndexedObject(obj, result.Surface, transparent, obj.X, obj.Y));
