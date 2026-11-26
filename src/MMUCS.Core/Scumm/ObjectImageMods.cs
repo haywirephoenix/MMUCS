@@ -13,18 +13,30 @@ namespace MMUCS.Core.Scumm;
 /// "&lt;same name&gt;.meta.json" beside it says where its top-left corner is in the room (<c>{ "x": 236, "y": 392 }</c>).
 /// The game draws in palette colours, so the PNG is taken into the colours of the palette the object is
 /// shown in, each pixel the index with its colour or the nearest, and the room's transparent colour is left for
-/// see-through pixels. A partly see-through pixel (a shadow) is blended over the room's background under it,
-/// as the image is placed, and that colour taken: object images have no translucency, so it's baked in.
-/// Without the background, a pixel less than half opaque is see-through. The first enabled mod by name that has an
+/// see-through pixels. Object images have no translucency, so a partly see-through pixel is baked over the room's
+/// background under it, as the image is placed: a dark one at least a fifth opaque (the export's 40% black for a
+/// costume's shadow) is a shadow, the background darkened by a shadow table as the game draws a costume's (table 6,
+/// or the .meta.json's "shadowTable"), and any other is blended. Without the background, a pixel less than half
+/// opaque is see-through. The first enabled mod by name that has an
 /// image wins. A PNG is read again when its file changes.
 /// </summary>
 public sealed class ObjectImageMods
 {
     /// <summary>A mod's image for an object: its mod, the PNG, and where it goes (null: the object's place).</summary>
-    public sealed record Image(string Mod, string File, int? X, int? Y);
+    /// <remarks><c>ShadowTable</c> is the shadow table its shadow pixels darken by (the .meta.json's "shadowTable"; null: 6).</remarks>
+    public sealed record Image(string Mod, string File, int? X, int? Y, int? ShadowTable = null);
+
+    /// <summary>
+    /// COMI's shadow tables as its scripts set them (build-palette-shadow 6, 190… and 7, 220…), 8 RGB triples of 0–255:
+    /// what a mod image's shadow is darkened by where the game's own tables aren't given.
+    /// </summary>
+    public static readonly byte[] DefaultShadowTables = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 189, 189, 189, 219, 219, 219];
+
+    /// <summary>The shadow table a mod image's shadow uses unless its .meta.json says another: 6, the costumes' main one.</summary>
+    public const int DefaultShadowTable = 6;
 
     private readonly List<GameMods.Mod> _mods = [];
-    private readonly Dictionary<string, (DateTime Written, byte[] Palette, int Transparent, IndexedSurface Background, int X, int Y, IndexedSurface Surface)> _surfaces = [];
+    private readonly Dictionary<string, (DateTime Written, byte[] Palette, int Transparent, IndexedSurface Background, int X, int Y, string Shadow, IndexedSurface Surface)> _surfaces = [];
 
     /// <summary>The enabled mods that have a rooms/ folder (folder names).</summary>
     public List<string> Mods { get; } = [];
@@ -54,8 +66,8 @@ public sealed class ObjectImageMods
         {
             string file = Path.Combine(mod.Folder, relative);
             if (!File.Exists(file)) continue;
-            var (x, y) = Place(mod, file);
-            return new Image(mod.Name, file, x, y);
+            var (x, y, shadow) = Place(mod, file);
+            return new Image(mod.Name, file, x, y, shadow);
         }
         return null;
     }
@@ -74,20 +86,20 @@ public sealed class ObjectImageMods
     }
 
     /// <summary>Where a .meta.json beside <paramref name="png"/> puts it (x, y), or nulls.</summary>
-    private (int? X, int? Y) Place(GameMods.Mod mod, string png)
+    private (int? X, int? Y, int? ShadowTable) Place(GameMods.Mod mod, string png)
     {
         string meta = Path.ChangeExtension(png, ".meta.json");
-        if (!File.Exists(meta)) return (null, null);
+        if (!File.Exists(meta)) return (null, null, null);
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(meta), new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
             int? Int(string name) => doc.RootElement.TryGetProperty(name, out var v) && v.TryGetInt32(out int n) ? n : null;
-            return (Int("x"), Int("y"));
+            return (Int("x"), Int("y"), Int("shadowTable") is int t and >= 1 and <= 7 ? t : null);
         }
         catch (Exception ex) when (ex is JsonException or IOException or InvalidOperationException)
         {
             lock (Problems) Problems.Add($"{mod.Name}: {Path.GetFileName(meta)}: {ex.Message}");
-            return (null, null);
+            return (null, null, null);
         }
     }
 
@@ -95,17 +107,21 @@ public sealed class ObjectImageMods
     /// <paramref name="image"/> in palette indices of <paramref name="palette"/> (256 RGB triples), with
     /// <paramref name="transparent"/> where it's see-through, or null when the PNG won't read. Its partly
     /// see-through pixels are blended over <paramref name="background"/> (the room's, in indices) with the image's
-    /// top-left at <paramref name="x"/>,<paramref name="y"/> in it.
+    /// top-left at <paramref name="x"/>,<paramref name="y"/> in it; its shadow pixels darken it by the image's shadow
+    /// table in <paramref name="shadowTables"/> (8 RGB triples, the game's now: <c>ScreenPalette.ShadowFactors</c>; null or
+    /// a table not set: <see cref="DefaultShadowTables"/>).
     /// </summary>
-    public IndexedSurface Indexed(Image image, byte[] palette, int transparent, IndexedSurface background = null, int x = 0, int y = 0)
+    public IndexedSurface Indexed(Image image, byte[] palette, int transparent, IndexedSurface background = null, int x = 0, int y = 0, byte[] shadowTables = null)
     {
+        var shadow = ShadowOf(image, shadowTables);
+        string shadowKey = Convert.ToHexString(shadow);
         if (image == null || palette == null || palette.Length < 768) return null;
         DateTime written;
         try { written = File.GetLastWriteTimeUtc(image.File); }
         catch (IOException) { return null; }
         lock (_surfaces)
             if (_surfaces.TryGetValue(image.File, out var cached) && cached.Written == written && cached.Transparent == transparent &&
-                ReferenceEquals(cached.Background, background) && cached.X == x && cached.Y == y &&
+                ReferenceEquals(cached.Background, background) && cached.X == x && cached.Y == y && cached.Shadow == shadowKey &&
                 cached.Palette.AsSpan().SequenceEqual(palette.AsSpan(0, 768)))
                 return cached.Surface;
 
@@ -116,8 +132,8 @@ public sealed class ObjectImageMods
             lock (Problems) Problems.Add($"{image.Mod}: {Path.GetFileName(image.File)}: {ex.Message}");
             return null;
         }
-        var surface = Quantize(png.ToArgb(), png.Width, png.Height, palette, transparent, background, x, y);
-        lock (_surfaces) _surfaces[image.File] = (written, palette.AsSpan(0, 768).ToArray(), transparent, background, x, y, surface);
+        var surface = Quantize(png.ToArgb(), png.Width, png.Height, palette, transparent, background, x, y, shadow);
+        lock (_surfaces) _surfaces[image.File] = (written, palette.AsSpan(0, 768).ToArray(), transparent, background, x, y, shadowKey, surface);
         return surface;
     }
 
@@ -125,6 +141,14 @@ public sealed class ObjectImageMods
     /// The mods' image for image <paramref name="frame"/> of <paramref name="obj"/> in the colours of the room's
     /// palette <paramref name="paletteIndex"/>, as the game shows it, with where it goes in the room; null without one.
     /// </summary>
+    /// <summary>The RGB factors an image's shadow darkens by: its table in <paramref name="tables"/>, or COMI's usual one.</summary>
+    private static byte[] ShadowOf(Image image, byte[] tables)
+    {
+        int t = (image?.ShadowTable ?? DefaultShadowTable) * 3;
+        if (tables != null && tables.Length >= t + 3 && tables[t] + tables[t + 1] + tables[t + 2] > 0) return tables[t..(t + 3)];
+        return DefaultShadowTables[t] + DefaultShadowTables[t + 1] + DefaultShadowTables[t + 2] > 0 ? DefaultShadowTables[t..(t + 3)] : DefaultShadowTables[18..21];
+    }
+
     /// <remarks><paramref name="background"/> is the room's background in indices, for partly see-through pixels.</remarks>
     public (RgbaImage Image, int X, int Y)? Rgba(RoomModel room, RoomObject obj, int frame, int paletteIndex, IndexedSurface background = null)
     {
@@ -143,7 +167,7 @@ public sealed class ObjectImageMods
     /// (at <paramref name="x"/>,<paramref name="y"/>) where there's background under it, else counts as see-through below half.
     /// </summary>
     internal static IndexedSurface Quantize(uint[] argb, int width, int height, byte[] palette, int transparent,
-        IndexedSurface background = null, int x = 0, int y = 0)
+        IndexedSurface background = null, int x = 0, int y = 0, byte[] shadow = null)
     {
         var pixels = new byte[width * height];
         var nearest = new Dictionary<uint, byte>();
@@ -156,7 +180,13 @@ public sealed class ObjectImageMods
             {
                 int bx = x + i % width, by = y + i / width;
                 if (background != null && bx >= 0 && by >= 0 && bx < background.Width && by < background.Height)
-                    c = Blend(c, background.Pixels[by * background.Pitch + bx], palette);
+                {
+                    int under = background.Pixels[by * background.Pitch + bx];
+                    // A dark see-through pixel at least a fifth opaque (the export's 40% black) is a shadow, drawn as the
+                    // game draws a costume's: what's under it times the shadow table. Others are blended.
+                    bool dark = ((c >> 16) & 0xFF) < 48 && ((c >> 8) & 0xFF) < 48 && (c & 0xFF) < 48;
+                    c = dark && alpha >= 51 && shadow is { Length: >= 3 } ? Shade(under, palette, shadow) : Blend(c, under, palette);
+                }
                 else if (alpha < 128) { pixels[i] = (byte)transparent; continue; }
             }
             uint rgb = c & 0xFFFFFF;
@@ -164,6 +194,13 @@ public sealed class ObjectImageMods
             pixels[i] = index;
         }
         return new IndexedSurface { Width = width, Height = height, Pitch = width, Pixels = pixels, TransparentIndex = (byte)transparent };
+    }
+
+    /// <summary>Palette colour <paramref name="under"/> darkened by a shadow table's RGB factors (of 255), as an opaque RGB.</summary>
+    private static uint Shade(int under, byte[] palette, byte[] shadow)
+    {
+        int Mul(int channel) => palette[under * 3 + channel] * shadow[channel] / 255;
+        return 0xFF000000u | (uint)(Mul(0) << 16) | (uint)(Mul(1) << 8) | (uint)Mul(2);
     }
 
     /// <summary>A partly see-through ARGB pixel over palette colour <paramref name="under"/>, as an opaque RGB.</summary>
