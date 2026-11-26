@@ -759,14 +759,18 @@ public sealed class ScriptedGame : IDisposable
     /// <summary>Whether there's a quick save to load.</summary>
     public bool HasQuickSave => File.Exists(QuickSavePath);
 
+    /// <summary>The F1 menu's room (saveload).</summary>
+    public const int SaveLoadRoom = 92;
+
     /// <summary>
     /// A quick save (F6): the whole engine written to <see cref="QuickSavePath"/>, with the music, the line's
     /// speech and the effects playing, and where they are (<see cref="WriteSave"/>). Not during a video (the engine is in
-    /// the middle of a frame). Returns whether it was written.
+    /// the middle of a frame), nor in the F1 menu's room (92), whose scripts hold the game's own temporary save: a save
+    /// there would come back into the menu (ScummVM's <c>canSaveGameStateCurrently</c>). Returns whether it was written.
     /// </summary>
     public bool QuickSave()
     {
-        if (!_booted || Vm == null || IsVideoPlaying || _engine.IsParked) return false;
+        if (!_booted || Vm == null || IsVideoPlaying || _engine.IsParked || CurrentRoom == SaveLoadRoom) return false;
         try
         {
             string path = QuickSavePath;
