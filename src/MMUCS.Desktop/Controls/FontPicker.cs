@@ -22,14 +22,19 @@ public sealed class FontPicker : StackPanel
     public FontPicker()
     {
         Orientation = Orientation.Horizontal;
+        HorizontalAlignment = HorizontalAlignment.Center;
+    
         var list = new ComboBox
         {
-            Width = 190, Margin = new Thickness(0, 0, 4, 0),
+            Width = 160,
+            // Margin = new Thickness(0, 0, 4, 0),
         };
         list.Bind(ItemsControl.ItemsSourceProperty, new Binding($"{nameof(Chooser)}.{nameof(FontChooser.Choices)}") { Source = this });
-        ToolTip.SetTip(list, "The font the game's text is drawn in: its NUT fonts, an unpacked font folder (Export ▸ Fonts, edited or not) or a TrueType/OpenType file");
+        ToolTip.SetTip(list, "The font the game's text is drawn in: its NUT fonts or a TrueType/OpenType file");
+        // ToolTip.SetTip(list, "The font the game's text is drawn in: its NUT fonts, an unpacked font folder (Export ▸ Fonts, edited or not) or a TrueType/OpenType file");
         list.Bind(SelectingItemsControl.SelectedItemProperty, new Binding($"{nameof(Chooser)}.{nameof(FontChooser.Selected)}") { Source = this, Mode = BindingMode.TwoWay });
 
+        /*
         var folder = new Button { Content = "Folder…", Margin = new Thickness(0, 0, 4, 0) };
         ToolTip.SetTip(folder, "Use a font folder: an export's font/NNNN folders (or the export root), with edited or replaced glyph PNGs");
         folder.Click += async (_, _) =>
@@ -51,9 +56,10 @@ public sealed class FontPicker : StackPanel
             });
             if (files.Count > 0 && files[0].TryGetLocalPath() is { } path) Chooser?.UseTypeface(path);
         };
+        */
 
         Children.Add(list);
-        Children.Add(folder);
-        Children.Add(file);
+        // Children.Add(folder);
+        // Children.Add(file);
     }
 }

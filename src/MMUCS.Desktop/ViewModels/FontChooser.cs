@@ -8,6 +8,7 @@ using MMUCS.Core.Diagnostics;
 using MMUCS.Core.Fonts;
 using MMUCS.Desktop.Rendering;
 using MMUCS.Desktop.Services;
+using System.Collections.Generic;
 
 namespace MMUCS.Desktop.ViewModels;
 
@@ -26,6 +27,8 @@ public sealed partial class FontChooser : ObservableObject
 {
     private readonly AppSettings _settings;
 
+    private readonly HashSet<string> _ignoredDirs = new(["GeistMono", "Roboto"], StringComparer.OrdinalIgnoreCase);
+
     public FontChooser(AppSettings settings)
     {
         _settings = settings;
@@ -33,8 +36,17 @@ public sealed partial class FontChooser : ObservableObject
         string bundled = Path.Combine(AppContext.BaseDirectory, "fonts");
         if (Directory.Exists(bundled))
         {
+            char[] separators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
             foreach (var file in Directory.EnumerateFiles(bundled, "*.*", SearchOption.AllDirectories)
-                         .Where(IsTypefaceFile).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+                        .Where(IsTypefaceFile)
+                        .Where(f =>
+                        {
+                            var folders = (Path.GetDirectoryName(Path.GetRelativePath(bundled, f)) ?? string.Empty)
+                                .Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                            return !folders.Any(_ignoredDirs.Contains);
+                        })
+                        .OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
                 Choices.Add(TypefaceChoice(file));
         }
         var selected = Choices[0];
@@ -65,7 +77,7 @@ public sealed partial class FontChooser : ObservableObject
         new(SubtitleFontKind.Folder, path, $"Folder: {Path.GetFileName(Path.TrimEndingDirectorySeparator(path))}");
 
     private static FontChoice TypefaceChoice(string path) =>
-        new(SubtitleFontKind.Typeface, path, $"Typeface: {Path.GetFileNameWithoutExtension(path)}");
+        new(SubtitleFontKind.Typeface, path, $"Font: {Path.GetFileNameWithoutExtension(path)}");
 
     private FontChoice AddChoice(FontChoice choice)
     {
