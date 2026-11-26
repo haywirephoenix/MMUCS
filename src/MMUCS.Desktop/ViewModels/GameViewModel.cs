@@ -42,6 +42,8 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         _settings = settings;
         Scripted.SmoothCamera = SmoothCamera = settings?.SmoothCamera ?? true;
         Scripted.SmoothWalk = SmoothWalk = settings?.SmoothWalk ?? true;
+        Scripted.MusicModsEnabled = MusicModsEnabled = settings?.MusicModsEnabled ?? true;
+        ShowInfo = settings?.ShowInfo ?? true;
         Fonts.Changed += () => { ApplyFont(); Refresh(); };
         Game.Changed += OnChanged;
         Scripted.Changed += OnChanged;
@@ -96,6 +98,14 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool SmoothCamera { get; set; }
 
+    /// <summary>Whether the window shows the status line under its toolbar (kept in the settings).</summary>
+    [ObservableProperty]
+    public partial bool ShowInfo { get; set; }
+
+    /// <summary>Whether the music mods beside the game play in place of its tracks (kept in the settings).</summary>
+    [ObservableProperty]
+    public partial bool MusicModsEnabled { get; set; }
+
     /// <summary>Walking actors glide between frames instead of stepping as SCUMM's do, with the smooth camera (kept in the settings).</summary>
     [ObservableProperty]
     public partial bool SmoothWalk { get; set; }
@@ -117,6 +127,26 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         if (_settings != null && _settings.SmoothWalk != value)
         {
             _settings.SmoothWalk = value;
+            _settings.Save();
+        }
+        Refresh();
+    }
+
+    partial void OnShowInfoChanged(bool value)
+    {
+        if (_settings != null && _settings.ShowInfo != value)
+        {
+            _settings.ShowInfo = value;
+            _settings.Save();
+        }
+    }
+
+    partial void OnMusicModsEnabledChanged(bool value)
+    {
+        Scripted.MusicModsEnabled = value;
+        if (_settings != null && _settings.MusicModsEnabled != value)
+        {
+            _settings.MusicModsEnabled = value;
             _settings.Save();
         }
         Refresh();

@@ -21,6 +21,10 @@ public sealed class AppSettings
     public bool ReopenLastFileOnStartup { get; set; } = true;
     /// <summary>The game window eases its camera instead of SCUMM's steps (on by default; the window's Smooth camera button).</summary>
     public bool SmoothCamera { get; set; } = true;
+    /// <summary>The game window shows its status line (on by default; the Options flyout's Show Info).</summary>
+    public bool ShowInfo { get; set; } = true;
+    /// <summary>The game plays the music mods beside it in place of its tracks (on by default; the Options flyout's Music Mods).</summary>
+    public bool MusicModsEnabled { get; set; } = true;
     /// <summary>Walking actors glide between frames, with the smooth camera (on by default; the window's Smooth walk button).</summary>
     public bool SmoothWalk { get; set; } = true;
     public bool ShowRoomNames { get; set; } = true;

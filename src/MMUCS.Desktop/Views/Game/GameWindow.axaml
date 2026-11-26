@@ -16,22 +16,79 @@
   </Window.Styles>
 
   <!-- The viewers' shared preview panel (Controls/ViewerPreview.cs): its toolbar holds Play / Pause / Stop; the canvas keeps 16:9. -->
-  <c:ViewerPreview Title="Game" Info="{Binding Status}" ShowZoom="False">
+  <c:ViewerPreview Title="" Info="" ShowZoom="False">
     <c:ViewerPreview.Tools>
-      <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,8,0">
-        <Button Classes="transport" Content="Play" Command="{Binding PlayCommand}"
-                ToolTip.Tip="Start the game; then click the canvas to capture the mouse" />
-        <Button Classes="transport" Content="Pause" Command="{Binding PauseCommand}"
-                ToolTip.Tip="Pause the game where it is and let the mouse go; Play carries on" />
-        <Button Classes="transport" Content="Stop" Command="{Binding StopCommand}"
-                ToolTip.Tip="End the game, as its own Quit does: Play boots it afresh" />
-        <ToggleButton Content="Scripts" IsChecked="{Binding RunScripts}" Margin="8,0,0,0"
-                      ToolTip.Tip="On: the game runs its own scripts from boot (MMUCS.Runtime's interpreter). Off: the hand-written stand-ins (a hotspot, the verb coin and the inventory). Switching stops the game." />
-        <ToggleButton Content="Smooth camera" IsChecked="{Binding SmoothCamera}" Margin="8,0,0,0"
-                      ToolTip.Tip="On: the camera eases after its target, and walking actors glide with it while it moves. Off: the camera and actors step as SCUMM's do. The scripts see the same camera either way." />
-        <ToggleButton Content="Smooth walk" IsChecked="{Binding SmoothWalk}" IsEnabled="{Binding SmoothCamera}" Margin="8,0,0,0"
-                      ToolTip.Tip="On: walking actors glide between frames all the time. Off: they step as SCUMM's do, so their feet stay planted, and glide only while the camera moves. Needs Smooth camera. The scripts see the same positions either way." />
-                <c:FontPicker Chooser="{Binding Fonts}" Margin="8,0,0,0" ToolTip.Tip="{Binding FontInfo}" />
+      <StackPanel Orientation="Vertical"
+                  HorizontalAlignment="Center"
+                  Spacing="4"
+                  Margin="0,0,8,0">
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,0,8,0">
+          <Button Classes="transport"
+                  Content="►"
+                  Command="{Binding PlayCommand}"
+                  IsVisible="{Binding !IsPlaying}"
+                  ToolTip.Tip="Start the game; then click the canvas to capture the mouse" />
+
+          <Button Classes="transport"
+                  Content="❚❚"
+                  Command="{Binding PauseCommand}"
+                  IsVisible="{Binding IsPlaying}"
+                  ToolTip.Tip="Pause the game where it is and let the mouse go; Play carries on" />
+
+          <Button Classes="transport"
+                  Content="■"
+                  Command="{Binding StopCommand}"
+                  IsEnabled="{Binding IsPlaying}"
+                  ToolTip.Tip="End the game, as its own Quit does: Play boots it afresh" />
+
+          <Button Classes="transport"
+                  Content="Options"
+                  ToolTip.Tip="Click for more options">
+            <Button.Flyout>
+              <Flyout Placement="BottomEdgeAlignedLeft">
+                <StackPanel Orientation="Vertical" Spacing="8" MinWidth="180">
+
+                  <ToggleButton Content="Show Info"
+                                IsChecked="{Binding ShowInfo}"
+                                HorizontalAlignment="Center"
+                                HorizontalContentAlignment="Center"
+                                MinWidth="160"
+                                ToolTip.Tip="Show the status line under the toolbar: the room, the music playing and what the game is doing" />
+
+                  <ToggleButton Content="Music Mods"
+                                IsChecked="{Binding MusicModsEnabled}"
+                                HorizontalAlignment="Center"
+                                HorizontalContentAlignment="Center"
+                                MinWidth="160"
+                                ToolTip.Tip="On: the music mods in _mods/music beside the game play in place of its tracks. Off: the game's own music. Switching changes the track playing at once." />
+
+                  <ToggleButton Content="Smooth camera"
+                                IsChecked="{Binding SmoothCamera}"
+                                HorizontalAlignment="Center"
+                                HorizontalContentAlignment="Center"
+                                MinWidth="160"
+                                ToolTip.Tip="On: the camera eases after its target, and walking actors glide with it while it moves. Off: the camera and actors step as SCUMM's do. The scripts see the same camera either way." />
+
+                  <ToggleButton Content="Smooth walk"
+                                IsChecked="{Binding SmoothWalk}"
+                                IsEnabled="{Binding SmoothCamera}"
+                                HorizontalAlignment="Center"
+                                HorizontalContentAlignment="Center"
+                                MinWidth="160"
+                                ToolTip.Tip="On: walking actors glide between frames all the time. Off: they step as SCUMM's do, so their feet stay planted, and glide only while the camera moves. Needs Smooth camera. The scripts see the same positions either way." />
+
+                
+                  <c:FontPicker Chooser="{Binding Fonts}"
+                                ToolTip.Tip="{Binding FontInfo}" />
+
+                </StackPanel>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </StackPanel>
+
+        <Label Content="{Binding Status}" IsVisible="{Binding ShowInfo}" />
+
       </StackPanel>
     </c:ViewerPreview.Tools>
 
