@@ -37,10 +37,12 @@ usage: mprobe [--game FILE] COMMAND ...
   costume N [ANIM …] [--dir D]
                        A costume's chores (AKCH) per animation and direction with their limbs; with ANIM each
                        limb's AKSQ steps: the cels a step draws (place and size from the actor) or the op.
-  mods [--check]       The mods (_mods/<mod>/mod.json beside the game): the music tracks each replaces,
-                       problems reading the maps, the game's tracks none replaces, and each object image
-                       PNG under a mod's rooms/ with the object it replaces and where it goes; --check
-                       decodes every FLAC in them against its MD5.
+  mods [--check] [--place]
+                       The mods (_mods/<mod>/mod.json beside the game): the music tracks each replaces,
+                       problems reading the maps, the game's tracks none replaces, each object image PNG
+                       under a mod's rooms/ with the object it replaces and where it goes, and each costume
+                       cel with its size and offset; --place writes the offsets a costume's meta.json lacks
+                       (where the game's cel is in the mod's); --check decodes every FLAC against its MD5.
   match TRACK [FILE] [--in DIR] [--chunks]
   match all --out FILE [--in DIR] [--only T,T…]
                        Where game music track TRACK (1100, or a name: Hold1) is in a FLAC, to the sample: its

@@ -38,7 +38,7 @@ static class BootCommand
         string savesDir = takeOption(a, "--saves");
 
         var limits = GameLimits.Read(root) ?? throw new InvalidOperationException("no MAXS block: not a v8 game index");
-        var store = new ScriptStore(root);
+        var store = new ScriptStore(root) { CostumeMods = CostumeCelMods.Load(gameFile) };
         var vm = new ScriptVm(store, new VmState(limits));
         var loop = new FrameLoop(vm);
         var state = vm.State;

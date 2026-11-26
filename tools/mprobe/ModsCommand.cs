@@ -10,7 +10,10 @@ using MMUCS.Core.Scumm;
 /// <c>mprobe mods [--check]</c>: the mods beside the game (_mods/&lt;mod&gt;/mod.json). Music: the game tracks each
 /// mod replaces and with what, the problems reading its map, and the game's tracks no mod replaces. Object
 /// images: each PNG under a mod's rooms/ with the object image it replaces and where it goes, or why it
-/// replaces none. --check decodes every audio file in the mods and checks it against the MD5 its FLAC stream carries.
+/// replaces none. Costume cels: each costume folder under a mod's rooms/ with its cels, their sizes against the game's
+/// and their offsets from its meta.json; --place works out the offsets meta.json doesn't give (where the game's cel
+/// sits in the mod's) and writes them there. --check decodes every audio file in the mods and checks it against the
+/// MD5 its FLAC stream carries.
 /// </summary>
 internal static class ModsCommand
 {
@@ -36,6 +39,7 @@ internal static class ModsCommand
         var unmapped = names.Keys.Where(k => !mods.Tracks.ContainsKey(k)).Order().Select(k => names[k]).ToList();
         if (table != null) Console.WriteLine($"game tracks no mod replaces ({unmapped.Count} of {names.Count}): {string.Join(", ", unmapped)}");
         ObjectImages(root, gameFile);
+        CostumeCels(root, gameFile, a.Contains("--place"));
 
         if (!a.Contains("--check") || folder == null || !Directory.Exists(folder)) return 0;
         int bad = 0;
@@ -75,6 +79,8 @@ internal static class ModsCommand
             string under = Path.Combine(mod.Folder, "rooms");
             foreach (var png in Directory.EnumerateFiles(under, "*.png", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
             {
+                // Costume cels are listed with their costumes.
+                if (Path.GetRelativePath(under, png).Split(Path.DirectorySeparatorChar) is [_, "costumes", ..]) continue;
                 string rel = Path.GetRelativePath(mod.Folder, png).Replace('\\', '/');
                 var parts = Path.GetRelativePath(under, png).Split(Path.DirectorySeparatorChar);
                 string verdict;
@@ -100,5 +106,73 @@ internal static class ModsCommand
             }
         }
         foreach (var p in images.Problems) Console.WriteLine($"  problem: {p}");
+    }
+
+    /// <summary>Each costume folder under an enabled mod's rooms/: its costume, and each cel with its size and offset; --place fills in missing offsets.</summary>
+    private static void CostumeCels(ScummBlock root, string gameFile, bool place)
+    {
+        var cels = CostumeCelMods.Load(gameFile);
+        if (cels.Mods.Count == 0) return;
+        var costumes = new Dictionary<string, ScummBlock>(StringComparer.OrdinalIgnoreCase);
+        foreach (var lflf in root.FindChildrenRecursive(ScummTag.LFLF))
+            foreach (var akos in lflf.Children.Where(c => c.Tag == ScummTag.AKOS))
+                if (CostumeCelMods.FolderOf(akos) is { } f) costumes.TryAdd(f.Replace('\\', '/'), akos);
+        Console.WriteLine("costume cels:");
+        foreach (var mod in GameMods.Load(gameFile).Where(m => cels.Mods.Contains(m.Name)))
+        {
+            string rooms = Path.Combine(mod.Folder, "rooms");
+            foreach (var dir in Directory.EnumerateDirectories(rooms, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+            {
+                string rel = Path.GetRelativePath(mod.Folder, dir).Replace('\\', '/');
+                var parts = rel.Split('/');
+                if (parts.Length != 4 || parts[2] != "costumes") continue;
+                if (!costumes.TryGetValue(rel, out var akos))
+                {
+                    Console.WriteLine($"  {mod.Name}/{rel}: no costume of the game is exported there");
+                    continue;
+                }
+                var d = AkosParser.Parse(akos);
+                cels.Apply(d, akos);
+                var found = cels.Find(akos).Where(kv => kv.Value.Mod == mod.Name).OrderBy(kv => kv.Key).ToList();
+                Console.WriteLine($"  {mod.Name}/{rel}: {found.Count} cels");
+                var placed = new Dictionary<string, (int X, int Y)>();
+                foreach (var (number, cel) in found)
+                {
+                    string game = number < d.CelInfos.Length ? $"{d.CelInfos[number].Width}x{d.CelInfos[number].Height}" : "no such cel";
+                    var m = d.ModCels?.GetValueOrDefault(number);
+                    string size = m != null ? $"{m.Surface.Width}x{m.Surface.Height}" : "won't read";
+                    string offset = cel.X != null || cel.Y != null ? $"offset {cel.X ?? 0},{cel.Y ?? 0}" : "no offset";
+                    if (cel.X == null && cel.Y == null && place && m != null)
+                    {
+                        // 90% of the game cel's pixels where they were: the rest is the mod's repainting.
+                        var at = CostumeCelMods.Place(AkosDecoders.DecodeCel(d, number, default), m.Surface, d.TransparentIndex);
+                        if (at is { Share: >= 0.9 } good)
+                        {
+                            placed[Path.GetFileNameWithoutExtension(cel.File)] = (good.X, good.Y);
+                            offset = $"placed at {good.X},{good.Y} ({good.Share:P0} of the game's pixels match)";
+                        }
+                        else offset = at is { } near
+                            ? $"no offset: the best fit, {near.X},{near.Y}, matches only {near.Share:P0} of the game's pixels"
+                            : "no offset: the game's cel is bigger";
+                    }
+                    Console.WriteLine($"    {Path.GetFileName(cel.File)}: {size} (game's {game}), {offset}");
+                }
+                if (placed.Count > 0) WriteOffsets(Path.Combine(dir, "meta.json"), placed);
+            }
+        }
+        foreach (var p in cels.Problems) Console.WriteLine($"  problem: {p}");
+    }
+
+    /// <summary>Adds <paramref name="placed"/> to a costume folder's meta.json "cels", keeping what it has.</summary>
+    private static void WriteOffsets(string meta, Dictionary<string, (int X, int Y)> placed)
+    {
+        var root = File.Exists(meta) ? System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(meta), documentOptions: new System.Text.Json.JsonDocumentOptions
+            { CommentHandling = System.Text.Json.JsonCommentHandling.Skip, AllowTrailingCommas = true }) as System.Text.Json.Nodes.JsonObject : null;
+        root ??= [];
+        if (root["cels"] is not System.Text.Json.Nodes.JsonObject cels) root["cels"] = cels = [];
+        foreach (var (name, at) in placed.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+            cels[name] = new System.Text.Json.Nodes.JsonObject { ["x"] = at.X, ["y"] = at.Y };
+        File.WriteAllText(meta, root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + "\n");
+        Console.WriteLine($"    wrote {placed.Count} offsets to {meta}");
     }
 }

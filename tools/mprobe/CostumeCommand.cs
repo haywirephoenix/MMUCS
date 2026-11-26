@@ -27,6 +27,7 @@ internal static class CostumeCommand
         int chores = AkosFrames.ChoreCount(d);
         Console.WriteLine($"costume {number}: {chores} chores, {d.DirectionCount} directions ({string.Join(" ", dirNames)}), " +
                           $"{d.CelInfos.Length} cels, AKSQ {d.Sequence.Length} bytes");
+        Console.WriteLine($"exported as {MMUCS.Core.Scumm.CostumeCelMods.FolderOf(akos)?.Replace('\\', '/') ?? "(in no room)"}");
 
         var ch = d.ChoreData.Span;
         int animCount = (chores + d.DirectionCount - 1) / d.DirectionCount;
