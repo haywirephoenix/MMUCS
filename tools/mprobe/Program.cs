@@ -37,6 +37,12 @@ usage: mprobe [--game FILE] COMMAND ...
   mods [--check]       The music mods (_mods/music/<mod>/mod.json beside the game): the tracks each replaces,
                        problems reading the maps, the game's tracks none replaces; --check decodes every
                        FLAC in them against its MD5.
+  match TRACK [FILE] [--in DIR] [--chunks]
+                       Where game music track TRACK (1100, or a name: Hold1) is in a FLAC, to the sample: its
+                       4 s chunks found by cross-correlation, the runs of them at one offset, the game's jumps
+                       in the file's time, and the mod.json entry (start, end, loopStart, loopEnd) they give.
+                       Without FILE, every FLAC in the music mods (or under DIR) is ranked and the best matched.
+                       --chunks lists every chunk with its score and the next best place's.
 
   audio OUT [music|voice] [--check]
                        Decode the Digital iMUSE bundles (.bun) into OUT/music/NNNN.wav and OUT/voice/CODE.wav,
@@ -125,6 +131,7 @@ try
         "boot" => BootCommand.Run(root, argv, TakeOption, game),
         "fonts" => FontsCommand.Run(argv, TakeOption, game),
         "mods" => ModsCommand.Run(argv, game),
+        "match" => MatchCommand.Run(argv, TakeOption, FindSound, game),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }
