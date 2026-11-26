@@ -36,6 +36,11 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
         public long StartFrame;
         /// <summary>A reload (<see cref="Reload"/>): when it loads the same sound, the one playing carries on.</summary>
         public bool KeepIfSame;
+        /// <summary>
+        /// The game's own track taking over a mod's for this hook (<see cref="SetHook"/>): it starts where its
+        /// jumps for the hook go, or, when it has none, the mod's carries on.
+        /// </summary>
+        public int ForHook;
     }
 
     private readonly Func<MusicCue, ImusSound> _load = load ?? throw new ArgumentNullException(nameof(load));
@@ -48,6 +53,13 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
 
     /// <summary>Where the music plays; null keeps it silent.</summary>
     public Mixer Mixer { get; set; }
+
+    /// <summary>
+    /// The game's own tracks (<see cref="FromBundles"/>), for the hooks a music mod's track can't take: it has only
+    /// its loop, so a hook the game's jumps on (a sting, the way out of a loop) is played by the game's track. Null:
+    /// a mod's track ignores such hooks.
+    /// </summary>
+    public Func<MusicCue, ImusSound> Own { get; set; }
 
     /// <summary>Whether the track playing has loaded (and started).</summary>
     public bool IsLoaded => _current is { Started: true, Failed: false };
@@ -147,6 +159,10 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
         if (_current is not { } s) return;
         s.Hook = hook;
         s.Player?.Hook = hook;
+        // A mod's track (one with a file of its own) has no jump on this hook: the game's track may have.
+        if (hook is 0 or ImusPlayer.ExitLoopHook || Own is not { } own || s.Player?.Sound.Source == null || s.Voice is { Finished: true }) return;
+        var cue = s.Cue;
+        _current = new Stream { Cue = cue, ForHook = hook, TakesOverFrom = s, Load = Task.Run(() => own(cue)) };
     }
 
     public void ArmEnd(int soundId) => _endArmed = soundId;
@@ -193,6 +209,20 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
         {
             _current = same;
             return;
+        }
+        if (s.ForHook != 0)
+        {
+            // Where the game's jumps for the hook go (the most of them, when they go to different places).
+            var sound = s.Load.Result;
+            var jumps = sound.Jumps.Where(j => j.Hook == s.ForHook).GroupBy(j => j.Destination).OrderByDescending(g => g.Count()).FirstOrDefault();
+            if (jumps == null)
+            {
+                _current = s.TakesOverFrom;
+                return;
+            }
+            s.StartFrame = sound.ToFrame(jumps.Key);
+            s.FadeMs = Math.Min(jumps.First().FadeMs, 2000);
+            Log.Info($"Game music: {s.Cue.File}: the mod's track has no jump on hook {s.ForHook}; the game's plays from frame {s.StartFrame}");
         }
         s.Player = new ImusPlayer(s.Load.Result) { Hook = s.Hook };
         s.Player.EventRaised += e => OnEvent(s, e);
