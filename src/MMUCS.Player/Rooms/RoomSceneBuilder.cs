@@ -75,8 +75,11 @@ public static class RoomSceneBuilder
             if (obj.ImageCount <= 0 || !ObimDecoders.TryGetObimInfo(obj.Block, out var info)) continue;
             int frame = Math.Clamp(image, 0, Math.Max(0, (info.TotalFrames > 0 ? info.TotalFrames : 1) - 1));
             var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(room, obj), bakeImage: false, token);
-            if (result.Surface != null)
-                objects.Add(new IndexedObject(obj, result.Surface, ObimCache.GetTransparentIndex(room.Room, obj.Block, frame), obj.X, obj.Y));
+            if (result.Surface == null) continue;
+            // The game window's view is wider than the 640 screen: objects cut at its edge are widened.
+            int transparent = ObimCache.GetTransparentIndex(room.Room, obj.Block, frame);
+            var (surface, x, y) = WidescreenObjects.Widen(room, obj, frame, result.Surface, transparent, token);
+            objects.Add(new IndexedObject(obj, surface, transparent, x, y));
         }
 
         var planes = RoomScene.Planes(room, shown);
