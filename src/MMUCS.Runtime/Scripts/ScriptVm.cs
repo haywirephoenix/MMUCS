@@ -587,7 +587,7 @@ public sealed partial class ScriptVm
             case 0x76: ArrayOps(s, ins); return;
 
             // ── Scripts ──
-            case 0x79: { var args = Args(); int script = Pop(), flags = Pop(); RunScript(script, (flags & 1) != 0, (flags & 2) != 0, args); return; }
+            case 0x79: { var args = Args(); int script = Pop(), flags = Pop(); OnStartScript(s, script); RunScript(script, (flags & 1) != 0, (flags & 2) != 0, args); return; }
             case 0x7a: { var args = Args(); RunScript(Pop(), args: args); return; }
             case 0x7b: StopObjectCode(s); return;
             case 0x7c: a = Pop(); if (a == 0) StopObjectCode(s); else StopScript(a); return;
@@ -822,13 +822,7 @@ public sealed partial class ScriptVm
     /// <summary>Records where to resume when the cutscene is skipped, and steps over the jump that follows.</summary>
     private void BeginOverride(ScriptSlot s)
     {
-        // WORKAROUND (a bug in the original; ScummVM o6_beginOverride): Esc before "Any last words, Threepwood?"
-        // on the Sea Cucumber skips the seqAttack (2277) that sends the monkeys' music (2275) to its end, so
-        // it plays on for ever and the plank's music never comes. When the plank's cutscene (global 251 in
-        // room 37) begins its override with 2275 still playing, seqAttack is played as the dialogue would have.
-        // ScummVM's offset (0x1A) counts the script's 8-byte header.
-        if (s.Kind == ScriptKind.Global && s.Number == 251 && CurrentRoom == 37 && s.Pc == 0x12 && MusicRunning?.Invoke(2275) == true)
-            SoundKludge?.Invoke([0x1001, 2277]);
+        OnBeginOverride(s);
         ref var level = ref Cutscenes[CutsceneDepth];
         level.OverridePc = s.Pc;
         level.OverrideSlot = s;
@@ -1057,6 +1051,7 @@ public sealed partial class ScriptVm
     private void SoundKludgeOp(ScriptSlot s, ScriptInstruction ins)
     {
         var list = State.PopList(16);
+        OnSoundKludge(s);
         if (list is [-1] || SoundKludge?.Invoke(list) == true) return;
         string name = $"{ins.Name}.{(list.Length > 0 ? list[0] : 0)}";
         _unhandledCounts[name] = _unhandledCounts.GetValueOrDefault(name) + 1;
