@@ -7,8 +7,8 @@ using SkiaSharp;
 
 namespace MMUCS.Player;
 
-/// <summary>An image placed on the picture, in game units (its pixels are game pixels).</summary>
-public readonly record struct FrameImage(SKImage Image, GameRect Bounds);
+/// <summary>An image placed on the picture, in game units; <paramref name="Smooth"/> for a hi-res mod's picture, drawn smoothly whatever the window's size.</summary>
+public readonly record struct FrameImage(SKImage Image, GameRect Bounds, bool Smooth = false);
 
 /// <summary>
 /// One frame of the game as it should look: taken from the game by <see cref="GameView.Capture"/>, then drawn
@@ -151,7 +151,7 @@ public sealed class GameFrame
             canvas.DrawRect(rect, line);
         }
 
-        foreach (var blast in Blasts) canvas.DrawImage(blast.Image, Rect(blast.Bounds), sampling);
+        foreach (var blast in Blasts) canvas.DrawImage(blast.Image, Rect(blast.Bounds), blast.Smooth ? HiResImage.Sampling : sampling);
         if (Coin is { } coin) canvas.DrawImage(coin.Image, Rect(coin.Bounds), sampling);
         if (UpperActors != null && Room != null && Cutscene == null)
         {

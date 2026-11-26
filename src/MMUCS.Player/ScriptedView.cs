@@ -43,6 +43,8 @@ public sealed class ScriptedView(ScriptedGame game)
     private int _sceneRoom = -1;
     private RoomScene _shownRoom, _shownUpper; // the last frame's room and actors over it, held while the next scene builds
     private ObjectImageMods _objectMods;
+    private HiResMods _hiResMods;
+    private readonly Dictionary<(int Object, int Image), HiResImage> _blastHiRes = [];
     private long _pendingSince; // when the scene being built was first wanted (Stopwatch ticks)
     private const double HoldSeconds = 0.15; // the longest the last frame is held for a scene of the same room
     private byte[] _screen;
@@ -200,13 +202,15 @@ public sealed class ScriptedView(ScriptedGame game)
         try
         {
             _objectMods ??= ObjectImageMods.Load(Game.GameFile);
+            _hiResMods ??= HiResMods.Load(Game.GameFile);
             // A mod image's shadow is darkened by the game's shadow tables as they are now, as the costumes' are.
-            var scene = await RoomSceneBuilder.BuildIndexedAsync(model, stateOf, mods: _objectMods, shadowTables: [.. Game.Vm.Palette.ShadowFactors]);
-            lock (_objectMods.Problems)
-            {
-                foreach (var problem in _objectMods.Problems) Log.Warn($"Object mods: {problem}");
-                _objectMods.Problems.Clear();
-            }
+            var scene = await RoomSceneBuilder.BuildIndexedAsync(model, stateOf, mods: _objectMods, shadowTables: [.. Game.Vm.Palette.ShadowFactors], hiRes: _hiResMods);
+            foreach (var problems in new[] { _objectMods.Problems, _hiResMods.Problems })
+                lock (problems)
+                {
+                    foreach (var problem in problems) Log.Warn($"Object mods: {problem}");
+                    problems.Clear();
+                }
             if (_pendingKey != key) return; // something newer is on its way
             _built = new Built(scene, room);
             _sceneKey = key;
@@ -351,6 +355,14 @@ public sealed class ScriptedView(ScriptedGame game)
         {
             int room = vm.State.Objects.IsObject(b.Object) ? vm.State.Objects.Room(b.Object) : 0;
             if (ObjectImage(b.Object, room, b.Image) is not { } rgba) continue;
+            HiResImage hiRes;
+            lock (_cursors) hiRes = _blastHiRes.GetValueOrDefault((b.Object, b.Image));
+            if (hiRes != null)
+            {
+                // A hi-res mod's picture of the object, over the game image's place and size.
+                list.Add(new FrameImage(hiRes.Image, new GameRect(page.X + b.X, page.Y + b.Y, rgba.Width * b.ScaleX / 255.0, rgba.Height * b.ScaleY / 255.0), Smooth: true));
+                continue;
+            }
             list.Add(new FrameImage(SkiaImages.Of(rgba), new GameRect(page.X + b.X, page.Y + b.Y, rgba.Width * b.ScaleX / 255.0, rgba.Height * b.ScaleY / 255.0)));
         }
         return list;
@@ -404,14 +416,26 @@ public sealed class ScriptedView(ScriptedGame game)
     private async Task LoadCursor(int obj, int room, int image)
     {
         RgbaImage rgba = null;
+        HiResImage hiRes = null;
         try
         {
             string name = RoomScripts.ObjectName(Game.Root, obj);
             if (RoomModelOf(room) is { } model && model.Objects.FirstOrDefault(o => o.Name == name) is { } ro)
+            {
                 rgba = await RoomSceneBuilder.ObjectImageAsync(model, ro, Math.Max(0, image - 1));
+                // A blasted object's hi-res picture (the cursor keeps the game's).
+                _hiResMods ??= HiResMods.Load(Game.GameFile);
+                if (rgba != null && _hiResMods.Object(model, ro, Math.Max(0, image - 1)) is { } mod &&
+                    await Task.Run(() => HiResImages.Get(mod.File)) is { } picture)
+                    hiRes = new HiResImage(picture, 0, 0, rgba.Width, rgba.Height);
+            }
         }
         catch (Exception ex) { Log.Warn($"Game cursor {obj}: {ex.Message}"); }
-        lock (_cursors) _cursors[(obj, image)] = rgba;
+        lock (_cursors)
+        {
+            _cursors[(obj, image)] = rgba;
+            if (hiRes != null) _blastHiRes[(obj, image)] = hiRes;
+        }
         Changed?.Invoke();
     }
 }

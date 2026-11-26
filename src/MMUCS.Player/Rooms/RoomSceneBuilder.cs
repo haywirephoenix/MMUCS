@@ -60,14 +60,21 @@ public static class RoomSceneBuilder
     /// the screen's palette (<see cref="IndexedRoom.Colour"/>), as the game shows it. An image <paramref name="mods"/>
     /// has for an object is drawn in place of the game's, where the mod puts it, its shadow darkened by
     /// <paramref name="shadowTables"/> (the game's, <c>ScreenPalette.ShadowFactors</c>; null: COMI's usual ones).
+    /// A hi-res mod's (<paramref name="hiRes"/>) background or object image is drawn in place of the game's at its
+    /// resolution, before any palette mod's.
     /// </summary>
     public static async Task<IndexedRoom> BuildIndexedAsync(RoomModel room, Func<RoomObject, int> stateOf,
-        Func<RoomObject, bool> include = null, CancellationToken token = default, ObjectImageMods mods = null, byte[] shadowTables = null)
+        Func<RoomObject, bool> include = null, CancellationToken token = default, ObjectImageMods mods = null, byte[] shadowTables = null,
+        HiResMods hiRes = null)
     {
         ArgumentNullException.ThrowIfNull(room);
         IndexedSurface background = null;
         if (room.Width > 0)
             background = (await ScummBackgroundCache.GetCachedBackgroundAsync(BackgroundCacheId(room), room.Rmhd, room.Room, cacheDisabled: false, 0, token)).Surface;
+        // A hi-res mod's pictures, decoded off the caller's thread (a wide room's takes a moment).
+        SKImage hiResBackground = null;
+        if (background != null && hiRes?.Background(room) is { } hb)
+            hiResBackground = await Task.Run(() => HiResImages.Get(hb.File), token);
 
         var shown = Shown(room, stateOf, include);
         var objects = new List<IndexedObject>(shown.Count);
@@ -79,7 +86,10 @@ public static class RoomSceneBuilder
             var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, PaletteOf(room, obj), bakeImage: false, token);
             if (result.Surface == null) continue;
             int transparent = ObimCache.GetTransparentIndex(room.Room, obj.Block, frame);
-            if (mods?.Find(room, obj, frame) is { } modded &&
+            if (hiRes?.Object(room, obj, frame) is { } ho && await Task.Run(() => HiResImages.Get(ho.File), token) is { } hoPicture)
+                objects.Add(new IndexedObject(obj, result.Surface, transparent, ho.X ?? obj.X, ho.Y ?? obj.Y, hoPicture, ho.Scale,
+                    ObimCache.ExtractPaletteContext(room.Room, PaletteOf(room, obj)).rawBytes));
+            else if (mods?.Find(room, obj, frame) is { } modded &&
                 mods.Indexed(modded, ObimCache.ExtractPaletteContext(room.Room, PaletteOf(room, obj)).rawBytes, transparent,
                     background, modded.X ?? obj.X, modded.Y ?? obj.Y, shadowTables) is { } surface)
                 objects.Add(new IndexedObject(obj, surface, transparent, modded.X ?? obj.X, modded.Y ?? obj.Y));
@@ -94,6 +104,8 @@ public static class RoomSceneBuilder
             Background = background,
             Objects = objects,
             ZMasks = [.. planes.Select(p => RoomScene.MaskImage(p, room.Width, room.Height))],
+            HiResBackground = hiResBackground,
+            Palette = hiResBackground != null ? ObimCache.ExtractPaletteContext(room.Room, 0).rawBytes : null,
         };
     }
 

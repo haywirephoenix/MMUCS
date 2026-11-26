@@ -6,8 +6,8 @@ using SkiaSharp;
 
 namespace MMUCS.Player.Rooms;
 
-/// <summary>An object image placed in the room (its top left in room pixels).</summary>
-public sealed record SceneObject(RoomObject Object, SKImage Image, int X, int Y);
+/// <summary>An object image placed in the room (its top left in room pixels), or a hi-res mod's picture drawn in its place.</summary>
+public sealed record SceneObject(RoomObject Object, SKImage Image, int X, int Y, HiResImage HiRes = null);
 
 /// <summary>
 /// An actor's frame placed in the room: its top left in room pixels, drawn <paramref name="Scale"/> times its
@@ -37,6 +37,9 @@ public sealed class RoomScene
     public int BackgroundX { get; init; }
     public int BackgroundY { get; init; }
 
+    /// <summary>A hi-res mod's background, drawn in place of <see cref="Background"/>, or null.</summary>
+    public HiResImage HiResBackground { get; init; }
+
     /// <summary>Object images in draw order, later ones on top.</summary>
     public IReadOnlyList<SceneObject> Objects { get; init; } = [];
 
@@ -50,7 +53,7 @@ public sealed class RoomScene
     public RoomScene WithActors(IReadOnlyList<SceneActor> actors) => new()
     {
         Width = Width, Height = Height,
-        Background = Background, BackgroundX = BackgroundX, BackgroundY = BackgroundY,
+        Background = Background, BackgroundX = BackgroundX, BackgroundY = BackgroundY, HiResBackground = HiResBackground,
         Objects = Objects, Actors = actors ?? [], ZMasks = ZMasks,
     };
 
@@ -62,9 +65,11 @@ public sealed class RoomScene
     /// </summary>
     public void Draw(SKCanvas canvas, SKSamplingOptions sampling, Action<SKCanvas> beforeActors = null, SKColor? cutColor = null)
     {
-        if (Background != null) canvas.DrawImage(Background, BackgroundX, BackgroundY, sampling);
+        if (HiResBackground != null) HiResBackground.Draw(canvas);
+        else if (Background != null) canvas.DrawImage(Background, BackgroundX, BackgroundY, sampling);
         foreach (var o in Objects)
-            if (o.Image != null) canvas.DrawImage(o.Image, o.X, o.Y, sampling);
+            if (o.HiRes != null) o.HiRes.Draw(canvas);
+            else if (o.Image != null) canvas.DrawImage(o.Image, o.X, o.Y, sampling);
         beforeActors?.Invoke(canvas);
         foreach (var a in Ordered(Actors))
             DrawActor(canvas, a, Mask(a.ZPlane), sampling, cutColor);
