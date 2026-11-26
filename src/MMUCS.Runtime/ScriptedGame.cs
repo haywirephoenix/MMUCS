@@ -97,6 +97,23 @@ public sealed class ScriptedGame : IDisposable
     /// <summary>The music the scripts ask for (null without the game's program, which holds COMI's music tables).</summary>
     public ComiMusic Music { get; private set; }
     public MixerMusic MusicOutput { get; private set; }
+
+    private volatile bool _musicMods = true;
+
+    /// <summary>
+    /// Whether the music mods beside the game play in place of its tracks (on by default). Switching it reloads
+    /// the track playing, so a mod's gives way to the game's own (or the other way) at once.
+    /// </summary>
+    public bool MusicModsEnabled
+    {
+        get => _musicMods;
+        set
+        {
+            if (_musicMods == value) return;
+            _musicMods = value;
+            MusicOutput?.Reload();
+        }
+    }
     private bool _mouseInside, _booted, _quitRequested;
 
     /// <summary>Something that's shown changed.</summary>
@@ -140,7 +157,7 @@ public sealed class ScriptedGame : IDisposable
     {
         var all = events.ToList();
         _answers = new(all.Where(e => e.Kind == "answer"));
-        _replay = all.Where(e => e.Kind != "answer").ToList();
+        _replay = [.. all.Where(e => e.Kind != "answer")];
         _replayAt = 0;
     }
 
@@ -381,7 +398,7 @@ public sealed class ScriptedGame : IDisposable
         Fonts = gameFile == null ? [] : MMUCS.Core.Fonts.NutFont.LoadAll(gameFile);
         if (MusicTable.Load(gameFile) is { } table)
         {
-            MusicOutput = new MixerMusic(MixerMusic.WithMods(gameFile, MixerMusic.FromBundles(gameFile))) { Mixer = _mixer };
+            MusicOutput = new MixerMusic(MixerMusic.WithMods(gameFile, MixerMusic.FromBundles(gameFile), () => _musicMods)) { Mixer = _mixer };
             Music = new ComiMusic(table, MusicOutput);
             Music.Changed += what => Log.Info($"Game music: {what}");
         }

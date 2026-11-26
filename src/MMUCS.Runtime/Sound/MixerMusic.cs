@@ -34,6 +34,8 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
         public bool SamePlace;
         /// <summary>Where the track starts once loaded (a resumed one carries on from here).</summary>
         public long StartFrame;
+        /// <summary>A reload (<see cref="Reload"/>): when it loads the same sound, the one playing carries on.</summary>
+        public bool KeepIfSame;
     }
 
     private readonly Func<MusicCue, ImusSound> _load = load ?? throw new ArgumentNullException(nameof(load));
@@ -103,6 +105,34 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
         _atExit = null;
     }
 
+    /// <summary>
+    /// Loads the track playing again, as the loader now gives it (music mods switched on or off), and crossfades
+    /// to it from its start over <paramref name="fadeMs"/>; when the loader gives the same sound, nothing changes.
+    /// A switch waiting for an "exit" marker still comes.
+    /// </summary>
+    public void Reload(int fadeMs = 500)
+    {
+        var old = _current;
+        if (old == null || old.Failed) return;
+        if (!old.Started)
+        {
+            // Still loading, perhaps the old way: load it afresh in its place.
+            var again = New(old.Cue, old.Hook);
+            again.FadeMs = old.FadeMs;
+            again.SamePlace = old.SamePlace;
+            again.StartFrame = old.StartFrame;
+            again.TakesOverFrom = old.TakesOverFrom;
+            _current = again;
+            return;
+        }
+        if (old.Voice is { Finished: true }) return;
+        var next = New(old.Cue, old.Hook);
+        next.FadeMs = fadeMs;
+        next.TakesOverFrom = old;
+        next.KeepIfSame = true;
+        _current = next;
+    }
+
     public void SwitchAtExit(MusicCue cue, int fadeMs, int hook) => _atExit = (cue, fadeMs, hook);
 
     public void FadeOut(int ms)
@@ -157,6 +187,11 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
             Log.Warn($"Game music: {s.Cue.File}: {s.Load.Exception?.GetBaseException().Message ?? "not in the music bundles"}");
             s.Failed = true;
             Stop(s.TakesOverFrom, 1000);
+            return;
+        }
+        if (s.KeepIfSame && s.TakesOverFrom is { } same && ReferenceEquals(s.Load.Result, same.Player?.Sound))
+        {
+            _current = same;
             return;
         }
         s.Player = new ImusPlayer(s.Load.Result) { Hook = s.Hook };
@@ -223,8 +258,9 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
     /// <summary>
     /// A loader that plays the music mods beside <paramref name="gameFile"/> (<see cref="MusicMods"/>) in place of
     /// the tracks they map, and <paramref name="fallback"/>'s for the rest (or when a mod's track won't load).
+    /// While <paramref name="enabled"/> says no, it's <paramref name="fallback"/>'s for every track.
     /// </summary>
-    public static Func<MusicCue, ImusSound> WithMods(string gameFile, Func<MusicCue, ImusSound> fallback)
+    public static Func<MusicCue, ImusSound> WithMods(string gameFile, Func<MusicCue, ImusSound> fallback, Func<bool> enabled = null)
     {
         var mods = MusicMods.Load(gameFile);
         foreach (var problem in mods.Problems) Log.Warn($"Music mods: {problem}");
@@ -234,7 +270,7 @@ public sealed class MixerMusic(Func<MusicCue, ImusSound> load) : IMusicOutput
         return cue =>
         {
             int number = cue.FileNumber;
-            if (!mods.Tracks.TryGetValue(number, out var track)) return fallback(cue);
+            if (enabled?.Invoke() == false || !mods.Tracks.TryGetValue(number, out var track)) return fallback(cue);
             lock (cache)
                 if (cache.TryGetValue(number, out var cached)) return cached;
             try
