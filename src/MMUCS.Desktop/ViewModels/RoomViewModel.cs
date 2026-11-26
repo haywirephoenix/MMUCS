@@ -832,10 +832,46 @@ public sealed partial class RoomViewModel : ObservableObject
     /// </summary>
     public ObjectImageMods ObjectMods { get; set; }
 
-    /// <summary>Whether the mods' object images are shown (<see cref="ObjectMods"/>); the game's when off. A change reloads the room's images.</summary>
+    /// <summary>The mods' costume cels (set when a game is opened), drawn in the placed costumes while <see cref="ShowModImages"/> is on.</summary>
+    public CostumeCelMods CostumeMods { get; set; }
+
+    /// <summary>
+    /// Whether the mods' object images and costume cels are shown (<see cref="ObjectMods"/>, <see cref="CostumeMods"/>);
+    /// the game's when off. A change reloads the room's images.
+    /// </summary>
     [ObservableProperty] public partial bool ShowModImages { get; set; }
 
-    partial void OnShowModImagesChanged(bool value) => ReloadForModImages();
+    partial void OnShowModImagesChanged(bool value)
+    {
+        lock (_moddedCostumes) _moddedCostumes.Clear(); // read the mods' PNGs again
+        ReloadForModImages();
+    }
+
+    /// <summary>Each placed costume with the mods' cels, a parse of its own (the room's analysis keeps the game's), or null without any.</summary>
+    private readonly Dictionary<ScummBlock, AkosData> _moddedCostumes = [];
+
+    /// <summary>The costume in <paramref name="akos"/> with the mods' cels, while they're shown and it has some; else null.</summary>
+    private AkosData ModdedCostume(ScummBlock akos)
+    {
+        if (!ShowModImages || CostumeMods is not { } mods || akos == null) return null;
+        lock (_moddedCostumes)
+        {
+            if (_moddedCostumes.TryGetValue(akos, out var cached)) return cached;
+            AkosData d = null;
+            if (mods.Find(akos).Count > 0)
+            {
+                d = AkosParser.Parse(akos);
+                mods.Apply(d, akos);
+                lock (mods.Problems)
+                {
+                    foreach (var problem in mods.Problems) Log.Warn($"Costume mods: {problem}");
+                    mods.Problems.Clear();
+                }
+                if (d.ModCels == null) d = null;
+            }
+            return _moddedCostumes[akos] = d;
+        }
+    }
 
     [RelayCommand] private void ToggleModImages() => ShowModImages = !ShowModImages;
 
@@ -891,15 +927,17 @@ public sealed partial class RoomViewModel : ObservableObject
             RgbaImage rgba;
             int ox, oy;
             // The room's own parse of the costume; the next reload puts it back in the room's palette.
-            lock (actor.Data)
+            // With the mods' cels when they're shown: the Costume viewer composes its frames from the costume with them.
+            var data = ModdedCostume(actor.Akos) ?? actor.Data;
+            lock (data)
             {
-                if (_livePalette != (actor.Data, palette))
+                if (_livePalette != (data, palette))
                 {
-                    AkosParser.UpdatePaletteOnly(actor.Data, actor.Akos, palette);
-                    _livePalette = (actor.Data, palette);
+                    AkosParser.UpdatePaletteOnly(data, actor.Akos, palette);
+                    _livePalette = (data, palette);
                 }
                 // Scaled as the engine scales it, so it's drawn at full size.
-                rgba = AkosFrames.RenderScaled(actor.Data, frame, actor.Scale, out ox, out oy, mirror: actor.Mirrored);
+                rgba = AkosFrames.RenderScaled(data, frame, actor.Scale, out ox, out oy, mirror: actor.Mirrored);
             }
             var set = new ImageSet();
             LiveCostume = new LiveCostume(placed.Value, set.Add(rgba?.ToSkImage()), actor.X - ox, actor.DrawY - oy, 1, actor.ZPlane);
@@ -1175,7 +1213,9 @@ public sealed partial class RoomViewModel : ObservableObject
             // As the player draws it: scaled as the engine scales it, each cel on its own with SCUMM's scale
             // table, so it's drawn at full size (stretching the composed frame left a seam between cannon's
             // gunner pieces), in the costume's default palette.
-            var frame = RoomSceneBuilder.ActorFrame(actor, token);
+            var frame = ModdedCostume(actor.Akos) is { } modded && actor.CanDraw
+                ? ModdedFrame(actor, modded, token)
+                : RoomSceneBuilder.ActorFrame(actor, token);
             lock (actor.Data)
             {
                 if (ReferenceEquals(_livePalette.Item1, actor.Data))
@@ -1191,6 +1231,17 @@ public sealed partial class RoomViewModel : ObservableObject
         return result;
     }
 
+    /// <summary>A placed costume's frame drawn with the mods' cels, each moved by its offset; as <see cref="RoomSceneBuilder.ActorFrame"/>.</summary>
+    private static (RgbaImage Image, int X, int Y)? ModdedFrame(RoomActor actor, AkosData modded, CancellationToken token)
+    {
+        lock (modded)
+        {
+            AkosParser.UpdatePaletteOnly(modded, actor.Akos, modded.DefaultPaletteIndex);
+            var rgba = AkosFrames.RenderScaled(modded, AkosFrames.WithModCels(modded, actor.Frame), actor.Scale, out int ox, out int oy, actor.Mirrored, token);
+            return rgba == null ? null : (rgba, actor.X - ox, actor.DrawY - oy);
+        }
+    }
+
     private async Task ReloadImagesAsync()
     {
         var room = Room;
@@ -1198,6 +1249,8 @@ public sealed partial class RoomViewModel : ObservableObject
         {
             return;
         }
+
+        lock (_moddedCostumes) _moddedCostumes.Clear(); // the mods' cels are read again with the room's images
 
         _cts?.Cancel();
         _cts = new CancellationTokenSource();

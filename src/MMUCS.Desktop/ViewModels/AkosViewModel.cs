@@ -114,6 +114,28 @@ public sealed partial class AkosViewModel : ObservableObject
 
     public bool HasCostume => Akos != null;
 
+    /// <summary>The mods' costume cels (set when a game is opened), loaded in place of the game's while <see cref="UseMods"/> is on.</summary>
+    public CostumeCelMods CostumeMods { get; set; }
+
+    private bool _useMods = true;
+
+    /// <summary>Whether the costume shows the mods' cels (the Room viewer's Mod images); a change loads it again.</summary>
+    public bool UseMods
+    {
+        get => _useMods;
+        set
+        {
+            if (_useMods == value) return;
+            _useMods = value;
+            OnPropertyChanged();
+            if (Block is { } block)
+            {
+                Block = null;
+                _ = LoadAsync(block);
+            }
+        }
+    }
+
     public async Task LoadAsync(ScummBlock akosBlock)
     {
         if (akosBlock == null || ReferenceEquals(akosBlock, Block))
@@ -132,7 +154,19 @@ public sealed partial class AkosViewModel : ObservableObject
 
         try
         {
-            var data = await Task.Run(() => AkosParser.Parse(akosBlock));
+            var mods = UseMods ? CostumeMods : null;
+            var data = await Task.Run(() =>
+            {
+                var d = AkosParser.Parse(akosBlock);
+                if (mods == null) return d;
+                mods.Apply(d, akosBlock);
+                lock (mods.Problems)
+                {
+                    foreach (var problem in mods.Problems) Log.Warn($"Costume mods: {problem}");
+                    mods.Problems.Clear();
+                }
+                return d;
+            });
             if (!ReferenceEquals(Block, akosBlock))
             {
                 return;
@@ -152,7 +186,9 @@ public sealed partial class AkosViewModel : ObservableObject
 
             for (int i = 0; i < data.CelInfos.Length && i < data.CelOffsets.Length; i++)
             {
-                Cels.Add(new CelItem(i, data.CelInfos[i].Width, data.CelInfos[i].Height));
+                // A mod's cel at its own size.
+                var size = data.ModCels?.GetValueOrDefault(i)?.Surface is { } mod ? (mod.Width, mod.Height) : (data.CelInfos[i].Width, data.CelInfos[i].Height);
+                Cels.Add(new CelItem(i, size.Item1, size.Item2));
             }
 
             BuildChoreTree(data);
@@ -330,7 +366,9 @@ public sealed partial class AkosViewModel : ObservableObject
 
         var ci = akos.CelInfos[cel.Index];
         var off = akos.CelOffsets[cel.Index];
-        CelInfo = $"Cel {cel.Index}  —  {ci.Width} × {ci.Height} px\n" +
+        string modded = akos.ModCels?.GetValueOrDefault(cel.Index) is { } m
+            ? $"\nMod cel {System.IO.Path.GetFileName(m.File)}: {m.Surface.Width} × {m.Surface.Height} px at offset {m.OffsetX},{m.OffsetY}" : "";
+        CelInfo = $"Cel {cel.Index}  —  {ci.Width} × {ci.Height} px{modded}\n" +
                   $"RelX {ci.RelX}   RelY {ci.RelY}\nMoveX {ci.MoveX}   MoveY {ci.MoveY}\n" +
                   $"AKCD 0x{off.AkcdOffset:X8}   AKCI 0x{off.AkciOffset:X4}";
 

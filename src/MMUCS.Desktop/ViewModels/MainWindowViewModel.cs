@@ -174,6 +174,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
         ApplyRoomViewOptions();
         Costume.PlayInPlace = Settings.CostumePlayInPlace;
         Costume.LiveFrameChanged += Room.ShowLiveFrame;
+        // One Mod images toggle for both viewers: frames played in place are composed from the Costume viewer's costume.
+        Costume.UseMods = Room.ShowModImages;
+        Room.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(RoomViewModel.ShowModImages)) Costume.UseMods = Room.ShowModImages;
+        };
         Costume.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName != nameof(AkosViewModel.PlayInPlace) || Settings.CostumePlayInPlace == Costume.PlayInPlace)
@@ -395,6 +401,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             _rootBlock = root;
             GameFile = files.Count > 0 ? Path.GetFullPath(files[0]) : null;
             Room.ObjectMods = ObjectImageMods.Load(GameFile);
+            Room.CostumeMods = Costume.CostumeMods = CostumeCelMods.Load(GameFile);
             _selectionKey = files.Count > 0 ? Path.GetFullPath(files[0]).ToLowerInvariant() : null;
             OnPropertyChanged(nameof(HasProject));
             SelectedNode = null;
