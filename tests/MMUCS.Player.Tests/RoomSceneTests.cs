@@ -155,15 +155,29 @@ public class RoomSceneTests
             Assert.Equal((236, 416, 240, 40), (modded.X, modded.Y, modded.Surface.Width, modded.Surface.Height));
             byte At(int x, int y) => modded.Surface.Pixels[y * modded.Surface.Pitch + x];
             Assert.Equal(modded.Transparent, At(10, 0));
-            // The shadow row is the room's background under it darkened to 60%, in the nearest palette colour.
+            // The shadow row (the export's 40% black) is the room's background under it darkened as a costume's shadow
+            // is: by shadow table 6, COMI's 189 of 255 when the game's tables aren't given; in the nearest palette colour.
             var bg = scene.Background;
-            for (int x = 0; x < w; x += 37)
+            void ShadowIs(IndexedObject o, double factor)
             {
-                int under = bg.Pixels[417 * bg.Pitch + 236 + x], got = At(x, 1);
-                Assert.NotEqual(modded.Transparent, got);
-                for (int k = 0; k < 3; k++)
-                    Assert.InRange(palette[got * 3 + k], palette[under * 3 + k] * 0.6 - 24, palette[under * 3 + k] * 0.6 + 24);
+                for (int x = 0; x < w; x += 37)
+                {
+                    int under = bg.Pixels[417 * bg.Pitch + 236 + x], got = o.Surface.Pixels[1 * o.Surface.Pitch + x];
+                    Assert.NotEqual(o.Transparent, got);
+                    for (int k = 0; k < 3; k++)
+                        Assert.InRange(palette[got * 3 + k], palette[under * 3 + k] * factor - 20, palette[under * 3 + k] * factor + 20);
+                }
             }
+            ShadowIs(modded, 189 / 255.0);
+            // The game's own tables when they're given: table 6 at half.
+            var tables = new byte[24];
+            tables[18] = tables[19] = tables[20] = 128;
+            var halved = (await RoomSceneBuilder.BuildIndexedAsync(room, o => o == caber ? 1 : 0, mods: mods, shadowTables: tables)).Objects.Single();
+            ShadowIs(halved, 128 / 255.0);
+            // "shadowTable": 7 in the .meta.json picks COMI's lighter one.
+            File.WriteAllText(Path.Combine(objects, "041_clring-a-haggis-caber_f0.meta.json"), """{ "x": 236, "y": 416, "shadowTable": 7 }""");
+            var lighter = (await RoomSceneBuilder.BuildIndexedAsync(room, o => o == caber ? 1 : 0, mods: mods)).Objects.Single();
+            ShadowIs(lighter, 219 / 255.0);
             Assert.Equal(40, PaletteMatch(palette, At(10, 5), 40));
             Assert.Equal(41, PaletteMatch(palette, At(200, 5), 41));
             // Guybrush's caber has no PNG in the mod: the game's image at its place.
