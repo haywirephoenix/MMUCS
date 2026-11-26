@@ -175,6 +175,9 @@ public class ScriptStoreTests(ITestOutputHelper output)
             // The throw's last frame (AKSQ 472, cel 48 at -552,-185) reaches 13 px further left; the game's costume doesn't.
             Assert.Equal(-565, AkosFrames.ComposeAt(data, [472]).Bounds.Left);
             Assert.Equal(-552, AkosFrames.ComposeAt(game, [472]).Bounds.Left);
+            // A frame composed from the game's cels, as the viewers keep them, moved onto the mod's; the cel panel's cache gives the mod's cel.
+            Assert.Equal(-565, AkosFrames.WithModCels(data, AkosFrames.ComposeAt(game, [472])).Bounds.Left);
+            Assert.Same(surface, AkosCelCache.GetCachedCelAsync(data, 48, bakeImages: false, cacheDisabled: true, default).GetAwaiter().GetResult().Surface);
         }
         finally { Directory.Delete(dir, true); }
     }
