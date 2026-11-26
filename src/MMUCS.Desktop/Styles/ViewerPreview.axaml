@@ -8,7 +8,7 @@
         <Grid RowDefinitions="Auto,*,Auto">
           <!-- Toolbar -->
           <Border Grid.Row="0" Classes="panel-header" Padding="6,3">
-            <WrapPanel Orientation="Horizontal" ItemSpacing="0" LineSpacing="4">
+            <WrapPanel Orientation="Horizontal" ItemSpacing="0" LineSpacing="4" HorizontalAlignment="Center">
               <TextBlock Text="{TemplateBinding Title}" VerticalAlignment="Center" FontSize="12" Margin="2,0,14,0"
                          MaxWidth="320" TextTrimming="CharacterEllipsis"
                          IsVisible="{TemplateBinding Title, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
