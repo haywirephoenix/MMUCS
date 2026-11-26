@@ -141,19 +141,22 @@ internal static class ModsCommand
                     string game = number < d.CelInfos.Length ? $"{d.CelInfos[number].Width}x{d.CelInfos[number].Height}" : "no such cel";
                     var m = d.ModCels?.GetValueOrDefault(number);
                     string size = m != null ? $"{m.Surface.Width}x{m.Surface.Height}" : "won't read";
-                    string offset = cel.X != null || cel.Y != null ? $"offset {cel.X ?? 0},{cel.Y ?? 0}" : "no offset";
-                    if (cel.X == null && cel.Y == null && place && m != null)
+                    bool given = cel.X != null || cel.Y != null;
+                    string offset = given ? $"offset {cel.X ?? 0},{cel.Y ?? 0}" : "no offset";
+                    var gameCel = m != null && number < d.CelOffsets.Length ? AkosDecoders.DecodeCel(d, number, default) : null;
+                    // How well the game's cel fits where the offset puts it: under 90% it's the wrong offset (or a repaint).
+                    double share = gameCel != null ? CostumeCelMods.Match(gameCel, m.Surface, d.TransparentIndex, cel.X ?? 0, cel.Y ?? 0) : 0;
+                    if (gameCel != null) offset += $" ({share:P0} of the game's pixels match there)";
+                    if (place && gameCel != null && share < 0.9)
                     {
-                        // 90% of the game cel's pixels where they were: the rest is the mod's repainting.
-                        var at = CostumeCelMods.Place(AkosDecoders.DecodeCel(d, number, default), m.Surface, d.TransparentIndex);
+                        var at = CostumeCelMods.Place(gameCel, m.Surface, d.TransparentIndex);
                         if (at is { Share: >= 0.9 } good)
                         {
                             placed[Path.GetFileNameWithoutExtension(cel.File)] = (good.X, good.Y);
-                            offset = $"placed at {good.X},{good.Y} ({good.Share:P0} of the game's pixels match)";
+                            offset = $"{(given ? $"moved from {cel.X ?? 0},{cel.Y ?? 0} to" : "placed at")} {good.X},{good.Y} ({good.Share:P0} of the game's pixels match)";
                         }
-                        else offset = at is { } near
-                            ? $"no offset: the best fit, {near.X},{near.Y}, matches only {near.Share:P0} of the game's pixels"
-                            : "no offset: the game's cel is bigger";
+                        else if (at is { } near) offset += $"; the best fit, {near.X},{near.Y}, matches {near.Share:P0}, so it's left";
+                        else offset += "; the game's cel is bigger, so it's left";
                     }
                     Console.WriteLine($"    {Path.GetFileName(cel.File)}: {size} (game's {game}), {offset}");
                 }
