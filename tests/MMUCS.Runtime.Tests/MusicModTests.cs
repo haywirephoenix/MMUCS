@@ -77,6 +77,36 @@ public class MusicModTests
     }
 
     [Fact]
+    public void AHookTheModsTrackHasNoJumpForIsPlayedByTheGamesTrackFromWhereItsJumpsGo()
+    {
+        // The game's track loops 0..300 and leaves for its sting at 300 on hook 1; the mod's only loops.
+        var mod = ImusSound.Build(100, 1, 400, [new(0, 400)], [new(400, 0, 0, 500)], [], 400, (_, _) => { }, "/mods/music/Album/35 - Sea.flac");
+        var own = ImusSound.Build(100, 1, 400, [new(0, 300), new(300, 100)], [new(100, 300, 1, 300), new(200, 300, 1, 300), new(300, 0, 0, 500)],
+            [new(300, "end"), new(380, "_end")], 400, (_, _) => { });
+        var music = new MixerMusic(_ => mod) { Own = _ => own }; // no mixer: the track doesn't move on by itself
+        var cue = new MusicCue(3, 2275, "seqMonkeys", 0, 0, 60, "2275-Monkeys");
+        music.Start(cue, 0);
+        SpinWait.SpinUntil(() => { music.Update(); return music.IsLoaded; }, 5000);
+        Assert.Equal("/mods/music/Album/35 - Sea.flac", music.Replacement);
+
+        music.SetHook(1); // seqAttack
+        SpinWait.SpinUntil(() => { music.Update(); return music.IsLoaded && music.Replacement == null; }, 5000);
+        Assert.Null(music.Replacement);
+        Assert.Equal(new MusicPlace(cue, 0, 300), music.Place);
+        Assert.Equal(2275, music.Playing);
+
+        // A hook the game's track has no jump for either: the mod's carries on.
+        var plain = new MixerMusic(_ => mod) { Own = _ => ImusSound.Build(100, 1, 400, [new(0, 400)], [], [], 400, (_, _) => { }) };
+        plain.Start(cue, 0);
+        SpinWait.SpinUntil(() => { plain.Update(); return plain.IsLoaded; }, 5000);
+        plain.SetHook(2);
+        SpinWait.SpinUntil(() => { plain.Update(); return plain.IsLoaded; }, 5000);
+        Thread.Sleep(50);
+        plain.Update();
+        Assert.Equal("/mods/music/Album/35 - Sea.flac", plain.Replacement);
+    }
+
+    [Fact]
     public void BlankEntriesAreLeftToTheGameAndOtherFieldsAreIgnored()
     {
         string dir = Path.Combine(Path.GetTempPath(), "mmucs-mods-" + Guid.NewGuid().ToString("N"));
