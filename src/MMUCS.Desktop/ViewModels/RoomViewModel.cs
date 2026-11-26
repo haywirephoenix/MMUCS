@@ -97,6 +97,12 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlySet<RoomObject> ToggledObjects { get; set; }
     [ObservableProperty] public partial string Title { get; set; } = "No room selected";
     [ObservableProperty] public partial SKImage BackgroundImage { get; set; }
+
+    /// <summary>A hi-res mod's picture of the room's background, while mod images are shown and the room's own background is the one shown; else null.</summary>
+    [ObservableProperty] public partial HiResImage HiResBackground { get; set; }
+
+    /// <summary>The room's hi-res background from the last load, shown with the room's own background.</summary>
+    private HiResImage _hiResBackground;
     [ObservableProperty] public partial IReadOnlyList<RoomObjectLayer> ObjectLayers { get; set; }
     [ObservableProperty] public partial IReadOnlyList<Walkbox> Walkboxes { get; set; }
     [ObservableProperty] public partial Size RoomSize { get; set; }
@@ -348,7 +354,7 @@ public sealed partial class RoomViewModel : ObservableObject
             var image = set.Add(loaded.Image?.ToSkImage());
             if (ObjectLayers != null)
             {
-                ObjectLayers = [.. ObjectLayers.Select(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly ? l with { Image = image, ImageX = loaded.X, ImageY = loaded.Y } : l)];
+                ObjectLayers = [.. ObjectLayers.Select(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly ? l with { Image = image, ImageX = loaded.X, ImageY = loaded.Y, HiRes = loaded.HiRes } : l)];
                 // The image this one replaces goes with its set when it came from an earlier state change.
                 _stateImages.Remove(obj, out var old);
                 _stateImages[obj] = set;
@@ -448,22 +454,23 @@ public sealed partial class RoomViewModel : ObservableObject
         }
 
         _loadingLibraryImages = true;
-        var loaded = new List<(RoomObject Object, ImageSet Set, SKImage Image, int? X, int? Y)>();
+        var loaded = new List<(RoomObject Object, ImageSet Set, SKImage Image, int? X, int? Y, HiResImage HiRes)>();
         try
         {
             foreach (var obj in missing)
             {
                 SKImage image = null;
                 int? x = null, y = null;
+                HiResImage hiRes = null;
                 var set = new ImageSet();
                 if (ObimDecoders.TryGetObimInfo(obj.Block, out var info))
                 {
                     int frame = RoomObjectStates.FrameFor(StateOf(obj), info.TotalFrames > 0 ? info.TotalFrames : 1);
                     var result = await ObjectImageAsync(room, obj, frame, CancellationToken.None);
                     image = set.Add(result.Image?.ToSkImage());
-                    (x, y) = (result.X, result.Y);
+                    (x, y, hiRes) = (result.X, result.Y, result.HiRes);
                 }
-                loaded.Add((obj, set, image, x, y));
+                loaded.Add((obj, set, image, x, y, hiRes));
                 if (!ReferenceEquals(Room, room))
                 {
                     break; // another room opened meanwhile
@@ -477,7 +484,7 @@ public sealed partial class RoomViewModel : ObservableObject
             }
 
             var byObject = loaded.ToDictionary(l => l.Object);
-            ObjectLayers = [.. ObjectLayers.Select(l => !l.IsActorOnly && byObject.TryGetValue(l.Object, out var x) ? l with { Image = x.Image, ImageX = x.X, ImageY = x.Y } : l)];
+            ObjectLayers = [.. ObjectLayers.Select(l => !l.IsActorOnly && byObject.TryGetValue(l.Object, out var x) ? l with { Image = x.Image, ImageX = x.X, ImageY = x.Y, HiRes = x.HiRes } : l)];
             // Owned like a state change's image: kept until the room reloads (an image that failed stays
             // recorded, so it isn't tried again on every visibility change).
             foreach (var l in loaded) _stateImages[l.Object] = l.Set;
@@ -835,6 +842,12 @@ public sealed partial class RoomViewModel : ObservableObject
     /// </summary>
     public ObjectImageMods ObjectMods { get; set; }
 
+    /// <summary>
+    /// The hi-res mods beside the game (set when a game is opened): a room's background or an object's image they
+    /// have is drawn in place of the game's at its resolution, while <see cref="ShowModImages"/> is on, as the game window shows it.
+    /// </summary>
+    public HiResMods HiResMods { get; set; }
+
     /// <summary>The mods' costume cels (set when a game is opened), drawn in the placed costumes while <see cref="ShowModImages"/> is on.</summary>
     public CostumeCelMods CostumeMods { get; set; }
 
@@ -949,10 +962,20 @@ public sealed partial class RoomViewModel : ObservableObject
         catch (Exception ex) { Log.Warn($"Room images: {ex.Message}"); }
     }
 
-    /// <summary>Image <paramref name="frame"/> of an object: a mod's, with where it goes, or the game's (no place: the object's).</summary>
-    private async Task<(RgbaImage Image, int? X, int? Y)> ObjectImageAsync(RoomModel room, RoomObject obj, int frame, CancellationToken token)
+    /// <summary>
+    /// Image <paramref name="frame"/> of an object: a mod's, with where it goes, or the game's (no place: the object's).
+    /// A hi-res mod's comes as <c>HiRes</c>, drawn in place of the game's image, which is kept for picking it.
+    /// </summary>
+    private async Task<(RgbaImage Image, int? X, int? Y, HiResImage HiRes)> ObjectImageAsync(RoomModel room, RoomObject obj, int frame, CancellationToken token)
     {
         int palette = RoomSceneBuilder.PaletteOf(room, obj);
+        if (ShowModImages && HiResMods?.Object(room, obj, frame) is { } hi &&
+            await Task.Run(() => HiResImages.Get(hi.File), token) is { } picture)
+        {
+            var game = await ObimCache.GetCachedObimAsync(obj.Block, frame, palette, bakeImage: true, token);
+            int x = hi.X ?? obj.X, y = hi.Y ?? obj.Y;
+            return (game.ExecutedImage, x, y, new HiResImage(picture, x, y, picture.Width / (float)hi.Scale, picture.Height / (float)hi.Scale));
+        }
         if (ShowModImages && ObjectMods is { } mods && mods.Find(room, obj, frame) != null)
         {
             // A mod's see-through pixels (shadows) are blended over the room's background, as the game window does.
@@ -965,10 +988,10 @@ public sealed partial class RoomViewModel : ObservableObject
                 foreach (var problem in mods.Problems) Log.Warn($"Object mods: {problem}");
                 mods.Problems.Clear();
             }
-            if (modded is var (image, x, y)) return (image, x, y);
+            if (modded is var (image, x, y)) return (image, x, y, null);
         }
         var result = await ObimCache.GetCachedObimAsync(obj.Block, frame, palette, bakeImage: true, token);
-        return (result.ExecutedImage, null, null);
+        return (result.ExecutedImage, null, null, null);
     }
 
     /// <summary>The costume and palette the frames played in place are resolved in.</summary>
@@ -1336,6 +1359,17 @@ public sealed partial class RoomViewModel : ObservableObject
                 return;
             }
 
+            // The hi-res mods' background, decoded off the UI thread (a wide room's takes a moment). Its picture
+            // is shared with the game window's cache, so it isn't one of this load's images to free.
+            HiResImage hiResBackground = null;
+            if (ShowModImages && roomBackgroundImage != null && HiResMods?.Background(room) is { } hb &&
+                await Task.Run(() => HiResImages.Get(hb.File), token) is { } bgPicture)
+                hiResBackground = new HiResImage(bgPicture, 0, 0, room.Width, room.Height);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
             var targets = _actorTargets;
             var costumes = await Task.Run(() => RenderActors(targets, images, token), token);
             if (token.IsCancellationRequested)
@@ -1353,6 +1387,7 @@ public sealed partial class RoomViewModel : ObservableObject
                 SKImage image = null;
                 RgbaImage rgba = null;
                 int? imageX = null, imageY = null;
+                HiResImage hiRes = null;
                 // An image library loads only what's shown; the rest load when shown (LoadShownLibraryImages).
                 bool skip = IsImageLibrary(room) && shownNow?.Contains(obj) != true;
                 if (skip)
@@ -1372,12 +1407,12 @@ public sealed partial class RoomViewModel : ObservableObject
                     }
 
                     rgba = result.Image;
-                    (imageX, imageY) = (result.X, result.Y);
+                    (imageX, imageY, hiRes) = (result.X, result.Y, result.HiRes);
                     image = images.Add(rgba?.ToSkImage());
                 }
                 costumes.TryGetValue(obj, out var costume);
                 layers.Add(new RoomObjectLayer(obj, image, costume.Image, costume.X, costume.Y, CostumeDepth: costume.Depth, CostumeActor: costume.Actor, CostumeScale: costume.Scale == 0 ? 1 : costume.Scale, CostumeZPlane: costume.ZPlane,
-                    ImageX: imageX, ImageY: imageY));
+                    ImageX: imageX, ImageY: imageY, HiRes: hiRes));
                 if (!skip)
                 {
                     hasImage[obj] = rgba != null && !IsFullyTransparent(rgba);
@@ -1414,6 +1449,7 @@ public sealed partial class RoomViewModel : ObservableObject
 
             OnPropertyChanged(nameof(AllObjectsVisible));
             _backgroundChoices = choices;
+            _hiResBackground = hiResBackground;
             MaxBackgroundIndex = Math.Max(0, choices.Count - 1);
             // A new room starts on its first choice (its own image, or e.g. the inventory backdrop);
             // a reload keeps the current choice.
@@ -1504,8 +1540,22 @@ public sealed partial class RoomViewModel : ObservableObject
         var choice = BackgroundIndex >= 0 && BackgroundIndex < _backgroundChoices.Count ? _backgroundChoices[BackgroundIndex] : null;
         BackgroundObject = choice?.Object;
         BackgroundImage = choice?.Image;
+        UpdateHiResBackground();
         BackgroundLabel = choice == null ? "none" : choice.Label;
     }
+
+    /// <summary>
+    /// The hi-res picture of the background shown: the room's own, or a full-width object's (the inventory's
+    /// backdrop) when it's the background, which can load after the room (an image library's objects load as shown).
+    /// </summary>
+    private void UpdateHiResBackground()
+    {
+        var choice = BackgroundIndex >= 0 && BackgroundIndex < _backgroundChoices.Count ? _backgroundChoices[BackgroundIndex] : null;
+        HiResBackground = choice == null ? null : choice.Object == null ? _hiResBackground
+            : ObjectLayers?.FirstOrDefault(l => ReferenceEquals(l.Object, choice.Object) && !l.IsActorOnly)?.HiRes;
+    }
+
+    partial void OnObjectLayersChanged(IReadOnlyList<RoomObjectLayer> value) => UpdateHiResBackground();
 
     /// <summary>Exports the background currently shown (the room's image or the chosen full-width one).</summary>
     public void ExportBackground(string folder)

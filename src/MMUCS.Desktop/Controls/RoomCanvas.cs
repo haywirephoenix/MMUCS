@@ -22,8 +22,9 @@ public sealed record LiveCostume(RoomObject Target, SKImage Image, int X, int Y,
 /// <param name="CostumeScale">The actor's scale as a factor; <see cref="CostumeX"/>/<see cref="CostumeY"/> are the scaled image's corner.</param>
 public sealed record RoomObjectLayer(RoomObject Object, SKImage Image, SKImage CostumeImage = null, int CostumeX = 0, int CostumeY = 0,
     bool IsActorOnly = false, int CostumeDepth = 0, int CostumeActor = 0, float CostumeScale = 1, int CostumeZPlane = 0,
-    int? ImageX = null, int? ImageY = null)
+    int? ImageX = null, int? ImageY = null, HiResImage HiRes = null)
 {
+    // HiRes: a hi-res mod's picture drawn in place of Image, which stays the game's for picking and sizing.
     /// <summary>Where the image goes in the room: the object's place, unless a mod's image says otherwise.</summary>
     public int X => ImageX ?? Object.X;
     public int Y => ImageY ?? Object.Y;
@@ -37,6 +38,10 @@ public sealed class RoomCanvas : SkiaViewport
 {
     public static readonly StyledProperty<SKImage> BackgroundImageProperty =
         AvaloniaProperty.Register<RoomCanvas, SKImage>(nameof(BackgroundImage));
+    /// <summary>A hi-res mod's picture of the room's own background, drawn in its place while it's the background shown; or null.</summary>
+    public static readonly StyledProperty<HiResImage> HiResBackgroundProperty =
+        AvaloniaProperty.Register<RoomCanvas, HiResImage>(nameof(HiResBackground));
+    public HiResImage HiResBackground { get => GetValue(HiResBackgroundProperty); set => SetValue(HiResBackgroundProperty, value); }
     public static readonly StyledProperty<IReadOnlyList<RoomObjectLayer>> ObjectLayersProperty =
         AvaloniaProperty.Register<RoomCanvas, IReadOnlyList<RoomObjectLayer>>(nameof(ObjectLayers));
     public static readonly StyledProperty<IReadOnlyList<Walkbox>> WalkboxesProperty =
@@ -165,7 +170,7 @@ public sealed class RoomCanvas : SkiaViewport
     static RoomCanvas()
     {
         AffectsRender<RoomCanvas>(
-            BackgroundImageProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
+            BackgroundImageProperty, HiResBackgroundProperty, ObjectLayersProperty, WalkboxesProperty, SelectedObjectProperty,
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
             ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty, LiveCostumeProperty,
             ZMasksProperty, ImageSetsProperty, CoveredProperty, ToggledObjectsProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty, ShowSelectionOutlineProperty,
@@ -267,6 +272,7 @@ public sealed class RoomCanvas : SkiaViewport
 
     protected override IViewportScene CreateScene() => new Scene(
         ShowBackground ? BackgroundImage : null,
+        ShowBackground ? HiResBackground : null,
         ObjectLayers, // per-object visibility (incl. the View menu's Objects toggle) is in VisibleObjects
         ObjectLayers,
         ShowWalkboxes ? Walkboxes : null,
@@ -439,7 +445,7 @@ public sealed class RoomCanvas : SkiaViewport
         return pixmap == null || pixmap.GetPixelColor(px, py).Alpha > 0; // not raster: count the box
     }
 
-    private sealed class Scene(SKImage bg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
+    private sealed class Scene(SKImage bg, HiResImage hiResBg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
         IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
         IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke, RoomCanvas.OverlayPaints paints,
         IReadOnlyList<ImageSet> imageSets, bool covered, IReadOnlySet<RoomObject> toggled) : IRetainedScene
@@ -461,6 +467,7 @@ public sealed class RoomCanvas : SkiaViewport
         }
 
         private readonly SKImage _bg = bg;
+        private readonly HiResImage _hiResBg = hiResBg;
         private readonly IReadOnlyList<RoomObjectLayer> _drawLayers = drawLayers;
         private readonly IReadOnlyList<RoomObjectLayer> _allLayers = allLayers;
         private readonly IReadOnlyList<Walkbox> _boxes = boxes;
@@ -512,7 +519,7 @@ public sealed class RoomCanvas : SkiaViewport
                     // Other full-screen (640px) object images would cover the background (in the wrong
                     // palette), so they're drawn only when asked for; the Background spinbox switches to them.
                     if (layer.Image.Width >= 640 && !_fullScreenObjects && _toggled?.Contains(layer.Object) != true) continue;
-                    objects.Add(new SceneObject(layer.Object, layer.Image, layer.X, layer.Y));
+                    objects.Add(new SceneObject(layer.Object, layer.Image, layer.X, layer.Y, layer.HiRes));
                 }
 
                 bool liveDrawn = false;
@@ -538,6 +545,7 @@ public sealed class RoomCanvas : SkiaViewport
             {
                 Width = (int)_size.Width, Height = (int)_size.Height,
                 Background = _bg, BackgroundX = _bgObject?.X ?? 0, BackgroundY = _bgObject?.Y ?? 0,
+                HiResBackground = _bg != null ? _hiResBg : null,
                 Objects = objects, Actors = actors, ZMasks = _zMasks ?? [],
             };
         }

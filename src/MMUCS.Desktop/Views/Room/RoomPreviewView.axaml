@@ -68,6 +68,7 @@
 
     <c:RoomCanvas x:Name="Canvas"
                   BackgroundImage="{Binding BackgroundImage}"
+                  HiResBackground="{Binding HiResBackground}"
                   ObjectLayers="{Binding ObjectLayers}"
                   Walkboxes="{Binding Walkboxes}"
                   RoomSize="{Binding RoomSize}"
