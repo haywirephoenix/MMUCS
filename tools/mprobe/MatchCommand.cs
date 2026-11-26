@@ -498,6 +498,35 @@ internal static class MatchCommand
         return Map(sig.Chunks, frame, isEnd, sig.Rate);
     }
 
+    /// <summary>
+    /// How far the track carries on in the file from <paramref name="from"/>'s offset: the run of found chunks
+    /// there, then 2 s windows a quarter second apart while they still correlate at that offset. The last game
+    /// frame and its time in the file; null when nothing near <paramref name="from"/> is found.
+    /// </summary>
+    private static (long Frame, double At)? Extent(Signals sig, long from)
+    {
+        var chunks = sig.Chunks;
+        var first = chunks.Where(c => c.Kind == ChunkKind.Matched).MinBy(c => Math.Abs(c.Start - from));
+        if (first == null) return null;
+        double d = first.Delta;
+        int k = chunks.IndexOf(first);
+        while (k + 1 < chunks.Count && (chunks[k + 1].Kind == ChunkKind.Silent ||
+               chunks[k + 1].Kind == ChunkKind.Matched && Math.Abs(chunks[k + 1].Delta - d) <= 8)) k++;
+        while (k > 0 && chunks[k].Kind == ChunkKind.Silent) k--;
+        long last = chunks[k].Start + chunks[k].Length;
+        int window = 2 * sig.Rate, step = sig.Rate / 4;
+        for (long t = last - window + step; t + window <= sig.Game.Length; t += step)
+        {
+            long lag = (long)Math.Round(t + d);
+            if (lag < 0 || lag + window > sig.Audio.Length) break;
+            if (Silent(sig.Game, t, window)) { last = t + window; continue; }
+            if (Refine(sig.Game, sig.Audio, t, window, lag).Score < 0.45) break;
+            last = t + window;
+        }
+        last = Math.Min(last, (long)(sig.Audio.Length - d));
+        return (last, (last + d) / sig.Rate);
+    }
+
     /// <summary>The delta of the found chunk nearest <paramref name="frame"/>, within a chunk either side.</summary>
     private static double? Nearest(List<Chunk> chunks, long frame) =>
         chunks.Where(c => c.Kind == ChunkKind.Matched && c.Start - c.Length <= frame && frame < c.Start + 2 * c.Length)
@@ -664,9 +693,29 @@ internal static class MatchCommand
         }
         else
         {
-            if (Point(sig, frames, true) is double e && e < fileFrames / (double)rate - 0.01) fields.Add($"\"end\": \"{Clock(e)}\"");
-            else if (Point(sig, frames, true) == null) notes.Add("the end isn't found in the file (or runs past it), so it's left at the file's");
-            notes.Add("the game's track doesn't loop back on its own (no hook-0 jump back), so neither does this");
+            // A sequence gives way to the state's music at its "_end" marker, which a mod's entry puts at loopEnd;
+            // the audio after it plays out under the crossfade.
+            long? marker = sound.Markers.Where(m => m.Text == "_end").Select(m => (long?)sound.ToFrame(m.Offset)).FirstOrDefault();
+            if (marker is long mk && (mk <= playStart || mk >= frames)) marker = null;
+            double? end = Point(sig, frames, true);
+            double? endMark = marker is long m0 ? Point(sig, m0, true) : null;
+            double fileEnd = fileFrames / (double)rate;
+            if (end == null && Extent(sig, playStart) is var (lastFrame, lastAt))
+            {
+                // The file has the track only so far (another cut of the album follows): it ends where the match does.
+                if (marker is long m1 && m1 <= lastFrame) end = endMark is double em ? Math.Min(lastAt, em + (lastFrame - m1) / (double)rate) : lastAt;
+                else
+                {
+                    end = lastAt;
+                    endMark = null;
+                }
+                notes.Add($"the file has the game's track only as far as {Clock(lastFrame / (double)rate)} of it" +
+                    $"{(marker is long m2 ? $" (its \"_end\" is at {Clock(m2 / (double)rate)})" : "")}, so it ends there, at {Clock(lastAt)}");
+            }
+            if (end is double e && e < fileEnd - 0.01) fields.Add($"\"end\": \"{Clock(e)}\"");
+            else if (end == null) notes.Add("the end isn't found in the file, so it's left at the file's");
+            if (endMark is double ek && (end is not double e2 || ek < e2 - 0.01)) fields.Add($"\"loopEnd\": \"{Clock(ek)}\"");
+            notes.Add($"the game's track doesn't loop back on its own (no hook-0 jump back), so neither does this{(endMark != null ? "; loopEnd is its \"_end\" marker" : "")}");
         }
         if (sound.Jumps.Any(j => j.Hook != 0)) notes.Add("the jumps with a hook (transitions the scripts pick) have no place in a mod's entry");
 
