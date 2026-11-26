@@ -115,6 +115,7 @@ static class BootCommand
                 Line($"VOLUME effects {groups.Effects}, voice {groups.Voice}, music {groups.Music}", vm.Depth);
             return done;
         };
+        vm.MusicRunning = id => musicOutput != null && musicOutput.Playing == id;
         vm.GroupVolume = groups.Get;
         var sounds = MMUCS.Runtime.ScriptedGame.FollowSaves(loop, effects, voice, music);
         // The F1 menu's save slots and registry settings: a folder given, or none (empty slots, the registry's defaults).
