@@ -176,6 +176,33 @@ public class MusicTests
     }
 
     [Fact]
+    public void The_juggling_show_s_cut_to_the_stage_sets_the_stage_s_music()
+    {
+        var show = new Asm().Push(0).Push(118).List().Op(0x79).End().Global(168);
+        var juggle = new Asm().End().Global(118);
+        foreach (var (room, expected) in new[] { (19, true), (18, false) })
+        {
+            var vm = new ScriptVm(ScriptStore.Of(show, juggle), new VmState(GameLimits.Comi)) { CurrentRoom = room };
+            var sent = new List<string>();
+            vm.SoundKludge = list => { sent.Add(string.Join(",", list)); return true; };
+            vm.RunScript(168);
+            Assert.Equal(expected ? [$"{ComiMusic.SetStateCommand},1278"] : [], sent);
+        }
+    }
+
+    [Fact]
+    public void Room_11_s_wait_for_a_sound_waits_a_frame_at_a_time()
+    {
+        // local 2016's loop: sound-kludge, then straight back (no break-here).
+        var wait = new Asm().Label("loop").List(12, 5, 1792, 127).Op(0xb2).Jump(0x66, "loop").End().Local(11, 2016);
+        var vm = new ScriptVm(ScriptStore.Of(wait), new VmState(GameLimits.Comi)) { CurrentRoom = 11 };
+        int sent = 0;
+        vm.SoundKludge = _ => { sent++; return true; };
+        Assert.True(Task.Run(() => vm.RunScript(2016)).Wait(5000), "the loop never gave the frame back");
+        Assert.Equal(1, sent);
+    }
+
+    [Fact]
     public void COMI_s_tables_come_from_its_program()
     {
         if (Game == null || MusicTable.Load(Game) is not { } table) return;
