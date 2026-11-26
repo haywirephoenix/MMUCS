@@ -38,11 +38,17 @@ usage: mprobe [--game FILE] COMMAND ...
                        problems reading the maps, the game's tracks none replaces; --check decodes every
                        FLAC in them against its MD5.
   match TRACK [FILE] [--in DIR] [--chunks]
+  match all --out FILE [--in DIR] [--only T,T…]
                        Where game music track TRACK (1100, or a name: Hold1) is in a FLAC, to the sample: its
                        4 s chunks found by cross-correlation, the runs of them at one offset, the game's jumps
                        in the file's time, and the mod.json entry (start, end, loopStart, loopEnd) they give.
                        Without FILE, every FLAC in the music mods (or under DIR) is ranked and the best matched.
-                       --chunks lists every chunk with its score and the next best place's.
+                       --chunks lists every chunk with its score and the next best place's. Each match is
+                       made plainly and whitened, keeping the higher score. "all" matches every music track
+                       and writes the mod.json to FILE (its cutscene keys and other fields kept), each entry
+                       with its score, mode and notes; a track not found gets a blank "file" and its best guess.
+                       FLACs are looked for beside FILE unless --in says where; --only matches just those
+                       tracks, keeping FILE's entries for the rest.
 
   audio OUT [music|voice] [--check]
                        Decode the Digital iMUSE bundles (.bun) into OUT/music/NNNN.wav and OUT/voice/CODE.wav,
@@ -131,7 +137,7 @@ try
         "boot" => BootCommand.Run(root, argv, TakeOption, game),
         "fonts" => FontsCommand.Run(argv, TakeOption, game),
         "mods" => ModsCommand.Run(argv, game),
-        "match" => MatchCommand.Run(argv, TakeOption, FindSound, game),
+        "match" => MatchCommand.Run(argv, TakeOption, FindSound, MusicNumbers, game),
         _ => Fail($"unknown command '{argv[0]}'"),
     };
 }
@@ -265,6 +271,18 @@ int Play(List<string> a)
         MMUCS.Core.Audio.WavWriter.Write(fs, pcm.GetBuffer().AsSpan(0, (int)pcm.Length), 2, rate, 16);
     Console.WriteLine($"rendered {mixer.Time.TotalSeconds:0.000} s ({mixer.Position} frames), {(voice.Finished ? "sound ended" : "stopped at the time limit")}, {mixer.ClippedSamples} clipped samples → {outFile}");
     return 0;
+}
+
+// The music tracks' numbers in the bundles (music/1100: 1100), on every disc.
+IEnumerable<int> MusicNumbers()
+{
+    foreach (var file in GameFiles.Find(game, ".bun"))
+    {
+        if (MMUCS.Core.Audio.AudioExporter.KindOf(file) != "music") continue;
+        using var bundle = MMUCS.Core.Audio.Bundle.Open(file);
+        foreach (var e in bundle.Entries)
+            if (MMUCS.Core.Audio.AudioExporter.IdOf("music", e.Name) is var id && int.TryParse(id.AsSpan(6), out int n)) yield return n;
+    }
 }
 
 MMUCS.Core.Audio.ImusSound FindSound(string id)

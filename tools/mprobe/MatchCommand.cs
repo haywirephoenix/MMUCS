@@ -1,57 +1,88 @@
 using System;
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Tasks;
 using MMUCS.Core.Audio;
 
 /// <summary>
-/// <c>mprobe match TRACK [FILE] [--in DIR] [--chunks]</c>: where a game music track's audio is in a FLAC, for a music mod's
-/// "start", "end", "loopStart" and "loopEnd". The track is cut into 4-second chunks and each is found in the FLAC
-/// on its own by normalised cross-correlation of the two whitened (differenced, so another mix or master of the same
-/// recording still lines up): coarsely over the whole file (FFT, at an eighth of the game's rate),
-/// then to the sample at the game's rate, so a FLAC that holds the track rearranged, or its loop played twice,
-/// still lines up chunk by chunk (--chunks lists each). Runs of chunks at one offset are printed as spans, the game's jumps are carried
-/// into the file's time, each matched by the 4 s after it (before it, for an end), and the mod.json entry they give is printed to paste.
-/// Without FILE, every FLAC under the music mods folder (or --in DIR) is tried with a few chunks of the track and
-/// ranked, and the best is matched in full.
+/// <c>mprobe match TRACK [FILE] [--in DIR] [--chunks]</c> and <c>mprobe match all --out FILE [--in DIR]</c>: where a
+/// game music track's audio is in a FLAC, for a music mod's "start", "end", "loopStart" and "loopEnd". The track is
+/// cut into 4-second chunks and each is found in the FLAC on its own by normalised cross-correlation: coarsely over
+/// the whole file (FFT, at an eighth of the game's rate), then to the sample at the game's rate, so a FLAC that
+/// holds the track rearranged, or its loop played twice, still lines up chunk by chunk (--chunks lists each). It's
+/// done both plainly and whitened (differenced, so another mix or master of the same recording still lines up),
+/// and the one that scores higher is kept. Runs of chunks at one offset are printed as spans, the game's jumps are
+/// carried into the file's time, each matched by the 4 s after it (before it, for an end), and the mod.json entry
+/// they give is printed to paste.
+/// Without FILE, every FLAC under the music mods folder (or --in DIR) is tried with a few chunks of the track
+/// (at a sixteenth of the game's rate) and ranked, and the best is matched in full.
+/// "all" does that for every music track in the bundles and writes the mod.json to FILE, each entry with its
+/// "score" (how much of the track was found, weighted by how well), "mode" and "notes"; a track not found gets a
+/// blank "file", with its best guess and that score. FILE's tracks that aren't the game's (a cutscene's) and its
+/// other fields are kept, and so are its entries for tracks --only leaves out; FLACs are looked for beside FILE unless
+/// --in says where.
 /// </summary>
 internal static class MatchCommand
 {
-    private const int Decimation = 8;        // the coarse search's rate: the game's ÷ 8 (2756 Hz for 22050)
+    private const int Decimation = 8;        // the coarse match's rate: the game's ÷ 8 (2756 Hz for 22050)
+    private const int SearchDecimation = 16; // the search's: ÷ 16
     private const double ChunkSeconds = 4, MinChunkSeconds = 1;
     private const double MatchScore = 0.6;   // a chunk correlating this well is found
     private const double MinScore = 0.3;     // one this well is found when nowhere else does half as well
+    private const double FoundScore = 0.2;   // a track whose found share (score) is under this isn't taken as found
     private const int SearchChunks = 6;
 
     private sealed record Candidate(double Lag, double Score);
     private enum ChunkKind { Silent, Unmatched, Matched }
     private sealed record Chunk(long Start, long Length, ChunkKind Kind, double Delta, double Score, double Second = 0);
 
-    public static int Run(List<string> a, Func<List<string>, string, string> takeOption,
-        Func<string, ImusSound> findSound, string gameFile)
+    /// <summary>A FLAC as the search keeps it: at the search's rate, plain and whitened.</summary>
+    private sealed record Entry(string File, float[] Plain, float[] White);
+
+    /// <summary>A search's ranking: a file's median probe score in each mode.</summary>
+    private sealed record Ranked(string File, double Plain, double White, double[] Each)
     {
-        string searchDir = takeOption(a, "--in");
+        public double Score => Math.Max(Plain, White);
+    }
+
+    /// <summary>A track matched in full in a file: the mode that scored higher, its chunks and the mod.json entry.</summary>
+    private sealed record Result(string File, bool Whitened, double Score, double OtherScore, Signals Signals, List<string> Fields, List<string> Notes);
+
+    public static int Run(List<string> a, Func<List<string>, string, string> takeOption,
+        Func<string, ImusSound> findSound, Func<IEnumerable<int>> musicNumbers, string gameFile)
+    {
+        string searchDir = takeOption(a, "--in"), outFile = takeOption(a, "--out"), only = takeOption(a, "--only");
         var positional = a.Where(x => !x.StartsWith("--")).ToList();
-        if (positional.Count < 2) throw new UsageException("match needs TRACK (a number, 1100, or a name, Hold1)");
+        if (positional.Count < 2) throw new UsageException("match needs TRACK (a number, 1100, or a name, Hold1), or all");
 
         var table = MusicTable.Load(gameFile);
         var names = table == null ? new Dictionary<int, string>() :
             table.States.Concat(table.Sequences).Where(c => c.FileNumber != 0).GroupBy(c => c.FileNumber).ToDictionary(g => g.Key, g => g.First().File);
+        if (positional[1] == "all")
+        {
+            if (outFile == null) throw new UsageException("match all needs --out FILE (the mod.json to write)");
+            var picked = only?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(t => TrackNumber(t, names)).ToHashSet();
+            return All(Path.GetFullPath(outFile), searchDir ?? Path.GetDirectoryName(Path.GetFullPath(outFile)), names, findSound,
+                picked == null ? musicNumbers : () => musicNumbers().Where(picked.Contains));
+        }
+
         int number = TrackNumber(positional[1], names);
         string name = names.TryGetValue(number, out var n) ? n : number.ToString(CultureInfo.InvariantCulture);
         var sound = findSound($"music/{number}") ?? throw new UsageException($"no music/{number} in the bundles");
         if (sound.Bits != 16) throw new UsageException($"music/{number} is {sound.Bits}-bit; only 16-bit tracks are matched");
 
-        float[] game = Whiten(Mono(sound.Samples, sound.Channels));
+        float[] game = Mono(sound.Samples, sound.Channels);
         int rate = sound.SampleRate;
         Console.WriteLine($"music/{number} {name}: {rate} Hz {sound.Channels} ch {Clock(game.Length / (double)rate)}, " +
             $"{sound.Regions.Count} regions, {sound.Jumps.Count} jumps");
 
-        var chunks = ChunkStarts(game.Length, rate).ToList();
         string folder = MusicMods.Folder(gameFile);
         string file;
         if (positional.Count >= 3) file = FindFile(positional[2], searchDir ?? folder);
@@ -59,24 +90,192 @@ internal static class MatchCommand
         {
             string dir = searchDir ?? folder;
             if (dir == null || !Directory.Exists(dir)) throw new UsageException($"no folder to search ({dir ?? "no music mods folder"}); give FILE or --in DIR");
-            file = Search(game, rate, chunks, dir, number);
-            if (file == null) return 1;
+            var library = Library(dir, rate);
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var ranked = Search(game, rate, library);
+            var mapped = MappedFiles(dir, number);
+            Console.WriteLine("best files (median of the chunks' scores, the higher of plain and whitened):");
+            foreach (var r in ranked.Take(5))
+                Console.WriteLine($"  {r.Score,5:0.00} {(r.White > r.Plain ? "whitened" : "plain   ")}  {Path.GetRelativePath(dir, r.File)}" +
+                    $"  [{string.Join(" ", r.Each.Select(e => e.ToString("0.00", CultureInfo.InvariantCulture)))}]" +
+                    (mapped.Contains(Path.GetFullPath(r.File)) ? "  ← mod.json maps it here" : ""));
+            Console.WriteLine($"  ({sw.Elapsed.TotalSeconds:0.0} s)");
+            if (ranked.Count == 0 || ranked[0].Score < MinScore)
+            {
+                Console.WriteLine($"nothing scores {MinScore:0.0} or more: the track isn't in these files, or not as the same recording");
+                return 1;
+            }
+            file = ranked[0].File;
         }
 
         var flac = Flac.Open(file);
-        float[] audio = Whiten(Resample(Mono(Decode(flac), flac.Channels), flac.SampleRate, rate));
         Console.WriteLine($"{Path.GetFileName(file)}: {flac.SampleRate} Hz {flac.BitsPerSample}-bit {flac.Channels} ch {flac.Duration:m\\:ss\\.fff}");
-
-        var sig = new Signals(game, audio, rate);
-        var matched = sig.Chunks = MatchChunks(sig, chunks);
+        var result = MatchFile(sound, game, file, flac);
+        var sig = result.Signals;
+        Console.WriteLine($"matched {(result.Whitened ? "whitened" : "plain")}: score {result.Score:0.000} (how much of the track is found, by how well; " +
+            $"{(result.Whitened ? "plain" : "whitened")} {result.OtherScore:0.000})");
         if (a.Contains("--chunks"))
-            foreach (var c in matched)
+            foreach (var c in sig.Chunks)
                 Console.WriteLine($"  chunk {Clock(c.Start / (double)rate)}  {c.Kind,-9}  file {(c.Kind == ChunkKind.Matched ? Clock((c.Start + c.Delta) / rate) : "?"),-9}  score {c.Score:0.000}  next best {c.Second:0.000}");
-        PrintSpans(matched, rate);
+        PrintSpans(sig.Chunks, rate);
         PrintJumps(sound, sig);
-        Suggest(sound, sig, file, number, name);
-        return matched.Any(c => c.Kind == ChunkKind.Matched) ? 0 : 1;
+
+        string key = Directory.GetParent(file) is { } parent && File.Exists(Path.Combine(parent.FullName, "mod.json"))
+            ? ModKeys(Path.Combine(parent.FullName, "mod.json"), number).Select(k => k.Key).FirstOrDefault() ?? name : name;
+        Console.WriteLine("for mod.json:");
+        Console.WriteLine($"  {Json(key)}: {{ {string.Join(", ", result.Fields)} }},");
+        foreach (var note in result.Notes) Console.WriteLine($"  note: {note}");
+        return sig.Chunks.Any(c => c.Kind == ChunkKind.Matched) ? 0 : 1;
     }
+
+    /// <summary>The track matched in <paramref name="file"/> plainly and whitened, the one scoring higher kept.</summary>
+    private static Result MatchFile(ImusSound sound, float[] game, string file, Flac flac)
+    {
+        int rate = sound.SampleRate;
+        float[] audio = Resample(Mono(Decode(flac), flac.Channels), flac.SampleRate, rate);
+        var chunks = ChunkStarts(game.Length, rate).ToList();
+        Signals Matched(bool white)
+        {
+            var sig = new Signals(white ? Whiten(game) : game, white ? Whiten(audio) : audio, rate);
+            sig.Chunks = MatchChunks(sig, chunks);
+            return sig;
+        }
+        var plain = Matched(false);
+        var white = Matched(true);
+        double ps = Coverage(plain), ws = Coverage(white);
+        var best = ws > ps ? white : plain;
+        var (fields, notes) = Suggest(sound, best, file);
+        return new Result(file, ws > ps, Math.Max(ps, ws), Math.Min(ps, ws), best, fields, notes);
+    }
+
+    /// <summary>How much of the track is found, by how well: the found chunks' scores weighted by length, over the length that isn't silent.</summary>
+    private static double Coverage(Signals sig)
+    {
+        double loud = sig.Chunks.Where(c => c.Kind != ChunkKind.Silent).Sum(c => (double)c.Length);
+        return loud == 0 ? 0 : sig.Chunks.Where(c => c.Kind == ChunkKind.Matched).Sum(c => c.Score * c.Length) / loud;
+    }
+
+    // ---- every track ----
+
+    private static int All(string outFile, string dir, Dictionary<int, string> names, Func<string, ImusSound> findSound, Func<IEnumerable<int>> musicNumbers)
+    {
+        if (!Directory.Exists(dir)) throw new UsageException($"no folder {dir} to look for FLACs in");
+        var numbers = musicNumbers().Distinct().Order().ToList();
+        if (numbers.Count == 0) throw new UsageException("no music in the bundles");
+
+        // What FILE has: its keys in order with their values (raw), and its other fields.
+        var existing = new List<(string Key, int Number, string Raw, string File)>();
+        var top = new List<(string Name, string Raw)>();
+        List<string> comment = null;
+        if (File.Exists(outFile))
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(outFile), new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+            foreach (var p in doc.RootElement.EnumerateObject())
+            {
+                if (p.Name == "tracks" && p.Value.ValueKind == JsonValueKind.Object)
+                    foreach (var t in p.Value.EnumerateObject())
+                    {
+                        int digits = 0;
+                        while (digits < t.Name.Length && char.IsAsciiDigit(t.Name[digits])) digits++;
+                        int num = digits > 0 && int.TryParse(t.Name.AsSpan(0, digits), out int x) ? x : 0;
+                        string f = t.Value.ValueKind == JsonValueKind.String ? t.Value.GetString()
+                            : t.Value.ValueKind == JsonValueKind.Object && t.Value.TryGetProperty("file", out var fv) && fv.ValueKind == JsonValueKind.String ? fv.GetString() : null;
+                        existing.Add((t.Name, num, t.Value.GetRawText(), string.IsNullOrWhiteSpace(f) ? null : f));
+                    }
+                else if (p.Name == "_comment" && p.Value.ValueKind == JsonValueKind.Array)
+                    comment = p.Value.EnumerateArray().Select(e => e.ToString()).ToList();
+                else if (p.Name != "tracks") top.Add((p.Name, p.Value.GetRawText()));
+            }
+        }
+
+        var first = findSound($"music/{numbers[0]}");
+        int rate = first?.SampleRate ?? 22050;
+        var library = Library(dir, rate);
+        if (library.Count == 0) throw new UsageException($"no FLACs under {dir}");
+
+        var entries = new Dictionary<int, string>();
+        var total = System.Diagnostics.Stopwatch.StartNew();
+        int found = 0, done = 0;
+        foreach (int number in numbers)
+        {
+            done++;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            string name = names.TryGetValue(number, out var nm) ? nm : number.ToString("D4", CultureInfo.InvariantCulture);
+            string label = $"[{done,3}/{numbers.Count}] {name,-22}";
+            var old = existing.FirstOrDefault(e => e.Number == number);
+            string was = old.File != null ? $"  (was {old.File})" : "";
+            var sound = findSound($"music/{number:D4}") ?? findSound($"music/{number}");
+            if (sound == null || sound.Bits != 16 || sound.SampleRate != rate)
+            {
+                Console.WriteLine($"{label} skipped: {(sound == null ? "not in the bundles" : $"{sound.Bits}-bit {sound.SampleRate} Hz")}");
+                continue;
+            }
+            float[] game = Mono(sound.Samples, sound.Channels);
+            var ranked = Search(game, rate, library);
+            var top1 = ranked.FirstOrDefault();
+            string Rel(string f) => Path.GetRelativePath(Path.GetDirectoryName(outFile), f).Replace('\\', '/');
+            if (top1 == null || top1.Score < MinScore)
+            {
+                entries[number] = $"{{ \"file\": \"\", \"score\": {Num(top1?.Score ?? 0)}{(top1 != null ? $", \"best\": {Json(Rel(top1.File))}" : "")} }}";
+                Console.WriteLine($"{label} not found   (best {top1?.Score ?? 0:0.00}: {(top1 != null ? Path.GetFileName(top1.File) : "none")}){was}  ({sw.Elapsed.TotalSeconds:0.0} s)");
+                continue;
+            }
+            Result r;
+            try { r = MatchFile(sound, game, top1.File, Flac.Open(top1.File)); }
+            catch (Exception ex) when (ex is IOException or InvalidDataException)
+            {
+                Console.WriteLine($"{label} {Path.GetFileName(top1.File)}: {ex.Message}");
+                continue;
+            }
+            string rel = Rel(r.File);
+            if (r.Score < FoundScore)
+            {
+                entries[number] = $"{{ \"file\": \"\", \"score\": {Num(r.Score)}, \"best\": {Json(rel)} }}";
+                Console.WriteLine($"{label} not found   (score {r.Score:0.00}, search {top1.Score:0.00}: {Path.GetFileName(r.File)}){was}  ({sw.Elapsed.TotalSeconds:0.0} s)");
+                continue;
+            }
+            found++;
+            var fields = new List<string>(r.Fields) { $"\"score\": {Num(r.Score)}", $"\"mode\": \"{(r.Whitened ? "whitened" : "plain")}\"" };
+            fields[0] = $"\"file\": {Json(rel)}";
+            if (r.Notes.Count > 0) fields.Add($"\"notes\": [{string.Join(", ", r.Notes.Select(Json))}]");
+            if (old.File != null && !Path.GetFullPath(Path.Combine(Path.GetDirectoryName(outFile), old.File)).Equals(r.File, StringComparison.Ordinal))
+                fields.Add($"\"previously\": {Json(old.File)}");
+            entries[number] = $"{{ {string.Join(", ", fields)} }}";
+            string what = string.Join("  ", r.Fields.Skip(1).Where(f => !f.StartsWith("\"fadeMs")).Select(f => f.Replace("\"", "")));
+            string changed = old.File != null && Path.GetFileName(old.File) != Path.GetFileName(r.File) ? $"  (was {old.File})" : "";
+            Console.WriteLine($"{label} {r.Score:0.00} {(r.Whitened ? "whitened" : "plain   ")}  {Path.GetFileName(r.File)}  {what}{changed}  ({sw.Elapsed.TotalSeconds:0.0} s)");
+            foreach (var note in r.Notes) Console.WriteLine($"{"",34}note: {note}");
+        }
+
+        // FILE's keys in their order, with the game's tracks matched; then the tracks it hadn't.
+        var lines = new List<string>();
+        var written = new HashSet<int>();
+        foreach (var e in existing)
+        {
+            if (e.Number == 0) lines.Add($"    {Json(e.Key)}: {e.Raw}");
+            else if (entries.TryGetValue(e.Number, out var v) && written.Add(e.Number)) lines.Add($"    {Json(e.Key)}: {v}");
+            else if (!entries.ContainsKey(e.Number) && written.Add(e.Number)) lines.Add($"    {Json(e.Key)}: {e.Raw}");
+        }
+        foreach (var (number, v) in entries.OrderBy(kv => kv.Key))
+            if (written.Add(number)) lines.Add($"    {Json(names.TryGetValue(number, out var nm) ? nm : number.ToString("D4", CultureInfo.InvariantCulture))}: {v}");
+
+        comment ??= ["Which game tracks this soundtrack stands in for."];
+        comment = comment.Where(c => !c.Contains("first guesses", StringComparison.OrdinalIgnoreCase) && !c.StartsWith("Matched by mprobe match all")).ToList();
+        comment.Add("Matched by mprobe match all: \"score\" is how much of the game's track was found in the file, by how well (0 to 1), " +
+                    "\"mode\" whether plain or whitened correlation found more, \"notes\" what it couldn't place; a blank \"file\" wasn't found (\"best\" is the nearest).");
+        var sb = new StringBuilder("{\n");
+        sb.Append($"  \"_comment\": [\n{string.Join(",\n", comment.Select(c => "    " + Json(c)))}\n  ],\n");
+        if (!top.Any(t => t.Name == "enabled")) sb.Append("  \"enabled\": true,\n");
+        foreach (var (name, raw) in top) sb.Append($"  {Json(name)}: {raw},\n");
+        sb.Append($"  \"tracks\": {{\n{string.Join(",\n", lines)}\n  }}\n}}\n");
+        File.WriteAllText(outFile, sb.ToString());
+        Console.WriteLine($"{found} of {numbers.Count} tracks found in {total.Elapsed:m\\:ss} → {outFile}");
+        return 0;
+    }
+
+    private static readonly JsonSerializerOptions JsonText = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    private static string Json(string s) => JsonSerializer.Serialize(s, JsonText);
+    private static string Num(double v) => v.ToString("0.000", CultureInfo.InvariantCulture);
 
     // ---- what to match ----
 
@@ -119,60 +318,72 @@ internal static class MatchCommand
 
     // ---- search ----
 
-    /// <summary>
-    /// Every FLAC under <paramref name="dir"/>, scored by the median of a few chunks' best correlations, best
-    /// first; returns the best, or null when nothing reaches <see cref="MatchScore"/>.
-    /// </summary>
-    private static string Search(float[] game, int rate, List<(long Start, long Length)> chunks, string dir, int number)
+    /// <summary>Every FLAC under <paramref name="dir"/>, decoded a few at a time and kept at the search's rate.</summary>
+    private static List<Entry> Library(string dir, int rate)
     {
         var files = Directory.EnumerateFiles(dir, "*.flac", SearchOption.AllDirectories).Order().ToList();
-        var loud = chunks.Where(c => !Silent(game, c.Start, c.Length)).ToList();
-        if (loud.Count == 0)
-        {
-            Console.WriteLine("the track is silent");
-            return null;
-        }
-        var probes = Enumerable.Range(0, Math.Min(SearchChunks, loud.Count))
-            .Select(i => loud[(int)((i + 0.5) * loud.Count / Math.Min(SearchChunks, loud.Count))]).ToList();
-        var coarse = Decimate(game);
-        Console.WriteLine($"searching {files.Count} FLACs in {dir} with {probes.Count} chunks of the track…");
-
+        var entries = new Entry[files.Count];
+        int done = 0;
+        bool live = !Console.IsOutputRedirected;
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var scores = new (string File, double Score, double[] Each)[files.Count];
-        Parallel.For(0, files.Count, new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2) }, i =>
+        Parallel.For(0, files.Count, new ParallelOptions { MaxDegreeOfParallelism = 4 }, i =>
         {
             try
             {
                 var flac = Flac.Open(files[i]);
-                var audio = Decimate(Whiten(Resample(Mono(Decode(flac), flac.Channels), flac.SampleRate, rate)));
-                var spectrum = new Spectrum(audio);
-                var each = probes.Select(p =>
-                {
-                    var t = Slice(coarse, p.Start / Decimation, p.Length / Decimation);
-                    return t.Length < 2 || t.Length > audio.Length ? 0 : Peaks(spectrum.Ncc(t), 1, rate / Decimation).FirstOrDefault()?.Score ?? 0;
-                }).ToArray();
-                scores[i] = (files[i], Median(each), each);
+                var audio = Resample(Mono(Decode(flac), flac.Channels), flac.SampleRate, rate);
+                entries[i] = new Entry(files[i], Decimate(audio, SearchDecimation), Decimate(Whiten(audio), SearchDecimation));
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException)
             {
                 Console.Error.WriteLine($"  {Path.GetFileName(files[i])}: {ex.Message}");
-                scores[i] = (files[i], 0, []);
             }
+            int d = System.Threading.Interlocked.Increment(ref done);
+            if (live) lock (entries) Console.Write($"\rdecoding the FLACs in {dir}: {d}/{files.Count}");
         });
+        if (live) Console.Write("\r");
+        Console.WriteLine($"decoded {files.Count} FLACs in {dir} ({sw.Elapsed.TotalSeconds:0.0} s)");
+        return entries.Where(e => e != null).ToList();
+    }
 
-        var mapped = MappedFiles(dir, number);
-        foreach (var s in scores.OrderByDescending(s => s.Score).Take(5))
-            Console.WriteLine($"  {s.Score,5:0.00}  {Path.GetRelativePath(dir, s.File)}" +
-                $"  [{string.Join(" ", s.Each.Select(e => e.ToString("0.00", CultureInfo.InvariantCulture)))}]" +
-                (mapped.Contains(Path.GetFullPath(s.File)) ? "  ← mod.json maps it here" : ""));
-        Console.WriteLine($"  ({sw.Elapsed.TotalSeconds:0.0} s)");
-        var best = scores.MaxBy(s => s.Score);
-        if (best.Score < MinScore)
+    /// <summary>
+    /// The files in <paramref name="library"/>, best first, each scored in both modes by the median of a few
+    /// chunks' best correlations.
+    /// </summary>
+    private static List<Ranked> Search(float[] game, int rate, List<Entry> library)
+    {
+        var loud = ChunkStarts(game.Length, rate).Where(c => !Silent(game, c.Start, c.Length)).ToList();
+        if (loud.Count == 0) return [];
+        int count = Math.Min(SearchChunks, loud.Count);
+        var probes = Enumerable.Range(0, count).Select(i => loud[(int)((i + 0.5) * loud.Count / count)]).ToList();
+        var plain = Decimate(game, SearchDecimation);
+        var white = Decimate(Whiten(game), SearchDecimation);
+        var templates = probes.Select(p => (
+            Plain: Slice(plain, p.Start / SearchDecimation, p.Length / SearchDecimation),
+            White: Slice(white, p.Start / SearchDecimation, p.Length / SearchDecimation))).ToList();
+        var cache = new ConcurrentDictionary<(int Probe, bool White, int N), (double[] Re, double[] Im)>();
+
+        var ranked = new Ranked[library.Count];
+        Parallel.For(0, library.Count, new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Math.Min(8, Environment.ProcessorCount)) }, i =>
         {
-            Console.WriteLine($"nothing scores {MinScore:0.0} or more: the track isn't in these files, or not as the same recording");
-            return null;
-        }
-        return best.File;
+            var e = library[i];
+            double[] Scores(float[] audio, bool w)
+            {
+                var spectrum = new Spectrum(audio);
+                return templates.Select((t, k) =>
+                {
+                    var tt = w ? t.White : t.Plain;
+                    if (tt.Length < 2 || tt.Length > audio.Length) return 0;
+                    var ts = cache.GetOrAdd((k, w, spectrum.Size), key => Spectrum.Transform(tt, key.N));
+                    return Peaks(spectrum.Ncc(tt, ts), 1, rate / SearchDecimation).FirstOrDefault()?.Score ?? 0;
+                }).ToArray();
+            }
+            var p = Scores(e.Plain, false);
+            var wh = Scores(e.White, true);
+            double mp = Median(p), mw = Median(wh);
+            ranked[i] = new Ranked(e.File, mp, mw, mw > mp ? wh : p);
+        });
+        return ranked.OrderByDescending(r => r.Score).ToList();
     }
 
     /// <summary>The files the mod.jsons under <paramref name="dir"/> map game track <paramref name="number"/> to.</summary>
@@ -222,27 +433,39 @@ internal static class MatchCommand
     /// </summary>
     private static List<Chunk> MatchChunks(Signals sig, List<(long Start, long Length)> chunks)
     {
+        // The coarse correlations are the work: all at once, then each chunk picked in order with the one before as its hint.
+        var peaks = new List<Candidate>[chunks.Count];
+        Parallel.For(0, chunks.Count, new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Math.Min(6, Environment.ProcessorCount)) },
+            i => peaks[i] = CoarsePeaks(sig, chunks[i].Start, chunks[i].Length));
         var result = new List<Chunk>();
         double? previous = null;
-        foreach (var (start, length) in chunks)
+        for (int i = 0; i < chunks.Count; i++)
         {
-            var c = Find(sig, start, length, previous);
+            var c = Find(sig, chunks[i].Start, chunks[i].Length, previous, peaks[i]);
             result.Add(c);
             if (c.Kind != ChunkKind.Silent) previous = c.Kind == ChunkKind.Matched ? c.Delta : null;
         }
         return result;
     }
 
+    /// <summary>The best few coarse lags for a stretch of the track; null when it's silent or can't be placed.</summary>
+    private static List<Candidate> CoarsePeaks(Signals sig, long start, long length)
+    {
+        if (Silent(sig.Game, start, length)) return null;
+        var template = Slice(sig.CoarseGame, start / Decimation, length / Decimation);
+        if (template.Length < 2 || length > sig.Audio.Length) return null;
+        return Peaks(sig.Spectrum.Ncc(template), 4, sig.Rate / Decimation);
+    }
+
     /// <summary>
     /// A stretch of the game's track found in the file: the best few coarse lags, the one at <paramref name="hint"/>
     /// (a delta) when it's nearly as good (a loop played twice matches twice), refined to the sample.
     /// </summary>
-    private static Chunk Find(Signals sig, long start, long length, double? hint)
+    private static Chunk Find(Signals sig, long start, long length, double? hint, List<Candidate> peaks = null)
     {
         if (Silent(sig.Game, start, length)) return new Chunk(start, length, ChunkKind.Silent, 0, 0);
-        var template = Slice(sig.CoarseGame, start / Decimation, length / Decimation);
-        if (template.Length < 2 || length > sig.Audio.Length) return new Chunk(start, length, ChunkKind.Unmatched, 0, 0);
-        var peaks = Peaks(sig.Spectrum.Ncc(template), 4, sig.Rate / Decimation);
+        peaks ??= CoarsePeaks(sig, start, length);
+        if (peaks == null) return new Chunk(start, length, ChunkKind.Unmatched, 0, 0);
         var pick = peaks.FirstOrDefault();
         if (pick != null && hint is double h)
         {
@@ -398,7 +621,7 @@ internal static class MatchCommand
     /// next to the loop's end in the file (the file plays on past the loop's end then, which is what the
     /// crossfade wants from a file that plays the loop again).
     /// </summary>
-    private static void Suggest(ImusSound sound, Signals sig, string file, int number, string name)
+    private static (List<string> Fields, List<string> Notes) Suggest(ImusSound sound, Signals sig, string file)
     {
         var chunks = sig.Chunks;
         int rate = sig.Rate;
@@ -410,7 +633,7 @@ internal static class MatchCommand
         var loop = sound.Jumps.FirstOrDefault(j => j.Hook == 0 && sound.ToFrame(j.Destination) < sound.ToFrame(j.Offset) && sound.ToFrame(j.Offset) > playStart);
 
         var notes = new List<string>();
-        var fields = new List<string> { $"\"file\": \"{Path.GetFileName(file)}\"" };
+        var fields = new List<string> { $"\"file\": {Json(Path.GetFileName(file))}" };
         double? start = Point(sig, playStart, false);
         if (start is double s) fields.Add($"\"start\": \"{Clock(Math.Max(0, s))}\"");
         else if (chunks.Where(c => c.Kind == ChunkKind.Matched).MinBy(c => Math.Abs(c.Start - playStart)) is { } near && playStart + near.Delta < 0)
@@ -447,11 +670,7 @@ internal static class MatchCommand
         }
         if (sound.Jumps.Any(j => j.Hook != 0)) notes.Add("the jumps with a hook (transitions the scripts pick) have no place in a mod's entry");
 
-        string key = Directory.GetParent(file) is { } dir && File.Exists(Path.Combine(dir.FullName, "mod.json"))
-            ? ModKeys(Path.Combine(dir.FullName, "mod.json"), number).Select(k => k.Key).FirstOrDefault() ?? name : name;
-        Console.WriteLine("for mod.json:");
-        Console.WriteLine($"  \"{key}\": {{ {string.Join(", ", fields)} }},");
-        foreach (var note in notes) Console.WriteLine($"  note: {note}");
+        return (fields, notes);
     }
 
     // ---- signals ----
@@ -514,14 +733,14 @@ internal static class MatchCommand
         return d;
     }
 
-    private static float[] Decimate(float[] src)
+    private static float[] Decimate(float[] src, int by = Decimation)
     {
-        var dst = new float[src.Length / Decimation];
+        var dst = new float[src.Length / by];
         for (int i = 0; i < dst.Length; i++)
         {
             float sum = 0;
-            for (int k = 0; k < Decimation; k++) sum += src[i * Decimation + k];
-            dst[i] = sum / Decimation;
+            for (int k = 0; k < by; k++) sum += src[i * by + k];
+            dst[i] = sum / by;
         }
         return dst;
     }
@@ -562,11 +781,14 @@ internal static class MatchCommand
         private readonly double[] _re, _im, _energy;   // _energy[i]: sum of squares of the signal's first i samples
         private readonly int _length;
 
+        /// <summary>The FFT's size: the signal's length, to a power of two (a lag that fits never wraps round).</summary>
+        public int Size => _n;
+
         public Spectrum(float[] signal)
         {
             _length = signal.Length;
             _n = 1;
-            while (_n < signal.Length * 2) _n <<= 1;
+            while (_n < signal.Length) _n <<= 1;
             _re = new double[_n];
             _im = new double[_n];
             _energy = new double[signal.Length + 1];
@@ -578,25 +800,30 @@ internal static class MatchCommand
             Fft(_re, _im, false);
         }
 
-        public double[] Ncc(float[] template)
+        /// <summary>A template's spectrum at size <paramref name="n"/>, to reuse against signals of that size.</summary>
+        public static (double[] Re, double[] Im) Transform(float[] template, int n)
+        {
+            var re = new double[n];
+            var im = new double[n];
+            for (int i = 0; i < template.Length; i++) re[i] = template[i];
+            Fft(re, im, false);
+            return (re, im);
+        }
+
+        public double[] Ncc(float[] template, (double[] Re, double[] Im)? transformed = null)
         {
             int lags = _length - template.Length + 1;
             if (lags <= 0) return [];
+            var (tre, tim) = transformed ?? Transform(template, _n);
+            double energy = 0;
+            foreach (float t in template) energy += t * (double)t;
+            // The signal's spectrum times the template's conjugate: their correlation.
             var re = new double[_n];
             var im = new double[_n];
-            double energy = 0;
-            for (int i = 0; i < template.Length; i++)
-            {
-                re[i] = template[i];
-                energy += template[i] * (double)template[i];
-            }
-            Fft(re, im, false);
-            // The signal's spectrum times the template's conjugate: their correlation.
             for (int i = 0; i < _n; i++)
             {
-                double r = _re[i] * re[i] + _im[i] * im[i], m = _im[i] * re[i] - _re[i] * im[i];
-                re[i] = r;
-                im[i] = m;
+                re[i] = _re[i] * tre[i] + _im[i] * tim[i];
+                im[i] = _im[i] * tre[i] - _re[i] * tim[i];
             }
             Fft(re, im, true);
             var ncc = new double[lags];
