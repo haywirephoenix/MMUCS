@@ -68,7 +68,8 @@ public sealed class MixerVoice
     }
 
     /// <summary>Adds up to frames of this voice into <paramref name="mix"/>. Returns false once it is over.</summary>
-    internal bool MixInto(Span<float> mix, Span<float> scratch, int frames, float groupVolume)
+    /// <remarks>Its group's volume goes from <paramref name="groupFrom"/> to <paramref name="groupTo"/> over the block, so a slider or ducking doesn't click.</remarks>
+    internal bool MixInto(Span<float> mix, Span<float> scratch, int frames, float groupFrom, float groupTo)
     {
         if (_stopRequested) return false;
         if (Paused) return true;
@@ -77,7 +78,7 @@ public sealed class MixerVoice
         // Equal-power pan: centre is −3 dB on each side.
         float angle = (Math.Clamp(Pan, -1f, 1f) + 1f) * MathF.PI / 4f;
         float panL = MathF.Cos(angle) * MathF.Sqrt(2f), panR = MathF.Sin(angle) * MathF.Sqrt(2f);
-        float vol = _volume * groupVolume;
+        float groupStep = frames > 0 ? (groupTo - groupFrom) / frames : 0f;
 
         lock (_lock)
         {
@@ -88,7 +89,7 @@ public sealed class MixerVoice
                     _fadeDone++;
                     _gain = _fadeFrom + (_fadeTo - _fadeFrom) * _fadeDone / _fadeFrames;
                 }
-                float g = vol * _gain;
+                float g = _volume * (groupFrom + groupStep * (i + 1)) * _gain;
                 mix[i * 2] += scratch[i * 2] * g * panL;
                 mix[i * 2 + 1] += scratch[i * 2 + 1] * g * panR;
             }
@@ -108,6 +109,9 @@ public sealed class Mixer(int sampleRate = 44100)
     private readonly List<MixerVoice> _voices = [];
     private readonly object _lock = new();
     private readonly float[] _groupVolume = [1f, 1f, 1f, 1f];
+    // The group volumes the last block ended on: the next one ramps from them to the current ones.
+    private readonly float[] _groupApplied = [1f, 1f, 1f, 1f];
+    private readonly float[] _groupTarget = new float[4];
     private float[] _scratch = new float[4096];
     // Reused every block, so mixing allocates nothing (it runs on the audio thread ~43 times a second).
     private MixerVoice[] _mixing = new MixerVoice[8];
@@ -169,13 +173,18 @@ public sealed class Mixer(int sampleRate = 44100)
             _voices.CopyTo(_mixing);
         }
 
+        // The group volumes as they are now (set from other threads), ramped to over this block.
+        for (int g = 0; g < _groupTarget.Length; g++) _groupTarget[g] = _groupVolume[g];
+
         // A voice writes the scratch frames it then reads, so the scratch needs no clearing.
         for (int i = 0; i < count; i++)
         {
             var v = _mixing[i];
-            if (!v.MixInto(stereo, _scratch, frames, _groupVolume[(int)v.Group]))
+            int g = (int)v.Group;
+            if (!v.MixInto(stereo, _scratch, frames, _groupApplied[g], _groupTarget[g]))
                 _ended.Add(v);
         }
+        for (int g = 0; g < _groupTarget.Length; g++) _groupApplied[g] = _groupTarget[g];
         Array.Clear(_mixing, 0, count); // don't keep stopped voices (and their sound) alive
         if (_ended.Count > 0)
         {
