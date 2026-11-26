@@ -66,7 +66,10 @@ public sealed partial class AkosViewModel : ObservableObject
     [ObservableProperty] public partial ChoreNode SelectedChoreNode { get; set; }
     [ObservableProperty] public partial bool IsPlaying { get; set; }
     [ObservableProperty] public partial double Fps { get; set; } = 10;
-    /// <summary>While playing, also show the animation in the Room viewer where the room places this costume.</summary>
+    /// <summary>
+    /// Also show what's shown here in the Room viewer, where the room places this costume: the animation while it
+    /// plays, the chore's frame, step or cel selected (a cel where the first step that draws it puts it).
+    /// </summary>
     [ObservableProperty] public partial bool PlayInPlace { get; set; } = true;
 
     /// <summary>A frame played in place, in the palette this viewer shows (null when playback in place ends).</summary>
@@ -86,6 +89,19 @@ public sealed partial class AkosViewModel : ObservableObject
         LiveFrameChanged?.Invoke(Block, AkosFrames.ComposeAfterInit(Akos, _frameChore, step), PaletteIndex);
     }
 
+    /// <summary>Sends a frame shown here (a step, a cel) to be shown in place, when that's on.</summary>
+    private void SendLiveFrame(AkosFrame frame)
+    {
+        if (Akos == null || !PlayInPlace || frame is not { IsEmpty: false })
+        {
+            ClearLiveFrame();
+            return;
+        }
+
+        _liveShown = true;
+        LiveFrameChanged?.Invoke(Block, frame, PaletteIndex);
+    }
+
     private void ClearLiveFrame()
     {
         if (!_liveShown)
@@ -100,7 +116,21 @@ public sealed partial class AkosViewModel : ObservableObject
     partial void OnPlayInPlaceChanged(bool value)
     {
         if (!value) ClearLiveFrame();
-        else if (IsPlaying) SendLiveFrame(_playPos);
+        else if (_frameChore >= 0) SendLiveFrame(_playPos);
+        else if (_shownStep >= 0) SendLiveFrame(StepFrame(_shownStep));
+        else if (SelectedCel is { } cel) SendLiveFrame(AkosFrames.CelInPlace(Akos, cel.Index, _lastChore));
+    }
+
+    /// <summary>The step shown (a chore node's step), or -1; the chore last shown, which a cel is placed by first.</summary>
+    private int _shownStep = -1, _lastChore = -1;
+
+    /// <summary>One step of one limb: its cels, at their offsets.</summary>
+    private AkosFrame StepFrame(int pos)
+    {
+        var frame = new AkosFrame();
+        int xm = 0, ym = 0;
+        if (Akos != null) AkosFrames.AddStep(Akos, pos, frame, ref xm, ref ym);
+        return frame;
     }
 
     public ObservableCollection<CelItem> Cels { get; } = [];
@@ -144,6 +174,7 @@ public sealed partial class AkosViewModel : ObservableObject
         }
 
         Stop();
+        _shownStep = _lastChore = -1;
 
         Block = akosBlock;
         Title = $"AKOS @0x{akosBlock.Offset:X8}";
@@ -264,7 +295,9 @@ public sealed partial class AkosViewModel : ObservableObject
     partial void OnSelectedCelChanged(CelItem value)
     {
         _frameChore = -1;
+        _shownStep = -1;
         _ = RefreshCelAsync();
+        if (value != null && Akos != null && PlayInPlace) SendLiveFrame(AkosFrames.CelInPlace(Akos, value.Index, _lastChore));
     }
 
     private bool _suppressPaletteReload;
@@ -285,15 +318,18 @@ public sealed partial class AkosViewModel : ObservableObject
         Stop();
         if (value.StepPos >= 0)
         {
-            // One step of one limb: its cels, at their offsets.
-            var frame = new AkosFrame();
-            int xm = 0, ym = 0;
-            AkosFrames.AddStep(Akos, value.StepPos, frame, ref xm, ref ym);
+            var frame = StepFrame(value.StepPos);
+            _frameChore = -1;
+            _shownStep = value.StepPos;
+            if (ChoreOf(value) is int owner and >= 0) _lastChore = owner;
             ShowFrame(frame, null, $"Step 0x{value.StepPos:X4}");
+            SendLiveFrame(frame);
         }
         else if (ChoreOf(value) is int chore and >= 0)
         {
             _frameChore = chore;
+            _lastChore = chore;
+            _shownStep = -1;
             _frameBounds = AkosFrames.CycleBounds(Akos, chore, AkosFrames.CycleLength(Akos, chore));
             ShowChoreFrame(0);
         }
@@ -313,7 +349,7 @@ public sealed partial class AkosViewModel : ObservableObject
         }
 
         var frame = AkosFrames.Compose(Akos, _frameChore, step);
-        if (IsPlaying && PlayInPlace)
+        if (PlayInPlace)
         {
             SendLiveFrame(step);
         }
