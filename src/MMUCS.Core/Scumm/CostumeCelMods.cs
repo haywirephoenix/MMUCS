@@ -84,6 +84,24 @@ public sealed class CostumeCelMods
         return cels;
     }
 
+    /// <summary>
+    /// Saves cels' offsets (by file name, "cel_037") to the meta.json of the costume folder
+    /// <paramref name="folder"/>, keeping the other cels and fields it has.
+    /// </summary>
+    public static void SaveOffsets(string folder, IReadOnlyDictionary<string, (int X, int Y)> offsets)
+    {
+        string meta = Path.Combine(folder, MetaFile);
+        var root = GameMods.ReadForEdit(meta);
+        if (root["cels"] is not System.Text.Json.Nodes.JsonObject cels) root["cels"] = cels = [];
+        foreach (var (name, at) in offsets)
+            cels[Path.GetFileNameWithoutExtension(name)] = new System.Text.Json.Nodes.JsonObject { ["x"] = at.X, ["y"] = at.Y };
+        // In cel order, so the file reads like the folder.
+        var sorted = cels.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => (kv.Key, kv.Value?.DeepClone())).ToList();
+        cels.Clear();
+        foreach (var (key, value) in sorted) cels[key] = value;
+        GameMods.WriteEdited(meta, root);
+    }
+
     /// <summary>The costume folder's meta.json offsets by cel file name ("cel_037").</summary>
     private Dictionary<string, (int? X, int? Y)> ReadOffsets(GameMods.Mod mod, string dir)
     {

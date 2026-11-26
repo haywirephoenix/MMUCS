@@ -73,4 +73,19 @@ public static class GameMods
         string name = Path.GetFileName(file);
         return Directory.EnumerateFiles(under, name, SearchOption.AllDirectories).Order(StringComparer.Ordinal).FirstOrDefault();
     }
+
+    /// <summary>Reads a JSON object file for editing, or a new object when it's missing or isn't one.</summary>
+    internal static System.Text.Json.Nodes.JsonObject ReadForEdit(string path)
+    {
+        if (!File.Exists(path)) return [];
+        try
+        {
+            return System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path), documentOptions: new JsonDocumentOptions
+                { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) as System.Text.Json.Nodes.JsonObject ?? [];
+        }
+        catch (JsonException) { return []; }
+    }
+
+    internal static void WriteEdited(string path, System.Text.Json.Nodes.JsonObject root) =>
+        File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
 }

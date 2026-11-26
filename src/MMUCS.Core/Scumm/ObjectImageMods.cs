@@ -60,6 +60,19 @@ public sealed class ObjectImageMods
         return null;
     }
 
+    /// <summary>
+    /// Saves where a mod's image goes (its top-left in the room) to the .meta.json beside its PNG, keeping
+    /// anything else the file has; it's read again from then on.
+    /// </summary>
+    public static void SavePlace(Image image, int x, int y)
+    {
+        string meta = Path.ChangeExtension(image.File, ".meta.json");
+        var root = GameMods.ReadForEdit(meta);
+        root["x"] = x;
+        root["y"] = y;
+        GameMods.WriteEdited(meta, root);
+    }
+
     /// <summary>Where a .meta.json beside <paramref name="png"/> puts it (x, y), or nulls.</summary>
     private (int? X, int? Y) Place(GameMods.Mod mod, string png)
     {
