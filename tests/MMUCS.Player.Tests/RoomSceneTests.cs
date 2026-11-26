@@ -112,6 +112,45 @@ public class RoomSceneTests
         Assert.Equal(room1.GetPixel(748 - 427 + 600, 300), middle.GetPixel(600, 300));
     }
 
+    [Fact]
+    public async Task Haggis_caber_is_widened_with_the_part_left_of_the_640_screen_from_his_throw_s_last_frame()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        var room = Room(root, 22);
+        var caber = room.Objects.Single(o => o.Name == "clring-a-haggis-caber");
+        var guybrush = room.Objects.Single(o => o.Name == "clring-a-guybrush-caber");
+        Assert.Equal((432, 392, 32, 64), (caber.X, caber.Y, caber.Width, caber.Height)); // the end at the screen's edge
+
+        var scene = await RoomSceneBuilder.BuildIndexedAsync(room, o => o == caber || o == guybrush ? 1 : 0);
+        var widened = scene.Objects.Single(o => o.Object == caber);
+        var surface = widened.Surface;
+        // Costume 140's cel 48 at Haggis' 788,411 starts at 236,226; the image runs to the object's right edge.
+        Assert.Equal((236, 226), (widened.X, widened.Y));
+        Assert.Equal((464, 456), (widened.X + surface.Width, widened.Y + surface.Height));
+        byte At(int x, int y) => surface.Pixels[(y - widened.Y) * surface.Pitch + x - widened.X];
+        // The caber lies across 236–432 at about y 400–420, and nothing of Haggis (from x 627) comes along.
+        int caberPixels = 0;
+        for (int y = 392; y < 456; y++)
+            for (int x = 236; x < 432; x++)
+                if (At(x, y) != widened.Transparent) caberPixels++;
+        Assert.True(caberPixels > 2000, $"{caberPixels} caber pixels left of the screen");
+        for (int y = 226; y < 392; y++)
+            for (int x = 236; x < 432; x++)
+                Assert.Equal(widened.Transparent, At(x, y));
+
+        // The object's own image is unchanged where it is, and Guybrush's caber isn't widened.
+        var original = (await ObimCache.GetCachedObimAsync(caber.Block, 0, RoomSceneBuilder.PaletteOf(room, caber), bakeImage: false, default)).Surface;
+        for (int y = 0; y < original.Height; y++)
+            for (int x = 0; x < original.Width; x++)
+            {
+                byte v = original.Pixels[y * original.Pitch + x];
+                if (v != widened.Transparent) Assert.Equal(v, At(caber.X + x, caber.Y + y));
+            }
+        var other = scene.Objects.Single(o => o.Object == guybrush);
+        Assert.Equal((guybrush.X, guybrush.Y, guybrush.Width), (other.X, other.Y, other.Surface.Width));
+    }
+
     private static RoomModel Room(ScummBlock root, int number)
     {
         foreach (var lflf in root.FindChildrenRecursive(ScummTag.LFLF))
