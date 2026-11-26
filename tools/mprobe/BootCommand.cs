@@ -106,7 +106,16 @@ static class BootCommand
             music.Changed += what => Line($"MUSIC {what}", vm.Depth);
         }
         else Console.WriteLine("no comi.exe beside the game: the music isn't followed");
-        vm.SoundKludge = MMUCS.Runtime.ScriptedGame.SoundKludge(effects, voice, music, musicOutput);
+        var groups = new MMUCS.Runtime.Sound.SoundGroups();
+        var soundKludge = MMUCS.Runtime.ScriptedGame.SoundKludge(effects, voice, music, musicOutput, groups);
+        vm.SoundKludge = list =>
+        {
+            bool done = soundKludge(list);
+            if (list is [>= MMUCS.Runtime.Sound.SoundGroups.SetEffectsCommand and <= MMUCS.Runtime.Sound.SoundGroups.SetMusicCommand, ..])
+                Line($"VOLUME effects {groups.Effects}, voice {groups.Voice}, music {groups.Music}", vm.Depth);
+            return done;
+        };
+        vm.GroupVolume = groups.Get;
         var sounds = MMUCS.Runtime.ScriptedGame.FollowSaves(loop, effects, voice, music);
         // The F1 menu's save slots and registry settings: a folder given, or none (empty slots, the registry's defaults).
         if (savesDir != null)
