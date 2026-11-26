@@ -141,6 +141,8 @@ public sealed partial class RoomViewModel : ObservableObject
     private ImageSet _loadImages;
     private ImageSet _maskImages;
     private ImageSet _liveImages;
+    /// <summary>Placed costumes redrawn since that load while a mod cel's offset is edited (<see cref="PreviewCelOffset"/>).</summary>
+    private ImageSet _editImages;
     /// <summary>Object images swapped in since that load by a state change.</summary>
     private readonly Dictionary<RoomObject, ImageSet> _stateImages = [];
     /// <summary>
@@ -153,7 +155,7 @@ public sealed partial class RoomViewModel : ObservableObject
     private void PublishImages()
     {
         var sets = new List<ImageSet>();
-        foreach (var set in new[] { _background.Set, _loadImages, _maskImages, _liveImages })
+        foreach (var set in new[] { _background.Set, _loadImages, _maskImages, _liveImages, _editImages })
         {
             if (set != null) sets.Add(set);
         }
@@ -863,6 +865,43 @@ public sealed partial class RoomViewModel : ObservableObject
         ObjectLayers = [.. ObjectLayers.Select(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly ? l with { ImageX = x, ImageY = y } : l)];
     }
 
+    /// <summary>
+    /// Moves cel <paramref name="cel"/>'s mod cel to offset <paramref name="x"/>,<paramref name="y"/> in the room's own
+    /// copy of the costume in <paramref name="akos"/>, and draws again every place the room puts that costume
+    /// (unsaved: the next reload reads meta.json).
+    /// </summary>
+    public void PreviewCelOffset(ScummBlock akos, int cel, int x, int y)
+    {
+        if (ObjectLayers == null || ModdedCostume(akos) is not { } modded) return;
+        lock (modded)
+        {
+            if (modded.ModCels?.GetValueOrDefault(cel) is not { } mod) return;
+            modded.ModCels = new Dictionary<int, AkosModCel>(modded.ModCels) { [cel] = mod with { OffsetX = x, OffsetY = y } };
+        }
+
+        var set = new ImageSet();
+        var redrawn = new Dictionary<RoomObject, (SKImage Image, int X, int Y)>();
+        foreach (var (actor, target) in _actorTargets)
+        {
+            if (!ReferenceEquals(actor.Akos, akos) || !actor.CanDraw) continue;
+            try
+            {
+                if (ModdedFrame(actor, modded, CancellationToken.None) is var (image, fx, fy))
+                    redrawn[target] = (set.Add(image.ToSkImage()), fx, fy);
+            }
+            catch (Exception ex) { Log.Warn($"Costume {actor.Costume}: {ex.Message}"); }
+        }
+        if (redrawn.Count == 0)
+        {
+            set.Release();
+            return;
+        }
+
+        ObjectLayers = [.. ObjectLayers.Select(l => l.CostumeImage != null && redrawn.TryGetValue(l.Object, out var r)
+            ? l with { CostumeImage = r.Image, CostumeX = r.X, CostumeY = r.Y } : l)];
+        ReplaceImages(ref _editImages, set);
+    }
+
     /// <summary>Reads the mods again and reloads the room's images (after a mod's place is saved).</summary>
     public void ReloadModImages()
     {
@@ -1385,7 +1424,8 @@ public sealed partial class RoomViewModel : ObservableObject
 
             // Everything shown now is this load's (or the room's background): the earlier load's images,
             // state changes and the previous room's sets can go.
-            var stale = new List<ImageSet>(_retiredImages) { _loadImages };
+            var stale = new List<ImageSet>(_retiredImages) { _loadImages, _editImages };
+            _editImages = null;
             stale.AddRange(_stateImages.Values);
             if (!ReferenceEquals(_background.Room, room))
             {

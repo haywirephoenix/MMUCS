@@ -756,13 +756,19 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             int number = cel.Index;
             var costume = Costume.Akos; // a change put back after another costume loaded leaves that one alone
+            var block = Costume.Block;
             if (Costume.SelectedModCel is { } mod)
             {
                 string folder = Path.GetDirectoryName(mod.File);
                 position.Show($"Cel {number}: {Path.GetFileName(mod.File)} from the mods",
                     $"Its top-left from the game cel's; saved to {Path.GetFileName(folder)}/meta.json",
                     true, mod.OffsetX, mod.OffsetY,
-                    (x, y) => { if (ReferenceEquals(Costume.Akos, costume)) Costume.PreviewCelOffset(number, x, y); },
+                    (x, y) =>
+                    {
+                        if (!ReferenceEquals(Costume.Akos, costume)) return;
+                        Costume.PreviewCelOffset(number, x, y);
+                        Room.PreviewCelOffset(block, number, x, y); // where the room places the costume, too
+                    },
                     (x, y) =>
                     {
                         CostumeCelMods.SaveOffsets(folder, new Dictionary<string, (int, int)> { [Path.GetFileName(mod.File)] = (x, y) });
