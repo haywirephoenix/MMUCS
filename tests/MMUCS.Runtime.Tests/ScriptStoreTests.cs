@@ -185,4 +185,20 @@ public class ScriptStoreTests(ITestOutputHelper output)
         }
         finally { Directory.Delete(dir, true); }
     }
+
+    [Fact]
+    public void An_actor_keeps_the_elevation_the_room_it_comes_from_gives_it_where_the_next_room_leaves_it_alone()
+    {
+        if (Game == null) return;
+        RoomModel Room(int number) => Root.Value.FindChildrenRecursive(ScummTag.LFLF)
+            .Select(l => RoomModel.TryCreate(l, out var r) ? r : null).First(r => r?.RoomNo == number);
+
+        // The barber shop puts Haggis (actor 3) at elevation -30. Its local 2020 chains to global 197, which enters
+        // the clearing without a default for him; the clearing's local 2001 dresses and puts him there with none
+        // of its own, so he's drawn 30 px lower than 411, as the game draws him.
+        var barber = RoomActors.Analyze(Room(21)).Single(a => a.Actor == 3 && a.Costume == 111);
+        Assert.Equal(-30, barber.Elevation);
+        var haggis = RoomActors.Analyze(Room(22)).Single(a => a.Actor == 3 && a.Costume == 140);
+        Assert.Equal((788, 411, -30, 441), (haggis.X, haggis.Y, haggis.Elevation, haggis.DrawY));
+    }
 }
