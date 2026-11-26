@@ -85,7 +85,6 @@ public sealed class ComiMusic(MusicTable table, IMusicOutput output)
             case SetSequenceCommand: SetSequence(arg); return true;
             case SetCuePointCommand: return true; // FT's (early iMUSE) only
             case SetAttributeCommand: return true; // The Dig's only: COMI's attributes come from its tables
-            case 0x2000 or 0x2001 or 0x2002: return true; // the group volumes from the player's settings
             default: return false;
         }
     }

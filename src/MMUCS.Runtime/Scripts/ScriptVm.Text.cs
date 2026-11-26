@@ -89,6 +89,12 @@ public sealed partial class ScriptVm
     /// </summary>
     public Func<string, int> AskSystem { get; set; }
 
+    /// <summary>
+    /// <c>kernel-get</c> 221, 222 and 223: the effects', voice's and music's iMUSE group volume (0…127), which
+    /// the F1 menu places its sliders by. Null answers full volume.
+    /// </summary>
+    public Func<int, int?> GroupVolume { get; set; }
+
     /// <summary>Speech for lines with a tag; without, lines show for their talk delay only.</summary>
     public ISpeech Speech { get; set; }
 
@@ -149,7 +155,7 @@ public sealed partial class ScriptVm
             0xD9 => ActorHit(a1, args.Length > 2 ? args[2] : 0, args.Length > 3 ? args[3] : 0),
             0x73 => Actors.BoxAt(a1, args.Length > 2 ? args[2] : 0), // getWalkBoxAt
             0x74 or 0xD7 => Actors.IsInBox(args.Length > 3 ? args[3] : -1, a1, args.Length > 2 ? args[2] : 0) ? 1 : 0, // isPointInBox, getBox: x, y, box
-            0xDD or 0xDE or 0xDF => 127, // the effects', voices' and music's volume (255 / 2)
+            0xDD or 0xDE or 0xDF => GroupVolume?.Invoke(args[0]) ?? 127, // the effects', voices' and music's volume (full: 255 / 2)
             0xD3 => KeyState?.Invoke(a1) == true ? 1 : 0, // getKeyState: the cannon's and the ship's Tab, the ship's arrows
             0xE0 => RegistryValue(a1),
             _ => null,

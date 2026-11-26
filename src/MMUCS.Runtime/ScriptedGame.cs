@@ -63,6 +63,7 @@ public sealed class ScriptedGame : IDisposable
         MusicOutput?.Mixer = mixer;
         Effects?.Mixer = mixer;
         Voice?.Mixer = mixer;
+        Groups?.Mixer = mixer;
     }
 
     /// <summary>
@@ -93,6 +94,9 @@ public sealed class ScriptedGame : IDisposable
 
     /// <summary>The sound effects the scripts start.</summary>
     public SoundEffects Effects { get; private set; }
+
+    /// <summary>The F1 menu's effects, voice and music volumes (iMUSE's groups), and the music's ducking under speech.</summary>
+    public SoundGroups Groups { get; private set; }
 
     /// <summary>The music the scripts ask for (null without the game's program, which holds COMI's music tables).</summary>
     public ComiMusic Music { get; private set; }
@@ -449,12 +453,15 @@ public sealed class ScriptedGame : IDisposable
         Vm.Said += (text, tag, actor) => Log.Info($"Game: {(actor == 0xFF ? "line" : $"actor {actor}")}{(tag.Length > 0 ? $" ({tag})" : "")}: {text}");
         var music = Music;
         var musicOutput = MusicOutput;
-        Vm.SoundKludge = SoundKludge(effects, voice, music, musicOutput);
+        var groups = Groups = new SoundGroups { Mixer = _mixer };
+        Vm.SoundKludge = SoundKludge(effects, voice, music, musicOutput, groups);
+        Vm.GroupVolume = groups.Get;
         // iMUSE's refresh, once a frame after everything else (ScummVM scummLoop_handleSound).
         Loop.AfterScripts += jiffies =>
         {
             effects.Update(jiffies);
             voice.Update(jiffies);
+            groups.Update(jiffies, voice.IsPlaying);
             musicOutput?.Update();
             music?.Refresh();
         };
@@ -489,17 +496,17 @@ public sealed class ScriptedGame : IDisposable
     }
 
     /// <summary>
-    /// <c>sound-kludge</c> as Digital iMUSE takes it: the effects' commands, then the music's. Stop-all stops
-    /// every iMUSE sound: the effects, the music and the speech.
+    /// <c>sound-kludge</c> as Digital iMUSE takes it: the effects' commands, then the music's, then the group
+    /// volumes. Stop-all stops every iMUSE sound: the effects, the music and the speech.
     /// </summary>
-    public static Func<int[], bool> SoundKludge(SoundEffects effects, VoicePlayer voice, ComiMusic music, IMusicOutput musicOutput) => list =>
+    public static Func<int[], bool> SoundKludge(SoundEffects effects, VoicePlayer voice, ComiMusic music, IMusicOutput musicOutput, SoundGroups groups) => list =>
     {
         if (list is [SoundEffects.StopAllCommand, ..])
         {
             musicOutput?.FadeOut(0);
             voice?.Stop();
         }
-        return effects.Command(list) || music?.Command(list) == true;
+        return effects.Command(list) || music?.Command(list) == true || groups.Command(list);
     };
 
     /// <summary>
