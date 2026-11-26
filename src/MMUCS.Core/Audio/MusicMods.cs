@@ -24,7 +24,8 @@ namespace MMUCS.Core.Audio;
 /// when it loops, jumps from loopEnd (the end) back to loopStart (the start), crossfading over fadeMs into the
 /// audio after loopEnd. Without "loop" it loops when the game's track does: an interlude that ends by running
 /// out (2105-Interlude1) has to end here too, or the scripts' music after it never comes. Its "_end" marker (where a sequence gives way to the state's music) is at loopEnd.
-/// A blank value is a track still to be mapped, and a key without a track number (music baked into a cutscene,
+/// Other fields are ignored (mprobe match all leaves its "score" and "notes" there). A blank value, or an object
+/// whose "file" is blank, is a track still to be mapped, and a key without a track number (music baked into a cutscene,
 /// "opening.san title") is kept for later; both are skipped. A mod.json with "enabled": false is skipped too;
 /// where two mods map one track, the folder first by name wins.
 /// </summary>
@@ -85,8 +86,10 @@ public sealed class MusicMods
             // Keys without a track number (music baked into a cutscene: "opening.san title") aren't played yet.
             if (digits == 0 || !int.TryParse(p.Name.AsSpan(0, digits), out int number)) continue;
             var v = p.Value;
-            // A blank entry is a track still to be mapped.
+            // A blank entry, or one whose file is blank, is a track still to be mapped.
             if (v.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(v.GetString())) continue;
+            if (v.ValueKind == JsonValueKind.Object &&
+                (!v.TryGetProperty("file", out var named) || named.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(named.GetString()))) continue;
             Track track = v.ValueKind == JsonValueKind.String
                 ? new Track(mod, Path.Combine(dir, v.GetString()), 0, null, null, null, null, 500)
                 : new Track(mod, Path.Combine(dir, v.GetProperty("file").GetString()),
