@@ -5,7 +5,8 @@ using MMUCS.Benchmarks;
 //   dotnet run -c Release --project tests/MMUCS.Benchmarks -- <benchmark|all> [path/to/COMI.LA0]
 //
 // The game comes from the second argument or the MMUCS_GAME environment variable. Run in Release:
-// Debug builds time very differently. "all" runs every benchmark except audio (it plays sound).
+// Debug builds time very differently. "all" runs every benchmark except audio (it plays sound)
+// and replay (it plays a whole recording; options after the game: --file F, --presents N, --no-smooth, --every S, --seconds S, --collect, --draw, --fast).
 
 var benchmarks = new (string Name, string About, Action Run)[]
 {
@@ -16,12 +17,13 @@ var benchmarks = new (string Name, string About, Action Run)[]
     ("memory", "room images freed as rooms change, and peak memory", RoomMemory.Run),
     ("library", "room 3 (an image library): opening, lazy icons, toggles over Full-screen objects", RoomMemory.RunLibrary),
     ("tree", "the hierarchy: per-row work, and unfolding a large room with and without colours", Hierarchy.Run),
+    ("replay", "a game window recording drawn as the window draws it: frame costs and memory per room", GameReplay.Run),
     ("audio", "the sound device: reading the play position, clock against real time (plays sound)", Audio.Run),
 };
 
 string name = args.Length > 0 ? args[0] : null;
 string game = args.Length > 1 ? args[1] : Environment.GetEnvironmentVariable("MMUCS_GAME");
-var chosen = name == "all" ? benchmarks.Where(b => b.Name != "audio").ToArray() : benchmarks.Where(b => b.Name == name).ToArray();
+var chosen = name == "all" ? benchmarks.Where(b => b.Name is not ("audio" or "replay")).ToArray() : benchmarks.Where(b => b.Name == name).ToArray();
 if (chosen.Length == 0 || string.IsNullOrEmpty(game) || !File.Exists(game))
 {
     Console.WriteLine("usage: MMUCS.Benchmarks <benchmark|all> [path/to/COMI.LA0]   (or set MMUCS_GAME)");
