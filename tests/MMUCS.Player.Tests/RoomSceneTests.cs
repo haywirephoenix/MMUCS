@@ -32,6 +32,64 @@ public class RoomSceneTests
         return bitmap;
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_paletted_room_draws_as_the_coloured_one_in_any_colours(bool colourOnCpu)
+    {
+        // On the CPU as the game window's software rendering does, or through the shader as on its GPU.
+        PaletteImages.ColourOnCpu = colourOnCpu;
+        try { PalettedRoom(); }
+        finally { PaletteImages.ColourOnCpu = true; }
+    }
+
+    private static void PalettedRoom()
+    {
+        // A 16×8 room of indices 0–127, an object with a left-out index, and an actor frame in indices.
+        var bg = new IndexedSurface { Width = 16, Height = 8, Pitch = 16, Pixels = [.. Enumerable.Range(0, 128).Select(i => (byte)i)] };
+        var obj = new IndexedSurface { Width = 4, Height = 2, Pitch = 4, Pixels = [200, 201, 202, 203, 204, 9, 206, 207] };
+        var room = new IndexedRoom { Width = 16, Height = 8, Background = bg, Objects = [new IndexedObject(null, obj, 9, 3, 2)] };
+        var actor = new IndexedSurface { Width = 2, Height = 3, Pitch = 2, Pixels = [250, 251, 252, 253, 254, 255] };
+        var random = new Random(3);
+        foreach (var palette in new[] { new byte[768], new byte[768] }.Select(p => { random.NextBytes(p); return p; }))
+        {
+            var colours = Enumerable.Range(0, 256).Select(i => new SKColor(palette[i * 3], palette[i * 3 + 1], palette[i * 3 + 2])).ToArray();
+            using var actorColour = SKImage.FromBitmap(new SKBitmap(2, 3) { Pixels = [.. actor.Pixels.Select(i => colours[i])] });
+            var coloured = room.Colour(palette).WithActors([new SceneActor(actorColour, 10, 4)]);
+            var paletted = room.Paletted(palette).WithActors([new SceneActor(PaletteImages.Indices(actor), 10, 4)]);
+            Assert.Null(coloured.Palette);
+            Assert.NotNull(paletted.Palette);
+            using var a = Draw(coloured);
+            using var b = Draw(paletted);
+            Assert.Equal(a.Pixels, b.Pixels);
+            Assert.Equal(colours[202], b.GetPixel(5, 2));
+            Assert.Equal(colours[16 * 3 + 4], b.GetPixel(4, 3)); // the object's left-out index shows the background
+            Assert.Equal(colours[253], b.GetPixel(11, 5));
+
+            // Drawn smaller than the game (a small window), it blends neighbouring game pixels as a filtered image does
+            // (within Skia's own rounding on the CPU).
+            SKBitmap Small(RoomScene scene)
+            {
+                var bitmap = new SKBitmap(10, 5);
+                using var canvas = new SKCanvas(bitmap);
+                canvas.Clear(SKColors.Black);
+                canvas.Scale(0.6f); // no pixel's centre on an image's edge, where the two may round apart
+                scene.Draw(canvas, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
+                return bitmap;
+            }
+            using var c = Small(coloured);
+            using var d = Small(paletted);
+            for (int y = 1; y < 4; y++)
+                for (int x = 1; x < 9; x++)
+                {
+                    SKColor p = c.GetPixel(x, y), q = d.GetPixel(x, y);
+                    Assert.True(Math.Abs(p.Red - q.Red) <= 10 && Math.Abs(p.Green - q.Green) <= 10 && Math.Abs(p.Blue - q.Blue) <= 10, $"({x},{y}): {p} vs {q}");
+                }
+        }
+        // The index images are made once: a new palette only makes a new strip.
+        Assert.Same(room.Paletted(new byte[768]).Background, room.Paletted(new byte[768]).Background);
+    }
+
     [Fact]
     public void Objects_go_over_the_background_and_actors_over_them_cut_by_their_plane_in_depth_order()
     {

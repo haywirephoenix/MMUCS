@@ -150,8 +150,12 @@ public class ScriptedViewTests
         var room = Assert.IsType<RoomScene>(frame.Room);
         Assert.Equal(game.Vm.Actors.Pictures.Count, room.Actors.Count);
         var ego = Assert.Single(room.Actors, a => a.Actor == 1);
-        using (var pixels = SKBitmap.FromImage(ego.Image))
+        // His frame is in palette indices, drawn through the screen's colours (the scene's palette).
+        Assert.NotNull(room.Palette);
+        using (var pixels = new SKBitmap(ego.Image.Width, ego.Image.Height))
         {
+            using (var canvas = new SKCanvas(pixels))
+                RoomScene.DrawActor(canvas, ego with { X = 0, Y = 0, Shadow = null }, null, new SKSamplingOptions(SKFilterMode.Nearest), palette: room.Palette);
             Assert.Contains(pixels.Pixels, p => p.Alpha > 0); // Guybrush's costume drew something
             // In the colours on the screen, as the engine draws him: room 9's, lit by its lamp (local 2014), not his own RGBS.
             var screen = Assert.IsType<byte[]>(view.ScreenColours);
