@@ -32,6 +32,26 @@ public class RoomSceneTests
         return bitmap;
     }
 
+    [Fact]
+    public void An_actor_is_cut_by_its_plane_once_where_it_stands_and_not_at_all_where_the_plane_is_empty()
+    {
+        // A plane over x 8–15 of a 32×8 room, and a 4×4 frame.
+        var hides = new byte[32 * 8];
+        for (int y = 0; y < 8; y++)
+            for (int x = 8; x < 16; x++) hides[y * 32 + x] = 255;
+        using var mask = SKImage.FromPixelCopy(new SKImageInfo(32, 8, SKColorType.Alpha8, SKAlphaType.Premul), hides, 32);
+        var frame = PaletteImages.Indices(new IndexedSurface { Width = 4, Height = 4, Pitch = 4, Pixels = [.. Enumerable.Repeat((byte)7, 16)] });
+
+        Assert.Same(frame, RoomScene.Cut(frame, 20, 2, mask)); // the plane has nothing under it there
+        var cut = RoomScene.Cut(frame, 6, 2, mask);            // its right half is behind the plane
+        Assert.NotSame(frame, cut);
+        Assert.Same(cut, RoomScene.Cut(frame, 6, 2, mask));     // standing still: the same cut
+        using var pixels = SKBitmap.FromImage(cut);
+        Assert.Equal(255, pixels.GetPixel(1, 1).Alpha);
+        Assert.Equal(0, pixels.GetPixel(2, 1).Alpha);
+        Assert.Equal(7, pixels.GetPixel(0, 3).Red); // still an index image
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
