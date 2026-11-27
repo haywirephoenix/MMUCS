@@ -410,13 +410,14 @@ public sealed partial class ScriptVm
     }
 
     /// <summary>
-    /// ScummVM <c>getObjOrActorName</c>: an actor's name, or an object's from its room (OBNA): the room's own
+    /// ScummVM <c>getObjOrActorName</c>: an actor's name, or an object's new name (name-of), or its name from its room (OBNA): the room's own
     /// objects and floating ones by their home room, carried ones by theirs.
     /// </summary>
     public byte[] NameOf(int obj)
     {
         if (obj < ActorTable.Count) return Actors.Find(obj)?.Name is { Length: > 0 } n ? Encoding.Latin1.GetBytes(n) : null;
         if (!State.Objects.IsObject(obj)) return null;
+        if (State.Objects.NewName(obj) is { } renamed) return renamed;
         return Scripts.ObjectName(State.Objects.Room(obj), obj) ?? Scripts.ObjectName(CurrentRoom, obj);
     }
 

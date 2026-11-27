@@ -318,6 +318,14 @@ public sealed partial class ScriptVm
         RunInventoryScript(obj);
     }
 
+    /// <summary>ScummVM <c>setObjectName</c>: <c>name-of OBJ is "…"</c>, then the inventory script runs with 0.</summary>
+    private void SetObjectName(ScriptSlot s, ScriptInstruction ins, int obj)
+    {
+        if (obj < ActorTable.Count) throw new ScriptException($"can't set actor {obj}'s name with name-of");
+        State.Objects.SetName(obj, ins.TextStart >= 0 ? s.Code.Code.Span.Slice(ins.TextStart, ins.TextLength).ToArray() : []);
+        RunInventoryScript(0);
+    }
+
     private void RunInventoryScript(int obj)
     {
         if (State[EngineVars.InventoryScript] is int script and not 0) RunScript(script, args: [obj]);
@@ -353,6 +361,7 @@ public sealed partial class ScriptVm
             if (State.Current == s) State.Current = null;
         }
 
+        State.Objects.ForgetUnownedNames();
         Actors.HideAll();
         CurrentRoom = room;
         State[EngineVars.Room] = room;
@@ -633,6 +642,7 @@ public sealed partial class ScriptVm
             case 0x89: SetClasses(); return;
             case 0x8a: { int state = Pop(), obj = Pop(); State.Objects.SetState(obj, state); DrawnOver(obj); return; }
             case 0x8b: { int owner = Pop(), obj = Pop(); SetOwner(obj, owner); return; }
+            case 0xb5: SetObjectName(s, ins, Pop()); return;
             case 0xa6: PickUp(Pop()); return;
             case 0xc9: { var args = Args(); int verb = Pop(), obj = Pop(); RunObjectScript(obj, verb, recursive: true, args: args); return; }
             case 0xd0: { var list = State.PopList(16); Push(ClassesMatch(Pop(), list)); return; }

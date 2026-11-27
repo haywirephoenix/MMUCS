@@ -21,6 +21,8 @@ public sealed class ObjectTables
     private readonly byte[] _owner, _state, _room;
     private readonly uint[] _classes;
     private readonly int[] _inventory;
+    private readonly Dictionary<int, byte[]> _newNames = [];
+    private readonly int _maxNewNames;
 
     public ObjectTables(GameLimits limits)
     {
@@ -30,6 +32,7 @@ public sealed class ObjectTables
         _room = new byte[n];
         _classes = new uint[n];
         _inventory = new int[Math.Max(limits.Inventory, 1)];
+        _maxNewNames = Math.Max(limits.NewNames, 1);
         Array.Fill(_owner, (byte)RoomOwner);
         for (int i = 0; i < limits.IndexObjects.Count && i < n; i++)
             (_state[i], _room[i], _classes[i]) = limits.IndexObjects[i];
@@ -83,6 +86,33 @@ public sealed class ObjectTables
         if (on) _classes[Check(obj)] |= ClassBit(cls);
         else _classes[Check(obj)] &= ~ClassBit(cls);
         Version++;
+    }
+
+    /// <summary>The name a script gave <paramref name="obj"/> (ScummVM <c>_newNames</c>), or null for its room's own.</summary>
+    public byte[] NewName(int obj) => _newNames.GetValueOrDefault(obj);
+
+    /// <summary>
+    /// Gives <paramref name="obj"/> a new name in place of its room's (ScummVM <c>setObjectName</c>), kept
+    /// whichever room is current, so a room can name another's objects (Puerto Pollo on the Plunder map).
+    /// </summary>
+    public void SetName(int obj, byte[] name)
+    {
+        Check(obj);
+        // A save from before names were kept has no cap (0): it goes unchecked.
+        if (_maxNewNames > 0 && !_newNames.ContainsKey(obj) && _newNames.Count >= _maxNewNames)
+            throw new ScriptException($"new name of {obj} overflows the name table ({_maxNewNames} max)");
+        _newNames[obj] = name;
+        Version++;
+    }
+
+    /// <summary>
+    /// Drops the new names of objects no one owns any more (ScummVM <c>killScriptsAndResources</c>, on leaving
+    /// a room; in v7+ an object in its room keeps its name).
+    /// </summary>
+    public void ForgetUnownedNames()
+    {
+        foreach (int obj in new List<int>(_newNames.Keys))
+            if (_owner[obj] == 0) _newNames.Remove(obj);
     }
 
     public bool InInventory(int obj) => obj > 0 && Array.IndexOf(_inventory, obj) >= 0;
