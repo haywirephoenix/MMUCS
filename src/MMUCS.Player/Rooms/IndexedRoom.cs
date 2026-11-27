@@ -15,6 +15,9 @@ public sealed record IndexedObject(RoomObject Object, IndexedSurface Surface, in
     SKImage HiRes = null, int Scale = 1, byte[] Palette = null)
 {
     internal readonly Lazy<(SKImage Indices, bool[] Used)> Tint = new(() => (HiResTint.Indices(Surface), HiResTint.Used(Surface)));
+
+    /// <summary>The image as an index image (<see cref="PaletteImages"/>), made once.</summary>
+    internal readonly Lazy<SKImage> Indices = new(() => PaletteImages.Indices(Surface, Transparent));
 }
 
 /// <summary>
@@ -37,9 +40,18 @@ public sealed class IndexedRoom
     public byte[] Palette { get; init; }
 
     private (SKImage Indices, bool[] Used)? _backgroundTint;
+    private SKImage _backgroundIndices;
 
     /// <summary>The room in <paramref name="palette"/>'s colours (256 RGB triples); the z-planes are shared.</summary>
-    public RoomScene Colour(byte[] palette)
+    public RoomScene Colour(byte[] palette) => Scene(palette, indexed: false);
+
+    /// <summary>
+    /// The room drawn in <paramref name="palette"/>'s colours (256 RGB triples) as it's drawn, from index images
+    /// made once (<see cref="PaletteImages"/>): for colours that change often, a new palette costs a 256×1 strip.
+    /// </summary>
+    public RoomScene Paletted(byte[] palette) => Scene(palette, indexed: true);
+
+    private RoomScene Scene(byte[] palette, bool indexed)
     {
         ArgumentNullException.ThrowIfNull(palette);
         SKImage background = null;
@@ -50,6 +62,8 @@ public sealed class IndexedRoom
             _backgroundTint ??= (HiResTint.Indices(under), HiResTint.Used(under));
             hiRes = HiRes(HiResBackground, 0, 0, under.Width, under.Height, _backgroundTint.Value, Palette, palette, ref screen);
         }
+        else if (Background is { } plain && indexed)
+            background = _backgroundIndices ??= PaletteImages.Indices(plain);
         else if (Background is { } bg)
             background = SkiaImages.Of(ScummImageUtils.CreateImage(bg.Pixels, bg.Width, bg.Height, bg.Pitch, palette));
         var objects = new List<SceneObject>(Objects.Count);
@@ -62,10 +76,16 @@ public sealed class IndexedRoom
                     HiRes(o.HiRes, o.X, o.Y, o.HiRes.Width / (float)o.Scale, o.HiRes.Height / (float)o.Scale, tint, o.Palette, palette, ref screen)));
                 continue;
             }
+            if (indexed)
+            {
+                if (o.Indices.Value is { } indices) objects.Add(new SceneObject(o.Object, indices, o.X, o.Y));
+                continue;
+            }
             var rgba = ScummImageUtils.CreateImage(o.Surface.Pixels, o.Surface.Width, o.Surface.Height, o.Surface.Pitch, palette, o.Transparent);
             if (rgba != null) objects.Add(new SceneObject(o.Object, SkiaImages.Of(rgba), o.X, o.Y));
         }
-        return new RoomScene { Width = Width, Height = Height, Background = background, HiResBackground = hiRes, Objects = objects, ZMasks = ZMasks };
+        return new RoomScene { Width = Width, Height = Height, Background = background, HiResBackground = hiRes, Objects = objects, ZMasks = ZMasks,
+            Palette = indexed ? PaletteImages.Strip(palette) : null };
     }
 
     /// <summary>A hi-res picture placed in the room, tinted when the screen shows its indices in other colours than its base ones.</summary>

@@ -46,6 +46,13 @@ public sealed class RoomScene
     /// <summary>Actors, in any order: <see cref="Draw"/> sorts them as the engine does.</summary>
     public IReadOnlyList<SceneActor> Actors { get; init; } = [];
 
+    /// <summary>
+    /// The colours on the screen as a palette strip (<see cref="PaletteImages.Strip"/>) when the background's,
+    /// objects' and actors' images are index images (<see cref="PaletteImages"/>), drawn in these colours; null
+    /// when they're in colour already.
+    /// </summary>
+    public SKImage Palette { get; init; }
+
     /// <summary>The z-plane masks (plane 1 first) as alpha images of the room's size: opaque where they hide actors.</summary>
     public IReadOnlyList<SKImage> ZMasks { get; init; } = [];
 
@@ -54,7 +61,7 @@ public sealed class RoomScene
     {
         Width = Width, Height = Height,
         Background = Background, BackgroundX = BackgroundX, BackgroundY = BackgroundY, HiResBackground = HiResBackground,
-        Objects = Objects, Actors = actors ?? [], ZMasks = ZMasks,
+        Objects = Objects, Actors = actors ?? [], ZMasks = ZMasks, Palette = Palette,
     };
 
     /// <summary>
@@ -66,13 +73,20 @@ public sealed class RoomScene
     public void Draw(SKCanvas canvas, SKSamplingOptions sampling, Action<SKCanvas> beforeActors = null, SKColor? cutColor = null)
     {
         if (HiResBackground != null) HiResBackground.Draw(canvas);
-        else if (Background != null) canvas.DrawImage(Background, BackgroundX, BackgroundY, sampling);
+        else if (Background != null) DrawImage(canvas, Background, SKRect.Create(BackgroundX, BackgroundY, Background.Width, Background.Height), sampling, Palette);
         foreach (var o in Objects)
             if (o.HiRes != null) o.HiRes.Draw(canvas);
-            else if (o.Image != null) canvas.DrawImage(o.Image, o.X, o.Y, sampling);
+            else if (o.Image != null) DrawImage(canvas, o.Image, SKRect.Create(o.X, o.Y, o.Image.Width, o.Image.Height), sampling, Palette);
         beforeActors?.Invoke(canvas);
         foreach (var a in Ordered(Actors))
-            DrawActor(canvas, a, Mask(a.ZPlane), sampling, cutColor);
+            DrawActor(canvas, a, Mask(a.ZPlane), sampling, cutColor, Palette);
+    }
+
+    /// <summary>An image over <paramref name="bounds"/>: in colour, or an index image in <paramref name="palette"/>'s colours.</summary>
+    private static void DrawImage(SKCanvas canvas, SKImage image, SKRect bounds, SKSamplingOptions sampling, SKImage palette, SKPaint paint = null)
+    {
+        if (palette != null) PaletteImages.Draw(canvas, image, palette, bounds, sampling, paint);
+        else canvas.DrawImage(image, bounds, sampling, paint);
     }
 
     /// <summary>Actors in the engine's draw order: by y before elevation, then actor number.</summary>
@@ -84,14 +98,15 @@ public sealed class RoomScene
 
     /// <summary>
     /// Draws an actor's frame with the pixels behind its z-plane removed (the engine skips masked pixels):
-    /// the frame goes into a layer and the plane's mask, in room pixels, cuts it out.
+    /// the frame goes into a layer and the plane's mask, in room pixels, cuts it out. With <paramref name="palette"/>
+    /// the frame is an index image, drawn in its colours.
     /// </summary>
-    public static void DrawActor(SKCanvas canvas, SceneActor a, SKImage mask, SKSamplingOptions sampling, SKColor? cutColor = null)
+    public static void DrawActor(SKCanvas canvas, SceneActor a, SKImage mask, SKSamplingOptions sampling, SKColor? cutColor = null, SKImage palette = null)
     {
         var bounds = SKRect.Create(a.X, a.Y, a.Image.Width * a.Scale, a.Image.Height * a.Scale);
         if (mask == null)
         {
-            canvas.DrawImage(a.Image, bounds, sampling);
+            DrawImage(canvas, a.Image, bounds, sampling, palette);
             if (a.Shadow != null) canvas.DrawImage(a.Shadow, bounds, sampling, Multiply);
             return;
         }
@@ -100,13 +115,13 @@ public sealed class RoomScene
             // The hidden pixels in the colour: the frame's shape, tinted, kept only where the mask is.
             canvas.SaveLayer(bounds, null);
             using (var tint = new SKPaint { ColorFilter = SKColorFilter.CreateBlendMode(color, SKBlendMode.SrcIn) })
-                canvas.DrawImage(a.Image, bounds, sampling, tint);
+                DrawImage(canvas, a.Image, bounds, sampling, palette, tint);
             using (var keep = new SKPaint { BlendMode = SKBlendMode.DstIn })
                 canvas.DrawImage(mask, 0, 0, keep);
             canvas.Restore();
         }
         canvas.SaveLayer(bounds, null);
-        canvas.DrawImage(a.Image, bounds, sampling);
+        DrawImage(canvas, a.Image, bounds, sampling, palette);
         canvas.DrawImage(mask, 0, 0, MaskOut);
         canvas.Restore();
         if (a.Shadow == null) return;

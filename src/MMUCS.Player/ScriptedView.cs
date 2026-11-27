@@ -104,7 +104,7 @@ public sealed class ScriptedView(ScriptedGame game)
         {
             room = _scene.WithActors(SceneActors(_scene, game.Vm.Actors.Pictures));
             upper = game.Vm.Actors.UpperPictures.Count > 0
-                ? new RoomScene { Width = _scene.Width, Height = _scene.Height, ZMasks = _scene.ZMasks, Actors = SceneActors(_scene, game.Vm.Actors.UpperPictures) }
+                ? new RoomScene { Width = _scene.Width, Height = _scene.Height, ZMasks = _scene.ZMasks, Palette = _scene.Palette, Actors = SceneActors(_scene, game.Vm.Actors.UpperPictures) }
                 : null;
         }
         (_shownRoom, _shownUpper) = inRoom ? (room, upper) : (null, null);
@@ -226,8 +226,9 @@ public sealed class ScriptedView(ScriptedGame game)
     }
 
     /// <summary>
-    /// Takes the screen's colours when they changed, and colours the room in them when they or the room did.
-    /// A change drops the actors' and texts' pictures, which were in the old colours.
+    /// Takes the screen's colours when they changed, and gives the room them when they or the room did. The
+    /// room and the actors are index images drawn through the colours (<see cref="IndexedRoom.Paletted"/>), so a
+    /// change (a fade, a flickering fire every frame) costs a palette strip; it drops the texts, made in the old colours.
     /// </summary>
     private void UpdateColours()
     {
@@ -236,13 +237,12 @@ public sealed class ScriptedView(ScriptedGame game)
         {
             _screen = palette.Snapshot();
             _screenVersion = palette.Version;
-            _actorImages.Clear();
             _texts.Clear();
             _sceneOf = null;
         }
         if (_built is { } built && !ReferenceEquals(built.Scene, _sceneOf))
         {
-            _scene = built.Scene.Colour(_screen);
+            _scene = built.Scene.Paletted(_screen);
             _sceneOf = built.Scene;
             _sceneRoom = built.Room;
         }
@@ -278,11 +278,11 @@ public sealed class ScriptedView(ScriptedGame game)
         return list;
     }
 
-    /// <summary>The actors as the engine drew them in the last frame, each frame rendered once and kept while it's shown.</summary>
+    /// <summary>The actors as the engine drew them in the last frame, each frame rendered once (in indices, for any colours) and kept while it's shown.</summary>
     private List<SceneActor> SceneActors(RoomScene scene, IReadOnlyList<ActorPicture> pictures)
     {
         if (_actorImages.Count > 512) _actorImages.Clear();
-        return RoomSceneBuilder.SceneActors(pictures, scene.ZMasks.Count, _actorImages, Game.ActorSlide, _screen, Game.Vm.Palette.ShadowFactors);
+        return RoomSceneBuilder.SceneActors(pictures, scene.ZMasks.Count, _actorImages, Game.ActorSlide, _screen, Game.Vm.Palette.ShadowFactors, indexed: true);
     }
 
     private readonly Dictionary<(int Slot, int Brightness), (object Source, SKImage Image)> _thumbnails = [];

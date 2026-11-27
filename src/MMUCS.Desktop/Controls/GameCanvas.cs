@@ -68,6 +68,8 @@ public sealed class GameCanvas : Control
     /// </summary>
     private sealed class FrameDrawOperation : ICustomDrawOperation
     {
+        private static int _toldRenderer;
+
         private readonly GameFrame frame;
         private int _disposed;
 
@@ -91,6 +93,12 @@ public sealed class GameCanvas : Control
         {
             if (context.TryGetFeature<ISkiaSharpApiLeaseFeature>() is not { } feature) return;
             using var lease = feature.Lease();
+            if (System.Threading.Interlocked.Exchange(ref _toldRenderer, 1) == 0)
+            {
+                // Rooms and actors are drawn through a palette shader, cheap on a GPU; in software they're coloured on the CPU instead.
+                var gpu = lease.SkCanvas.Context;
+                MMUCS.Core.Diagnostics.Log.Info(gpu != null ? $"Game window: drawing on the GPU ({gpu.Backend})" : "Game window: drawing in software (no GPU context): rooms are coloured on the CPU");
+            }
             frame.Render(lease.SkCanvas, new SKRect(0, 0, (float)Bounds.Width, (float)Bounds.Height));
         }
     }

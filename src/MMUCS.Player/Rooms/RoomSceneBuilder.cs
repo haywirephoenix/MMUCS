@@ -183,10 +183,13 @@ public static class RoomSceneBuilder
     /// <paramref name="screen"/> palette (the colours on the screen; null: each costume's room's palette).
     /// With <paramref name="shadowFactors"/> (<see cref="ScreenPalette.ShadowFactors"/>) an actor's shadow
     /// colours draw by its shadow mode: in mode 3, as a layer the scene multiplies onto what's under it.
+    /// With <paramref name="indexed"/> the frames are index images (<see cref="PaletteImages"/>), for a scene with a
+    /// <see cref="RoomScene.Palette"/>: they don't change with the colours, so the cache holds for any palette.
     /// </summary>
     public static List<SceneActor> SceneActors(IReadOnlyList<ActorPicture> pictures, int planes,
-        Dictionary<string, ActorImage> cache = null, double slide = 1, byte[] screen = null, byte[] shadowFactors = null)
+        Dictionary<string, ActorImage> cache = null, double slide = 1, byte[] screen = null, byte[] shadowFactors = null, bool indexed = false)
     {
+        if (indexed) screen = PaletteImages.IndexScreen;
         var list = new List<SceneActor>(pictures.Count);
         for (int i = 0; i < pictures.Count; i++)
         {
