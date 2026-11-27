@@ -120,6 +120,15 @@ public sealed class RoomScene
                 canvas.DrawImage(mask, 0, 0, keep);
             canvas.Restore();
         }
+        else if (a.Scale == 1)
+        {
+            // The frame and its shade cut by the plane once for where they stand (on the CPU, in room pixels),
+            // and drawn as they are: no offscreen layers, and nothing cut where the plane has nothing under them.
+            int x = (int)MathF.Round(a.X), y = (int)MathF.Round(a.Y);
+            DrawImage(canvas, Cut(a.Image, x, y, mask), bounds, sampling, palette);
+            if (a.Shadow != null) canvas.DrawImage(Cut(a.Shadow, x, y, mask), bounds, sampling, Multiply);
+            return;
+        }
         canvas.SaveLayer(bounds, null);
         DrawImage(canvas, a.Image, bounds, sampling, palette);
         canvas.DrawImage(mask, 0, 0, MaskOut);
@@ -130,6 +139,62 @@ public sealed class RoomScene
         canvas.DrawImage(a.Shadow, bounds, sampling);
         canvas.DrawImage(mask, 0, 0, MaskOut);
         canvas.Restore();
+    }
+
+    /// <summary>The cuts made of an image, by where it stood and the mask: an actor standing still is cut once.</summary>
+    private sealed class Cuts
+    {
+        public readonly Dictionary<(int X, int Y, SKImage Mask), SKImage> ByPlace = [];
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<SKImage, Cuts> CutsOf = [];
+
+    /// <summary>
+    /// <paramref name="image"/> (32-bit, in memory) with the pixels <paramref name="mask"/> hides at (<paramref name="x"/>,
+    /// <paramref name="y"/>) in the room left out; the image itself when the mask hides none of it, or when either
+    /// isn't in memory. Kept while the image lives, for a few places (an actor walking makes a new cut each step).
+    /// </summary>
+    public static SKImage Cut(SKImage image, int x, int y, SKImage mask)
+    {
+        var cuts = CutsOf.GetOrCreateValue(image);
+        lock (cuts)
+        {
+            if (cuts.ByPlace.TryGetValue((x, y, mask), out var cut)) return cut;
+            cut = MakeCut(image, x, y, mask) ?? image;
+            if (cuts.ByPlace.Count >= 8) cuts.ByPlace.Clear(); // the old cuts are left to the finalizer: a frame may still be drawing one
+            cuts.ByPlace[(x, y, mask)] = cut;
+            return cut;
+        }
+    }
+
+    private static SKImage MakeCut(SKImage image, int x, int y, SKImage mask)
+    {
+        using var pixels = image.PeekPixels();
+        using var plane = mask.PeekPixels();
+        if (pixels == null || plane == null || pixels.ColorType is not (SKColorType.Rgba8888 or SKColorType.Bgra8888) || plane.ColorType != SKColorType.Alpha8) return null;
+        var from = pixels.GetPixelSpan();
+        var hides = plane.GetPixelSpan();
+        int w = image.Width, h = image.Height, mw = mask.Width, mh = mask.Height;
+        byte[] rgba = null;
+        for (int j = 0; j < h; j++)
+        {
+            int my = y + j;
+            if (my < 0 || my >= mh) continue;
+            for (int i = 0; i < w; i++)
+            {
+                int mx = x + i;
+                if (mx < 0 || mx >= mw || hides[my * plane.RowBytes + mx] == 0) continue;
+                int o = j * pixels.RowBytes + i * 4;
+                if (from[o + 3] == 0) continue;
+                if (rgba == null)
+                {
+                    rgba = new byte[w * h * 4];
+                    for (int r = 0; r < h; r++) from.Slice(r * pixels.RowBytes, w * 4).CopyTo(rgba.AsSpan(r * w * 4));
+                }
+                rgba.AsSpan(j * w * 4 + i * 4, 4).Clear();
+            }
+        }
+        return rgba == null ? null : SKImage.FromPixelCopy(new SKImageInfo(w, h, pixels.ColorType, pixels.AlphaType), rgba, w * 4);
     }
 
     /// <summary>

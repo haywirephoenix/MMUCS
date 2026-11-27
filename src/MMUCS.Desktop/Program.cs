@@ -42,6 +42,9 @@ internal static class Program
         AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .With(new X11PlatformOptions { WmClass = LinuxDesktopEntry.WmClass })
+            // Avalonia's default keeps ~28 MB of textures: a hi-res room's background (up to 61 MB, room 15) didn't
+            // fit, so it was uploaded again every frame, and room and actor images were pushed out as fast.
+            .With(new SkiaOptions { MaxGpuResourceSizeBytes = 512L * 1024 * 1024 })
             .WithInterFont()
             .LogToTrace();
 

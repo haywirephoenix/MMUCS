@@ -196,6 +196,14 @@ public partial class GameWindow : Window
             _vm.CycleSubtitles();
             e.Handled = true;
         }
+        else if (e.Key == Key.F && e.KeyModifiers == KeyModifiers.Control)
+        {
+            // Avalonia's frame rate and render time graph over the window, to see what drawing a room costs.
+            const Avalonia.Rendering.RendererDebugOverlays frames = Avalonia.Rendering.RendererDebugOverlays.Fps | Avalonia.Rendering.RendererDebugOverlays.RenderTimeGraph;
+            RendererDiagnostics.DebugOverlays ^= frames;
+            Log.Info($"Game window: frame overlay {((RendererDiagnostics.DebugOverlays & frames) != 0 ? "on" : "off")} (Ctrl+F)");
+            e.Handled = true;
+        }
         else if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.None && _vm != null && _vm.IsPauseKey(' '))
         {
             _recaptureOnResume = _vm.IsMouseCaptured;
