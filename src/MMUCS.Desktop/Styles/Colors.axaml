@@ -101,6 +101,12 @@
       <SolidColorBrush x:Key="RoomLabelShadowBrush" Color="#C8000000" />
       <!-- The room's outline (View ▸ Bounds). -->
       <SolidColorBrush x:Key="RoomBoundsBrush" Color="#FFA500" />
+      <!-- The move tool on a mod's object image: its X and Y arrows, the centre square (both), the handle under the pointer or being dragged, and the image's frame. -->
+      <SolidColorBrush x:Key="RoomMoveXBrush" Color="#FF5A5A" />
+      <SolidColorBrush x:Key="RoomMoveYBrush" Color="#5AE05A" />
+      <SolidColorBrush x:Key="RoomMoveBothBrush" Color="#E6F0F0F0" />
+      <SolidColorBrush x:Key="RoomMoveActiveBrush" Color="#FFEB3B" />
+      <SolidColorBrush x:Key="RoomMoveFrameBrush" Color="#C8FFFFFF" />
       <!-- Z-plane overlay tints, plane 1 to 7; half see-through. -->
       <SolidColorBrush x:Key="RoomZPlane1Brush" Color="#6EFF0000" />
       <SolidColorBrush x:Key="RoomZPlane2Brush" Color="#6E00FF00" />

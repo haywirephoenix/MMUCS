@@ -71,6 +71,23 @@ public sealed partial class PositionViewModel : ObservableObject
         Changed();
     }
 
+    /// <summary>Moves a mod's position to <paramref name="x"/>,<paramref name="y"/> at once (one preview, as from the Room viewer's move tool).</summary>
+    public void MoveTo(int x, int y)
+    {
+        if (!IsModded || ((int)(X ?? 0) == x && (int)(Y ?? 0) == y)) return;
+        _showing = true;
+        X = x;
+        Y = y;
+        _showing = false;
+        Edited();
+    }
+
+    /// <summary>Moves a mod's position by <paramref name="dx"/>,<paramref name="dy"/> (the move tool's steps).</summary>
+    public void MoveBy(int dx, int dy)
+    {
+        if (IsModded) MoveTo((int)(X ?? 0) + dx, (int)(Y ?? 0) + dy);
+    }
+
     partial void OnXChanged(decimal? value) => Edited();
     partial void OnYChanged(decimal? value) => Edited();
 

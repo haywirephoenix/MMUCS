@@ -89,6 +89,9 @@ public sealed partial class AkosViewModel : ObservableObject
         LiveFrameChanged?.Invoke(Block, AkosFrames.ComposeAfterInit(Akos, _frameChore, step), PaletteIndex);
     }
 
+    /// <summary>The selected cel is what's shown (here, and in place), not a step or a chore's frame.</summary>
+    public bool ShowsCel => _frameChore < 0 && _shownStep < 0;
+
     /// <summary>The selected cel's mod cel, while the costume shows the mods' cels; else null.</summary>
     public AkosModCel SelectedModCel => SelectedCel is { } cel ? Akos?.ModCels?.GetValueOrDefault(cel.Index) : null;
 
@@ -201,6 +204,7 @@ public sealed partial class AkosViewModel : ObservableObject
 
         Stop();
         _shownStep = _lastChore = -1;
+        OnPropertyChanged(nameof(ShowsCel));
 
         Block = akosBlock;
         Title = $"AKOS @0x{akosBlock.Offset:X8}";
@@ -322,6 +326,7 @@ public sealed partial class AkosViewModel : ObservableObject
     {
         _frameChore = -1;
         _shownStep = -1;
+        OnPropertyChanged(nameof(ShowsCel));
         _ = RefreshCelAsync();
         if (value != null && Akos != null && PlayInPlace) SendLiveFrame(AkosFrames.CelInPlace(Akos, value.Index, _lastChore));
     }
@@ -347,6 +352,7 @@ public sealed partial class AkosViewModel : ObservableObject
             var frame = StepFrame(value.StepPos);
             _frameChore = -1;
             _shownStep = value.StepPos;
+            OnPropertyChanged(nameof(ShowsCel));
             if (ChoreOf(value) is int owner and >= 0) _lastChore = owner;
             ShowFrame(frame, null, $"Step 0x{value.StepPos:X4}");
             SendLiveFrame(frame);
@@ -356,6 +362,7 @@ public sealed partial class AkosViewModel : ObservableObject
             _frameChore = chore;
             _lastChore = chore;
             _shownStep = -1;
+            OnPropertyChanged(nameof(ShowsCel));
             _frameBounds = AkosFrames.CycleBounds(Akos, chore, AkosFrames.CycleLength(Akos, chore));
             ShowChoreFrame(0);
         }
@@ -462,6 +469,7 @@ public sealed partial class AkosViewModel : ObservableObject
         }
 
         _frameChore = chore;
+        OnPropertyChanged(nameof(ShowsCel));
         _frameBounds = AkosFrames.CycleBounds(Akos, chore, AkosFrames.CycleLength(Akos, chore));
         _playPos = 0;
         _timer ??= new DispatcherTimer();

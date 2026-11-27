@@ -117,6 +117,19 @@ public sealed class RoomCanvas : SkiaViewport
     public static readonly StyledProperty<bool> ShowFullScreenObjectsProperty =
         AvaloniaProperty.Register<RoomCanvas, bool>(nameof(ShowFullScreenObjects));
 
+    /// <summary>The object whose image the move tool drags (a mod's image, whose Position can change), or null.</summary>
+    public static readonly StyledProperty<RoomObject> MovableObjectProperty =
+        AvaloniaProperty.Register<RoomCanvas, RoomObject>(nameof(MovableObject));
+    public RoomObject MovableObject { get => GetValue(MovableObjectProperty); set => SetValue(MovableObjectProperty, value); }
+
+    /// <summary>The move tool drags the Costume viewer's cel in place (<see cref="LiveCostume"/>; a mod cel's Position can change).</summary>
+    public static readonly StyledProperty<bool> MoveLiveCostumeProperty =
+        AvaloniaProperty.Register<RoomCanvas, bool>(nameof(MoveLiveCostume));
+    public bool MoveLiveCostume { get => GetValue(MoveLiveCostumeProperty); set => SetValue(MoveLiveCostumeProperty, value); }
+
+    /// <summary>The move tool dragged (or the arrow keys nudged) what it's on by so many of the Position's pixels.</summary>
+    public event Action<int, int> MovedBy;
+
     public static readonly DirectProperty<RoomCanvas, string> HoverTextProperty =
         AvaloniaProperty.RegisterDirect<RoomCanvas, string>(nameof(HoverText), o => o.HoverText);
 
@@ -174,12 +187,18 @@ public sealed class RoomCanvas : SkiaViewport
             ShowBackgroundProperty, ShowObjectsProperty, ShowHotspotsProperty, ShowWalkboxesProperty,
             ShowLabelsProperty, ShowBoundsProperty, ShowFullScreenObjectsProperty, BackgroundObjectProperty, VisibleObjectsProperty, LiveCostumeProperty,
             ZMasksProperty, ImageSetsProperty, CoveredProperty, ToggledObjectsProperty, MaskActorsProperty, ZPlaneOverlayProperty, SelectedObjectsProperty, ShowSelectionOutlineProperty,
-            SelectionOutlineColorProperty, SelectionOutlineThicknessProperty);
+            SelectionOutlineColorProperty, SelectionOutlineThicknessProperty, MovableObjectProperty, MoveLiveCostumeProperty);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if ((change.Property == MovableObjectProperty || change.Property == MoveLiveCostumeProperty) && _move != null)
+        {
+            _move = null; // what was being dragged can't move any more
+            Cursor = Cursor.Default;
+        }
+
         if (change.Property == SelectionOutlineColorProperty || change.Property == SelectionOutlineThicknessProperty)
         {
             _selectStroke = null; // rebuilt on the next scene
@@ -293,7 +312,10 @@ public sealed class RoomCanvas : SkiaViewport
         _paints ??= new OverlayPaints(this),
         ImageSets,
         Covered,
-        ToggledObjects);
+        ToggledObjects,
+        CurrentMoveTarget(),
+        _move is { Pending: false } m ? m.Handle : _hotHandle,
+        _move is { Pending: false });
 
     private OverlayPaints _paints;
 
@@ -306,6 +328,7 @@ public sealed class RoomCanvas : SkiaViewport
     private sealed class OverlayPaints
     {
         public readonly SKPaint HotspotFill, HotspotStroke, BoxFill, BoxStroke, BoundsStroke, LabelPaint, LabelShadow, BoxLabelPaint;
+        public readonly SKColor MoveX, MoveY, MoveBoth, MoveActive, MoveFrame;
         /// <summary>Plane 1 to 7.</summary>
         public readonly SKColor[] PlaneColors;
 
@@ -319,6 +342,11 @@ public sealed class RoomCanvas : SkiaViewport
             LabelPaint = new() { Color = c.FindSKColor("RoomLabelBrush"), IsAntialias = true };
             LabelShadow = new() { Color = c.FindSKColor("RoomLabelShadowBrush"), IsAntialias = true };
             BoxLabelPaint = new() { Color = c.FindSKColor("RoomWalkboxLabelBrush"), IsAntialias = true };
+            MoveX = c.FindSKColor("RoomMoveXBrush");
+            MoveY = c.FindSKColor("RoomMoveYBrush");
+            MoveBoth = c.FindSKColor("RoomMoveBothBrush");
+            MoveActive = c.FindSKColor("RoomMoveActiveBrush");
+            MoveFrame = c.FindSKColor("RoomMoveFrameBrush");
             PlaneColors = new SKColor[7];
             for (int i = 0; i < PlaneColors.Length; i++)
             {
@@ -329,7 +357,14 @@ public sealed class RoomCanvas : SkiaViewport
 
     protected override void OnContentClicked(Point p, PointerPressedEventArgs e)
     {
-        var mods = e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Shift);
+        SelectAt(p, e.KeyModifiers);
+        e.Handled = true;
+    }
+
+    /// <summary>A click at <paramref name="p"/> (in the room): selects what's under it, or with Ctrl / Shift adds or takes it away.</summary>
+    private void SelectAt(Point p, KeyModifiers keys)
+    {
+        var mods = keys & (KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Shift);
         var hits = HitTestObjects(p);
         if (mods != KeyModifiers.None)
         {
@@ -345,7 +380,197 @@ public sealed class RoomCanvas : SkiaViewport
             int at = SelectedObject == null ? -1 : hits.IndexOf(SelectedObject);
             SelectedObject = hits.Count == 0 ? null : hits[(at + 1) % hits.Count];
         }
-        e.Handled = true;
+    }
+
+    // ── Move tool ────────────────────────────────────────────────────────────
+
+    /// <summary>A part of the move tool: the centre square or the image itself moves both ways, an arrow one.</summary>
+    internal enum MoveHandle { None, Both, X, Y }
+
+    /// <summary>
+    /// What the move tool is on: <see cref="MovableObject"/>'s image, or the Costume viewer's cel in place
+    /// (<see cref="LiveCostume"/>); <see cref="Rect"/> where it's drawn in the room, <see cref="Scale"/> room pixels
+    /// to one of the Position's, <see cref="Readout"/> written by it while it moves.
+    /// </summary>
+    internal sealed record MoveTarget(object Key, SKRect Rect, float Scale, string Readout);
+
+    /// <summary>
+    /// A move under way, from <see cref="Start"/> (in the control), so many of the Position's pixels
+    /// <see cref="Moved"/> so far. <see cref="Pending"/>: pressed on the image itself, a click until it drags.
+    /// </summary>
+    private sealed record MoveDrag(object Key, MoveHandle Handle, Point Start, float Scale, bool Pending, (int X, int Y) Moved);
+
+    /// <summary>What a drag of the Costume viewer's cel in place is keyed by (its frames change as it moves).</summary>
+    private static readonly object LiveKey = new();
+
+    private MoveDrag _move;
+    private IPointer _movePointer;
+    private MoveHandle _hotHandle;
+
+    // The tool's size on screen, whatever the zoom.
+    private const float ArrowLength = 56, CentreHalf = 7, HeadLength = 11, HeadHalf = 6, Grab = 6;
+
+    /// <summary>What the move tool is on, while it's drawn; else null.</summary>
+    private MoveTarget CurrentMoveTarget()
+    {
+        if (Covered || HoldScene) return null;
+        if (MoveLiveCostume && LiveCostume is { Image: { } live } costume)
+        {
+            float scale = costume.Scale <= 0 ? 1 : costume.Scale;
+            var rect = new SKRect(costume.X, costume.Y, costume.X + live.Width * scale, costume.Y + live.Height * scale);
+            string moved = _move is { Key: var k } m && ReferenceEquals(k, LiveKey) ? $"moved {m.Moved.X:+0;-0;0}, {m.Moved.Y:+0;-0;0}" : null;
+            return new MoveTarget(LiveKey, rect, scale, moved);
+        }
+        if (MovableObject is not { } obj || !ShowObjects || ReferenceEquals(obj, BackgroundObject)) return null;
+        if (VisibleObjects is { } visible && !visible.Contains(obj)) return null;
+        var layer = ObjectLayers?.FirstOrDefault(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly && l.Image != null);
+        if (layer == null || (layer.Image.Width >= 640 && !ShowFullScreenObjects && ToggledObjects?.Contains(obj) != true)) return null;
+        return new MoveTarget(obj, new SKRect(layer.X, layer.Y, layer.X + layer.Image.Width, layer.Y + layer.Image.Height), 1, $"{layer.X}, {layer.Y}");
+    }
+
+    /// <summary>Whether a press at <paramref name="p"/> (in the room) is on the target's image itself, topmost there.</summary>
+    private bool OnTargetImage(MoveTarget target, Point p)
+    {
+        if (ReferenceEquals(target.Key, LiveKey))
+        {
+            var live = LiveCostume;
+            return live?.Image != null && Opaque(live.Image, (p.X - live.X) / target.Scale, (p.Y - live.Y) / target.Scale);
+        }
+        return ReferenceEquals(HitTestObject(p), target.Key);
+    }
+
+    /// <summary>The tool's centre on screen: the middle of what it moves.</summary>
+    private static SKPoint MoveOrigin(in ViewTransform view, SKRect r) => view.Map(r.MidX, r.MidY);
+
+    /// <summary>The tool's handle at <paramref name="p"/> (in the control), if any.</summary>
+    private MoveHandle HandleAt(Point p, MoveTarget target)
+    {
+        var o = MoveOrigin(View, target.Rect);
+        double dx = p.X - o.X, dy = p.Y - o.Y;
+        if (Math.Abs(dx) <= CentreHalf + 2 && Math.Abs(dy) <= CentreHalf + 2) return MoveHandle.Both;
+        if (dx > CentreHalf && dx <= ArrowLength + HeadLength + 2 && Math.Abs(dy) <= Grab) return MoveHandle.X;
+        if (dy > CentreHalf && dy <= ArrowLength + HeadLength + 2 && Math.Abs(dx) <= Grab) return MoveHandle.Y;
+        return MoveHandle.None;
+    }
+
+    private static Cursor CursorFor(MoveHandle handle) => handle switch
+    {
+        MoveHandle.X => new Cursor(StandardCursorType.SizeWestEast),
+        MoveHandle.Y => new Cursor(StandardCursorType.SizeNorthSouth),
+        MoveHandle.Both => new Cursor(StandardCursorType.SizeAll),
+        _ => Cursor.Default,
+    };
+
+    /// <summary>Moves the drag to <paramref name="x"/>,<paramref name="y"/> of the Position's pixels from where it began.</summary>
+    private void MoveTo(MoveDrag m, int x, int y)
+    {
+        if (m.Moved == (x, y)) return;
+        _move = m with { Moved = (x, y) };
+        MovedBy?.Invoke(x - m.Moved.X, y - m.Moved.Y);
+    }
+
+    private void EndMove(IPointer pointer)
+    {
+        _move = null;
+        _movePointer = null;
+        pointer?.Capture(null);
+        Cursor = CursorFor(_hotHandle);
+        InvalidateVisual();
+    }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        var props = e.GetCurrentPoint(this).Properties;
+        if (props.IsLeftButtonPressed && e.ClickCount == 1 && !IsSpaceHeld && CurrentMoveTarget() is { } target)
+        {
+            var p = e.GetPosition(this);
+            var handle = HandleAt(p, target);
+            // Pressed on the image itself (no Ctrl / Shift): a drag moves it, a click selects as ever.
+            bool body = handle == MoveHandle.None
+                && (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta | KeyModifiers.Shift)) == 0
+                && OnTargetImage(target, View.Unmap(p));
+            if (handle != MoveHandle.None || body)
+            {
+                Focus();
+                _move = new MoveDrag(target.Key, body ? MoveHandle.Both : handle, p, target.Scale, body, (0, 0));
+                e.Pointer.Capture(this);
+                _movePointer = e.Pointer;
+                if (!body) Cursor = CursorFor(handle);
+                InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
+        }
+        base.OnPointerPressed(e);
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        var p = e.GetPosition(this);
+        if (_move is { } m)
+        {
+            if (m.Pending)
+            {
+                if (Math.Abs(p.X - m.Start.X) <= 3 && Math.Abs(p.Y - m.Start.Y) <= 3) return;
+                _move = m = m with { Pending = false };
+                Cursor = CursorFor(MoveHandle.Both);
+            }
+            double dx = (p.X - m.Start.X) / Zoom / m.Scale, dy = (p.Y - m.Start.Y) / Zoom / m.Scale;
+            var handle = m.Handle;
+            // Shift keeps a free move to the way it's gone furthest.
+            if (handle == MoveHandle.Both && e.KeyModifiers.HasFlag(KeyModifiers.Shift)) handle = Math.Abs(dx) >= Math.Abs(dy) ? MoveHandle.X : MoveHandle.Y;
+            MoveTo(m, handle == MoveHandle.Y ? 0 : (int)Math.Round(dx), handle == MoveHandle.X ? 0 : (int)Math.Round(dy));
+            InvalidateVisual();
+        }
+        else if (!IsPanning)
+        {
+            var hot = CurrentMoveTarget() is { } target ? HandleAt(p, target) : MoveHandle.None;
+            if (hot != _hotHandle)
+            {
+                _hotHandle = hot;
+                Cursor = CursorFor(hot);
+                InvalidateVisual();
+            }
+        }
+        base.OnPointerMoved(e);
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        if (_move is { } m && e.InitialPressMouseButton == MouseButton.Left)
+        {
+            if (m.Pending) SelectAt(View.Unmap(m.Start), KeyModifiers.None); // only a click
+            EndMove(e.Pointer);
+            e.Handled = true;
+            return;
+        }
+        base.OnPointerReleased(e);
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+        if (_move != null) EndMove(null);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (_move is { } m && e.Key == Key.Escape)
+        {
+            if (!m.Pending) MoveTo(m, 0, 0); // back where the drag began
+            EndMove(_movePointer);
+            e.Handled = true;
+            return;
+        }
+        // The arrow keys nudge what the tool is on a pixel, ten with Shift.
+        if (_move == null && e.Key is Key.Left or Key.Right or Key.Up or Key.Down && CurrentMoveTarget() != null)
+        {
+            int step = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 10 : 1;
+            MovedBy?.Invoke(e.Key == Key.Left ? -step : e.Key == Key.Right ? step : 0, e.Key == Key.Up ? -step : e.Key == Key.Down ? step : 0);
+            e.Handled = true;
+            return;
+        }
+        base.OnKeyDown(e);
     }
 
     protected override void OnContentContextRequested(Point p) => ObjectContextRequested?.Invoke(HitTestObject(p));
@@ -448,8 +673,12 @@ public sealed class RoomCanvas : SkiaViewport
     private sealed class Scene(SKImage bg, HiResImage hiResBg, IReadOnlyList<RoomObjectLayer> drawLayers, IReadOnlyList<RoomObjectLayer> allLayers,
         IReadOnlyList<Walkbox> boxes, RoomObject selected, bool hotspots, bool labels, bool bounds, Size size, bool fullScreenObjects, RoomObject bgObject, IReadOnlySet<RoomObject> visible, LiveCostume live, IReadOnlyList<SKImage> zMasks,
         IReadOnlyList<SKImage> overlayMasks, int overlayPlane, IReadOnlySet<RoomObject> selectedAll, SKPaint selectStroke, RoomCanvas.OverlayPaints paints,
-        IReadOnlyList<ImageSet> imageSets, bool covered, IReadOnlySet<RoomObject> toggled) : IRetainedScene
+        IReadOnlyList<ImageSet> imageSets, bool covered, IReadOnlySet<RoomObject> toggled,
+        MoveTarget movable, MoveHandle activeHandle, bool moving) : IRetainedScene
     {
+        private readonly MoveTarget _movable = movable;
+        private readonly MoveHandle _activeHandle = activeHandle;
+        private readonly bool _moving = moving;
         private readonly IReadOnlySet<RoomObject> _toggled = toggled;
         private readonly bool _covered = covered;
         private static readonly SKPaint CoverPaint = new() { Color = SKColors.Black };
@@ -644,6 +873,68 @@ public sealed class RoomCanvas : SkiaViewport
             if (_bounds && _size.Width > 0)
             {
                 canvas.DrawRect(Snap(view.Map(new SKRect(0, 0, (float)_size.Width, (float)_size.Height))), BoundsStroke);
+            }
+
+            if (_movable != null)
+            {
+                DrawMoveTool(canvas, view);
+            }
+        }
+
+        private static readonly SKPaint MoveStroke = new() { Style = SKPaintStyle.Stroke, IsAntialias = true, StrokeCap = SKStrokeCap.Round };
+        private static readonly SKPaint MoveFill = new() { Style = SKPaintStyle.Fill, IsAntialias = true };
+        private static readonly SKPaint MoveFrameStroke = new() { Style = SKPaintStyle.Stroke, StrokeWidth = 1, PathEffect = SKPathEffect.CreateDash([4, 3], 0) };
+        private static readonly SKColor MoveShadow = new(0, 0, 0, 160);
+
+        /// <summary>
+        /// The move tool on what it moves (a mod's object image, a mod cel in place): its frame dashed, and at its
+        /// middle a square (move both ways) with an arrow along x and one along y; the handle under the pointer or
+        /// dragged is lit, and while moving its readout (an image's top-left, how far a cel has gone) is by its corner.
+        /// </summary>
+        private void DrawMoveTool(SKCanvas canvas, in ViewTransform view)
+        {
+            var frame = Snap(view.Map(_movable.Rect));
+            MoveFrameStroke.Color = _paints.MoveFrame;
+            canvas.DrawRect(frame, MoveFrameStroke);
+
+            var o = MoveOrigin(view, _movable.Rect);
+            SKColor Colour(MoveHandle h, SKColor c) => _activeHandle == h ? _paints.MoveActive : c;
+            void Arrow(float ux, float uy, SKColor colour)
+            {
+                var from = new SKPoint(o.X + ux * CentreHalf, o.Y + uy * CentreHalf);
+                var to = new SKPoint(o.X + ux * ArrowLength, o.Y + uy * ArrowLength);
+                using var head = new SKPath();
+                head.MoveTo(to.X + ux * HeadLength, to.Y + uy * HeadLength);
+                head.LineTo(to.X - uy * HeadHalf, to.Y + ux * HeadHalf);
+                head.LineTo(to.X + uy * HeadHalf, to.Y - ux * HeadHalf);
+                head.Close();
+                MoveStroke.Color = MoveShadow;
+                MoveStroke.StrokeWidth = 4;
+                canvas.DrawLine(from, to, MoveStroke);
+                canvas.DrawPath(head, MoveStroke);
+                MoveStroke.Color = colour;
+                MoveStroke.StrokeWidth = 2;
+                canvas.DrawLine(from, to, MoveStroke);
+                MoveFill.Color = colour;
+                canvas.DrawPath(head, MoveFill);
+            }
+            Arrow(1, 0, Colour(MoveHandle.X, _paints.MoveX));
+            Arrow(0, 1, Colour(MoveHandle.Y, _paints.MoveY));
+
+            var square = new SKRect(o.X - CentreHalf, o.Y - CentreHalf, o.X + CentreHalf, o.Y + CentreHalf);
+            MoveFill.Color = Colour(MoveHandle.Both, _paints.MoveBoth).WithAlpha(110);
+            canvas.DrawRect(square, MoveFill);
+            MoveStroke.Color = MoveShadow;
+            MoveStroke.StrokeWidth = 3;
+            canvas.DrawRect(square, MoveStroke);
+            MoveStroke.Color = Colour(MoveHandle.Both, _paints.MoveBoth);
+            MoveStroke.StrokeWidth = 1.5f;
+            canvas.DrawRect(square, MoveStroke);
+
+            if (_moving && _movable.Readout is { } text)
+            {
+                canvas.DrawText(text, frame.Left + 1, frame.Top - 4, SKTextAlign.Left, LabelFont, LabelShadow);
+                canvas.DrawText(text, frame.Left, frame.Top - 5, SKTextAlign.Left, LabelFont, LabelPaint);
             }
         }
 

@@ -90,6 +90,8 @@
                   Covered="{Binding IsCovered}"
                   MaskActors="{Binding ZPlaneMasking}"
                   ZPlaneOverlay="{Binding ZPlaneOverlay}"
-                  SelectedObjects="{Binding SelectedObjects}" />
+                  SelectedObjects="{Binding SelectedObjects}"
+                  MovableObject="{Binding MovableObject}"
+                  MoveLiveCostume="{Binding MoveLiveCostume}" />
   </c:ViewerPreview>
 </UserControl>

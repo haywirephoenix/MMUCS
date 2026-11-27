@@ -133,7 +133,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Costume.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(AkosViewModel.SelectedCel) or nameof(AkosViewModel.Akos)) UpdatePosition();
+            // The move tool is on the cel in place only while the cel is what's shown, not a step or a chore.
+            if (e.PropertyName == nameof(AkosViewModel.ShowsCel)) Room.MoveLiveCostume = _positionIsModCel && Costume.ShowsCel;
         };
+        // The Room viewer's move tool drags the mod image, or the mod cel in place, the Position shows.
+        Room.MoveRequested += (dx, dy) => { if (Room.MovableObject != null || Room.MoveLiveCostume) Inspector.Position.MoveBy(dx, dy); };
         Room.ObjectStateShown += obj => { if (ReferenceEquals(obj, Room.SelectedObject)) UpdatePosition(); };
         DockFactory = new MmucsDockFactory(this);
         var saved = DockLayoutStore.Read();
@@ -749,10 +753,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// object's image place in the Object viewer; a mod's can be moved and saved, the game's are only shown. A change
     /// not saved is put back first, so the viewers don't keep a place the file doesn't have.
     /// </summary>
+    /// <summary>The Position is a mod cel's (the Room viewer's move tool can be on it in place).</summary>
+    private bool _positionIsModCel;
+
     private void UpdatePosition()
     {
         var position = Inspector.Position;
         if (position.IsDirty) position.RevertCommand.Execute(null);
+        Room.MovableObject = null;
+        Room.MoveLiveCostume = _positionIsModCel = false;
 
         if (ReferenceEquals(Inspector.Content, Costume.ViewerLayout) && Costume.Akos != null && Costume.SelectedCel is { } cel)
         {
@@ -776,6 +785,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
                         CostumeCelMods.SaveOffsets(folder, new Dictionary<string, (int, int)> { [Path.GetFileName(mod.File)] = (x, y) });
                         Room.ReloadModImages(); // the room's placed costumes read the mods again
                     });
+                _positionIsModCel = true;
+                Room.MoveLiveCostume = Costume.ShowsCel; // the cel as Play in place shows it in the room
             }
             else position.Show($"Cel {number}", "The game's cel (no mod has one, or Mod images is off): drawn at its own corner", false, 0, 0);
             return;
@@ -794,6 +805,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                         ObjectImageMods.SavePlace(image, x, y);
                         Room.ReloadModImages(); // shadows blend over what's under the new place
                     });
+                Room.MovableObject = obj;
             }
             else position.Show($"Object {obj.Name}", "The game's image (no mod has one, or Mod images is off): its top-left in the room", false, obj.X, obj.Y);
             return;

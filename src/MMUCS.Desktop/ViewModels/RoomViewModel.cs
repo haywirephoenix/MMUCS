@@ -107,6 +107,13 @@ public sealed partial class RoomViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<Walkbox> Walkboxes { get; set; }
     [ObservableProperty] public partial Size RoomSize { get; set; }
     [ObservableProperty] public partial RoomObject SelectedObject { get; set; }
+    /// <summary>The object whose mod image the canvas's move tool drags (the Inspector's Position is a mod's), or null.</summary>
+    [ObservableProperty] public partial RoomObject MovableObject { get; set; }
+    /// <summary>The canvas's move tool drags <see cref="LiveCostume"/>, the Costume viewer's cel in place (the Position is a mod cel's).</summary>
+    [ObservableProperty] public partial bool MoveLiveCostume { get; set; }
+    /// <summary>The move tool moved what it drags by so many of the Position's pixels.</summary>
+    public event Action<int, int> MoveRequested;
+    public void RequestMove(int dx, int dy) => MoveRequested?.Invoke(dx, dy);
     [ObservableProperty] public partial int BackgroundIndex { get; set; }
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasBackgroundChoices))] public partial int MaxBackgroundIndex { get; set; }
     [ObservableProperty] public partial string BackgroundLabel { get; set; }

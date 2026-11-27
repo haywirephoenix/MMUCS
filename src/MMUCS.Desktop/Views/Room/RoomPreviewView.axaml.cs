@@ -13,6 +13,8 @@ public partial class RoomPreviewView : UserControl
         Canvas.ObjectContextRequested += obj => { if (Vm is { } vm) { RoomObjectMenu.Show(vm, obj, Canvas); } };
         // Ctrl / Shift click: the Objects list owns the multi-selection.
         Canvas.ObjectModifierClicked += (obj, mods) => Vm?.RequestModifierSelect(obj, mods);
+        // The move tool on a mod's object image or cel in place: the Inspector's Position takes the new place.
+        Canvas.MovedBy += (dx, dy) => Vm?.RequestMove(dx, dy);
     }
 
     private RoomViewModel Vm => DataContext as RoomViewModel;

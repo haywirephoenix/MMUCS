@@ -75,6 +75,10 @@ public abstract class SkiaViewport : Avalonia.Controls.Control
     private bool _fitPending = true;
 
     protected Vector Offset => _offset;
+    /// <summary>Space is held (a left drag pans).</summary>
+    protected bool IsSpaceHeld => _spaceHeld;
+    /// <summary>A drag is panning the view.</summary>
+    protected bool IsPanning => _panStart != null;
     protected ViewTransform View => new(Zoom, _offset.X, _offset.Y);
 
     protected SkiaViewport()
