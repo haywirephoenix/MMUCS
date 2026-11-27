@@ -106,6 +106,29 @@ public class ObjectScriptTests
     }
 
     [Fact]
+    public void Name_of_renames_an_object_from_any_room_until_no_one_owns_it()
+    {
+        // Run from another room, as Puerto Pollo names the Plunder map's doors: name-of 336 is "…", then
+        // the inventory script (global 2) runs with 0.
+        var rename = new Asm().Push(Item).Op(0xb5).Text("/TWNN389/Puerto Pollo").End().Global(1);
+        var inventoryScript = new Asm().PushVar(Local | 0).Write(110).Push(1).Write(111).End().Global(2);
+        var (vm, _) = Machine(rename, inventoryScript);
+        vm.State[EngineVars.InventoryScript] = 2;
+        vm.CurrentRoom = Elsewhere;
+        vm.RunScript(1);
+        Assert.Equal((0, 1), (vm.State[110], vm.State[111]));
+
+        vm.StartScene(Room);
+        Assert.Equal("Puerto Pollo", vm.ConvertMessage(vm.NameOf(Item), out string tag));
+        Assert.Equal("TWNN389", tag);
+
+        // Owned by no one, the name goes when the room is left.
+        vm.State.Objects.SetOwner(Item, 0);
+        vm.StartScene(Elsewhere);
+        Assert.Null(vm.State.Objects.NewName(Item));
+    }
+
+    [Fact]
     public void Classes_set_clear_and_test_with_bit_7()
     {
         // class-of 336 is [151, 160] (set 23 and 32), then [23] (clear 23);
