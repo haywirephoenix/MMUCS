@@ -27,6 +27,25 @@ public class ActorTests
     private static Asm Current(Asm a, int actor) => a.Push(actor).Sub(0xac, 0x7a);
 
     [Fact]
+    public void Distance_and_proximity_are_the_larger_of_the_x_and_y_distances_over_the_actors_scale()
+    {
+        // Room 14's lights fade Guybrush's colours by distance(x-of(1), y-of(1), 1480,339) (local 2005).
+        var code = new Asm()
+            .Push(3).Push(100).Push(200).Push(5).Op(0xa1)             // put-actor 3 at 100,200 in-room 5
+            .Push(4).Push(160).Push(250).Push(5).Op(0xa1)             // put-actor 4 at 160,250 in-room 5 (scale 255)
+            .Push(7).Push(10).Push(10).Push(6).Op(0xa1)               // put-actor 7 in another room
+            .Push(3).Sub(0xac, 0x7a).Push(128).Sub(0xac, 0x73)        // actor 3 scale 128 (after put-actor, which takes the box's)
+            .Push(100).Push(200).Push(1480).Push(339).Op(0xef).Write(300) // distance: the larger of 1380 and 139
+            .Push(3).Push(4).Op(0xee).Write(301)                      // proximity(3, 4): 60 × 255 / ((128 + 255) / 2)
+            .Push(3).Push(7).Op(0xee).Write(302)                      // proximity to an actor not here: −1
+            .End().Global(10);
+        var vm = Machine(code);
+        vm.RunScript(10);
+        Assert.Equal((1380, 60 * 255 / 191, -1), (vm.State[300], vm.State[301], vm.State[302]));
+        Assert.DoesNotContain(vm.UnhandledCounts.Keys, k => k.StartsWith("dist"));
+    }
+
+    [Fact]
     public void Put_actor_shows_it_in_the_current_room_and_the_scripts_read_back_what_they_set()
     {
         var code = Current(new Asm(), 3)
