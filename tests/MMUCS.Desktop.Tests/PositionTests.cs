@@ -46,6 +46,29 @@ public class PositionTests
     }
 
     [Fact]
+    public void The_move_tool_moves_a_mod_s_position_with_one_preview_and_leaves_the_game_s_alone()
+    {
+        var previews = new List<(int, int)>();
+        var p = new PositionViewModel();
+        p.Show("object", "mod", true, 100, 50, (x, y) => previews.Add((x, y)));
+        p.MoveTo(112, 47);
+        Assert.Equal([(112, 47)], previews); // both at once, not x then y
+        Assert.Equal((112m, 47m), (p.X, p.Y));
+        Assert.True(p.IsDirty && p.SaveCommand.CanExecute(null));
+        p.MoveTo(112, 47);
+        Assert.Single(previews); // the same place again is no change
+        p.MoveBy(-2, 3); // the move tool's steps on a cel
+        Assert.Equal((110, 50), previews[^1]);
+
+        p.Show("object", "game", false, 10, 20, (x, y) => previews.Add((x, y)));
+        int before = previews.Count;
+        p.MoveTo(0, 0);
+        p.MoveBy(1, 1);
+        Assert.Equal((10m, 20m), (p.X, p.Y));
+        Assert.Equal(before, previews.Count);
+    }
+
+    [Fact]
     public void Saving_a_place_or_an_offset_keeps_the_rest_of_the_meta_json()
     {
         string dir = Path.Combine(Path.GetTempPath(), "mmucs-meta-" + Guid.NewGuid().ToString("N"));
