@@ -74,11 +74,14 @@ The game draws in palette colours, so a palette mod's PNG is taken into them:
 - **Object images:** each opaque pixel becomes the room palette's colour nearest it. A partly see-through pixel is baked over the room's background under it. A dark one at least a fifth opaque (the export's 40% black) is a shadow, drawn as the game draws a costume's: the background times shadow table 6, or the table the `.meta.json`'s `"shadowTable"` names, so it matches the costume it continues. In the game window that's the table as the scripts set it (`build-palette-shadow`); elsewhere COMI's usual values (table 6 is 189 of 255, table 7 is 219). Other partly see-through pixels are blended.
 - **Costume cels:** each opaque pixel becomes the costume's nearest colour. A dark pixel at least a fifth opaque becomes the costume's shadow colour, so the game's shadow mode applies; the export draws shadows as 40% black. Fainter pixels are transparent.
 
-`mods` lists each costume cel with its size against the game's, its offset and how much of the game's cel its PNG has there. Over 90% means it lines up; less means the offset is wrong or the cel was repainted. `--place` finds where the game's cel sits in each PNG that doesn't line up (no offset, or extended since) and saves those offsets to `meta.json`, keeping the rest of the file. A cel it can't match to 90% keeps its offset, and the best fit is printed. To do only some cels, name them; named cels are worked out again even when they line up, and get their best fit when it's at least 50%:
+`mods` lists each costume cel with its size against the game's, its offset and how much of the game's cel its PNG has there. Over 90% means it lines up; less means the offset is wrong or the cel was repainted. `--place` finds where the game's cel sits in each PNG that has no offset in `meta.json` and doesn't line up, and saves those offsets there, keeping the rest of the file. A cel `meta.json` already gives an offset (set by hand, in the Inspector or by an earlier `--place`) keeps it, even when it doesn't line up, and the best fit is printed beside it. A cel it can't match to 90% is left, with its best fit printed. To place only some, name folders or cels. A folder limits it to the costumes under it: a costume, room or mod folder's name, a run of them (`022_clring-a/costumes`), or a path on disk. A named cel is worked out again whatever its offset, and gets its best fit when that's at least 50%. A name that matches nothing is reported:
 
 ```bash
-mprobe mods --place                       # every cel that doesn't line up
-mprobe mods --place cel_044               # one cel, by its file
+mprobe mods --place                       # every cel with no offset that doesn't line up
+mprobe mods --place akos_02A4A050         # the same, in one costume's folder
+mprobe mods --place 022_clring-a          # or a room's, or a mod's (WideScreenMod)
+mprobe mods --place ~/Games/COMI/_mods/WideScreenMod/rooms/022_clring-a/costumes/akos_02A4A050   # a path
+mprobe mods --place cel_044               # one cel, by its file, replacing its offset
 mprobe mods --place 44,47                 # by number
 mprobe mods --place akos_02A4A050/cel_044 # by the end of its path, where two costumes have a cel_044
 ```
