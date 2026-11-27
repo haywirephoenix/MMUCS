@@ -68,6 +68,31 @@ public sealed partial class ScriptVm
         return (x, y);
     }
 
+    /// <summary>
+    /// <c>proximity(a, b)</c> and <c>distance(x1,y1, x2,y2)</c> (ScummVM <c>getDistanceBetween</c>): the larger of the
+    /// x and y distances (<c>getDist</c>), times 255 over the mean of the two ends' scales (an actor's x scale,
+    /// 255 for an object or a point); −1 when an object or actor isn't here. A place given is used as it is.
+    /// </summary>
+    private int DistanceBetween(int first, (int X, int Y)? firstAt, int second, (int X, int Y)? secondAt)
+    {
+        int scale1 = 0xFF, scale2 = 0xFF;
+        if (firstAt == null)
+        {
+            if (ObjectOrActorXY(first) is not { } at) return -1;
+            firstAt = at;
+            if (first < ActorTable.Count) scale1 = Actors[first].ScaleX;
+        }
+        if (secondAt == null)
+        {
+            if (ObjectOrActorXY(second) is not { } at) return -1;
+            secondAt = at;
+            if (second < ActorTable.Count) scale2 = Actors[second].ScaleX;
+        }
+        int dist = Math.Max(Math.Abs(firstAt.Value.Y - secondAt.Value.Y), Math.Abs(firstAt.Value.X - secondAt.Value.X));
+        int mean = (scale1 + scale2) / 2;
+        return mean == 0 ? 0 : dist * 0xFF / mean;
+    }
+
     /// <summary>ScummVM <c>getObjX</c>/<c>getObjY</c>: an actor's place, an object's (−1 when it isn't here), 0 below 1.</summary>
     private int ObjectCoordinate(int obj, bool y)
     {
@@ -142,6 +167,8 @@ public sealed partial class ScriptVm
             case 0xeb: Push(ObjectCoordinate(Pop(), y: false)); return true;
             case 0xec: Push(ObjectCoordinate(Pop(), y: true)); return true;
             case 0xed: Push(Actors[Pop()].Frame); return true;
+            case 0xee: { int b = Pop(), a = Pop(); Push(DistanceBetween(a, null, b, null)); return true; }
+            case 0xef: { int y2 = Pop(), x2 = Pop(), y1 = Pop(), x1 = Pop(); Push(DistanceBetween(0, (x1, y1), 0, (x2, y2))); return true; }
             // image-x/y/width/height (ScummVM o8_getObjectImageX…): the room slot's image place.
             case 0xf0: Push(ImagePlace(Pop()).X); return true;
             case 0xf1: Push(ImagePlace(Pop()).Y); return true;
