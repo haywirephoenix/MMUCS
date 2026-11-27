@@ -40,6 +40,16 @@ public sealed class RoomScene
     /// <summary>A hi-res mod's background, drawn in place of <see cref="Background"/>, or null.</summary>
     public HiResImage HiResBackground { get; init; }
 
+    /// <summary>
+    /// Where the background covers, in room pixels: the hi-res background's place, else the background image's,
+    /// else the room's size. The game view cuts the room's objects and actors to it, so a room whose background
+    /// isn't widened yet shows black beside it rather than actors and objects over nothing.
+    /// </summary>
+    public SKRect BackgroundBounds =>
+        HiResBackground is { } hi ? SKRect.Create(hi.X, hi.Y, hi.Width, hi.Height)
+        : Background != null ? SKRect.Create(BackgroundX, BackgroundY, Background.Width, Background.Height)
+        : SKRect.Create(0, 0, Width, Height);
+
     /// <summary>Object images in draw order, later ones on top.</summary>
     public IReadOnlyList<SceneObject> Objects { get; init; } = [];
 

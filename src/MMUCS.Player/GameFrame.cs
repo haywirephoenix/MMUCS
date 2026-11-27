@@ -133,6 +133,7 @@ public sealed class GameFrame
             canvas.Save();
             if (PageOnly) canvas.ClipRect(PageRect);
             canvas.Translate((float)(GameState.CanvasWidth / 2 - Camera.X), (float)(GameState.CanvasHeight / 2 - Camera.Y));
+            ClipToBackground(canvas, Room);
             Room.Draw(canvas, sampling);
             canvas.Restore();
         }
@@ -158,6 +159,7 @@ public sealed class GameFrame
             canvas.Save();
             if (PageOnly) canvas.ClipRect(PageRect);
             canvas.Translate((float)(GameState.CanvasWidth / 2 - Camera.X), (float)(GameState.CanvasHeight / 2 - Camera.Y));
+            ClipToBackground(canvas, Room);
             UpperActors.Draw(canvas, sampling);
             canvas.Restore();
         }
@@ -184,6 +186,13 @@ public sealed class GameFrame
         }
         if (cursor && Cursor is { } pointer) canvas.DrawImage(pointer.Image, Rect(pointer.Bounds), sampling);
         canvas.Restore();
+    }
+
+    /// <summary>Cuts what's drawn next to where the room's background covers (black beyond it, as the letterbox is).</summary>
+    private static void ClipToBackground(SKCanvas canvas, RoomScene room)
+    {
+        var bounds = room.BackgroundBounds;
+        if (bounds.Width > 0 && bounds.Height > 0) canvas.ClipRect(bounds);
     }
 
     private static SKRect PageRect => SKRect.Create((float)GameState.PageOrigin.X, (float)GameState.PageOrigin.Y, (float)GameState.PageSize.Width, (float)GameState.PageSize.Height);
