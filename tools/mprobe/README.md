@@ -88,6 +88,32 @@ mprobe mods --place akos_02A4A050/cel_044 # by the end of its path, where two co
 
 The Inspector's **Position** section in MMUCS shows the same offsets and places. It can move a mod's and save it to the same files.
 
+### Overlays: drawn over the game's
+
+An object image's `.meta.json` or a cel's entry in its costume's `meta.json` can say `"base": "game"`:
+
+```json
+{ "x": 224, "y": 392, "base": "game" }
+{ "cels": { "cel_048": { "x": -13, "y": 0, "base": "game" } } }
+```
+
+The PNG is then drawn over the game's own image or cel, taken from the player's copy of the game, instead of in its place. It need only hold the pixels its author drew. A pixel with an alpha of exactly 1 (of 255) erases the game's pixel under it. The PNG's other partly see-through pixels blend over the game's image where it's under them. The overlay's `x`/`y` is still where the PNG's top-left goes. The Inspector moves and saves it the same way, but its preview moves the game's part too, until it's saved.
+
+### Sharing a mod
+
+`mods --strip` writes a copy of each enabled mod to share, with none of the game's own pictures or music in it:
+
+```bash
+mprobe mods --strip                          # every enabled mod, to _mods_shared/ beside the game
+mprobe mods --strip WideScreenMod --out DIR  # one mod, somewhere else
+```
+
+- **Object images and costume cels** become overlays. Pixels that come out as the game's under them are made see-through. The game's pixels the PNG left out are marked to be erased, and the PNG is widened if it has to reach them. Each overlay is then drawn again and checked against the mod as it was; any that differ are reported, and the run fails. A picture where little matches the game's is flagged as a repaint *or the game's art moved*, which it can't tell apart: check it's yours.
+- **Music**: the audio files are left out and `mod.json` is kept. Players add their own copies, and `mods --check` checks them against the MD5s in the FLACs.
+- **Hi-res mods** are skipped: their pictures are the game's art all through.
+
+Files already in the output folder are written over, and others there are left alone.
+
 ## Checking the interpreter
 
 ```bash
