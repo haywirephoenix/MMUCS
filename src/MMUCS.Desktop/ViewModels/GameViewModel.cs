@@ -43,6 +43,8 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
         Scripted.SmoothCamera = SmoothCamera = settings?.SmoothCamera ?? true;
         Scripted.SmoothWalk = SmoothWalk = settings?.SmoothWalk ?? true;
         Scripted.MusicModsEnabled = MusicModsEnabled = settings?.MusicModsEnabled ?? true;
+        Scripted.ImageModsEnabled = ImageModsEnabled = settings?.ImageModsEnabled ?? true;
+        Mods = new ModsViewModel(gameFile, settings, this);
         ShowInfo = settings?.ShowInfo ?? true;
         Fonts.Changed += () => { ApplyFont(); Refresh(); };
         Game.Changed += OnChanged;
@@ -105,6 +107,44 @@ public sealed partial class GameViewModel : ObservableObject, IDisposable
     /// <summary>Whether the music mods beside the game play in place of its tracks (kept in the settings).</summary>
     [ObservableProperty]
     public partial bool MusicModsEnabled { get; set; }
+
+    /// <summary>Whether the image mods beside the game are drawn in place of its own pictures (kept in the settings).</summary>
+    [ObservableProperty]
+    public partial bool ImageModsEnabled { get; set; }
+
+    /// <summary>The Mods view: the mods beside the game and those a repository offers, to install, update and switch.</summary>
+    public ModsViewModel Mods { get; }
+
+    /// <summary>Whether the Mods view is shown over the game (the game pauses while it is).</summary>
+    [ObservableProperty]
+    public partial bool ShowMods { get; set; }
+
+    partial void OnShowModsChanged(bool value)
+    {
+        if (!value) return;
+        if (IsPlaying) Pause();
+        Mods.Shown();
+    }
+
+    partial void OnImageModsEnabledChanged(bool value)
+    {
+        Scripted.ImageModsEnabled = value;
+        ScriptedView.ReloadMods();
+        if (_settings != null && _settings.ImageModsEnabled != value)
+        {
+            _settings.ImageModsEnabled = value;
+            _settings.Save();
+        }
+        Refresh();
+    }
+
+    /// <summary>Reads the mods beside the game again (one was installed, updated or switched), so the game shows them now.</summary>
+    public void ReloadMods()
+    {
+        Scripted.ReloadMods();
+        ScriptedView.ReloadMods();
+        Refresh();
+    }
 
     /// <summary>Walking actors glide between frames instead of stepping as SCUMM's do, with the smooth camera (kept in the settings).</summary>
     [ObservableProperty]

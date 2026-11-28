@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:MMUCS.Desktop.ViewModels"
         xmlns:c="using:MMUCS.Desktop.Controls"
+        xmlns:g="using:MMUCS.Desktop.Views.Game"
         x:Class="MMUCS.Desktop.Views.Game.GameWindow"
         x:DataType="vm:GameViewModel"
         Title="Game"
@@ -47,20 +48,12 @@
             <Button.Flyout>
               <Flyout Placement="BottomEdgeAlignedLeft">
                 <StackPanel Orientation="Vertical" Spacing="8" MinWidth="180">
-
                   <ToggleButton Content="Show Info"
                                 IsChecked="{Binding ShowInfo}"
                                 HorizontalAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 MinWidth="160"
                                 ToolTip.Tip="Show the status line under the toolbar: the room, the music playing and what the game is doing" />
-
-                  <ToggleButton Content="Music Mods"
-                                IsChecked="{Binding MusicModsEnabled}"
-                                HorizontalAlignment="Center"
-                                HorizontalContentAlignment="Center"
-                                MinWidth="160"
-                                ToolTip.Tip="On: the music mods in _mods/music beside the game play in place of its tracks. Off: the game's own music. Switching changes the track playing at once." />
 
                   <ToggleButton Content="Smooth camera"
                                 IsChecked="{Binding SmoothCamera}"
@@ -85,6 +78,11 @@
               </Flyout>
             </Button.Flyout>
           </Button>
+
+          <ToggleButton Classes="transport"
+                        Content="Mods"
+                        IsChecked="{Binding ShowMods}"
+                        ToolTip.Tip="Show the mods over the game (it pauses): install, update and switch them, and the music and image mods as a whole" />
         </StackPanel>
 
         <Label Content="{Binding Status}" IsVisible="{Binding ShowInfo}" />
@@ -111,6 +109,10 @@
                 Background="{DynamicResource OverlayBackgroundBrush}" CornerRadius="3">
           <TextBlock Text="{Binding Hint}" Margin="10,5" FontSize="12" Foreground="{DynamicResource SubtleTextBrush}" />
         </Border>
+        <!-- Over the game while the Mods button is on; it takes the clicks and keys meanwhile. -->
+        <Panel IsVisible="{Binding ShowMods}">
+          <g:ModsView DataContext="{Binding Mods}" />
+        </Panel>
       </Panel>
     </c:ViewerPreview.Overlay>
   </c:ViewerPreview>

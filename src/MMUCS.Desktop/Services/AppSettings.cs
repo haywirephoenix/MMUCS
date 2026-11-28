@@ -23,8 +23,12 @@ public sealed class AppSettings
     public bool SmoothCamera { get; set; } = true;
     /// <summary>The game window shows its status line (on by default; the Options flyout's Show Info).</summary>
     public bool ShowInfo { get; set; } = true;
-    /// <summary>The game plays the music mods beside it in place of its tracks (on by default; the Options flyout's Music Mods).</summary>
+    /// <summary>The game plays the music mods beside it in place of its tracks (on by default; the Mods view's Music switch).</summary>
     public bool MusicModsEnabled { get; set; } = true;
+    /// <summary>The game draws the image mods beside it (object images, costume cels, hi-res) in place of its own (on by default; the Mods view's Images switch).</summary>
+    public bool ImageModsEnabled { get; set; } = true;
+    /// <summary>The mods.json the Mods view lists mods to download from (a repository made from mods-repo-template/).</summary>
+    public string ModRepositoryUrl { get; set; } = MMUCS.Core.ModRepository.DefaultUrl;
     /// <summary>Walking actors glide between frames, with the smooth camera (on by default; the window's Smooth walk button).</summary>
     public bool SmoothWalk { get; set; } = true;
     public bool ShowRoomNames { get; set; } = true;

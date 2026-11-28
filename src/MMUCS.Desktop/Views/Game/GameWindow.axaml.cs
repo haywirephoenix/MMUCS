@@ -186,6 +186,7 @@ public partial class GameWindow : Window
     /// </summary>
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
+        if (_vm is { ShowMods: true }) return; // keys are the Mods view's (its search box) while it's over the game
         if (ReleaseChord.IsPart(e.Key))
         {
             if (_chord.Down(e.Key)) ReleaseMouse("Ctrl+Alt");

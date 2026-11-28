@@ -1,0 +1,114 @@
+<!-- The game window's Mods view (ViewModels/ModsViewModel.cs): shown over the game while its Mods button is on. -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MMUCS.Desktop.ViewModels"
+             x:Class="MMUCS.Desktop.Views.Game.ModsView"
+             x:DataType="vm:ModsViewModel">
+
+  <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}" Padding="16,12">
+    <Grid RowDefinitions="Auto,*,Auto">
+
+      <!-- Title, the music and image mods as a whole, and the way back. -->
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,8">
+        <TextBlock Grid.Column="0" Text="Mods" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <ToggleSwitch Grid.Column="2" IsChecked="{Binding IsMusicModsEnabled}" OnContent="Music" OffContent="Music"
+                      Margin="0,0,16,0" ToolTip.Tip="On: the music mods play in place of the game's tracks. Off: the game's own music. Switching changes the track playing at once." />
+        <ToggleSwitch Grid.Column="3" IsChecked="{Binding IsImageModsEnabled}" OnContent="Images" OffContent="Images"
+                      Margin="0,0,16,0" ToolTip.Tip="On: the image mods (object images, costume cels, hi-res pictures) are drawn in place of the game's. Off: the game's own." />
+        <Button Grid.Column="4" Content="Back to game" Classes="accent" Command="{Binding CloseCommand}" />
+      </Grid>
+
+      <TabControl Grid.Row="1" Padding="0,8,0,0">
+        <TabItem Header="Mods">
+          <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+            <!-- Search and filter -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,160" Margin="0,0,0,8">
+              <TextBox Grid.Column="0" PlaceholderText="Search mods…" Text="{Binding SearchQuery}" Margin="0,0,8,0" />
+              <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategoryFilter}" />
+            </Grid>
+
+            <!-- Column heads, laid out as the rows are -->
+            <Grid Grid.Row="1" ColumnDefinitions="60,2*,*,110,80,70" Margin="12,0,12,4">
+              <TextBlock Grid.Column="0" Text="On" Foreground="{DynamicResource SubtleTextBrush}" />
+              <TextBlock Grid.Column="1" Text="Mod" Foreground="{DynamicResource SubtleTextBrush}" />
+              <TextBlock Grid.Column="2" Text="Kind" Foreground="{DynamicResource SubtleTextBrush}" />
+              <TextBlock Grid.Column="3" Text="Version" Foreground="{DynamicResource SubtleTextBrush}" />
+              <TextBlock Grid.Column="4" Text="Status" Foreground="{DynamicResource SubtleTextBrush}" />
+              <TextBlock Grid.Column="5" Text="Size" Foreground="{DynamicResource SubtleTextBrush}" />
+            </Grid>
+
+            <ListBox Grid.Row="2" ItemsSource="{Binding FilteredMods}" SelectedItem="{Binding SelectedMod}"
+                     BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:ModItem">
+                  <Grid ColumnDefinitions="60,2*,*,110,80,70">
+                    <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}" IsEnabled="{Binding CanToggle}"
+                              ToolTip.Tip="Switch this mod on or off (its mod.json's enabled). Greyed when it isn't installed, or its kind of mod is off above." />
+                    <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="2" Text="{Binding Category}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding Version}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding InstallStatus}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="{Binding Size}" VerticalAlignment="Center" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- The selected mod -->
+            <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+              <StackPanel Grid.Column="0" Spacing="2">
+                <TextBlock Text="{Binding SelectedMod.Name, FallbackValue='Pick a mod to see what it does'}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding SelectedMod.Description, FallbackValue=''}" TextWrapping="Wrap" MaxHeight="60"
+                           Foreground="{DynamicResource SubtleTextBrush}" />
+              </StackPanel>
+              <Button Grid.Column="1" VerticalAlignment="Top" Margin="8,0,0,0"
+                      Content="{Binding SelectedMod.InstallLabel, FallbackValue='Install'}" Command="{Binding InstallSelectedCommand}"
+                      ToolTip.Tip="Download the repository's version into the _mods folder, in place of the one there (staying on or off as it was)" />
+            </Grid>
+          </Grid>
+        </TabItem>
+
+        <TabItem Header="Settings">
+          <StackPanel Spacing="16" MaxWidth="640" HorizontalAlignment="Left">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Repository" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBox Grid.Column="0" Text="{Binding RepositoryUrl}" PlaceholderText="https://you.github.io/your-mods/mods.json" />
+                <Button Grid.Column="1" Content="Test" Margin="8,0,0,0" Command="{Binding TestRepoConnectionCommand}" />
+                <Button Grid.Column="2" Content="Default" Margin="8,0,0,0" Command="{Binding ResetRepositoryCommand}"
+                        ToolTip.Tip="Back to MMUCS's own repository" />
+              </Grid>
+              <TextBlock Text="{Binding RepositoryName, StringFormat='Reading: {0}', FallbackValue=''}" Foreground="{DynamicResource SubtleTextBrush}" />
+              <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource SubtleTextBrush}"
+                         Text="A mods.json listing each mod's version, description and zip. Anyone can host one: mods-repo-template/ in MMUCS's source has a GitHub Pages site to start from." />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="Mods folder" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                <TextBox Grid.Column="0" Text="{Binding LocalModsPath, Mode=OneWay}" IsReadOnly="True" />
+                <Button Grid.Column="1" Content="Create" Margin="8,0,0,0" Command="{Binding CreateModsFolderCommand}"
+                        IsVisible="{Binding !HasModsFolder}" ToolTip.Tip="Make the _mods folder beside the game" />
+                <Button Grid.Column="2" Content="Open" Margin="8,0,0,0" Click="OnOpenFolder" IsVisible="{Binding HasModsFolder}"
+                        ToolTip.Tip="Show the _mods folder in the file manager" />
+                <Button Grid.Column="3" Content="Read again" Margin="8,0,0,0" Command="{Binding ReadFolderCommand}"
+                        ToolTip.Tip="Read the folder again after copying mods into it by hand, and show them in the game" />
+              </Grid>
+              <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource SubtleTextBrush}"
+                         Text="Mods live in _mods beside the game, one folder each with a mod.json. A music mod's audio is your own copy: put it under the mod's music/ folder." />
+            </StackPanel>
+          </StackPanel>
+        </TabItem>
+      </TabControl>
+
+      <!-- What happened last, with a download's progress -->
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+        <TextBlock Grid.Column="0" Text="{Binding Status}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                   Foreground="{DynamicResource SubtleTextBrush}" />
+        <ProgressBar Grid.Column="1" Width="160" Minimum="0" Maximum="1" Value="{Binding Progress}" IsVisible="{Binding IsBusy}" Margin="8,0" />
+        <Button Grid.Column="2" Content="Refresh" Command="{Binding RefreshRepoCommand}" ToolTip.Tip="Read the repository's list of mods again" />
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>
