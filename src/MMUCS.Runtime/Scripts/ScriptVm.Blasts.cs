@@ -107,5 +107,6 @@ public sealed partial class ScriptVm
     {
         BlastObjects = [.. _blastObjects];
         _blastObjects.Clear();
+        _iconStep = null;
     }
 }

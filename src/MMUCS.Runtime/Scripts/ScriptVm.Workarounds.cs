@@ -44,5 +44,32 @@ public sealed partial class ScriptVm
             BreakHere();
     }
 
+    /// <summary>
+    /// Not one of ScummVM's (it has the bug too): draw-inventory (global 47, and its copy 150 in the chicken room)
+    /// draws an animated icon (class 18, the scripts' [146]) in state var514, 3 to 6, and steps var514 every second
+    /// animated icon it draws (bit323), meaning to step it every second frame. With one such icon on the page it does;
+    /// with more, the one counter is stepped by each, so each icon skips states (four of them see only 3 and 5) and
+    /// they all go faster. Here every animated icon in a frame is drawn in the state the first one was, and var514
+    /// and bit323 are put back before each later one, so they step once a frame, as with one icon.
+    /// </summary>
+    private int OnBlastObject(ScriptSlot s, int obj, int image)
+    {
+        if (s.Kind != ScriptKind.Global || s.Number is not (47 or 150) || !State.Objects.IsObject(obj) ||
+            !State.Objects.HasClass(obj, AnimatedIconClass)) return image;
+        if (_iconStep is not { } step)
+        {
+            _iconStep = (State[IconStateVar], State.Bit(IconStepBit));
+            return image;
+        }
+        State[IconStateVar] = step.State;
+        State.SetBit(IconStepBit, step.Bit);
+        return step.State;
+    }
+
+    /// <summary>The state the frame's first animated inventory icon was drawn in, and bit323 then; none until one is.</summary>
+    private (int State, bool Bit)? _iconStep;
+
+    private const int AnimatedIconClass = 18, IconStateVar = 514, IconStepBit = 323;
+
     private const int ComiMusicSetState = 0x1000, ComiMusicSetSequence = 0x1001;
 }

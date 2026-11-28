@@ -1008,7 +1008,7 @@ public sealed partial class ScriptVm
             case 118 or 119: // blastShadowObject / superBlastObject: obj, x, y, width, height, scale x, scale y, image
             {
                 int At(int i) => i < args.Length ? args[i] : 0;
-                Blast(At(1), At(2), At(3), At(4), At(5), At(6), At(7), At(8), args[0] == 118 ? 3 : 0);
+                Blast(At(1), At(2), At(3), At(4), At(5), At(6), At(7), OnBlastObject(s, At(1), At(8)), args[0] == 118 ? 3 : 0);
                 return;
             }
             case 13 or 14 when args.Length >= 5: // remapCostume / remapCostumeInsert: actor, r, g, b(, threshold)
