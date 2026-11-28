@@ -225,6 +225,8 @@ public class ScriptedViewTests
         Assert.Equal(9, game.CurrentRoom);
 
         // The inventory: its blasted images load in the background, then the frame has them on the page.
+        // The gold tooth (398, icon 163) animates through its states 3–6.
+        game.Vm.PickUp(398);
         game.MoveCursor(GameState.PageToGame(new GamePoint(320, 300)));
         game.Press(MouseButton.Right);
         for (int i = 0; i < 6; i++) game.Tick();
@@ -242,6 +244,17 @@ public class ScriptedViewTests
         Assert.True(frame.Blasts.Count >= 2);
         Assert.Equal(GameState.PageOrigin.X, frame.Blasts[0].Bounds.X, 3); // inventory-bg-object at the page's 0,0
         using (Draw(frame, "scripted-inventory")) { }
+
+        // Its next frames were loaded with the first: none is missing while the tooth goes round its states.
+        var states = new HashSet<int>();
+        for (int i = 0; i < 60; i++) // 12 frames, a frame every 5 jiffies
+        {
+            game.Tick();
+            frame = view.Capture();
+            Assert.Equal(game.Vm.BlastObjects.Count, frame.Blasts.Count);
+            states.UnionWith(game.Vm.BlastObjects.Where(b => b.Object == 163).Select(b => b.Image));
+        }
+        Assert.Equal([3, 4, 5, 6], states.Order());
 
         // The verb coin: actor 50, drawn over the blasts.
         game.Press(MouseButton.Right);
