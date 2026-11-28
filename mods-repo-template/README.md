@@ -46,6 +46,6 @@ Commit and push. MMUCS shows an update when a mod's `version` is newer than the 
 
 - `id` is the mod's folder under `_mods`.
 - `zip` is relative to `mods.json`, or a full address (a GitHub release's asset, say).
-- `category` is `Music`, `Images`, `Hi-res` or `Other`. The Mods view's Music and Images switches gate those kinds.
+- `category` is `Widescreen`, `Music`, `Images`, `Hi-res` or `Other`, or several joined by ", ". The Mods view's Music and Images switches gate those kinds. A widescreen mod (`"widescreen": true` in its `mod.json`) always counts.
 
 A zip may hold the mod's folder (`WideScreenMod/mod.json`, …) or just its files. Installing replaces the folder that's there. A mod that's off stays off.

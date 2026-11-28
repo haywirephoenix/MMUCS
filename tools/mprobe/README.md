@@ -61,7 +61,7 @@ _mods/UpscaledBackgrounds/rooms/014_fortbase/background.png
 _mods/UpscaledBackgrounds/rooms/069_stancrpt/objects/048_stans-office_f0.png
 ```
 
-`"enabled": false` turns a mod off. Mods are read in name order, and where two replace the same thing the first wins. The game window uses them, and so do the Room and Costume viewers while their **Mod images** toggle is on.
+`"enabled": false` turns a mod off. `"widescreen": true` makes the game window show the 16:9 view while the mod is on: wide rooms fill the canvas beside the 640 screen, and the camera keeps the whole canvas in the room. With no such mod on, every room is seen through the 640×480 page, as ScummVM shows it. The flag works on its own, so a widescreen mod needs no pictures. Mods are read in name order, and where two replace the same thing the first wins. The game window uses them, and so do the Room and Costume viewers while their **Mod images** toggle is on.
 
 - **Music** (`MusicMods`): `mod.json`'s `tracks` maps the game's tracks (`"1100-Hold1"`) to files, with the stretch played and the loop. A file is found by its path under `music/`, or by its name in any folder there.
 - **Object images** (`ObjectImageMods`): a PNG named as the export names the object's image is drawn in its place. It can be any size. It goes at the object's place unless the `.meta.json` beside it gives its top-left in the room: `{ "x": 232, "y": 392 }`. `"shadowTable": 7` there picks the shadow table its shadow pixels use.
