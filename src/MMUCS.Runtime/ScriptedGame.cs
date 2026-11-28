@@ -137,6 +137,28 @@ public sealed class ScriptedGame : IDisposable
     }
 
     private Func<MusicCue, ImusSound> _musicLoader, _ownMusic;
+    private bool _widescreen = true;
+
+    /// <summary>
+    /// The 16:9 view: the camera keeps the whole canvas in the room, so a wide room fills it beside the 640 screen.
+    /// Off, every room is seen through the 640×480 page as ScummVM shows it (4:3, the canvas's sides black), and the
+    /// camera is the engine's. <see cref="Load"/> and <see cref="ReloadMods"/> set it from the mods: on while an
+    /// enabled mod's mod.json says <c>"widescreen": true</c> (the widescreen mod), else off; on without a game file.
+    /// </summary>
+    public bool Widescreen
+    {
+        get => _widescreen;
+        set
+        {
+            if (_widescreen == value) return;
+            _widescreen = value;
+            if (Vm != null) Vm.ViewWidth = ViewWidth;
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>How wide a view the engine's camera keeps in the room: the canvas, or the 640 screen.</summary>
+    private int ViewWidth => _widescreen ? (int)Math.Ceiling(GameState.CanvasWidth) : (int)GameState.PageSize.Width;
 
     /// <summary>
     /// Reads the mods beside the game again, after one is installed, updated or switched on or off: the costumes
@@ -146,6 +168,7 @@ public sealed class ScriptedGame : IDisposable
     public void ReloadMods()
     {
         Scripts?.ReplaceCostumeMods(_imageMods && GameFile != null ? CostumeCelMods.Load(GameFile) : null);
+        if (GameFile != null) Widescreen = GameMods.AnyWidescreen(GameFile);
         if (MusicOutput != null && _ownMusic != null)
         {
             _musicLoader = MixerMusic.WithMods(GameFile, _ownMusic, () => _musicMods);
@@ -428,6 +451,7 @@ public sealed class ScriptedGame : IDisposable
         Root = root ?? throw new ArgumentNullException(nameof(root));
         GameFile = gameFile;
         Scripts = new ScriptStore(root) { CostumeMods = gameFile == null || !_imageMods ? null : CostumeCelMods.Load(gameFile) };
+        _widescreen = gameFile == null || GameMods.AnyWidescreen(gameFile);
         Music = null;
         MusicOutput = null;
         Effects = new SoundEffects(SoundEffects.FromResources(Scripts, root)) { Mixer = _mixer };
@@ -482,7 +506,7 @@ public sealed class ScriptedGame : IDisposable
         var voice = Voice;
         Vm.Speech = voice;
         UseFonts(Vm, Fonts);
-        Vm.ViewWidth = (int)Math.Ceiling(GameState.CanvasWidth); // the camera keeps the whole canvas in the room
+        Vm.ViewWidth = ViewWidth; // the camera keeps the whole canvas in the room, or the screen without widescreen
         Vm.RoomEntered += room => Trace(room == 0 ? "ROOM 0 (no room)" : $"ROOM {room} {Scripts.RoomName(room)}");
         Vm.VideoStarted += name => Trace($"VIDEO {name}");
         Vm.Warned += w => Trace($"warning: {w}");

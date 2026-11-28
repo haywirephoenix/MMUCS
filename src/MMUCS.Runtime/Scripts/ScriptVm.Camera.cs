@@ -44,8 +44,11 @@ public sealed partial class ScriptVm
     /// </summary>
     public static readonly IReadOnlySet<int> PageOnlyRooms = new HashSet<int> { 25 };
 
-    /// <summary>Whether the room in play is one of <see cref="PageOnlyRooms"/>.</summary>
-    public bool IsPageOnly => PageOnlyRooms.Contains(CurrentRoom);
+    /// <summary>
+    /// Whether the room in play is seen only through the 640 screen: one of <see cref="PageOnlyRooms"/>, or any room
+    /// when the view is no wider than the screen (the game window without a widescreen mod: 4:3, as ScummVM shows it).
+    /// </summary>
+    public bool IsPageOnly => ViewWidth <= ScreenWidth || PageOnlyRooms.Contains(CurrentRoom);
 
     private int ClampCameraX(int x)
     {
