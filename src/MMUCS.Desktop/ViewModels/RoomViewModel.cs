@@ -884,6 +884,10 @@ public sealed partial class RoomViewModel : ObservableObject
     /// <summary>Raised when an object is shown in another state (the Object viewer's state list), so its image may be another.</summary>
     public event Action<RoomObject> ObjectStateShown;
 
+    /// <summary>Where <paramref name="obj"/>'s image is drawn now (its top-left in the room), or null when it isn't.</summary>
+    public (int X, int Y)? ObjectImagePlace(RoomObject obj) =>
+        ObjectLayers?.FirstOrDefault(l => ReferenceEquals(l.Object, obj) && !l.IsActorOnly) is { } l ? (l.X, l.Y) : null;
+
     /// <summary>Shows <paramref name="obj"/>'s image with its top-left at <paramref name="x"/>,<paramref name="y"/> (unsaved: the next reload puts it back).</summary>
     public void PreviewObjectPlace(RoomObject obj, int x, int y)
     {
@@ -902,7 +906,7 @@ public sealed partial class RoomViewModel : ObservableObject
         lock (modded)
         {
             if (modded.ModCels?.GetValueOrDefault(cel) is not { } mod) return;
-            modded.ModCels = new Dictionary<int, AkosModCel>(modded.ModCels) { [cel] = mod with { OffsetX = x, OffsetY = y } };
+            modded.ModCels = new Dictionary<int, AkosModCel>(modded.ModCels) { [cel] = mod.MovedTo(x, y) };
         }
 
         var set = new ImageSet();

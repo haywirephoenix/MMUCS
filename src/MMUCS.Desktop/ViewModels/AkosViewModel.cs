@@ -102,7 +102,7 @@ public sealed partial class AkosViewModel : ObservableObject
     public void PreviewCelOffset(int cel, int x, int y)
     {
         if (Akos?.ModCels?.GetValueOrDefault(cel) is not { } mod) return;
-        var cels = new Dictionary<int, AkosModCel>(Akos.ModCels) { [cel] = mod with { OffsetX = x, OffsetY = y } };
+        var cels = new Dictionary<int, AkosModCel>(Akos.ModCels) { [cel] = mod.MovedTo(x, y) };
         Akos.ModCels = cels;
         if (_frameChore >= 0) ShowChoreFrame(_playPos);
         else if (_shownStep >= 0)
@@ -436,7 +436,7 @@ public sealed partial class AkosViewModel : ObservableObject
         var ci = akos.CelInfos[cel.Index];
         var off = akos.CelOffsets[cel.Index];
         string modded = akos.ModCels?.GetValueOrDefault(cel.Index) is { } m
-            ? $"\nMod cel {System.IO.Path.GetFileName(m.File)}: {m.Surface.Width} × {m.Surface.Height} px at offset {m.OffsetX},{m.OffsetY}" : "";
+            ? $"\nMod cel {System.IO.Path.GetFileName(m.File)}: {m.Surface.Width} × {m.Surface.Height} px at offset {m.PlaceX},{m.PlaceY}{(m.Overlay != null ? ", over the game's" : "")}" : "";
         CelInfo = $"Cel {cel.Index}  —  {ci.Width} × {ci.Height} px{modded}\n" +
                   $"RelX {ci.RelX}   RelY {ci.RelY}\nMoveX {ci.MoveX}   MoveY {ci.MoveY}\n" +
                   $"AKCD 0x{off.AkcdOffset:X8}   AKCI 0x{off.AkciOffset:X4}";

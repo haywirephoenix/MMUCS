@@ -773,7 +773,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 string folder = Path.GetDirectoryName(mod.File);
                 position.Show($"Cel {number}: {Path.GetFileName(mod.File)} from the mods",
                     $"Its top-left from the game cel's; saved to {Path.GetFileName(folder)}/meta.json",
-                    true, mod.OffsetX, mod.OffsetY,
+                    true, mod.PlaceX, mod.PlaceY,
                     (x, y) =>
                     {
                         if (!ReferenceEquals(Costume.Akos, costume)) return;
@@ -796,10 +796,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             if (Room.ModImageOf(obj) is { } image)
             {
+                // A mod image over the game's is drawn with it as one picture, whose corner isn't the PNG's: the preview
+                // moves the picture by as much as the PNG moves (the game's part too, till it's saved and drawn again).
+                int placeX = image.X ?? obj.X, placeY = image.Y ?? obj.Y;
+                var drawn = image.OverGame ? Room.ObjectImagePlace(obj) : null;
                 position.Show($"Object {obj.Name}: {Path.GetFileName(image.File)} from {image.Mod}",
                     $"Its top-left in the room; saved to {Path.GetFileNameWithoutExtension(image.File)}.meta.json",
                     true, image.X ?? obj.X, image.Y ?? obj.Y,
-                    (x, y) => Room.PreviewObjectPlace(obj, x, y),
+                    (x, y) => Room.PreviewObjectPlace(obj, x - placeX + (drawn?.X ?? placeX), y - placeY + (drawn?.Y ?? placeY)),
                     (x, y) =>
                     {
                         ObjectImageMods.SavePlace(image, x, y);
