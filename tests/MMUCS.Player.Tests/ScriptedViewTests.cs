@@ -225,8 +225,10 @@ public class ScriptedViewTests
         Assert.Equal(9, game.CurrentRoom);
 
         // The inventory: its blasted images load in the background, then the frame has them on the page.
-        // The gold tooth (398, icon 163) animates through its states 3–6.
-        game.Vm.PickUp(398);
+        // The gold tooth (398, icon 163), the lice (472, icon 126) and the insurance money (1107, icon 201)
+        // animate through their states 3–6.
+        int[] animated = [163, 126, 201];
+        foreach (int item in (int[])[398, 472, 1107]) game.Vm.PickUp(item);
         game.MoveCursor(GameState.PageToGame(new GamePoint(320, 300)));
         game.Press(MouseButton.Right);
         for (int i = 0; i < 6; i++) game.Tick();
@@ -245,16 +247,20 @@ public class ScriptedViewTests
         Assert.Equal(GameState.PageOrigin.X, frame.Blasts[0].Bounds.X, 3); // inventory-bg-object at the page's 0,0
         using (Draw(frame, "scripted-inventory")) { }
 
-        // Its next frames were loaded with the first: none is missing while the tooth goes round its states.
-        var states = new HashSet<int>();
+        // Their next frames were loaded with the first: none is missing while they go round their states. They go
+        // round together, each through all four, as one would alone (the scripts step their one counter for each).
+        var states = animated.ToDictionary(o => o, _ => new HashSet<int>());
         for (int i = 0; i < 60; i++) // 12 frames, a frame every 5 jiffies
         {
             game.Tick();
             frame = view.Capture();
             Assert.Equal(game.Vm.BlastObjects.Count, frame.Blasts.Count);
-            states.UnionWith(game.Vm.BlastObjects.Where(b => b.Object == 163).Select(b => b.Image));
+            var icons = game.Vm.BlastObjects.Where(b => animated.Contains(b.Object)).ToList();
+            Assert.Equal(animated.Length, icons.Count);
+            Assert.Single(icons.Select(b => b.Image).Distinct());
+            foreach (var b in icons) states[b.Object].Add(b.Image);
         }
-        Assert.Equal([3, 4, 5, 6], states.Order());
+        foreach (int o in animated) Assert.Equal([3, 4, 5, 6], states[o].Order());
 
         // The verb coin: actor 50, drawn over the blasts.
         game.Press(MouseButton.Right);
