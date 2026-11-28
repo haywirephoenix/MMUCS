@@ -118,6 +118,41 @@ public sealed class ScriptedGame : IDisposable
             MusicOutput?.Reload();
         }
     }
+
+    private volatile bool _imageMods = true;
+
+    /// <summary>
+    /// Whether the image mods beside the game (object images, costume cels, hi-res pictures) are drawn in place of its
+    /// own (on by default). Switching reloads them (<see cref="ReloadMods"/>); the player's view reads it too.
+    /// </summary>
+    public bool ImageModsEnabled
+    {
+        get => _imageMods;
+        set
+        {
+            if (_imageMods == value) return;
+            _imageMods = value;
+            ReloadMods();
+        }
+    }
+
+    private Func<MusicCue, ImusSound> _musicLoader, _ownMusic;
+
+    /// <summary>
+    /// Reads the mods beside the game again, after one is installed, updated or switched on or off: the costumes
+    /// given out from then on carry the cels they have now, and the track playing is loaded again with the music
+    /// mods there now. The player's view reads its pictures again with <c>ScriptedView.ReloadMods</c>.
+    /// </summary>
+    public void ReloadMods()
+    {
+        Scripts?.ReplaceCostumeMods(_imageMods && GameFile != null ? CostumeCelMods.Load(GameFile) : null);
+        if (MusicOutput != null && _ownMusic != null)
+        {
+            _musicLoader = MixerMusic.WithMods(GameFile, _ownMusic, () => _musicMods);
+            MusicOutput.Reload();
+        }
+        Changed?.Invoke();
+    }
     private bool _mouseInside, _booted, _quitRequested;
 
     /// <summary>Something that's shown changed.</summary>
@@ -392,7 +427,7 @@ public sealed class ScriptedGame : IDisposable
     {
         Root = root ?? throw new ArgumentNullException(nameof(root));
         GameFile = gameFile;
-        Scripts = new ScriptStore(root) { CostumeMods = gameFile == null ? null : CostumeCelMods.Load(gameFile) };
+        Scripts = new ScriptStore(root) { CostumeMods = gameFile == null || !_imageMods ? null : CostumeCelMods.Load(gameFile) };
         Music = null;
         MusicOutput = null;
         Effects = new SoundEffects(SoundEffects.FromResources(Scripts, root)) { Mixer = _mixer };
@@ -402,8 +437,10 @@ public sealed class ScriptedGame : IDisposable
         Fonts = gameFile == null ? [] : MMUCS.Core.Fonts.NutFont.LoadAll(gameFile);
         if (MusicTable.Load(gameFile) is { } table)
         {
-            var own = MixerMusic.FromBundles(gameFile);
-            MusicOutput = new MixerMusic(MixerMusic.WithMods(gameFile, own, () => _musicMods)) { Mixer = _mixer, Own = own };
+            var own = _ownMusic = MixerMusic.FromBundles(gameFile);
+            _musicLoader = MixerMusic.WithMods(gameFile, own, () => _musicMods);
+            // Through the field, so ReloadMods can swap in the mods there are now.
+            MusicOutput = new MixerMusic(cue => _musicLoader(cue)) { Mixer = _mixer, Own = own };
             Music = new ComiMusic(table, MusicOutput);
             Music.Changed += what => Log.Info($"Game music: {what}");
         }

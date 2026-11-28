@@ -272,6 +272,16 @@ public sealed class ScriptStore
     /// </summary>
     public CostumeCelMods CostumeMods { get; set; }
 
+    /// <summary>Gives out costumes with <paramref name="mods"/>' cels from now on (null: the game's own), forgetting those given out before.</summary>
+    public void ReplaceCostumeMods(CostumeCelMods mods)
+    {
+        lock (_costumes)
+        {
+            CostumeMods = mods;
+            _costumes.Clear();
+        }
+    }
+
     /// <summary>Costume <paramref name="number"/> (its AKOS, through DCOS, with the mods' cels), or null without one or a game file.</summary>
     public Costume Costume(int number)
     {
