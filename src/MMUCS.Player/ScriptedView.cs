@@ -31,7 +31,7 @@ public sealed class ScriptedView(ScriptedGame game)
 {
     private readonly Dictionary<int, RoomModel> _rooms = [];
     private readonly Dictionary<(int Object, int Image), RgbaImage> _cursors = [];
-    private readonly HashSet<(int, int)> _cursorsLoading = [];
+    private readonly HashSet<int> _cursorsLoading = []; // objects whose images are loading
     private readonly Dictionary<string, RoomSceneBuilder.ActorImage> _actorImages = [];
     private readonly Dictionary<ScreenText, SubtitleOverlay> _texts = [];
     private SubtitleRenderer _textsBy;
@@ -401,40 +401,51 @@ public sealed class ScriptedView(ScriptedGame game)
         return new FrameImage(SkiaImages.Of(rgba), new GameRect(game.CursorPosition - hotspot, new GameSize(rgba.Width, rgba.Height)));
     }
 
-    /// <summary>Image <paramref name="image"/> (from 1) of an object of <paramref name="room"/>, once loaded; the first ask starts loading it.</summary>
+    /// <summary>
+    /// Image <paramref name="image"/> (from 1) of an object of <paramref name="room"/>, once loaded. The first ask
+    /// loads all the object's images together, so an animated one (the inventory's gold tooth, states 3–6) has
+    /// its next frame ready rather than missing for a frame while it loads.
+    /// </summary>
     private RgbaImage ObjectImage(int obj, int room, int image)
     {
-        var key = (obj, image);
         lock (_cursors)
         {
-            if (_cursors.TryGetValue(key, out var rgba)) return rgba;
-            if (_cursorsLoading.Add(key)) CursorLoading = LoadCursor(obj, room, image);
+            if (_cursors.TryGetValue((obj, image), out var rgba)) return rgba;
+            if (_cursorsLoading.Add(obj)) CursorLoading = LoadCursor(obj, room, image);
             return null;
         }
     }
 
     private async Task LoadCursor(int obj, int room, int image)
     {
-        RgbaImage rgba = null;
-        HiResImage hiRes = null;
+        var images = new Dictionary<int, RgbaImage>();
+        var hiRes = new Dictionary<int, HiResImage>();
         try
         {
             string name = RoomScripts.ObjectName(Game.Root, obj);
             if (RoomModelOf(room) is { } model && model.Objects.FirstOrDefault(o => o.Name == name) is { } ro)
             {
-                rgba = await RoomSceneBuilder.ObjectImageAsync(model, ro, Math.Max(0, image - 1));
-                // A blasted object's hi-res picture (the cursor keeps the game's).
                 _hiResMods ??= HiResMods.Load(Game.GameFile);
-                if (rgba != null && _hiResMods.Object(model, ro, Math.Max(0, image - 1)) is { } mod &&
-                    await Task.Run(() => HiResImages.Get(mod.File)) is { } picture)
-                    hiRes = new HiResImage(picture, 0, 0, rgba.Width, rgba.Height);
+                for (int i = 1; i <= Math.Max(ro.ImageCount, image); i++)
+                {
+                    bool has;
+                    lock (_cursors) has = _cursors.ContainsKey((obj, i));
+                    if (has) continue;
+                    var rgba = images[i] = await RoomSceneBuilder.ObjectImageAsync(model, ro, i - 1);
+                    // A blasted object's hi-res picture (the cursor keeps the game's).
+                    if (rgba != null && _hiResMods.Object(model, ro, i - 1) is { } mod &&
+                        await Task.Run(() => HiResImages.Get(mod.File)) is { } picture)
+                        hiRes[i] = new HiResImage(picture, 0, 0, rgba.Width, rgba.Height);
+                }
             }
         }
         catch (Exception ex) { Log.Warn($"Game cursor {obj}: {ex.Message}"); }
         lock (_cursors)
         {
-            _cursors[(obj, image)] = rgba;
-            if (hiRes != null) _blastHiRes[(obj, image)] = hiRes;
+            if (!_cursors.ContainsKey((obj, image))) images.TryAdd(image, null); // asked for and not there: don't ask again
+            foreach (var (i, rgba) in images) _cursors[(obj, i)] = rgba;
+            foreach (var (i, picture) in hiRes) _blastHiRes[(obj, i)] = picture;
+            _cursorsLoading.Remove(obj);
         }
         Changed?.Invoke();
     }
