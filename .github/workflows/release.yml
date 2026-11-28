@@ -2,8 +2,9 @@
 #
 # Version comes from <Version> in Directory.Build.props — bump it first. The workflow
 #   1. builds self-contained Windows, Linux and macOS (arm64 + x64) packages,
-#   2. writes release notes as "- <hash> <subject>" for every commit since the previous release tag
-#      (the highest version below this one),
+#   2. writes release notes with .github/scripts/release-notes.sh: the summary in
+#      docs/release-notes/<version>.md if there is one, then every commit since the previous release
+#      tag (the highest version below this one), grouped by category and folded,
 #   3. tags the commit and publishes a GitHub release with the packages attached.
 name: Release
 
@@ -168,30 +169,7 @@ jobs:
 
       - name: Write release notes
         run: |
-          v='${{ needs.prepare.outputs.version }}'
-          # The previous release: the highest version tag below this one (tags are "1.2.3" or "v1.2.3").
-          # Not `git describe`: it only finds tags on HEAD's history, so a tag left off the branch by a
-          # history rewrite was skipped and the notes went back a release or more.
-          prev=$( { git tag --list | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | awk '{t=$0; sub(/^v/,"",t); print t" "$0}'
-                    echo "$v __current__"; } | sort -V -k1,1 | awk '$2=="__current__"{print p; exit} {p=$2}')
-          args=(HEAD)
-          if [ -z "$prev" ]; then
-            echo "No previous release tag: notes list every commit"
-          elif git merge-base --is-ancestor "$prev" HEAD; then
-            args=("$prev..HEAD")
-          else
-            # Its commit was rewritten since: list what was committed after it (rewrites keep the dates).
-            since=$(date -u -d "$(git log -1 --format=%cI "$prev") + 1 second" +%Y-%m-%dT%H:%M:%SZ)
-            echo "::warning::Tag $prev isn't on this branch (its history was rewritten after the release); notes list commits made after $since"
-            args=(--since="$since" HEAD)
-          fi
-          echo "Previous release: ${prev:-none}; notes for ${args[*]}"
-          git log --no-merges --pretty='- %h %s' "${args[@]}" > notes.md
-          cat >> notes.md <<'EOF'
-
-          *MacOS users must run the following command in Terminal after dragging MMUCS to their applications folder
-          codesign --force --deep --sign - /Applications/MMUCS.app
-          EOF
+          .github/scripts/release-notes.sh '${{ needs.prepare.outputs.version }}' > notes.md
           cat notes.md
 
       - name: Create release
