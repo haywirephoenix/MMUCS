@@ -82,13 +82,18 @@ public static class ModRepository
         return mods;
     }
 
-    /// <summary>What a mod holds, by its files: Hi-res (a scale), Music (tracks), Images (rooms/), or Other.</summary>
+    /// <summary>What a mod does, by its mod.json and files: Widescreen, Hi-res (a scale), Music (tracks), Images (rooms/), or Other.</summary>
     public static string CategoryOf(GameMods.Mod mod)
     {
-        if (mod.Scale > 1) return "Hi-res";
-        bool music = mod.Json.RootElement.ValueKind == JsonValueKind.Object && mod.Json.RootElement.TryGetProperty("tracks", out _);
-        bool images = Directory.Exists(Path.Combine(mod.Folder, "rooms"));
-        return music && images ? "Music, Images" : music ? "Music" : images ? "Images" : "Other";
+        var kinds = new List<string>();
+        if (mod.Widescreen) kinds.Add("Widescreen");
+        if (mod.Scale > 1) kinds.Add("Hi-res");
+        else
+        {
+            if (mod.Json.RootElement.ValueKind == JsonValueKind.Object && mod.Json.RootElement.TryGetProperty("tracks", out _)) kinds.Add("Music");
+            if (Directory.Exists(Path.Combine(mod.Folder, "rooms"))) kinds.Add("Images");
+        }
+        return kinds.Count == 0 ? "Other" : string.Join(", ", kinds);
     }
 
     /// <summary>Turns the mod in <paramref name="folder"/> on or off (mod.json's "enabled"), keeping the rest of its mod.json.</summary>

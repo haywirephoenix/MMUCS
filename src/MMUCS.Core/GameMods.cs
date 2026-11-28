@@ -30,7 +30,17 @@ public static class GameMods
     {
         public int Scale => Json.RootElement.ValueKind == JsonValueKind.Object && Json.RootElement.TryGetProperty("scale", out var s) &&
                             s.TryGetInt32(out int n) && n > 1 ? n : 1;
+
+        /// <summary>
+        /// mod.json's <c>"widescreen": true</c>: while the mod is on, the game window shows the 16:9 view, a wide room
+        /// filling the canvas beside the 640 screen; with no such mod on, it keeps to the 4:3 screen.
+        /// </summary>
+        public bool Widescreen => Json.RootElement.ValueKind == JsonValueKind.Object && Json.RootElement.TryGetProperty("widescreen", out var w) &&
+                                  w.ValueKind == JsonValueKind.True;
     }
+
+    /// <summary>Whether an enabled mod beside <paramref name="gameFile"/> turns on the widescreen view (<see cref="Mod.Widescreen"/>).</summary>
+    public static bool AnyWidescreen(string gameFile) => Load(gameFile).Any(m => m.Enabled && m.Widescreen);
 
     /// <summary>The mods folder for <paramref name="gameFile"/>: "_mods" beside it, or null without a game file.</summary>
     public static string Folder(string gameFile) =>
