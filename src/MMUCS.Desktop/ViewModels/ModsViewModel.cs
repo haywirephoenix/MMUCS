@@ -56,7 +56,7 @@ public sealed partial class ModsViewModel : ObservableObject, IDisposable
     public IReadOnlyList<ModItem> FilteredMods => [.. Mods.Where(Shows)];
 
     /// <summary>What the category filter can pick.</summary>
-    public IReadOnlyList<string> Categories { get; } = ["All", "Installed", "Updates", "Music", "Images", "Hi-res", "Other"];
+    public IReadOnlyList<string> Categories { get; } = ["All", "Installed", "Updates", "Widescreen", "Music", "Images", "Hi-res", "Other"];
 
     [ObservableProperty, NotifyPropertyChangedFor(nameof(FilteredMods))]
     public partial string SearchQuery { get; set; } = "";
@@ -119,7 +119,7 @@ public sealed partial class ModsViewModel : ObservableObject, IDisposable
         {
             "Installed" => m.IsInstalled,
             "Updates" => m.HasUpdate,
-            "Music" or "Images" or "Hi-res" or "Other" => m.Category.Contains(SelectedCategoryFilter, StringComparison.OrdinalIgnoreCase),
+            "Widescreen" or "Music" or "Images" or "Hi-res" or "Other" => m.Category.Contains(SelectedCategoryFilter, StringComparison.OrdinalIgnoreCase),
             _ => true,
         };
     }
@@ -145,7 +145,9 @@ public sealed partial class ModsViewModel : ObservableObject, IDisposable
         foreach (var m in Mods) m.IsCategoryGloballyEnabled = CategoryOn(m.Category);
     }
 
+    /// <summary>Whether a mod of <paramref name="category"/> does anything with the switches as they are (a widescreen one always does).</summary>
     private bool CategoryOn(string category) =>
+        category.Contains("Widescreen") ||
         (category.Contains("Music") && IsMusicModsEnabled) || ((category.Contains("Images") || category.Contains("Hi-res")) && IsImageModsEnabled) ||
         !(category.Contains("Music") || category.Contains("Images") || category.Contains("Hi-res"));
 
