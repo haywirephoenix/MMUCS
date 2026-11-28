@@ -37,7 +37,7 @@ usage: mprobe [--game FILE] COMMAND ...
   costume N [ANIM …] [--dir D]
                        A costume's chores (AKCH) per animation and direction with their limbs; with ANIM each
                        limb's AKSQ steps: the cels a step draws (place and size from the actor) or the op.
-  mods [--check] [--place [CEL|FOLDER,…]] [--strip [MOD,…] [--out DIR]]
+  mods [--check] [--place [CEL|FOLDER,…]] [--strip [MOD,…] [--out DIR]] [--pack DIR [--to REPO]]
                        The mods (_mods/<mod>/mod.json beside the game): the music tracks each replaces,
                        problems reading the maps, the game's tracks none replaces, each object image PNG
                        under a mod's rooms/ with the object it replaces and where it goes, and each costume
@@ -49,6 +49,8 @@ usage: mprobe [--game FILE] COMMAND ...
                        share (DIR, else _mods_shared beside the game) without the game's own art or
                        music: object images and cels become overlays ("base": "game") holding only the
                        pixels that differ from the game's, audio is left out, hi-res mods are skipped.
+                       --pack zips each mod folder in DIR into REPO/zips (REPO: DIR) and lists it with its
+                       SHA-256 and size in REPO/mods.json, for the Mods view to download.
                        --check decodes every FLAC against its MD5.
   backgrounds DIR [--scale N] [--out MOD]
                        The room each image in DIR (PNG/JPEG, upscaled by N, default 4) shows: matched

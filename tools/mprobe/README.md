@@ -114,6 +114,15 @@ mprobe mods --strip WideScreenMod --out DIR  # one mod, somewhere else
 
 Files already in the output folder are written over, and others there are left alone.
 
+`mods --pack` zips each mod folder in a directory, such as `--strip`'s output, for a repository the game window's **Mods** view installs from. Each zip goes under `zips/`, and its entry in `mods.json` gets its SHA-256 and size, replacing any entry with the same id:
+
+```bash
+mprobe mods --strip --out shared
+mprobe mods --pack shared --to ~/src/my-mods   # zips/<id>-<version>.zip and mods.json
+```
+
+The name, version, category and description come from each mod's `mod.json` (`"version"`, else 1.0.0). `mods-repo-template/` is a GitHub Pages site to start a repository from, and its README says how.
+
 ## Checking the interpreter
 
 ```bash

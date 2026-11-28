@@ -22,6 +22,13 @@ internal static class ModsCommand
 {
     public static int Run(ScummBlock root, List<string> a, string gameFile)
     {
+        int packAt = a.IndexOf("--pack");
+        if (packAt >= 0)
+        {
+            if (packAt + 1 >= a.Count || a[packAt + 1].StartsWith("--")) { Console.Error.WriteLine("mods --pack DIR [--to REPO]: DIR holds the mods to pack"); return 2; }
+            int toAt = a.IndexOf("--to");
+            return Pack(a[packAt + 1], toAt >= 0 && toAt + 1 < a.Count ? a[toAt + 1] : a[packAt + 1]);
+        }
         int stripAt = a.IndexOf("--strip");
         if (stripAt >= 0)
         {
@@ -81,6 +88,43 @@ internal static class ModsCommand
         }
         Console.WriteLine(bad == 0 ? "every file decodes to its MD5" : $"{bad} files failed");
         return bad == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--pack DIR [--to REPO]</c>: zips each mod folder in <paramref name="dir"/> (a folder with a mod.json, as
+    /// <c>--strip</c> writes them) into REPO/zips/&lt;id&gt;-&lt;version&gt;.zip and lists it in REPO/mods.json with its
+    /// SHA-256 and size (<see cref="ModRepository"/>), in place of an entry with its id; the other entries stay. A mod's
+    /// name, version, category and description come from its mod.json ("version" else 1.0.0).
+    /// </summary>
+    private static int Pack(string dir, string repo)
+    {
+        if (!Directory.Exists(dir)) { Console.Error.WriteLine($"mods --pack: no folder {dir}"); return 2; }
+        Directory.CreateDirectory(repo);
+        string indexFile = Path.Combine(repo, "mods.json");
+        var index = File.Exists(indexFile)
+            ? System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(indexFile)) as System.Text.Json.Nodes.JsonObject ?? []
+            : new System.Text.Json.Nodes.JsonObject { ["name"] = "MMUCS mods" };
+        if (index["mods"] is not System.Text.Json.Nodes.JsonArray list) index["mods"] = list = [];
+        int packed = 0;
+        foreach (var folder in Directory.EnumerateDirectories(dir).Order(StringComparer.Ordinal))
+        {
+            if (!File.Exists(Path.Combine(folder, "mod.json"))) continue;
+            string id = Path.GetFileName(folder);
+            if (!ModRepository.IsFolderName(id)) { Console.WriteLine($"  {id}: not a name a mod folder can have: left out"); continue; }
+            string version = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(folder, "mod.json")))?["version"]?.ToString() is { Length: > 0 } v ? v : "1.0.0";
+            var entry = ModRepository.Pack(folder, Path.Combine(repo, "zips", $"{id}-{version}.zip"), repo);
+            for (int i = list.Count - 1; i >= 0; i--)
+                if (list[i]?["id"]?.ToString() == id) list.RemoveAt(i);
+            list.Add(entry);
+            Console.WriteLine($"  {id} {version}: {entry["zip"]} ({(long)entry["size"] / 1024} KB, {entry["category"]})");
+            packed++;
+        }
+        var sorted = list.OrderBy(m => m?["id"]?.ToString(), StringComparer.OrdinalIgnoreCase).Select(m => m?.DeepClone()).ToList();
+        list.Clear();
+        foreach (var m in sorted) list.Add(m);
+        File.WriteAllText(indexFile, index.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + "\n");
+        Console.WriteLine($"packed {packed} mod{(packed == 1 ? "" : "s")}; {indexFile} lists {list.Count}");
+        return 0;
     }
 
     /// <summary>Audio a music mod plays: left out of a shared mod, as its players bring their own copies.</summary>
