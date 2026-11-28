@@ -19,7 +19,9 @@ namespace MMUCS.Core.Scumm;
 /// The PNG is taken into the costume's own colours, so the actor's colours, shadows and scaling apply as to
 /// the game's: an opaque pixel is the costume colour nearest it; a dark pixel at least a fifth opaque (the
 /// export's 40% black) is the costume's shadow colour (the one the game cel uses most); anything fainter, or
-/// a pale see-through pixel under half opaque, is transparent. The first enabled mod by name with a cel wins.
+/// a pale see-through pixel under half opaque, is transparent. A cel whose entry has <c>"base": "game"</c>
+/// (<c>{ "x": -13, "y": 0, "base": "game" }</c>) is drawn over the game's cel (<see cref="ModOverlay"/>) instead of
+/// in place of it, so its PNG need only hold the pixels its author drew. The first enabled mod by name with a cel wins.
 /// </summary>
 public sealed class CostumeCelMods
 {
@@ -61,8 +63,8 @@ public sealed class CostumeCelMods
         return Path.Combine("rooms", ScummExporters.RoomFolderName(roomNo, name, roomOffset), "costumes", ScummExporters.CostumeFolderName(akos));
     }
 
-    /// <summary>A mod cel found: the mod, its PNG, and the offset meta.json gives (null: none).</summary>
-    public sealed record Cel(string Mod, int Number, string File, int? X, int? Y);
+    /// <summary>A mod cel found: the mod, its PNG, the offset meta.json gives (null: none), and whether it's drawn over the game's.</summary>
+    public sealed record Cel(string Mod, int Number, string File, int? X, int? Y, bool OverGame = false);
 
     /// <summary>The cels the mods have for the costume in <paramref name="akos"/>, by cel number (the first mod's for each).</summary>
     public Dictionary<int, Cel> Find(ScummBlock akos)
@@ -79,7 +81,7 @@ public sealed class CostumeCelMods
                 string stem = Path.GetFileNameWithoutExtension(file);
                 if (!int.TryParse(stem.AsSpan(4), out int number) || cels.ContainsKey(number)) continue;
                 var at = offsets.GetValueOrDefault(stem);
-                cels[number] = new Cel(mod.Name, number, file, at.X, at.Y);
+                cels[number] = new Cel(mod.Name, number, file, at.X, at.Y, at.OverGame);
             }
         }
         return cels;
@@ -89,13 +91,21 @@ public sealed class CostumeCelMods
     /// Saves cels' offsets (by file name, "cel_037") to the meta.json of the costume folder
     /// <paramref name="folder"/>, keeping the other cels and fields it has.
     /// </summary>
-    public static void SaveOffsets(string folder, IReadOnlyDictionary<string, (int X, int Y)> offsets)
+    public static void SaveOffsets(string folder, IReadOnlyDictionary<string, (int X, int Y)> offsets, bool? overGame = null)
     {
         string meta = Path.Combine(folder, MetaFile);
         var root = GameMods.ReadForEdit(meta);
         if (root["cels"] is not System.Text.Json.Nodes.JsonObject cels) root["cels"] = cels = [];
         foreach (var (name, at) in offsets)
-            cels[Path.GetFileNameWithoutExtension(name)] = new System.Text.Json.Nodes.JsonObject { ["x"] = at.X, ["y"] = at.Y };
+        {
+            // The entry's other fields ("base") stay.
+            string key = Path.GetFileNameWithoutExtension(name);
+            if (cels[key] is not System.Text.Json.Nodes.JsonObject entry) cels[key] = entry = [];
+            entry["x"] = at.X;
+            entry["y"] = at.Y;
+            if (overGame == true) entry["base"] = "game";
+            else if (overGame == false) entry.Remove("base");
+        }
         // In cel order, so the file reads like the folder.
         var sorted = cels.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => (kv.Key, kv.Value?.DeepClone())).ToList();
         cels.Clear();
@@ -104,9 +114,9 @@ public sealed class CostumeCelMods
     }
 
     /// <summary>The costume folder's meta.json offsets by cel file name ("cel_037").</summary>
-    private Dictionary<string, (int? X, int? Y)> ReadOffsets(GameMods.Mod mod, string dir)
+    private Dictionary<string, (int? X, int? Y, bool OverGame)> ReadOffsets(GameMods.Mod mod, string dir)
     {
-        var offsets = new Dictionary<string, (int?, int?)>(StringComparer.OrdinalIgnoreCase);
+        var offsets = new Dictionary<string, (int?, int?, bool)>(StringComparer.OrdinalIgnoreCase);
         string meta = Path.Combine(dir, MetaFile);
         if (!File.Exists(meta)) return offsets;
         try
@@ -116,7 +126,9 @@ public sealed class CostumeCelMods
             foreach (var p in cels.EnumerateObject())
             {
                 int? Int(string name) => p.Value.ValueKind == JsonValueKind.Object && p.Value.TryGetProperty(name, out var v) && v.TryGetInt32(out int n) ? n : null;
-                offsets[Path.GetFileNameWithoutExtension(p.Name)] = (Int("x"), Int("y"));
+                bool over = p.Value.ValueKind == JsonValueKind.Object && p.Value.TryGetProperty("base", out var b) &&
+                            b.ValueKind == JsonValueKind.String && b.GetString() == "game";
+                offsets[Path.GetFileNameWithoutExtension(p.Name)] = (Int("x"), Int("y"), over);
             }
         }
         catch (Exception ex) when (ex is JsonException or IOException or InvalidOperationException)
@@ -140,17 +152,49 @@ public sealed class CostumeCelMods
         foreach (var (number, cel) in found)
         {
             if (number >= d.CelOffsets.Length) continue;
-            PngImage png;
-            try { png = PngReader.Load(cel.File); }
+            try { cels[number] = Read(d, cel); }
             catch (Exception ex) when (ex is IOException or InvalidDataException or FormatException or IndexOutOfRangeException)
             {
                 lock (Problems) Problems.Add($"{cel.Mod}: {Path.GetFileName(cel.File)}: {ex.Message}");
-                continue;
             }
-            var game = AkosDecoders.DecodeCel(d, number, default);
-            cels[number] = new AkosModCel(Quantize(d, png.ToArgb(), png.Width, png.Height, game), cel.X ?? 0, cel.Y ?? 0, cel.File);
         }
         d.ModCels = cels.Count == 0 ? null : cels;
+    }
+
+    /// <summary>
+    /// <paramref name="cel"/>'s PNG as the costume in <paramref name="d"/> draws it: in its own colours, at its offset,
+    /// over the game's cel when it's <see cref="Cel.OverGame"/>. It throws when the PNG won't read.
+    /// </summary>
+    public static AkosModCel Read(AkosData d, Cel cel)
+    {
+        var png = PngReader.Load(cel.File);
+        var game = AkosDecoders.DecodeCel(d, cel.Number, default);
+        var argb = png.ToArgb();
+        var erased = cel.OverGame ? ModOverlay.TakeErased(argb) : null;
+        var surface = Quantize(d, argb, png.Width, png.Height, game);
+        var placed = new AkosModCel(surface, cel.X ?? 0, cel.Y ?? 0, cel.File);
+        return cel.OverGame && game != null
+            ? (placed with { Overlay = new AkosModOverlay(surface, game, cel.X ?? 0, cel.Y ?? 0, d.TransparentIndex, erased) }).MovedTo(cel.X ?? 0, cel.Y ?? 0)
+            : placed;
+    }
+
+    /// <summary>
+    /// A mod cel PNG that holds the whole cel (the game's pixels as well as its author's) as an overlay on the game's
+    /// cel (<see cref="ModOverlay.Strip"/>), compared where its offset <paramref name="x"/>,<paramref name="y"/> puts it
+    /// (the overlay's offset is that moved by the result's ShiftX/ShiftY);
+    /// null when there's no such cel or the PNG won't read. <paramref name="d"/>'s colours must be the room palette's.
+    /// </summary>
+    public static ModOverlay.Stripped Strip(AkosData d, int number, string file, int x, int y)
+    {
+        if (d == null || number < 0 || number >= d.CelOffsets.Length) return null;
+        PngImage png;
+        try { png = PngReader.Load(file); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or FormatException or IndexOutOfRangeException) { return null; }
+        var game = AkosDecoders.DecodeCel(d, number, default);
+        if (game == null) return null;
+        var argb = png.ToArgb();
+        var modded = Quantize(d, argb, png.Width, png.Height, game);
+        return ModOverlay.Strip(argb, modded, game, -x, -y, d.TransparentIndex);
     }
 
     /// <summary>

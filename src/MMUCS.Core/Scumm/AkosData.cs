@@ -109,4 +109,29 @@ public struct CelExportConfig
 }
 
 /// <summary>A mod's cel: its pixels in the costume's own indices, where its top-left is from the game cel's, and its file.</summary>
-public sealed record AkosModCel(IndexedSurface Surface, int OffsetX, int OffsetY, string File);
+/// <remarks>
+/// A cel drawn over the game's (<c>"base": "game"</c>) has <paramref name="Overlay"/>: its PNG's pixels and the game cel's,
+/// and where the PNG goes. <paramref name="Surface"/> and the offset are then the two drawn together.
+/// </remarks>
+public sealed record AkosModCel(IndexedSurface Surface, int OffsetX, int OffsetY, string File, AkosModOverlay Overlay = null)
+{
+    /// <summary>Where the mod's PNG goes from the game cel's top-left: the offset meta.json gives it.</summary>
+    public int PlaceX => Overlay?.X ?? OffsetX;
+
+    /// <inheritdoc cref="PlaceX"/>
+    public int PlaceY => Overlay?.Y ?? OffsetY;
+
+    /// <summary>The cel with its PNG at offset <paramref name="x"/>,<paramref name="y"/> (drawn over the game's again, for an overlay).</summary>
+    public AkosModCel MovedTo(int x, int y)
+    {
+        if (Overlay is not { } o) return this with { OffsetX = x, OffsetY = y };
+        var (surface, left, top) = ModOverlay.Over(o.Game, 0, 0, o.Png, x, y, o.Transparent, o.Erased);
+        return new AkosModCel(surface, left, top, File, o with { X = x, Y = y });
+    }
+}
+
+/// <summary>
+/// A mod cel drawn over the game's: its PNG in the costume's indices, the game's cel, the PNG's offset, the costume's
+/// see-through index, and the PNG's pixels that erase the game's (<see cref="ModOverlay.Erase"/>; null: none).
+/// </summary>
+public sealed record AkosModOverlay(IndexedSurface Png, IndexedSurface Game, int X, int Y, byte Transparent, bool[] Erased = null);
