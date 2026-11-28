@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MMUCS mods</title>
+  <style>
+    :root { --bg: #fafafa; --fg: #1d1d1f; --muted: #6b6b70; --line: #e2e2e6; --accent: #2563eb; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #161618; --fg: #ececf0; --muted: #9a9aa2; --line: #2c2c31; --accent: #6d9cff; } }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 32px 16px; }
+    h1 { margin: 0 0 4px; font-size: 1.6rem; }
+    p.lead { margin: 0 0 24px; color: var(--muted); }
+    code { font-size: .9em; }
+    .mod { border-top: 1px solid var(--line); padding: 16px 0; }
+    .mod h2 { margin: 0; font-size: 1.1rem; }
+    .meta { color: var(--muted); font-size: .9rem; }
+    .mod p { margin: 6px 0 8px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+<main>
+  <h1 id="name">MMUCS mods</h1>
+  <p class="lead">Mods for MMUCS. In MMUCS, open the game window, press <b>Mods</b>, and in <b>Settings</b> set the repository to
+    <code id="url"></code>. You need your own copy of the game: these mods hold only their authors' work.</p>
+  <div id="mods">Loading…</div>
+</main>
+<script>
+  // Lists what mods.json (beside this page) offers; MMUCS reads the same file.
+  const url = new URL("mods.json", location.href);
+  document.getElementById("url").textContent = url.href;
+  fetch(url).then(r => r.json()).then(index => {
+    document.getElementById("name").textContent = index.name || "MMUCS mods";
+    const list = document.getElementById("mods");
+    list.textContent = (index.mods || []).length ? "" : "No mods yet.";
+    for (const m of index.mods || []) {
+      const div = document.createElement("div");
+      div.className = "mod";
+      const h = document.createElement("h2"); h.textContent = m.name || m.id;
+      const meta = document.createElement("div"); meta.className = "meta";
+      meta.textContent = [m.category, m.version && "v" + m.version, m.size && Math.max(1, Math.round(m.size / 1024)) + " KB"].filter(Boolean).join(" · ");
+      const p = document.createElement("p"); p.textContent = m.description || "";
+      const a = document.createElement("a"); a.href = new URL(m.zip, url).href; a.textContent = "Download zip";
+      div.append(h, meta, p, a);
+      list.append(div);
+    }
+  }).catch(e => { document.getElementById("mods").textContent = "Couldn't read mods.json: " + e; });
+</script>
+</body>
+</html>
