@@ -59,6 +59,27 @@ public sealed class ScriptedView(ScriptedGame game)
 
     public ScriptedGame Game { get; } = game;
 
+    /// <summary>The game file whose mods are drawn: none while the game's image mods are off.</summary>
+    private string ModsOf => Game.ImageModsEnabled ? Game.GameFile : null;
+
+    /// <summary>
+    /// Reads the image mods again (after <see cref="ScriptedGame.ReloadMods"/>, or with image mods switched): the room
+    /// is built again, and the actors, cursors and blasted objects drawn again, with the mods there are now.
+    /// </summary>
+    public void ReloadMods()
+    {
+        _objectMods = null;
+        _hiResMods = null;
+        lock (_cursors)
+        {
+            _cursors.Clear();
+            _blastHiRes.Clear();
+        }
+        _actorImages.Clear();
+        _sceneKey = null;
+        Changed?.Invoke();
+    }
+
     /// <summary>A room scene or cursor image finished loading: capture again.</summary>
     public event Action Changed;
 
@@ -201,8 +222,8 @@ public sealed class ScriptedView(ScriptedGame game)
     {
         try
         {
-            _objectMods ??= ObjectImageMods.Load(Game.GameFile);
-            _hiResMods ??= HiResMods.Load(Game.GameFile);
+            _objectMods ??= ObjectImageMods.Load(ModsOf);
+            _hiResMods ??= HiResMods.Load(ModsOf);
             // A mod image's shadow is darkened by the game's shadow tables as they are now, as the costumes' are.
             var scene = await RoomSceneBuilder.BuildIndexedAsync(model, stateOf, mods: _objectMods, shadowTables: [.. Game.Vm.Palette.ShadowFactors], hiRes: _hiResMods);
             foreach (var problems in new[] { _objectMods.Problems, _hiResMods.Problems })
@@ -425,7 +446,7 @@ public sealed class ScriptedView(ScriptedGame game)
             string name = RoomScripts.ObjectName(Game.Root, obj);
             if (RoomModelOf(room) is { } model && model.Objects.FirstOrDefault(o => o.Name == name) is { } ro)
             {
-                _hiResMods ??= HiResMods.Load(Game.GameFile);
+                _hiResMods ??= HiResMods.Load(ModsOf);
                 for (int i = 1; i <= Math.Max(ro.ImageCount, image); i++)
                 {
                     bool has;
