@@ -191,6 +191,7 @@ public class WalkTests
         {
             using var game = new ScriptedGame { BootParam = 15, SmoothCamera = smooth };
             game.Load(root, Game);
+            game.Widescreen = true; // whatever the mods beside the game say
             game.Play();
             for (int i = 0; i < 150; i++) game.Tick();
             var vm = game.Vm;
@@ -208,12 +209,37 @@ public class WalkTests
     }
 
     [Fact]
+    public void Without_widescreen_every_room_is_seen_through_the_640_screen_with_the_engine_s_camera()
+    {
+        if (Game == null) return;
+        var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
+        using var game = new ScriptedGame { BootParam = 15 };
+        game.Load(root, Game);
+        game.Widescreen = false;
+        game.Play();
+        for (int i = 0; i < 150; i++) game.Tick();
+        var vm = game.Vm;
+        Assert.Equal(2096, vm.State[EngineVars.RoomWidth]);
+        Assert.True(game.IsPageOnly); // the picture is cut to the page, the mouse kept on it
+        vm.CameraAt(1776, 240); // as far right as ScummVM's camera goes in the town: shown where the engine has it
+        Assert.Equal(1776, vm.CameraX);
+        Assert.Equal(1776, game.Camera.X);
+
+        // Switched on while playing: the camera keeps the whole canvas in the room from then on.
+        game.Widescreen = true;
+        Assert.False(game.IsPageOnly);
+        vm.CameraAt(1776, 240);
+        Assert.Equal(2096 - 427, game.Camera.X);
+    }
+
+    [Fact]
     public void The_mouse_reaches_the_room_shown_beside_the_screen_so_the_town_s_end_exit_can_be_pointed_at()
     {
         if (Game == null) return;
         var root = ScummProject.Load(ScummProject.FindRelatedFiles(Game), null);
         using var game = new ScriptedGame { BootParam = 15 };
         game.Load(root, Game);
+        game.Widescreen = true; // whatever the mods beside the game say
         game.Play();
         for (int i = 0; i < 150; i++) game.Tick();
         var vm = game.Vm;

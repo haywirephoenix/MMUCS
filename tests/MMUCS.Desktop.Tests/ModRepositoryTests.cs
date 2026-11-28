@@ -78,6 +78,19 @@ public class ModRepositoryTests : IDisposable
         Assert.Throws<InvalidDataException>(() => ModRepository.Install(Zip(("mod.json", "{}")), "..", Mods));
     }
 
+    [Fact]
+    public void An_enabled_mod_saying_widescreen_turns_on_the_16_by_9_view_and_shows_as_a_widescreen_mod()
+    {
+        string wide = Path.Combine(Mods, "Wide");
+        Directory.CreateDirectory(Path.Combine(wide, "rooms"));
+        Assert.False(GameMods.AnyWidescreen(Game)); // no mods: the 4:3 screen
+        File.WriteAllText(Path.Combine(wide, "mod.json"), """{ "enabled": true, "widescreen": true }""");
+        Assert.True(GameMods.AnyWidescreen(Game));
+        Assert.Equal("Widescreen, Images", Assert.Single(ModRepository.Scan(Game)).Category);
+        ModRepository.SetEnabled(wide, false);
+        Assert.False(GameMods.AnyWidescreen(Game));
+    }
+
     [Theory]
     [InlineData("1.10.0", "1.9.2", true)]
     [InlineData("1.0.0", "1.0.0", false)]
